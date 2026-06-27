@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ProfileType {
+  REMPLACANT  // remplacement court terme, période définie
+  ASSISTANT   // poste long terme (>= minMonths mois)
+  TITULAIRE   // cabinet / titulaire
+}
+
+enum SwipeDirection {
+  LEFT
+  RIGHT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  profile      Profile?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Identité professionnelle — pas de dates ici
+model Profile {
+  id       String      @id @default(cuid())
+  userId   String      @unique
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type     ProfileType
+  photoUrl String?
+  bio      String?     @db.VarChar(300)
+
+  // Pondération feed
+  weight    Float     @default(1.0)
+  isPaid    Boolean   @default(false)
+  paidUntil DateTime?
+
+  // Notation agrégée (mise à jour à chaque Rating)
+  ratingAvg   Float?
+  ratingCount Int    @default(0)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  missions        Mission[]
+  swipesGiven     Swipe[]   @relation("SwiperProfile")
+  ratingsGiven    Rating[]  @relation("RaterProfile")
+  ratingsReceived Rating[]  @relation("RatedProfile")
+  matchesA        Match[]   @relation("MatchProfileA")
+  matchesB        Match[]   @relation("MatchProfileB")
+
+  @@index([type, isActive])
+}
+
+// Une annonce = une mission (plusieurs par profil possible)
+model Mission {
+  id          String   @id @default(cuid())
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  title       String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  location    String
+  specialties String[]
+
+  // REMPLACANT / TITULAIRE (remplacement) : dates définies
+  startDate DateTime?
+  endDate   DateTime?
+
+  // ASSISTANT : durée minimale en mois (ex: 3, 6, 12)
+  minMonths Int?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  swipesReceived Swipe[] @relation("SwipedMission")
+  matchesA       Match[] @relation("MatchMissionA")
+  matchesB       Match[] @relation("MatchMissionB")
+
+  @@index([profileId, isActive])
+  @@index([location, isActive])
+}
+
+// Un profil swipe sur une mission (pas un autre profil)
+model Swipe {
+  id              String         @id @default(cuid())
+  swiperId        String
+  swiper          Profile        @relation("SwiperProfile", fields: [swiperId], references: [id])
+  swipedMissionId String
+  swipedMission   Mission        @relation("SwipedMission", fields: [swipedMissionId], references: [id])
+  direction       SwipeDirection
+  createdAt       DateTime       @default(now())
+
+  @@unique([swiperId, swipedMissionId])
+}
+
+// Match entre deux profils, déclenché par deux missions
+model Match {
+  id         String   @id @default(cuid())
+  profileAId String
+  profileA   Profile  @relation("MatchProfileA", fields: [profileAId], references: [id])
+  profileBId String
+  profileB   Profile  @relation("MatchProfileB", fields: [profileBId], references: [id])
+  missionAId String?
+  missionA   Mission? @relation("MatchMissionA", fields: [missionAId], references: [id])
+  missionBId String?
+  missionB   Mission? @relation("MatchMissionB", fields: [missionBId], references: [id])
+  aiScore    Float?
+  aiFactors  Json?
+  ratings    Rating[]
+  createdAt  DateTime @default(now())
+
+  @@unique([profileAId, profileBId])
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  raterId   String
+  rater     Profile  @relation("RaterProfile", fields: [raterId], references: [id])
+  ratedId   String
+  rated     Profile  @relation("RatedProfile", fields: [ratedId], references: [id])
+  matchId   String?
+  match     Match?   @relation(fields: [matchId], references: [id])
+  score     Int
+  comment   String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  @@unique([raterId, ratedId, matchId])
+}
