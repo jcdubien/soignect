@@ -6,8 +6,8 @@ import { SessionProvider } from "next-auth/react";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "KinéBoard — Job board pour kinésithérapeutes de Guadeloupe",
-  description: "Trouvez votre remplaçant ou votre cabinet en Guadeloupe",
+  title: "Soignect — Le matching intelligent des professionnels de santé",
+  description: "Trouvez votre remplaçant ou votre cabinet en Guadeloupe. Soignect — la plateforme de mise en relation des kinésithérapeutes.",
 };
 
 export default function RootLayout({

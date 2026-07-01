@@ -10,20 +10,42 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── Material Theme Builder · seed #769CDF ──────────────────────────
+        // Mapped onto the existing kine- scale so every component updates
         kine: {
-          50: "#f0fdf9",
-          100: "#ccfbee",
-          200: "#99f6de",
-          300: "#5eeac7",
-          400: "#2dd4aa",
-          500: "#14b890",
-          600: "#0d9274",
-          700: "#0f745e",
-          800: "#115c4b",
-          900: "#124c3f",
-          950: "#042b25",
+          50:  "#EBF0FF", // primary 95
+          100: "#D6E3FF", // primaryContainer
+          200: "#AAC7FF", // primaryFixedDim
+          300: "#86ACF0", // primary 70
+          400: "#6B91D3", // primary 60
+          500: "#415F91", // primary (main)
+          600: "#284777", // onPrimaryContainer  ← buttons, main accent
+          700: "#194683", // primary 30
+          800: "#0A305F", // onPrimary dark
+          900: "#001B3E", // primary 10
+          950: "#00102B", // primary 5
+        },
+
+        // ── Material semantic tokens ────────────────────────────────────────
+        md: {
+          surface:           "#F9F9FF",
+          "surface-variant": "#E0E2EC",
+          "surface-dim":     "#D9D9E0",
+          "on-surface":      "#191C20",
+          "on-surface-var":  "#44474E",
+          outline:           "#74777F",
+          "outline-var":     "#C4C6D0",
+          secondary:         "#565F71",
+          "sec-container":   "#DAE2F9",
+          "on-sec":          "#FFFFFF",
+          tertiary:          "#705575",
+          "ter-container":   "#FAD8FD",
+          "on-ter":          "#FFFFFF",
+          error:             "#BA1A1A",
+          "err-container":   "#FFDAD6",
         },
       },
+
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

@@ -8,7 +8,9 @@ const createProfileSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   type: z.nativeEnum(ProfileType),
+  name: z.string().max(100).optional(),
   bio: z.string().max(300).optional(),
+  bioTinder: z.string().max(280).optional(),
   photoUrl: z.string().url().optional(),
 });
 
@@ -20,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email, password, type, bio, photoUrl } = parsed.data;
+  const { email, password, type, name, bio, bioTinder, photoUrl } = parsed.data;
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) {
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
       email,
       passwordHash,
       profile: {
-        create: { type, bio, photoUrl },
+        create: { type, name, bio, bioTinder, photoUrl },
       },
     },
     include: { profile: true },

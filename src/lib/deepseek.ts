@@ -1,8 +1,139 @@
+// ── Système de scoring affinité 0-100 (Sprint 3) ─────────────────────────────
+
+export interface AffinityInput {
+  bioTinder?: string | null;
+  bio?: string | null;
+  specialties?: string[];
+  startDate?: Date | string | null;
+  endDate?: Date | string | null;
+  minMonths?: number | null;
+  location?: string | null;
+  desirabilityScore?: number;
+  dateFlexibility?: number; // 0=exact, 1=±3j, 2=±1sem, 3=±2sem, 4=±1mois
+}
+
+export interface AffinityResult {
+  total: number;
+  details: {
+    dates: number;        // 0-35
+    geo: number;          // 0-20
+    specialty: number;    // 0-10
+    bio: number;          // 0-25
+    desirability: number; // 0-10
+  };
+}
+
+function toDate(v?: Date | string | null): Date | null {
+  if (!v) return null;
+  const d = new Date(v as string);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Algo section 25 — dates=35pts avec flexibilité slider
+function scoreDates(mission: AffinityInput, profile: AffinityInput): number {
+  const FLEX_DAYS = [0, 3, 7, 14, 30];
+  const mFlex = FLEX_DAYS[Math.min(mission.dateFlexibility ?? 0, 4)];
+  const pFlex = FLEX_DAYS[Math.min(profile.dateFlexibility ?? 0, 4)];
+  const totalFlex = Math.max(mFlex, pFlex);
+  const toleranceMs = totalFlex * 24 * 60 * 60 * 1000;
+
+  const mS = toDate(mission.startDate), mE = toDate(mission.endDate);
+  const pS = toDate(profile.startDate), pE = toDate(profile.endDate);
+
+  if (mS && mE && pS && pE) {
+    const overlapStart = Math.max(mS.getTime(), pS.getTime() - toleranceMs);
+    const overlapEnd   = Math.min(mE.getTime(), pE.getTime() + toleranceMs);
+    if (overlapEnd <= overlapStart) return 0;
+    const overlap  = overlapEnd - overlapStart;
+    const shortest = Math.min(mE.getTime() - mS.getTime(), pE.getTime() - pS.getTime());
+    const ratio    = Math.min(overlap / shortest, 1);
+    const flexBonus = totalFlex >= 14 ? 5 : 0;
+    return Math.min(Math.round(ratio * 30) + flexBonus, 35);
+  }
+  // Fallback minMonths
+  if (mission.minMonths && pS && pE) {
+    const months = (pE.getTime() - pS.getTime()) / (1000 * 60 * 60 * 24 * 30);
+    return Math.round(Math.min(months / mission.minMonths, 1) * 25);
+  }
+  if (profile.minMonths && mS && mE) {
+    const months = (mE.getTime() - mS.getTime()) / (1000 * 60 * 60 * 24 * 30);
+    return Math.round(Math.min(months / profile.minMonths, 1) * 25);
+  }
+  return 17; // neutre si aucune date renseignée
+}
+
+function scoreGeo(a: AffinityInput, b: AffinityInput): number {
+  if (!a.location || !b.location) return 10;
+  return a.location.toLowerCase() === b.location.toLowerCase() ? 20 : 5;
+}
+
+// Spécialités : +2.5 pts par commune, max 10 pts (section 25)
+function scoreSpecialties(a: AffinityInput, b: AffinityInput): number {
+  const aArr = (a.specialties ?? []).map(s => s.toLowerCase().trim());
+  const bSet = new Set((b.specialties ?? []).map(s => s.toLowerCase().trim()));
+  if (aArr.length === 0 && bSet.size === 0) return 5;
+  const common = aArr.filter(s => bSet.has(s)).length;
+  return Math.min(Math.round(common * 2.5), 10);
+}
+
+// Bio : 0-25 pts (section 25)
+async function scoreBio(a: AffinityInput, b: AffinityInput): Promise<number> {
+  const bioA = a.bioTinder ?? a.bio;
+  const bioB = b.bioTinder ?? b.bio;
+  if (!bioA || !bioB) return 12;
+  try {
+    const prompt = `Tu es un algorithme de matching professionnel.
+Compare ces deux descriptions professionnelles et donne un score de 0 à 25
+basé sur la compatibilité des valeurs, aspirations et recherches.
+Réponds uniquement avec un entier entre 0 et 25, sans explication.
+
+Profil A : "${bioA}"
+Profil B : "${bioB}"`;
+
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        "Accept-Encoding": "identity",
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        max_tokens: 5,
+      }),
+    });
+    if (!res.ok) return 12;
+    const data = await res.json() as { choices: Array<{ message: { content: string } }> };
+    const n = parseInt(data.choices[0]?.message?.content?.trim() ?? "12");
+    return isNaN(n) ? 12 : Math.min(Math.max(n, 0), 25);
+  } catch {
+    return 12;
+  }
+}
+
+// Pondération section 25 : dates=35, bio=25, geo=20, specialty=10, desirability=10
+export async function computeAffinityScore(
+  swiper: AffinityInput,
+  mission: AffinityInput
+): Promise<AffinityResult> {
+  const dates        = scoreDates(mission, swiper);
+  const geo          = scoreGeo(swiper, mission);
+  const specialty    = scoreSpecialties(swiper, mission);
+  const bio          = await scoreBio(swiper, mission);
+  const desirability = Math.min(Math.max(mission.desirabilityScore ?? 0, 0), 10);
+  return { total: dates + geo + specialty + bio + desirability, details: { dates, geo, specialty, bio, desirability } };
+}
+
+// ── Ancien système de scoring 0-1 (conservé pour compatibilité) ───────────────
+
 export interface MatchFactors {
   availability: number;
   location: number;
   specialties: number;
   bio: number;
+  [key: string]: number; // compatibilité Prisma Json field
 }
 
 export interface MatchScore {
@@ -13,6 +144,7 @@ export interface MatchScore {
 export interface ScoringData {
   profileType: string;
   bio?: string | null;
+  pitch?: string | null;
   specialties?: string[];
   startDate?: Date | null;
   endDate?: Date | null;
@@ -39,12 +171,14 @@ export async function computeMatchScore(
 Évalue la compatibilité entre deux annonces et retourne UNIQUEMENT un JSON valide.
 
 Annonce A (${a.profileType}):
+- Phrase clé: ${a.pitch ?? "non renseignée"}
 - Bio: ${a.bio ?? "non renseignée"}
 - Spécialités: ${(a.specialties ?? []).join(", ") || "non renseignées"}
 - Disponibilité: ${describeAvailability(a)}
 - Localisation: ${a.location ?? "non renseignée"}
 
 Annonce B (${b.profileType}):
+- Phrase clé: ${b.pitch ?? "non renseignée"}
 - Bio: ${b.bio ?? "non renseignée"}
 - Spécialités: ${(b.specialties ?? []).join(", ") || "non renseignées"}
 - Disponibilité: ${describeAvailability(b)}

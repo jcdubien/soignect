@@ -3,175 +3,360 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
+import { COMMUNES_GUADELOUPE } from "@/lib/communes";
+import PhotoUpload from "@/components/ui/PhotoUpload";
+import { getSupabaseClient } from "@/lib/supabase-client";
+
+type ProfileTypeChoice = "TITULAIRE" | "REMPLACANT";
+
+const BIO_STARTERS = ["Je suis…", "Je cherche…", "J'aspire à…"] as const;
+
+function StepIndicator({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="flex items-center gap-1.5 mb-6">
+      {Array.from({ length: total }).map((_, i) => (
+        <div
+          key={i}
+          className={`h-1 rounded-full transition-all duration-300 ${
+            i < current ? "bg-kine-600 flex-1" : i === current ? "bg-kine-400 flex-1" : "bg-gray-200 flex-1"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    type: "" as "REMPLACANT" | "ASSISTANT" | "TITULAIRE" | "",
-    bio: "",
-  });
+  // Step 1
+  const [profileType, setProfileType] = useState<ProfileTypeChoice | "">("");
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.type) return;
+  // Step 2
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [commune, setCommune] = useState("");
+  // RPPS collected but not persisted until Sprint 8 (no DB column yet)
+  const [rpps, setRpps] = useState("");
+
+  // Step 2 — optional photo (uploaded after account creation)
+  const [pendingPhotoBlob, setPendingPhotoBlob] = useState<Blob | null>(null);
+
+  // Step 3
+  const [starter, setStarter] = useState<typeof BIO_STARTERS[number] | "">("");
+  const [bioText, setBioText] = useState("");
+
+  const maxBioText = starter ? 280 - starter.length - 1 : 280;
+  const bioFull = starter && bioText.trim() ? `${starter} ${bioText.trim()}` : bioText.trim();
+
+  async function handleFinalSubmit() {
     setLoading(true);
     setError("");
 
     const res = await fetch("/api/profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        email: email.toLowerCase().trim(),
+        password,
+        type: profileType,
+        name: name.trim() || undefined,
+        bioTinder: bioFull || undefined,
+      }),
     });
 
     if (!res.ok) {
       const data = await res.json();
-      setError(
-        data.error?.fieldErrors?.email?.[0] ?? "Erreur lors de l'inscription"
-      );
+      setError(data.error?.fieldErrors?.email?.[0] ?? data.error ?? "Erreur lors de la création");
       setLoading(false);
       return;
     }
 
-    await signIn("credentials", {
-      email: form.email,
-      password: form.password,
-      redirect: false,
-    });
-    router.push("/missions/create");
+    await signIn("credentials", { email: email.toLowerCase().trim(), password, redirect: false });
+
+    // Upload pending photo if user picked one
+    if (pendingPhotoBlob) {
+      try {
+        const session = await getSession();
+        const profileId = (session?.user as { profileId?: string })?.profileId;
+        if (profileId) {
+          const supabase = getSupabaseClient();
+          const path = `${profileId}.jpg`;
+          const { error: uploadErr } = await supabase.storage
+            .from("avatars")
+            .upload(path, pendingPhotoBlob, { contentType: "image/jpeg", upsert: true });
+          if (!uploadErr) {
+            const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+            await fetch(`/api/profiles/${profileId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ photoUrl: data.publicUrl }),
+            });
+          }
+        }
+      } catch (e) {
+        console.error("[register] photo upload failed", e);
+      }
+    }
+
+    router.push("/annonces");
   }
 
-  const types = [
-    {
-      value: "REMPLACANT" as const,
-      icon: "🩺",
-      label: "Remplaçant",
-      desc: "Courte période définie",
-    },
-    {
-      value: "ASSISTANT" as const,
-      icon: "👩‍⚕️",
-      label: "Assistant",
-      desc: "Poste long terme (≥ 3 mois)",
-    },
-    {
-      value: "TITULAIRE" as const,
-      icon: "🏥",
-      label: "Cabinet / Titulaire",
-      desc: "Je propose des missions",
-    },
-  ];
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-kine-500 to-kine-800 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-kine-700">Créer mon compte</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Les détails de vos missions se renseignent après l&apos;inscription
-          </p>
-        </div>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-kine-900 via-kine-700 to-kine-500">
+      {/* Logo */}
+      <div className="flex flex-col items-center justify-center pt-10 pb-6 px-4 text-center">
+        <Link href="/login" className="flex items-baseline gap-1 mb-1">
+          <span className="text-3xl font-black text-white tracking-tight">Kiné</span>
+          <span className="text-3xl font-black text-kine-100 tracking-tight">Board</span>
+        </Link>
+        <p className="text-kine-100 text-xs font-medium tracking-wide">
+          {step === 1 ? "Bienvenue !" : step === 2 ? "Votre identité" : "Votre présentation"}
+        </p>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email professionnel
-            </label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400"
-              placeholder="vous@exemple.fr"
-              required
-            />
-          </div>
+      {/* Card */}
+      <div className="flex-1 flex flex-col">
+        <div className="bg-white rounded-t-3xl flex-1 px-6 pt-7 pb-10 shadow-2xl max-w-md mx-auto w-full">
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400"
-              placeholder="••••••••"
-              minLength={6}
-              required
-            />
-          </div>
+          {/* ── ÉCRAN 1 : Qui êtes-vous ? ── */}
+          {step === 1 && (
+            <>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Je suis…</h2>
+              <p className="text-gray-400 text-sm mb-6">Choisissez votre profil pour commencer</p>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Je suis…
-            </label>
-            <div className="space-y-2">
-              {types.map((t) => (
+              <div className="space-y-3">
                 <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setForm({ ...form, type: t.value })}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition ${
-                    form.type === t.value
-                      ? "border-kine-500 bg-kine-50"
-                      : "border-gray-200 hover:border-kine-300"
-                  }`}
+                  onClick={() => { setProfileType("TITULAIRE"); setStep(2); }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 text-left transition group"
                 >
-                  <span className="text-2xl">{t.icon}</span>
+                  <span className="text-3xl">🏥</span>
                   <div>
-                    <p className="font-medium text-gray-800 text-sm">{t.label}</p>
-                    <p className="text-xs text-gray-400">{t.desc}</p>
+                    <p className="font-bold text-gray-800 text-base">Cabinet / Titulaire</p>
+                    <p className="text-sm text-gray-400">Je publie des postes de remplacement</p>
                   </div>
+                  <span className="ml-auto text-gray-300 group-hover:text-emerald-500 text-xl">→</span>
                 </button>
-              ))}
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Présentation courte
-              <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
-            </label>
-            <textarea
-              value={form.bio}
-              onChange={(e) => setForm({ ...form, bio: e.target.value })}
-              maxLength={300}
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm"
-              placeholder="Quelques mots sur vous, votre expérience…"
-            />
-            <p className="text-right text-xs text-gray-300 mt-0.5">
-              {form.bio.length}/300
-            </p>
-          </div>
+                <button
+                  onClick={() => { setProfileType("REMPLACANT"); setStep(2); }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-kine-400 hover:bg-kine-50 text-left transition group"
+                >
+                  <span className="text-3xl">🩺</span>
+                  <div>
+                    <p className="font-bold text-gray-800 text-base">Remplaçant·e</p>
+                    <p className="text-sm text-gray-400">Je cherche des missions en Guadeloupe</p>
+                  </div>
+                  <span className="ml-auto text-gray-300 group-hover:text-kine-500 text-xl">→</span>
+                </button>
+              </div>
 
-          {error && (
-            <p className="text-red-500 text-sm bg-red-50 px-4 py-2 rounded-lg">
-              {error}
-            </p>
+              <p className="text-center text-sm text-gray-400 mt-8">
+                Déjà un compte ?{" "}
+                <Link href="/login" className="text-kine-600 font-semibold hover:underline">
+                  Se connecter
+                </Link>
+              </p>
+            </>
           )}
 
-          <button
-            type="submit"
-            disabled={loading || !form.email || !form.password || !form.type}
-            className="w-full py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition disabled:opacity-40"
-          >
-            {loading ? "Création…" : "Créer mon compte →"}
-          </button>
-        </form>
+          {/* ── ÉCRAN 2 : Identité ── */}
+          {step === 2 && (
+            <>
+              <StepIndicator current={1} total={2} />
+              <h2 className="text-lg font-bold text-gray-800 mb-5">
+                {profileType === "TITULAIRE" ? "Votre cabinet" : "Votre identité"}
+              </h2>
 
-        <p className="text-center text-sm text-gray-400 mt-6">
-          Déjà un compte ?{" "}
-          <Link href="/login" className="text-kine-600 font-medium hover:underline">
-            Se connecter
-          </Link>
-        </p>
+              <form
+                onSubmit={(e) => { e.preventDefault(); if (email && password && name) setStep(3); }}
+                className="space-y-4"
+              >
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                      placeholder="vous@exemple.fr"
+                      autoCapitalize="none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Mot de passe</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                      placeholder="••••••••"
+                      minLength={6}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {profileType === "TITULAIRE" ? "Nom du cabinet" : "Votre nom"}
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                    placeholder={profileType === "TITULAIRE" ? "Cabinet Dupont" : "Marie Dupont"}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Commune principale</label>
+                  <select
+                    value={commune}
+                    onChange={(e) => setCommune(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                  >
+                    <option value="">Sélectionner…</option>
+                    {COMMUNES_GUADELOUPE.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    N° RPPS
+                    <span className="text-gray-400 font-normal ml-1">(optionnel — requis pour la génération de contrats)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={rpps}
+                    onChange={(e) => setRpps(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                    placeholder="10 chiffres"
+                    maxLength={11}
+                  />
+                </div>
+
+                {/* Photo optionnelle — uploadée après création du compte */}
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-500 mb-3">
+                    Photo de profil
+                    <span className="text-gray-400 font-normal ml-1">(optionnelle — peut être ajoutée depuis /compte)</span>
+                  </p>
+                  <PhotoUpload
+                    name={name || (profileType === "TITULAIRE" ? "Cabinet" : "Remplaçant")}
+                    profileType={profileType || undefined}
+                    onBlobReady={setPendingPhotoBlob}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="px-4 py-3 border border-gray-200 rounded-xl text-gray-500 text-sm hover:bg-gray-50 transition"
+                  >
+                    ←
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!email || !password || !name}
+                    className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
+                  >
+                    Continuer →
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {/* ── ÉCRAN 3 : BioTinder ── */}
+          {step === 3 && (
+            <>
+              <StepIndicator current={2} total={2} />
+              <h2 className="text-lg font-bold text-gray-800 mb-1">Votre BioTinder</h2>
+              <p className="text-gray-400 text-sm mb-4">
+                280 caractères pour convaincre — les premiers verront votre profil en premier.
+              </p>
+
+              {/* Boutons starter */}
+              <div className="flex gap-2 flex-wrap mb-3">
+                {BIO_STARTERS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStarter(starter === s ? "" : s)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                      starter === s
+                        ? "bg-kine-600 text-white border-kine-600"
+                        : "bg-white text-kine-700 border-kine-300 hover:border-kine-500"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative mb-1">
+                {starter && (
+                  <span className="absolute left-3 top-3 text-xs text-kine-500 font-medium pointer-events-none select-none">
+                    {starter}&nbsp;
+                  </span>
+                )}
+                <textarea
+                  value={bioText}
+                  onChange={(e) => { if (e.target.value.length <= maxBioText) setBioText(e.target.value); }}
+                  rows={4}
+                  className={`w-full px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm ${starter ? "pt-7 pb-2" : "py-3"}`}
+                  placeholder={
+                    starter
+                      ? "…complétez en quelques mots"
+                      : profileType === "TITULAIRE"
+                      ? "Cabinet dynamique à Pointe-à-Pitre, patientèle sport et gériatrique, plateau technique complet, logement possible…"
+                      : "Kiné passionné de sport, expérience 5 ans, disponible été et Noël, mobile sur toute la Guadeloupe…"
+                  }
+                />
+              </div>
+              <p className="text-right text-xs text-gray-300 mb-4">
+                {(starter ? starter.length + 1 : 0) + bioText.length}/280
+              </p>
+
+              {error && (
+                <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100 mb-3">{error}</p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="px-4 py-3 border border-gray-200 rounded-xl text-gray-500 text-sm hover:bg-gray-50 transition"
+                >
+                  ←
+                </button>
+                <button
+                  onClick={handleFinalSubmit}
+                  disabled={loading}
+                  className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
+                >
+                  {loading ? "Création…" : "Rejoindre ParaBoard 🚀"}
+                </button>
+              </div>
+
+              <p className="text-center text-xs text-gray-400 mt-4">
+                La BioTinder peut être modifiée à tout moment depuis votre profil.
+              </p>
+            </>
+          )}
+
+        </div>
       </div>
     </div>
   );

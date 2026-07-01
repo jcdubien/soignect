@@ -24,14 +24,81 @@ enum SwipeDirection {
   RIGHT
 }
 
+enum SubscriptionPlan {
+  FREE
+  PREMIUM  // 39-49€/mois — boost +5, accès scores remplaçants
+  BOOST    // 79€/mois — boost +8, badge prioritaire, stats avancées
+}
+
+enum MissionType {
+  REMPLACEMENT
+  ASSISTANAT
+  COLLABORATION
+}
+
+enum ZonageType {
+  NON_PRIORITAIRE  // Zone 4 ARS — offre élevée
+  INTERMEDIAIRE    // Zone 3 ARS — offre intermédiaire
+  SOUS_DOTEE       // Zone 2 ARS — autres professions/territoires
+  TRES_SOUS_DOTEE  // Zone 1 ARS — désert médical
+}
+
+enum Profession {
+  KINESITHERAPEUTE
+  INFIRMIER
+  ORTHOPHONISTE
+  SAGE_FEMME
+  MEDECIN
+}
+
+enum Region {
+  GUADELOUPE
+  SAINT_MARTIN
+  SAINT_BARTH
+  MARTINIQUE
+  GUYANE
+  REUNION
+  MAYOTTE
+  METROPOLE
+}
+
+enum PostType {
+  ASSISTANT
+  COLLABORATION
+  REMPLACEMENT_REGULIER
+}
+
+enum BriqueStatus {
+  // Titulaire (poste 1 auto)
+  PRESENT
+  ABSENT_CONGE
+  ABSENT_MALADIE
+  ABSENT_FORMATION
+  // Poste assistant / collaborateur
+  OCCUPE
+  PREAVIS
+  RECHERCHE
+  NON_COUVERT
+  FERME
+  // Brique remplaçant ponctuel
+  CONFIRME
+  EN_ATTENTE
+  ANNULE
+  // Dates bloquées par le remplaçant (vacances, vie perso)
+  INDISPONIBLE
+}
+
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(USER)
-  profile      Profile?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  role             Role      @default(USER)
+  profile          Profile?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  activeProfileId  String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 // Identité professionnelle — pas de dates ici
@@ -40,28 +107,58 @@ model Profile {
   userId   String      @unique
   user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   type     ProfileType
+  name     String?     // Nom du cabinet ou du professionnel
   photoUrl String?
   bio      String?     @db.VarChar(300)
+  bioTinder String?    @db.VarChar(280)  // "Je suis / Je cherche / J'aspire à"
+
+  // Géographie & profession
+  profession           Profession @default(KINESITHERAPEUTE)
+  region               Region     @default(GUADELOUPE)
+  zonage               ZonageType?
+  institutionalPartner Boolean    @default(false) // CPTS / ARS / Collectivité
 
   // Pondération feed
   weight    Float     @default(1.0)
   isPaid    Boolean   @default(false)
   paidUntil DateTime?
 
+  // Désirabilité & abonnement
+  desirabilityScore    Float            @default(0)     // 0 à 10 — composante du score d'affinité
+  desirabilityOverride Float?                           // Override admin (priorité absolue)
+  desirabilityExpiry   DateTime?                        // Expiration du boost manuel
+  subscriptionPlan     SubscriptionPlan @default(FREE)
+  isFounding           Boolean          @default(false) // Cabinet fondateur = score 10 permanent
+
   // Notation agrégée (mise à jour à chaque Rating)
   ratingAvg   Float?
   ratingCount Int    @default(0)
+
+  // Flexibilité sur les dates (0=exact, 1=±3j, 2=±1sem, 3=±2sem, 4=±1mois)
+  dateFlexibility Int @default(0)
+
+  // Vérification RPPS via API ANS (section 30)
+  isVerified  Boolean @default(false)
+
+  // Établissement employeur : terminologie CDI/CDD/Vacation (section 37)
+  isEmployeur Boolean @default(false)
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  missions        Mission[]
-  swipesGiven     Swipe[]   @relation("SwiperProfile")
-  ratingsGiven    Rating[]  @relation("RaterProfile")
-  ratingsReceived Rating[]  @relation("RatedProfile")
-  matchesA        Match[]   @relation("MatchProfileA")
-  matchesB        Match[]   @relation("MatchProfileB")
+  missions                  Mission[]
+  swipesGiven               Swipe[]          @relation("SwiperProfile")
+  ratingsGiven              Rating[]         @relation("RaterProfile")
+  ratingsReceived           Rating[]         @relation("RatedProfile")
+  messagesSent              Message[]
+  matchesA                  Match[]          @relation("MatchProfileA")
+  matchesB                  Match[]          @relation("MatchProfileB")
+  cabinetRatingsGiven       CabinetRating[]  @relation("CabinetRatingRater")
+  cabinetRatingsReceived    CabinetRating[]  @relation("CabinetRatingRated")
+  remplacantRatingsGiven    RemplacantRating[] @relation("RemplacantRatingRater")
+  remplacantRatingsReceived RemplacantRating[] @relation("RemplacantRatingRated")
+  cabinetPosts              CabinetPost[]    @relation("CabinetPosts")
 
   @@index([type, isActive])
 }
@@ -76,12 +173,47 @@ model Mission {
   location    String
   specialties String[]
 
+  // Phrase libre (280 signes) — ex: "Je recherche un cabinet sport en Guadeloupe"
+  pitch     String? @db.VarChar(280)
+  bioTinder String? @db.VarChar(280)  // Bio spécifique à cette annonce
+
   // REMPLACANT / TITULAIRE (remplacement) : dates définies
   startDate DateTime?
   endDate   DateTime?
 
   // ASSISTANT : durée minimale en mois (ex: 3, 6, 12)
   minMonths Int?
+
+  // REMPLACANT : taux de rétrocession souhaité (%)
+  retrocessionRate Int?
+
+  // Type de contrat (section 20 — 3 types)
+  missionType MissionType @default(REMPLACEMENT)
+
+  // Zonage ARS (calculé depuis la commune à la création)
+  zonage ZonageType?
+
+  // Distribution Facebook (section 12)
+  facebookPostId   String?
+  facebookPostedAt DateTime?
+  autoPostFacebook Boolean   @default(true)
+
+  // Flexibilité sur les dates (0=exact, 1=±3j, 2=±1sem, 3=±2sem, 4=±1mois)
+  dateFlexibility Int @default(0)
+
+  // Lien Planning Board (section 28)
+  cabinetPostId String?
+  cabinetPost   CabinetPost? @relation("PostMissions", fields: [cabinetPostId], references: [id])
+  singleSlot    Boolean      @default(false)
+  maxCandidates Int          @default(10)
+
+  // Statut manuel de la brique Planning Board (section 33)
+  briqueStatus    BriqueStatus @default(RECHERCHE)
+  statusUpdatedAt DateTime?
+  statusNote      String?      @db.VarChar(200)
+
+  // Planning Board section 43 — déclaration de vacance titulaire
+  isSelfPresence Boolean @default(false)
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -103,6 +235,8 @@ model Swipe {
   swipedMissionId String
   swipedMission   Mission        @relation("SwipedMission", fields: [swipedMissionId], references: [id])
   direction       SwipeDirection
+  affinityScore   Float?                         // Score total 0-100 calculé par DeepSeek
+  scoreDetails    Json?                          // {dates, geo, specialty, bio, desirability}
   createdAt       DateTime       @default(now())
 
   @@unique([swiperId, swipedMissionId])
@@ -119,12 +253,27 @@ model Match {
   missionA   Mission? @relation("MatchMissionA", fields: [missionAId], references: [id])
   missionBId String?
   missionB   Mission? @relation("MatchMissionB", fields: [missionBId], references: [id])
-  aiScore    Float?
-  aiFactors  Json?
-  ratings    Rating[]
-  createdAt  DateTime @default(now())
+  aiScore           Float?
+  aiFactors         Json?
+  ratings           Rating[]
+  cabinetRatings    CabinetRating[]
+  remplacantRatings RemplacantRating[]
+  messages          Message[]
+  createdAt         DateTime @default(now())
 
   @@unique([profileAId, profileBId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    Profile  @relation(fields: [senderId], references: [id])
+  content   String   @db.VarChar(1000)
+  createdAt DateTime @default(now())
+
+  @@index([matchId, createdAt])
 }
 
 model Rating {
@@ -140,4 +289,85 @@ model Rating {
   createdAt DateTime @default(now())
 
   @@unique([raterId, ratedId, matchId])
+}
+
+// Notation d'un cabinet par un remplaçant (publique)
+model CabinetRating {
+  id           String   @id @default(cuid())
+  raterId      String   // REMPLACANT qui note
+  rater        Profile  @relation("CabinetRatingRater", fields: [raterId], references: [id])
+  ratedId      String   // TITULAIRE noté
+  rated        Profile  @relation("CabinetRatingRated", fields: [ratedId], references: [id])
+  matchId      String?
+  match        Match?   @relation(fields: [matchId], references: [id])
+  recommended  Boolean  // true = recommande, false = ne recommande pas
+  // Critères détaillés — optionnels (remplis si l'utilisateur veut préciser)
+  scoreAccueil   Int?
+  scoreMateriel  Int?
+  scoreContrat   Int?
+  scoreAmbiance  Int?
+  scoreGlobal    Float?  // calculé si critères renseignés, sinon null
+  comment      String?  @db.VarChar(500)
+  // Modération : false = en attente de validation admin avant affichage public
+  isPublished  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@unique([raterId, ratedId, matchId])
+}
+
+// Évaluation d'un remplaçant par un cabinet (privée)
+model RemplacantRating {
+  id           String   @id @default(cuid())
+  raterId      String   // TITULAIRE qui évalue
+  rater        Profile  @relation("RemplacantRatingRater", fields: [raterId], references: [id])
+  ratedId      String   // REMPLACANT évalué
+  rated        Profile  @relation("RemplacantRatingRated", fields: [ratedId], references: [id])
+  matchId      String?
+  match        Match?   @relation(fields: [matchId], references: [id])
+  recommended         Boolean  // true = recommande, false = ne recommande pas
+  // Critères détaillés — optionnels (PAS de commentaire — art. R.4321-99)
+  scorePonctualite    Int?
+  scoreQualiteSoins   Int?
+  scoreDossierPatient Int?
+  scoreCommunication  Int?
+  scoreGlobal         Float?
+  createdAt    DateTime @default(now())
+
+  @@unique([raterId, ratedId, matchId])
+}
+
+// Données APL DREES par commune — section 22
+// Alimenté par scripts/update_apl.py (cron annuel)
+model CommuneAPL {
+  id                  Int      @id @default(autoincrement())
+  codeInsee           String   @unique
+  commune             String
+  departement         String
+  aplKine             Float?
+  aplInfirmier        Float?
+  aplMedecin          Float?
+  aplSageFemme        Float?
+  aplOrthophoniste    Float?
+  boostKine           Int      @default(0)
+  boostInfirmier      Int      @default(0)
+  boostMedecin        Int      @default(0)
+  boostSageFemme      Int      @default(0)
+  boostOrthophoniste  Int      @default(0)
+  updatedAt           DateTime @default(now()) @updatedAt
+}
+
+// Poste du Planning Board (section 28) — un poste = une ligne de timeline
+model CabinetPost {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
+  cabinetId    String
+  cabinet      Profile   @relation("CabinetPosts", fields: [cabinetId], references: [id])
+  label        String    // "Poste 1", "Dr Marie L.", etc.
+  postType     PostType  @default(REMPLACEMENT_REGULIER)
+  maxSlots     Int       @default(1)
+  noticeMonths Int       @default(3)
+  autoAlert    Boolean   @default(true)
+  autoPublish  Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  missions     Mission[] @relation("PostMissions")
 }

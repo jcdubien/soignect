@@ -2,16 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { ProfileType } from "@prisma/client";
+import { BriqueStatus, MissionType, ProfileType } from "@prisma/client";
+import { getCommuneZonage } from "@/lib/communes";
 
 const createMissionSchema = z.object({
   title: z.string().min(3).max(100),
   description: z.string().max(500).optional(),
   location: z.string().min(1),
   specialties: z.array(z.string()).default([]),
-  startDate: z.string().datetime().optional().nullable(),
-  endDate: z.string().datetime().optional().nullable(),
+  startDate: z.preprocess((v) => (v ? new Date(v as string) : null), z.date().optional().nullable()),
+  endDate: z.preprocess((v) => (v ? new Date(v as string) : null), z.date().optional().nullable()),
   minMonths: z.number().int().min(1).max(24).optional().nullable(),
+  pitch: z.string().max(280).optional().nullable(),
+  bioTinder: z.string().max(280).optional().nullable(),
+  retrocessionRate: z.number().int().min(0).max(100).optional().nullable(),
+  missionType: z.nativeEnum(MissionType).optional(),
+  dateFlexibility: z.number().int().min(0).max(4).optional(),
+  briqueStatus: z.nativeEnum(BriqueStatus).optional(),
+  cabinetPostId: z.string().optional().nullable(),
 });
 
 // GET /api/missions — feed de missions (type opposé, non encore swipées)
@@ -83,7 +91,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, location, specialties, startDate, endDate, minMonths } = parsed.data;
+  const { title, description, location, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, briqueStatus, cabinetPostId } = parsed.data;
+
+  // Validation 90 jours minimum pour les postes longs (section 37.E)
+  const effectiveMissionType = missionType ?? MissionType.REMPLACEMENT;
+  if (effectiveMissionType === MissionType.ASSISTANAT && startDate && endDate) {
+    const dureeJours = Math.floor((endDate.getTime() - startDate.getTime()) / 86400000);
+    if (dureeJours < 90) {
+      return NextResponse.json(
+        { error: "Un poste d'assistanat ou CDD/CDI nécessite une durée minimale de 3 mois (90 jours)." },
+        { status: 422 }
+      );
+    }
+  }
+
+  // Derive zonage from commune — only meaningful for ASSISTANAT/COLLABORATION
+  const rawZonage = getCommuneZonage(location);
+  const zonage = rawZonage === "INTERMEDIAIRE"
+    ? "INTERMEDIAIRE"
+    : rawZonage === "NON_PRIORITAIRE"
+    ? "NON_PRIORITAIRE"
+    : null;
 
   const mission = await prisma.mission.create({
     data: {
@@ -92,9 +120,17 @@ export async function POST(req: NextRequest) {
       description,
       location,
       specialties,
-      startDate: startDate ? new Date(startDate) : null,
-      endDate: endDate ? new Date(endDate) : null,
+      startDate: startDate ?? null,
+      endDate: endDate ?? null,
       minMonths,
+      pitch: pitch ?? null,
+      bioTinder: bioTinder ?? null,
+      retrocessionRate: retrocessionRate ?? null,
+      missionType: effectiveMissionType,
+      zonage: zonage ? (zonage as import("@prisma/client").ZonageType) : null,
+      dateFlexibility: dateFlexibility ?? 0,
+      briqueStatus: briqueStatus ?? BriqueStatus.RECHERCHE,
+      cabinetPostId: cabinetPostId ?? null,
     },
   });
 

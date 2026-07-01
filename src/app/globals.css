@@ -2,16 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Material Design 3 · seed #769CDF ──────────────────────────────────── */
 :root {
   --radius: 0.75rem;
+
+  /* Semantic tokens light */
+  --md-primary:           #415F91;
+  --md-on-primary:        #FFFFFF;
+  --md-primary-container: #D6E3FF;
+  --md-surface:           #F9F9FF;
+  --md-surface-variant:   #E0E2EC;
+  --md-background:        #F9F9FF;
+  --md-on-background:     #191C20;
+  --md-outline:           #74777F;
+  --md-outline-variant:   #C4C6D0;
+  --md-error:             #BA1A1A;
+
+  /* ── Planning Board — timeline (section 46) ──────────────────────────────
+     Tokens réservés à la timeline du Planning Board. Inertes ailleurs :
+     aucun autre écran ne les référence. */
+  --lagon-profond:  #0B3D5C;   /* ligne "aujourd'hui", ancrage temporel */
+  --sable-chaud:    #F2E8D5;   /* fond de la timeline, pas blanc clinique */
+  --corail-signal:  #E8633D;   /* statut NON_COUVERT — alerte douce */
+  --vert-palme:     #3D7A5C;   /* statut CONFIRME */
+  --bleu-marine:    #1B3A5C;   /* statut PRESENT (titulaire) */
+  --ambre:          #D9A441;   /* statut PREAVIS / RECHERCHE */
+  --orange-pale:    #F2A96B;   /* non couvert > 3 mois (anticiper) */
+  --orange-vif:     #E8630A;   /* non couvert 1-3 mois (agir bientôt) */
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  background-color: var(--md-background);
+  color: var(--md-on-background);
+  @apply antialiased;
 }
 
-/* Animations swipe */
+/* ── Swipe card ──────────────────────────────────────────────────────────── */
 .swipe-card {
   touch-action: none;
   user-select: none;
+}
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pop {
+  0%   { transform: scale(0.85); opacity: 0; }
+  70%  { transform: scale(1.05); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+.animate-fade-up { animation: fadeUp 0.35s ease both; }
+.animate-pop     { animation: pop    0.3s ease both; }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--md-outline-variant); border-radius: 4px; }
+
+/* ── Planning Board — ligne "aujourd'hui" pulsante (section 46) ──────────────
+   Signature visuelle : pulsation douce de la ligne + marqueur flottant.
+   Seul élément animé de la timeline. */
+@keyframes planningTodayPulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+@keyframes planningTodayFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(3px); }
+}
+.planning-today-line   { animation: planningTodayPulse 3s ease-in-out infinite; }
+.planning-today-marker { animation: planningTodayFloat 3s ease-in-out infinite; }
+
+/* Gris hachuré — fermeture volontaire / vacances déclarées (section 47).
+   Les zones non couvertes < 1 mois utilisent la classe Tailwind animate-pulse
+   (via motion-safe:), donc pas de keyframe custom ici. */
+.timeline-hatch {
+  background-color: #5B6472;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.16) 0, rgba(255, 255, 255, 0.16) 3px,
+    transparent 3px, transparent 7px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planning-today-line   { animation: none; opacity: 1; }
+  .planning-today-marker { animation: none; transform: none; }
 }

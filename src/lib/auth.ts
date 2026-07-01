@@ -5,8 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().min(1),
+  password: z.string().min(1),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -33,6 +33,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           profileId: user.profile?.id ?? null,
           profileType: user.profile?.type ?? null,
+          isEmployeur: user.profile?.isEmployeur ?? false,
         };
       },
     }),
@@ -40,10 +41,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        const u = user as { role: string; profileId: string | null; profileType: string | null };
+        const u = user as { role: string; profileId: string | null; profileType: string | null; isEmployeur: boolean };
         token.role = u.role;
         token.profileId = u.profileId;
         token.profileType = u.profileType;
+        token.isEmployeur = u.isEmployeur;
       }
       return token;
     },
@@ -52,6 +54,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       (session.user as { role: string }).role = token.role as string;
       (session.user as { profileId: string | null }).profileId = token.profileId as string | null;
       (session.user as { profileType: string | null }).profileType = token.profileType as string | null;
+      (session.user as unknown as { isEmployeur: boolean }).isEmployeur = (token.isEmployeur as boolean) ?? false;
       return session;
     },
   },

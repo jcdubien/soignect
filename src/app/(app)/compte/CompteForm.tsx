@@ -1,0 +1,342 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
+import Link from "next/link";
+import { Profession, Region, SubscriptionPlan, ProfileType } from "@prisma/client";
+import CompteTimeline from "./CompteTimeline";
+import PhotoUpload from "@/components/ui/PhotoUpload";
+
+const REGION_LABELS: Record<Region, string> = {
+  GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
+  MARTINIQUE: "Martinique", GUYANE: "Guyane", REUNION: "La Réunion",
+  MAYOTTE: "Mayotte", METROPOLE: "Métropole",
+};
+
+const PROFESSION_LABELS: Record<Profession, string> = {
+  KINESITHERAPEUTE: "Kinésithérapeute", INFIRMIER: "Infirmier·ère",
+  ORTHOPHONISTE: "Orthophoniste", SAGE_FEMME: "Sage-femme", MEDECIN: "Médecin",
+};
+
+const PLAN_LABELS: Record<SubscriptionPlan, string> = {
+  FREE: "Gratuit", PREMIUM: "Premium — 39€/mois", BOOST: "Boost — 79€/mois",
+};
+
+interface ProfileData {
+  id: string;
+  name: string | null;
+  bio: string | null;
+  bioTinder: string | null;
+  region: Region;
+  profession: Profession;
+  isVerified: boolean;
+  subscriptionPlan: SubscriptionPlan;
+  isFounding: boolean;
+  type: ProfileType;
+  photoUrl: string | null;
+  isEmployeur: boolean;
+}
+
+interface MatchedMission {
+  matchId: string;
+  missionTitle: string;
+  cabinetName: string | null;
+  startDate: Date | string | null;
+  endDate: Date | string | null;
+  location: string | null;
+}
+
+export default function CompteForm({ profile, matchedMissions = [] }: { profile: ProfileData; matchedMissions?: MatchedMission[] }) {
+  const router = useRouter();
+
+  const [name, setName]           = useState(profile.name ?? "");
+  const [bioTinder, setBioTinder] = useState(profile.bioTinder ?? "");
+  const [region, setRegion]       = useState<Region>(profile.region);
+  const [profession, setProfession] = useState<Profession>(profile.profession);
+  const [rpps, setRpps]           = useState("");
+  const [isEmployeur, setIsEmployeur] = useState(profile.isEmployeur);
+
+  const [saving, setSaving]         = useState(false);
+  const [saved, setSaved]           = useState(false);
+  const [saveError, setSaveError]   = useState("");
+
+  const [verifying, setVerifying]   = useState(false);
+  const [verified, setVerified]     = useState(profile.isVerified);
+  const [verifyResult, setVerifyResult] = useState<string | null>(null);
+
+  const [deleting, setDeleting]     = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    setSaveError("");
+    const res = await fetch(`/api/profiles/${profile.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() || undefined, bioTinder: bioTinder.trim() || undefined, region, profession, isEmployeur }),
+    });
+    if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    else { setSaveError("Erreur lors de la sauvegarde"); }
+    setSaving(false);
+  }
+
+  async function handleVerifyRpps() {
+    if (!rpps.trim()) return;
+    setVerifying(true);
+    setVerifyResult(null);
+    const res = await fetch(`/api/rpps/verify?rpps=${rpps.trim()}`);
+    const data = await res.json();
+    if (data.verified) {
+      setVerified(true);
+      setVerifyResult(`✓ Vérifié — ${data.nom ?? ""} ${data.profession ? `(${data.profession})` : ""}`.trim());
+    } else {
+      setVerifyResult(`✗ ${data.error ?? "Non vérifié"}`);
+    }
+    setVerifying(false);
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    const res = await fetch(`/api/profiles/${profile.id}`, { method: "DELETE" });
+    if (res.ok) {
+      await signOut({ redirect: false });
+      router.push("/register");
+    } else {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
+  return (
+    <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
+      {/* ── Ma photo ── */}
+      <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Ma photo</h2>
+        <PhotoUpload
+          profileId={profile.id}
+          initialPhotoUrl={profile.photoUrl}
+          name={profile.name}
+          profileType={profile.type}
+        />
+      </section>
+
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Mon compte</h1>
+        <p className="text-gray-400 text-sm mt-0.5">
+          {profile.type === "TITULAIRE" ? "Cabinet / Titulaire" : profile.type === "ASSISTANT" ? "Assistant·e" : "Remplaçant·e"}
+          {verified && (
+            <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
+              ✓ Vérifié RPPS
+            </span>
+          )}
+        </p>
+      </div>
+
+      {/* ── Informations personnelles ── */}
+      <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
+        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Informations personnelles</h2>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            {profile.type === "TITULAIRE" ? "Nom du cabinet" : "Votre nom"}
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            maxLength={100}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+            placeholder={profile.type === "TITULAIRE" ? "Cabinet Dupont" : "Marie Dupont"}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Zone géographique</label>
+            <select
+              value={region}
+              onChange={e => setRegion(e.target.value as Region)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+            >
+              {(Object.keys(REGION_LABELS) as Region[]).map(r => (
+                <option key={r} value={r}>{REGION_LABELS[r]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Profession</label>
+            <select
+              value={profession}
+              onChange={e => setProfession(e.target.value as Profession)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+            >
+              {(Object.keys(PROFESSION_LABELS) as Profession[]).map(p => (
+                <option key={p} value={p}>{PROFESSION_LABELS[p]}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* RPPS */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            N° RPPS
+            {verified && (
+              <span className="ml-2 px-1.5 py-0.5 bg-emerald-100 text-emerald-600 rounded text-[10px] font-bold">VÉRIFIÉ</span>
+            )}
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={rpps}
+              onChange={e => setRpps(e.target.value.replace(/\D/g, ""))}
+              maxLength={11}
+              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              placeholder="10 chiffres"
+            />
+            <button
+              onClick={handleVerifyRpps}
+              disabled={verifying || !rpps.trim()}
+              className="px-4 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-semibold hover:bg-kine-700 transition disabled:opacity-40"
+            >
+              {verifying ? "…" : "Vérifier"}
+            </button>
+          </div>
+          {verifyResult && (
+            <p className={`text-xs mt-1.5 font-medium ${verifyResult.startsWith("✓") ? "text-emerald-600" : "text-red-500"}`}>
+              {verifyResult}
+            </p>
+          )}
+          <p className="text-[10px] text-gray-400 mt-1">
+            Le numéro RPPS n&apos;est pas stocké — sert uniquement à la vérification.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Contexte employeur (TITULAIRE uniquement) — section 37.B ── */}
+      {profile.type === "TITULAIRE" && (
+        <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Type de structure</h2>
+          <label className="flex items-center justify-between cursor-pointer group">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Établissement employeur</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {isEmployeur
+                  ? "Terminologie salarié : Vacation / CDD / CDI"
+                  : "Terminologie libérale : Remplacement / Assistanat / Collaboration"}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isEmployeur}
+              onClick={() => setIsEmployeur(v => !v)}
+              className={`relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0 ml-4 ${
+                isEmployeur ? "bg-kine-600" : "bg-gray-200"
+              }`}
+            >
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                isEmployeur ? "translate-x-7" : "translate-x-1"
+              }`} />
+            </button>
+          </label>
+        </section>
+      )}
+
+      {/* ── BioTinder ── */}
+      <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-3">
+        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">BioTinder</h2>
+        <p className="text-xs text-gray-400">Votre phrase d&apos;accroche visible sur les cartes swipe (280 caractères max)</p>
+        <div className="relative">
+          <textarea
+            value={bioTinder}
+            onChange={e => { if (e.target.value.length <= 280) setBioTinder(e.target.value); }}
+            rows={4}
+            className="w-full px-3 py-2.5 border border-kine-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none"
+            placeholder={
+              profile.type === "TITULAIRE"
+                ? "Cabinet dynamique, patientèle sport et gériatrique, plateau technique complet…"
+                : "Kiné passionné, disponible été et Noël, mobile sur toute la Guadeloupe…"
+            }
+          />
+        </div>
+        <p className="text-right text-xs text-gray-300">{bioTinder.length}/280</p>
+      </section>
+
+      {/* ── Timeline remplaçant ── */}
+      {(profile.type === "REMPLACANT" || profile.type === "ASSISTANT") && (
+        <CompteTimeline matches={matchedMissions} />
+      )}
+
+      {/* ── Abonnement ── */}
+      <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Abonnement</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">{PLAN_LABELS[profile.subscriptionPlan]}</p>
+            {profile.isFounding && (
+              <p className="text-xs text-yellow-600 font-medium">⭐ Cabinet fondateur</p>
+            )}
+            {profile.type === "REMPLACANT" && (
+              <p className="text-xs text-emerald-600 font-medium">Accès gratuit à vie pour les remplaçants</p>
+            )}
+          </div>
+          {profile.type === "TITULAIRE" && profile.subscriptionPlan === "FREE" && (
+            <Link
+              href="/premium"
+              className="px-4 py-2 bg-kine-600 text-white text-xs font-bold rounded-xl hover:bg-kine-700 transition"
+            >
+              Passer Premium →
+            </Link>
+          )}
+        </div>
+      </section>
+
+      {/* ── Bouton sauvegarder ── */}
+      {saveError && (
+        <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{saveError}</p>
+      )}
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="w-full py-3.5 bg-kine-600 text-white rounded-2xl font-bold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40"
+      >
+        {saving ? "Sauvegarde…" : saved ? "✓ Sauvegardé !" : "Sauvegarder"}
+      </button>
+
+      {/* ── Supprimer le compte ── */}
+      <section className="border border-red-100 rounded-2xl p-5 bg-red-50/50">
+        <h2 className="text-sm font-bold text-red-700 mb-2">Zone de danger</h2>
+        {!confirmDelete ? (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="px-4 py-2.5 border border-red-300 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-100 transition"
+          >
+            Supprimer mon compte
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-red-700 font-medium">Cette action est irréversible. Toutes vos données seront supprimées.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition disabled:opacity-40"
+              >
+                {deleting ? "Suppression…" : "Confirmer la suppression"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
