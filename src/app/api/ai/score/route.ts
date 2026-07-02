@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { computeMatchScore } from "@/lib/deepseek";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const schema = z.object({
   missionAId: z.string(),
   missionBId: z.string(),

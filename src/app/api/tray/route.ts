@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/tray — swipes RIGHT triés par affinityScore desc (meilleur match en premier)
 export async function GET() {
   const session = await auth();

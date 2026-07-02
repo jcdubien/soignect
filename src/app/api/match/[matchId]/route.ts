@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendRelationCancelledEmail } from "@/lib/email";
 
+export const dynamic = "force-dynamic";
+
 // DELETE /api/match/[matchId] — annulation unilatérale d'un match (section 48)
 export async function DELETE(
   _req: NextRequest,

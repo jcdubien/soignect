@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileType } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/feed — annonces triées par desirabilityScore desc (nouveau feed Sprint 3)
 export async function GET(req: NextRequest) {
   const session = await auth();

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { SubscriptionPlan } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 const schema = z.object({
   profileId: z.string().min(1),
   desirabilityOverride: z.number().min(0).max(10).nullable(),

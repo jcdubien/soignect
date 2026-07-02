@@ -5,6 +5,8 @@ import { z } from "zod";
 import { ProfileType } from "@prisma/client";
 import { sendWelcomeEmail } from "@/lib/email";
 
+export const dynamic = "force-dynamic";
+
 const createProfileSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),

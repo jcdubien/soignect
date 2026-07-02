@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { Profession, Region } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 const updateSchema = z.object({
   name: z.string().max(100).optional(),
   bio: z.string().max(300).optional(),

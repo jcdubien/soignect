@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { computeMatchScore } from "@/lib/deepseek";
 
+export const dynamic = "force-dynamic";
+
 // PATCH /api/matches/[id] — recalcule le score IA d'un match existant
 export async function PATCH(
   _req: NextRequest,

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const schema = z.object({
   token: z.string().min(1),
   password: z.string().min(6, "Le mot de passe doit faire au moins 6 caractères"),

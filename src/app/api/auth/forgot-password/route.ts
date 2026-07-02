@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { Resend } from "resend";
 import { randomBytes } from "crypto";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   const { email } = await req.json();
   if (!email || typeof email !== "string") {

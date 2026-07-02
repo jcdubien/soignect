@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { BriqueStatus } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 const updateSchema = z.object({
   title: z.string().min(3).max(100).optional(),
   description: z.string().max(500).optional().nullable(),

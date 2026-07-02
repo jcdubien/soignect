@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 async function getMatchAndVerify(matchId: string, profileId: string) {
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match) return null;

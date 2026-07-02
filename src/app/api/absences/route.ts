@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { BriqueStatus, MissionType } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 const absenceSchema = z.object({
   absenceType: z.nativeEnum(BriqueStatus),
   title: z.string().min(1).max(100),

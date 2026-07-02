@@ -6,6 +6,8 @@ import { Prisma, SwipeDirection } from "@prisma/client";
 import { computeAffinityScore, computeMatchScore } from "@/lib/deepseek";
 import { sendNewRelationEmail } from "@/lib/email";
 
+export const dynamic = "force-dynamic";
+
 const swipeSchema = z.object({
   swipedMissionId: z.string(),
   direction:       z.nativeEnum(SwipeDirection),

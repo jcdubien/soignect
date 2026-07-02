@@ -3,6 +3,8 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { SubscriptionPlan } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 function planScore(plan: SubscriptionPlan): number {
   return ({ FREE: 0, PREMIUM: 5, BOOST: 8 } as Record<SubscriptionPlan, number>)[plan] ?? 0;
 }

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { PostType } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 const createSchema = z.object({
   label: z.string().min(1).max(60),
   postType: z.nativeEnum(PostType).optional(),
