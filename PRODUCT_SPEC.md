@@ -3707,3 +3707,283 @@ DELETE /api/match/[matchId]
 
 ### Ordre d'implémentation
 Sprint suivant — simple et rapide (1 route DELETE + UI dans le tray)
+
+---
+
+## 49. Architecture notifications — roadmap
+
+### Décision actée
+
+L'architecture Next.js actuelle supporte les notifications
+sans réécriture. On procède par paliers.
+
+### Palier 1 — Email (MVP, avant lancement)
+
+Outil : Resend (gratuit jusqu'à 3 000 emails/mois)
+Sprint estimé : 3-4h
+
+Événements à notifier par email :
+- Nouveau match reçu
+- Contrat envoyé par le titulaire (→ remplaçant)
+- Contrat signé par le remplaçant (→ titulaire)
+- Relance manuelle depuis le tray (→ autre partie)
+- Match annulé (→ autre partie)
+- Rappel J+7 : contrat envoyé sans réponse
+- Rappel J+30 : zone non couverte sans annonce
+
+### Palier 2 — PWA + Push Notifications (post-pilots)
+
+Next.js supporte nativement les Progressive Web Apps.
+L'utilisateur installe l'app depuis le navigateur mobile
+(sans passer par le Play Store) et reçoit des push
+notifications comme une app native.
+
+Ce qu'il faut ajouter :
+- manifest.json (icône, nom, couleurs)
+- Service worker (next-pwa ou custom)
+- Clé VAPID pour les Web Push
+- Table Subscription en DB (endpoint + keys par device)
+- Route POST /api/push/subscribe
+
+Aucune réécriture de l'app existante.
+Délai estimé : 1-2 sprints dédiés.
+
+### Palier 3 — App native (si besoin avéré)
+
+React Native ou capacitor.js (wrapper de l'app web).
+Justifié uniquement si les pilotes se plaignent
+massivement de la PWA.
+Ne pas anticiper — décider sur retour d'usage réel.
+
+### Types de notifications par priorité
+
+```
+CRITIQUE (immédiat) :
+  Nouveau match
+  Contrat signé → validation requise
+  Zone non couverte dans < 7 jours
+
+IMPORTANT (dans la journée) :
+  Contrat envoyé → à signer
+  Match annulé
+  Nouveau message reçu
+
+RAPPEL (hebdomadaire) :
+  Zone non couverte dans < 30 jours sans annonce
+  Contrat envoyé depuis > 7 jours sans réponse
+  Profil incomplet (pas de photo, pas de bioTinder)
+```
+
+### Ordre d'implémentation recommandé
+
+```
+Avant lancement Vercel  → Rien (pas bloquant pour les tests pilotes)
+Après premiers retours  → Email Resend (Palier 1)
+Après 50 utilisateurs   → PWA + Push (Palier 2)
+Jamais par défaut       → App native (Palier 3)
+```
+
+---
+
+## 50. Numéro de téléphone à l'inscription + canal WhatsApp
+
+### Décision actée
+
+Ajouter le numéro de téléphone portable (avec indicatif pays)
+comme champ obligatoire à l'inscription, dès le MVP.
+
+Raisons :
+- Canal WhatsApp Business API pour les notifications
+- Identification fiable des professionnels de santé
+- Cohérent avec l'usage réel en Guadeloupe
+  (WhatsApp = outil pro principal des kinés)
+
+### Champ à ajouter
+
+```prisma
+// Sur User — ajouter :
+phone        String?   // format E.164 : +590696XXXXXX
+phoneCountry String?   // code pays ISO : "GP", "FR", "MQ"...
+phoneVerified Boolean  @default(false)
+```
+
+### UI à l'inscription (écran 2 — identité)
+
+Champ téléphone avec sélecteur d'indicatif pays :
+```
+[🇬🇵 +590] [696 XX XX XX]
+```
+
+Indicatifs pré-sélectionnés en priorité :
++590 Guadeloupe (défaut)
++596 Martinique
++594 Guyane
++262 Réunion/Mayotte
++33  France métropolitaine
++ Autres (liste complète)
+
+Format stocké : E.164 international
+Exemple : +590696123456
+
+Validation : regex E.164, 8-15 chiffres après l'indicatif
+
+### Canal WhatsApp Business API
+
+Outil recommandé : Twilio WhatsApp API ou Meta Cloud API directe
+
+Cas d'usage MVP :
+- Nouveau match → "Vous avez un nouveau match sur Soignect !"
+- Contrat à signer → "Un contrat vous attend, signez-le ici"
+- Relance → "Votre zone est non couverte dans X jours"
+
+Coût Twilio WhatsApp : ~0.05€ par message envoyé
+Pour 100 utilisateurs actifs, 5 messages/mois = 25€/mois
+
+### Ordre d'implémentation
+
+```
+Sprint prochain  → Ajouter phone + phoneCountry sur User
+                   Champ téléphone dans le formulaire d'inscription
+                   et dans /compte
+                   Migration : npx prisma db push
+
+Après pilots     → Intégration WhatsApp Business API (Twilio)
+                   Templates de messages pré-approuvés par Meta
+```
+
+### Note importante
+
+Les messages WhatsApp Business doivent utiliser des templates
+approuvés par Meta pour les messages initiés par l'entreprise
+(notifications). La procédure d'approbation prend 1-3 jours.
+Les messages en réponse à un message de l'utilisateur sont libres.
+
+---
+
+## 50b. Correction section 50 — SMS prioritaire sur WhatsApp
+
+### Canal retenu pour le MVP : SMS
+
+Taux d'ouverture SMS : 98% dans les 3 minutes.
+Supérieur à WhatsApp (70%) et email (20-30%).
+Natif sur tout téléphone, sans app requise.
+Pas d'approbation Meta nécessaire.
+
+Outil : Twilio SMS (ou Vonage/OVH SMS pour tarifs DOM)
+Coût estimé : ~0.07€/SMS
+
+### WhatsApp — relégué au Palier 2
+
+WhatsApp Business API reste pertinent à terme
+(canal déjà utilisé par les syndicats et groupes pro)
+mais la complexité d'approbation Meta le rend moins
+adapté au MVP. À intégrer après les premiers pilotes.
+
+### Variables d'environnement à ajouter
+
+```
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxx
+TWILIO_PHONE_NUMBER=+1XXXXXXXXXX
+```
+
+### Messages SMS prioritaires (MVP)
+
+```
+Nouveau match :
+"[Soignect] Nouveau match ! Connectez-vous pour voir le profil."
+
+Contrat à signer :
+"[Soignect] Un contrat vous attend. Signez-le sur soignect.fr"
+
+Relance J+7 :
+"[Soignect] Votre zone est non couverte dans X jours. 
+Voir les candidats : soignect.fr"
+
+Match annulé :
+"[Soignect] Un match a été annulé. 
+Le poste est à nouveau disponible."
+```
+
+Tous les SMS incluent un lien direct vers l'app.
+Pas de réponse attendue (SMS unidirectionnel pour le MVP).
+
+---
+
+## 51. Canal de notification — double canal WhatsApp + Email
+
+### Décision finale
+
+Double canal complémentaire :
+
+```
+WhatsApp  → Notifications urgentes, temps réel
+            Gratuit si l'utilisateur initie le contact
+            Taux d'ouverture ~70%, immédiat
+
+Email     → Récapitulatifs, documents, traçabilité
+            Resend gratuit jusqu'à 3 000 emails/mois
+            Taux d'ouverture ~25%, moins urgent
+```
+
+### Répartition par type d'événement
+
+```
+WhatsApp (urgent/temps réel) :
+  - Nouveau match reçu
+  - Contrat envoyé → à signer
+  - Match annulé
+  - Zone non couverte dans < 7 jours
+  - Relance manuelle
+
+Email (récapitulatif/document) :
+  - Confirmation d'inscription
+  - Contrat PDF en pièce jointe
+  - Récapitulatif hebdomadaire des matchs
+  - Rappel J+7 contrat sans réponse
+  - Rappel J+30 zone non couverte
+```
+
+### Flow WhatsApp gratuit — utilisateur initie
+
+Pour rester dans la fenêtre gratuite de 24h :
+1. À l'inscription, inviter l'utilisateur à envoyer
+   "Bonjour" au numéro WhatsApp Business de Soignect
+   (QR code ou lien wa.me/+590XXXXXXX)
+2. Cette fenêtre de 24h est gratuite
+3. Elle se renouvelle à chaque message entrant
+4. Les templates approuvés Meta (payants) uniquement
+   pour les notifications sortantes sans message entrant récent
+
+### Champs à ajouter à l'inscription
+
+```
+Sur User :
+  phone           String?   // numéro E.164 : +590696XXXXXX
+  phoneCountry    String?   // "GP", "FR", "MQ"...
+  whatsappOptIn   Boolean   @default(false)  // consentement explicite
+  emailOptIn      Boolean   @default(true)   // coché par défaut
+
+Sur Profile :
+  notifWhatsapp   Boolean   @default(true)
+  notifEmail      Boolean   @default(true)
+```
+
+### Outils
+
+```
+WhatsApp  → Meta Cloud API (gratuit, direct)
+            ou Twilio WhatsApp (plus simple à coder)
+Email     → Resend (gratuit 3 000/mois, API simple)
+```
+
+### Ordre d'implémentation
+
+```
+Sprint prochain  → Champ téléphone + consentement à l'inscription
+                   Email de confirmation via Resend (1h)
+
+Post-pilots      → WhatsApp Business API
+                   Templates approuvés Meta
+                   Flow QR code à l'inscription
+```

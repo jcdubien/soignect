@@ -92,7 +92,7 @@ export default function ContratPage() {
         <span className="text-5xl">🔒</span>
         <h1 className="text-xl font-black text-gray-900">Fonctionnalité Premium</h1>
         <p className="text-gray-500 text-sm">La génération de contrat PDF est réservée aux abonnés Premium et Boost.</p>
-        <Link href={`/match/${id}`} className="text-kine-600 text-sm underline">← Retour au match</Link>
+        <Link href={`/match/${id}`} className="text-kine-600 text-sm underline">← Retour à la mise en relation</Link>
       </div>
     );
   }

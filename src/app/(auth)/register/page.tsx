@@ -7,6 +7,7 @@ import { signIn, getSession } from "next-auth/react";
 import { COMMUNES_GUADELOUPE } from "@/lib/communes";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { getSupabaseClient } from "@/lib/supabase-client";
+import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
 
 type ProfileTypeChoice = "TITULAIRE" | "REMPLACANT";
 
@@ -43,6 +44,10 @@ export default function RegisterPage() {
   const [commune, setCommune] = useState("");
   // RPPS collected but not persisted until Sprint 8 (no DB column yet)
   const [rpps, setRpps] = useState("");
+  // Notifications (section 50-51)
+  const [phoneCountry, setPhoneCountry] = useState("GP");
+  const [phone, setPhone] = useState("");
+  const [emailOptIn, setEmailOptIn] = useState(true);
 
   // Step 2 — optional photo (uploaded after account creation)
   const [pendingPhotoBlob, setPendingPhotoBlob] = useState<Blob | null>(null);
@@ -67,6 +72,9 @@ export default function RegisterPage() {
         type: profileType,
         name: name.trim() || undefined,
         bioTinder: bioFull || undefined,
+        phone: toE164(phoneCountry, phone) || undefined,
+        phoneCountry,
+        emailOptIn,
       }),
     });
 
@@ -112,8 +120,8 @@ export default function RegisterPage() {
       {/* Logo */}
       <div className="flex flex-col items-center justify-center pt-10 pb-6 px-4 text-center">
         <Link href="/login" className="flex items-baseline gap-1 mb-1">
-          <span className="text-3xl font-black text-white tracking-tight">Kiné</span>
-          <span className="text-3xl font-black text-kine-100 tracking-tight">Board</span>
+          <span className="text-3xl font-black text-white tracking-tight">Soig</span>
+          <span className="text-3xl font-black text-kine-100 tracking-tight">nect</span>
         </Link>
         <p className="text-kine-100 text-xs font-medium tracking-wide">
           {step === 1 ? "Bienvenue !" : step === 2 ? "Votre identité" : "Votre présentation"}
@@ -245,6 +253,45 @@ export default function RegisterPage() {
                   />
                 </div>
 
+                {/* Téléphone (section 50-51) */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Téléphone
+                    <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={phoneCountry}
+                      onChange={(e) => setPhoneCountry(e.target.value)}
+                      className="px-2 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm shrink-0"
+                      aria-label="Indicatif pays"
+                    >
+                      {PHONE_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.dial} {c.code}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ""))}
+                      className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                      placeholder="690 12 34 56"
+                    />
+                  </div>
+                </div>
+
+                {/* Opt-in notifications email (coché par défaut) */}
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={emailOptIn}
+                    onChange={(e) => setEmailOptIn(e.target.checked)}
+                    className="w-4 h-4 rounded accent-kine-600"
+                  />
+                  <span className="text-sm text-gray-600">Recevoir les notifications par email</span>
+                </label>
+
                 {/* Photo optionnelle — uploadée après création du compte */}
                 <div className="pt-2 border-t border-gray-100">
                   <p className="text-xs font-medium text-gray-500 mb-3">
@@ -346,7 +393,7 @@ export default function RegisterPage() {
                   disabled={loading}
                   className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
                 >
-                  {loading ? "Création…" : "Rejoindre ParaBoard 🚀"}
+                  {loading ? "Création…" : "Rejoindre Soignect 🚀"}
                 </button>
               </div>
 

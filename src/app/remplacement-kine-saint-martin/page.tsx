@@ -5,11 +5,11 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Remplacement kiné Saint-Martin — Annonces & disponibilités | ParaBoard",
+  title: "Remplacement kiné Saint-Martin — Annonces & disponibilités | Soignect",
   description:
     "Trouvez un remplacement en kinésithérapie à Saint-Martin. Annonces de cabinets et remplaçants kinés disponibles à Marigot, Grand Case et sur toute la collectivité de Saint-Martin.",
   openGraph: {
-    title: "Remplacement kiné Saint-Martin | ParaBoard",
+    title: "Remplacement kiné Saint-Martin | Soignect",
     description: "Le job board des kinésithérapeutes de Saint-Martin.",
     type: "website",
   },
@@ -45,7 +45,7 @@ export default async function SaintMartinPage() {
           Remplacement kiné Saint-Martin
         </h1>
         <p className="text-gray-500 text-base leading-relaxed">
-          ParaBoard connecte les kinésithérapeutes de Saint-Martin — collectivité d&apos;outre-mer distincte
+          Soignect connecte les kinésithérapeutes de Saint-Martin — collectivité d&apos;outre-mer distincte
           de la Guadeloupe, avec son propre marché du remplacement. Cabinets et remplaçants se trouvent
           sans intermédiaire.
         </p>
@@ -53,7 +53,7 @@ export default async function SaintMartinPage() {
 
       <div className="bg-gradient-to-br from-kine-600 to-kine-800 rounded-2xl p-6 text-white mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
-          <p className="font-bold text-lg mb-1">Rejoignez ParaBoard gratuitement</p>
+          <p className="font-bold text-lg mb-1">Rejoignez Soignect gratuitement</p>
           <p className="text-kine-100 text-sm">Remplaçants : accès à vie, sans aucun frais.</p>
         </div>
         <Link

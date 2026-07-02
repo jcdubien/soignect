@@ -5,11 +5,11 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Remplacement kiné Guadeloupe — Annonces & disponibilités | ParaBoard",
+  title: "Remplacement kiné Guadeloupe — Annonces & disponibilités | Soignect",
   description:
     "Trouvez un remplacement en kinésithérapie en Guadeloupe. Annonces de cabinets et remplaçants kinés disponibles sur toute la Guadeloupe (Grande-Terre, Basse-Terre, Marie-Galante, Les Saintes, La Désirade).",
   openGraph: {
-    title: "Remplacement kiné Guadeloupe | ParaBoard",
+    title: "Remplacement kiné Guadeloupe | Soignect",
     description: "Le job board des kinésithérapeutes de Guadeloupe. Trouvez un remplaçant ou un cabinet en quelques swipes.",
     type: "website",
   },
@@ -53,7 +53,7 @@ export default async function GuadeloupePage() {
           Remplacement kiné Guadeloupe
         </h1>
         <p className="text-gray-500 text-base leading-relaxed">
-          ParaBoard est le job board Tinder des kinésithérapeutes de Guadeloupe.
+          Soignect est le job board Tinder des kinésithérapeutes de Guadeloupe.
           Cabinets et remplaçants se trouvent en quelques swipes — sans intermédiaire,
           sans frais pour les remplaçants.
         </p>
@@ -62,7 +62,7 @@ export default async function GuadeloupePage() {
       {/* CTA inscription */}
       <div className="bg-gradient-to-br from-kine-600 to-kine-800 rounded-2xl p-6 text-white mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
-          <p className="font-bold text-lg mb-1">Rejoignez ParaBoard gratuitement</p>
+          <p className="font-bold text-lg mb-1">Rejoignez Soignect gratuitement</p>
           <p className="text-kine-100 text-sm">Remplaçants : accès à vie, sans aucun frais. Cabinets : première annonce gratuite.</p>
         </div>
         <Link
@@ -117,7 +117,7 @@ export default async function GuadeloupePage() {
       )}
 
       <div className="mt-8 text-center">
-        <p className="text-gray-400 text-sm mb-3">Voir toutes les annonces et swiper</p>
+        <p className="text-gray-400 text-sm mb-3">Voir toutes les annonces disponibles</p>
         <Link
           href="/register"
           className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition"
@@ -140,7 +140,7 @@ export default async function GuadeloupePage() {
           peuvent offrir des perspectives d&apos;installation aidées par l&apos;ARS.
         </p>
         <p>
-          ParaBoard référence les annonces de remplacement sur l&apos;ensemble du territoire guadeloupéen,
+          Soignect référence les annonces de remplacement sur l&apos;ensemble du territoire guadeloupéen,
           des cabinets de Pointe-à-Pitre aux structures rurales de Marie-Galante.
         </p>
         <div className="flex flex-wrap gap-2 pt-2">

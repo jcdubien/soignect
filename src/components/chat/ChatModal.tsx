@@ -143,7 +143,7 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
         {score !== null && (
           <div className={`text-center px-3 py-1.5 rounded-xl ${score >= 80 ? "bg-emerald-50 text-emerald-600" : score >= 50 ? "bg-kine-50 text-kine-600" : "bg-amber-50 text-amber-600"}`}>
             <span className="text-base font-black">{score}%</span>
-            <p className="text-[9px] text-gray-400 leading-none">match IA</p>
+            <p className="text-[9px] text-gray-400 leading-none">affinité IA</p>
           </div>
         )}
       </div>

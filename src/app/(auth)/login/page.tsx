@@ -32,8 +32,8 @@ export default function LoginPage() {
       {/* Hero */}
       <div className="flex flex-col items-center justify-center pt-14 pb-8 px-4 text-center">
         <div className="flex items-baseline gap-1 mb-2">
-          <span className="text-4xl font-black text-white tracking-tight">Kiné</span>
-          <span className="text-4xl font-black text-kine-100 tracking-tight">Board</span>
+          <span className="text-4xl font-black text-white tracking-tight">Soig</span>
+          <span className="text-4xl font-black text-kine-100 tracking-tight">nect</span>
         </div>
         <p className="text-kine-100 text-sm font-medium tracking-wide">
           Le job board des kinés de Guadeloupe

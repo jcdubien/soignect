@@ -39,7 +39,7 @@ export function buildCollaborationPdf(data: ContractDataCollaboration) {
   const dureeStr = minMonths ? `${minMonths} mois` : "[durée à compléter]";
 
   return (
-    <Document title="Contrat de collaboration libérale" author="KineBoard">
+    <Document title="Contrat de collaboration libérale" author="Soignect">
       <Page size="A4" style={S.page}>
 
         {/* En-tête */}

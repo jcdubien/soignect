@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { Prisma, SwipeDirection } from "@prisma/client";
 import { computeAffinityScore, computeMatchScore } from "@/lib/deepseek";
+import { sendNewRelationEmail } from "@/lib/email";
 
 const swipeSchema = z.object({
   swipedMissionId: z.string(),
@@ -181,6 +182,20 @@ export async function POST(req: NextRequest) {
           },
           include: { profileA: true, profileB: true, missionA: true, missionB: true },
         });
+
+        // Email "nouvelle mise en relation" à l'autre partie (fire-and-forget)
+        const recipient = await prisma.profile.findUnique({
+          where: { id: swipedMission.profileId },
+          select: { user: { select: { email: true, emailOptIn: true } } },
+        });
+        if (recipient?.user) {
+          const actorType = (session.user as { profileType?: string }).profileType;
+          const actorLabel = actorType === "TITULAIRE" ? "Un cabinet" : "Un remplaçant";
+          await sendNewRelationEmail(recipient.user.email, {
+            actorLabel,
+            optIn: recipient.user.emailOptIn,
+          });
+        }
       } else {
         match = existing;
       }

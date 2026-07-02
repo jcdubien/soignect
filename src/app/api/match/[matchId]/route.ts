@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendRelationCancelledEmail } from "@/lib/email";
 
 // DELETE /api/match/[matchId] — annulation unilatérale d'un match (section 48)
 export async function DELETE(
@@ -54,6 +55,16 @@ export async function DELETE(
       ? [prisma.mission.updateMany({ where: { id: { in: missionIds } }, data: { briqueStatus: "RECHERCHE" } })]
       : []),
   ]);
+
+  // Email "mise en relation annulée" à l'autre partie (fire-and-forget)
+  const otherProfileId = match.profileAId === profileId ? match.profileBId : match.profileAId;
+  const otherUser = await prisma.user.findFirst({
+    where: { profile: { id: otherProfileId } },
+    select: { email: true, emailOptIn: true },
+  });
+  if (otherUser) {
+    await sendRelationCancelledEmail(otherUser.email, { optIn: otherUser.emailOptIn });
+  }
 
   return NextResponse.json({ ok: true });
 }

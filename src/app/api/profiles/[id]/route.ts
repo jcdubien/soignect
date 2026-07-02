@@ -14,6 +14,10 @@ const updateSchema = z.object({
   profession: z.nativeEnum(Profession).optional(),
   isVerified: z.boolean().optional(),
   isEmployeur: z.boolean().optional(),
+  // Champs notifications (portés par User, section 50-51)
+  phone: z.string().max(20).nullable().optional(),
+  phoneCountry: z.string().max(4).optional(),
+  emailOptIn: z.boolean().optional(),
 });
 
 export async function GET(
@@ -52,7 +56,22 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const updated = await prisma.profile.update({ where: { id }, data: parsed.data });
+  const { phone, phoneCountry, emailOptIn, ...profileData } = parsed.data;
+
+  const updated = await prisma.profile.update({ where: { id }, data: profileData });
+
+  // Champs notifications → portés par le User lié
+  if (phone !== undefined || phoneCountry !== undefined || emailOptIn !== undefined) {
+    await prisma.user.update({
+      where: { id: profile.userId },
+      data: {
+        ...(phone !== undefined ? { phone } : {}),
+        ...(phoneCountry !== undefined ? { phoneCountry } : {}),
+        ...(emailOptIn !== undefined ? { emailOptIn } : {}),
+      },
+    });
+  }
+
   return NextResponse.json(updated);
 }
 

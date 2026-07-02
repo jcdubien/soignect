@@ -39,7 +39,7 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
   const { remplace, remplacant, startDate, endDate, retrocessionPct, rayonKm, periodeEssai, generatedAt } = data;
 
   return (
-    <Document title="Contrat de remplacement" author="KineBoard">
+    <Document title="Contrat de remplacement" author="Soignect">
       <Page size="A4" style={S.page}>
 
         {/* En-tête */}

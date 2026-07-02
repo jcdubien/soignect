@@ -26,6 +26,7 @@ export default async function ComptePage() {
       type: true,
       photoUrl: true,
       isEmployeur: true,
+      user: { select: { phone: true, phoneCountry: true, emailOptIn: true } },
     },
   });
 

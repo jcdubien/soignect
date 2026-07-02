@@ -6,7 +6,7 @@ import { SessionProvider } from "next-auth/react";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Soignect — Le matching intelligent des professionnels de santé",
+  title: "Soignect — La mise en relation intelligente des professionnels de santé",
   description: "Trouvez votre remplaçant ou votre cabinet en Guadeloupe. Soignect — la plateforme de mise en relation des kinésithérapeutes.",
 };
 

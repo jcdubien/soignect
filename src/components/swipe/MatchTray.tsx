@@ -126,7 +126,7 @@ function MissionSheet({
           {item.matchId && (
             <div className="mb-4 p-3 bg-emerald-50 rounded-2xl flex items-center justify-between">
               <div>
-                <p className="text-emerald-700 font-semibold text-sm">🎉 C&apos;est un Match !</p>
+                <p className="text-emerald-700 font-semibold text-sm">🎉 C&apos;est une mise en relation !</p>
                 <p className="text-emerald-500 text-xs mt-0.5">Vous pouvez entrer en contact</p>
               </div>
               <a
@@ -189,14 +189,14 @@ function MissionSheet({
             )}
           </div>
 
-          {/* Annuler ce match — discret, texte rouge sans fond (section 48) */}
+          {/* Annuler la mise en relation — discret, texte rouge sans fond (section 48) */}
           {canCancel && (
             <div className="pt-4 mt-3 border-t border-gray-100 flex justify-center">
               <button
                 onClick={() => setConfirming(true)}
                 className="text-sm font-semibold text-red-600 hover:text-red-700 hover:underline transition"
               >
-                Annuler ce match
+                Annuler cette mise en relation
               </button>
             </div>
           )}
@@ -213,9 +213,9 @@ function MissionSheet({
             className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full"
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="font-bold text-gray-900 text-base mb-2">Annuler ce match ?</h3>
+            <h3 className="font-bold text-gray-900 text-base mb-2">Annuler cette mise en relation ?</h3>
             <p className="text-sm text-gray-500 mb-5">
-              Cette action est irréversible. Vous pourrez re-swiper ce profil plus tard.
+              Cette action est irréversible. Vous pourrez retrouver ce profil dans les annonces plus tard.
             </p>
             {error && (
               <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">{error}</p>

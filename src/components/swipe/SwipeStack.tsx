@@ -129,7 +129,7 @@ function MatchModal({ match, onClose }: { match: MatchData; onClose: () => void 
         transition={{ delay: 0.1 }}
         className="text-5xl font-black text-white text-center mb-1 drop-shadow-lg"
       >
-        It&apos;s a match !
+        Nouvelle mise en relation !
       </motion.h1>
       <motion.p
         initial={{ opacity: 0 }}

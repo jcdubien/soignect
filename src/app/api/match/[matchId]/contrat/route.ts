@@ -7,6 +7,7 @@ import { buildRemplacementPdf } from "@/lib/contrats/template-remplacement";
 import { buildAssisanatPdf } from "@/lib/contrats/template-assistanat";
 import { buildCollaborationPdf } from "@/lib/contrats/template-collaboration";
 import type { ContractParty } from "@/lib/contrats/types";
+import { sendContratEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 // Force Node.js runtime — @react-pdf/renderer uses Node APIs
@@ -120,6 +121,17 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 
   const buffer = await renderToBuffer(element);
+
+  // Email "contrat disponible" au remplaçant, quand c'est le titulaire qui le prépare
+  if (profileId === profileTitulaire.id && profileAutre.id !== profileTitulaire.id) {
+    const autreUser = await prisma.user.findFirst({
+      where: { profile: { id: profileAutre.id } },
+      select: { email: true, emailOptIn: true },
+    });
+    if (autreUser) {
+      await sendContratEmail(autreUser.email, { matchId, optIn: autreUser.emailOptIn });
+    }
+  }
 
   return new Response(new Uint8Array(buffer), {
     headers: {

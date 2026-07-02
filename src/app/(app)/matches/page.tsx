@@ -81,7 +81,7 @@ export default async function MatchesPage() {
     <div className="max-w-xl mx-auto w-full px-4 py-6 animate-fade-up">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-800">
-          Mes matches
+          Mes mises en relation
           {formatted.length > 0 && (
             <span className="ml-2 text-sm font-normal text-gray-400">({formatted.length})</span>
           )}
@@ -97,8 +97,8 @@ export default async function MatchesPage() {
       {formatted.length === 0 ? (
         <div className="text-center py-20">
           <div className="text-6xl mb-4">💚</div>
-          <p className="text-gray-500 font-medium">Pas encore de match</p>
-          <p className="text-gray-400 text-sm mt-1">Continuez à swiper pour trouver des profils compatibles !</p>
+          <p className="text-gray-500 font-medium">Pas encore de mise en relation</p>
+          <p className="text-gray-400 text-sm mt-1">Continuez à explorer les annonces pour trouver des profils compatibles !</p>
           <Link
             href="/annonces"
             className="inline-block mt-6 px-6 py-3 bg-kine-600 text-white rounded-xl text-sm font-semibold hover:bg-kine-700 transition"

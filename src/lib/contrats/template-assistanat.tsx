@@ -39,7 +39,7 @@ export function buildAssisanatPdf(data: ContractDataAssisanat) {
   const dureeStr = minMonths ? `${minMonths} mois` : "[durée à compléter]";
 
   return (
-    <Document title="Contrat d'assistanat libéral" author="KineBoard">
+    <Document title="Contrat d'assistanat libéral" author="Soignect">
       <Page size="A4" style={S.page}>
 
         {/* En-tête */}

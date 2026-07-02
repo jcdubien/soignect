@@ -97,6 +97,11 @@ model User {
   resetToken       String?
   resetTokenExpiry DateTime?
   activeProfileId  String?
+  // Notifications (section 50-51)
+  phone            String?
+  phoneCountry     String?   @default("GP")
+  whatsappOptIn    Boolean   @default(false)
+  emailOptIn       Boolean   @default(true)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }

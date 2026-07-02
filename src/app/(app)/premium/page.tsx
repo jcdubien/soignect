@@ -13,8 +13,8 @@ const PLANS = [
     badge: null,
     features: [
       "1 annonce active",
-      "Swipe illimité",
-      "Messagerie post-match",
+      "Consultation illimitée des profils",
+      "Messagerie après mise en relation",
       "Score public visible",
     ],
     missing: [
@@ -36,8 +36,8 @@ const PLANS = [
       "Annonces illimitées",
       "Boost visibilité +5",
       "Accès scores remplaçants",
-      "Badge certifié ParaBoard",
-      "Messagerie post-match",
+      "Badge certifié Soignect",
+      "Messagerie après mise en relation",
     ],
     missing: ["Stats avancées", "Accès anticipé profils"],
     cta: "PREMIUM",

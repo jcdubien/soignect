@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Profession, Region, SubscriptionPlan, ProfileType } from "@prisma/client";
 import CompteTimeline from "./CompteTimeline";
 import PhotoUpload from "@/components/ui/PhotoUpload";
+import { PHONE_COUNTRIES, toE164, splitE164 } from "@/lib/phone";
 
 const REGION_LABELS: Record<Region, string> = {
   GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
@@ -36,6 +37,7 @@ interface ProfileData {
   type: ProfileType;
   photoUrl: string | null;
   isEmployeur: boolean;
+  user?: { phone: string | null; phoneCountry: string | null; emailOptIn: boolean } | null;
 }
 
 interface MatchedMission {
@@ -57,6 +59,12 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   const [rpps, setRpps]           = useState("");
   const [isEmployeur, setIsEmployeur] = useState(profile.isEmployeur);
 
+  // Notifications (section 50-51)
+  const initPhone = splitE164(profile.user?.phone, profile.user?.phoneCountry);
+  const [phoneCountry, setPhoneCountry] = useState(initPhone.country);
+  const [phone, setPhone]               = useState(initPhone.local);
+  const [emailOptIn, setEmailOptIn]     = useState(profile.user?.emailOptIn ?? true);
+
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
   const [saveError, setSaveError]   = useState("");
@@ -75,7 +83,14 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
     const res = await fetch(`/api/profiles/${profile.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() || undefined, bioTinder: bioTinder.trim() || undefined, region, profession, isEmployeur }),
+      body: JSON.stringify({
+        name: name.trim() || undefined,
+        bioTinder: bioTinder.trim() || undefined,
+        region, profession, isEmployeur,
+        phone: toE164(phoneCountry, phone) || null,
+        phoneCountry,
+        emailOptIn,
+      }),
     });
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
     else { setSaveError("Erreur lors de la sauvegarde"); }
@@ -248,7 +263,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
       {/* ── BioTinder ── */}
       <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-3">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">BioTinder</h2>
-        <p className="text-xs text-gray-400">Votre phrase d&apos;accroche visible sur les cartes swipe (280 caractères max)</p>
+        <p className="text-xs text-gray-400">Votre phrase d&apos;accroche visible sur les cartes d&apos;annonce (280 caractères max)</p>
         <div className="relative">
           <textarea
             value={bioTinder}
@@ -269,6 +284,48 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
       {(profile.type === "REMPLACANT" || profile.type === "ASSISTANT") && (
         <CompteTimeline matches={matchedMissions} />
       )}
+
+      {/* ── Mes notifications (section 50-51) ── */}
+      <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
+        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Mes notifications</h2>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Téléphone</label>
+          <div className="flex gap-2">
+            <select
+              value={phoneCountry}
+              onChange={e => setPhoneCountry(e.target.value)}
+              className="px-2 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400 shrink-0"
+              aria-label="Indicatif pays"
+            >
+              {PHONE_COUNTRIES.map(c => (
+                <option key={c.code} value={c.code}>{c.dial} {c.code}</option>
+              ))}
+            </select>
+            <input
+              type="tel"
+              inputMode="numeric"
+              value={phone}
+              onChange={e => setPhone(e.target.value.replace(/[^\d\s]/g, ""))}
+              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              placeholder="690 12 34 56"
+            />
+          </div>
+        </div>
+
+        <label className="flex items-center justify-between cursor-pointer">
+          <span className="text-sm text-gray-700">Notifications par email</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={emailOptIn}
+            onClick={() => setEmailOptIn(v => !v)}
+            className={`relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0 ${emailOptIn ? "bg-kine-600" : "bg-gray-200"}`}
+          >
+            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${emailOptIn ? "translate-x-7" : "translate-x-1"}`} />
+          </button>
+        </label>
+      </section>
 
       {/* ── Abonnement ── */}
       <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">

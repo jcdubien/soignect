@@ -52,7 +52,7 @@ export default async function AdminStatsPage() {
     { label: "Profils", value: totalProfiles },
     { label: "Annonces actives", value: totalActiveMissions },
     { label: "Annonces inactives", value: totalInactiveMissions },
-    { label: "Matches", value: totalMatches },
+    { label: "Mises en relation", value: totalMatches },
     { label: "Avis en attente", value: pendingRatings, alert: pendingRatings > 0 },
   ];
 

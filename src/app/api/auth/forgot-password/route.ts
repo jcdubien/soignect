@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
         <h1 style="font-size:24px;font-weight:900;color:#1f2937;margin:0 0 8px">Soignect</h1>
-        <p style="color:#6b7280;font-size:14px;margin:0 0 24px">Le matching intelligent des professionnels de santé</p>
+        <p style="color:#6b7280;font-size:14px;margin:0 0 24px">La mise en relation intelligente des professionnels de santé</p>
 
         <h2 style="font-size:18px;font-weight:700;color:#1f2937;margin:0 0 12px">
           Réinitialisation de mot de passe

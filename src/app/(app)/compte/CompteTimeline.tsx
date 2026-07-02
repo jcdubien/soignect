@@ -97,7 +97,7 @@ export default function CompteTimeline({ matches }: Props) {
       <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Ma timeline</h2>
         <div className="text-center py-8">
-          <p className="text-gray-400 text-sm">Aucun match confirmé pour l&apos;instant.</p>
+          <p className="text-gray-400 text-sm">Aucune mise en relation confirmée pour l&apos;instant.</p>
           <Link href="/annonces" className="inline-block mt-3 text-xs font-semibold text-kine-600 hover:underline">
             Voir les annonces →
           </Link>
