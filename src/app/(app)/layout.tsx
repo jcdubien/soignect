@@ -4,6 +4,8 @@ import Link from "next/link";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
