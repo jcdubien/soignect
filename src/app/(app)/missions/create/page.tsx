@@ -6,6 +6,8 @@ import { useSession } from "next-auth/react";
 import { COMMUNES_GUADELOUPE, SPECIALTIES_KINE } from "@/lib/communes";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 // ── Contenu adapté par rôle ──────────────────────────────────────────────────
 
 const CONFIG = {
