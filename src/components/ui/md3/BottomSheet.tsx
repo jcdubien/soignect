@@ -9,16 +9,18 @@ export default function BottomSheet({
   onClose,
   children,
   className = "",
+  zClass = "z-50",
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  zClass?: string;
 }) {
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4 bg-black/50"
+      className={`fixed inset-0 ${zClass} flex items-end sm:items-center justify-center sm:px-4 bg-black/50`}
       onClick={onClose}
     >
       <div

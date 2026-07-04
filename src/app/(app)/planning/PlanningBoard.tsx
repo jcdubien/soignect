@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Button from "@/components/ui/md3/Button";
+import BottomSheet from "@/components/ui/md3/BottomSheet";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -356,8 +358,8 @@ function UncoveredChoiceModal({
   const createLabel = isEmployeur ? "Oui, ouvrir un poste" : "Oui, créer une annonce";
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+    <BottomSheet open onClose={onClose} zClass="z-[60]">
+      <div className="p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
             <span className="text-xl">📅</span>
@@ -380,35 +382,19 @@ function UncoveredChoiceModal({
         </div>
 
         <div className="flex flex-col gap-2.5">
-          <button
-            onClick={onCreateMission}
-            className="w-full py-3 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition"
-          >
-            {createLabel} →
-          </button>
-          <button
-            onClick={onClosePost}
-            className="w-full py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition"
-          >
+          <Button onClick={onCreateMission} className="w-full">{createLabel} →</Button>
+          <Button variant="outlined" onClick={onClosePost} className="w-full !py-2.5 !border-red-200 !text-red-600 hover:!bg-red-50">
             Non, fermer cette période
-          </button>
+          </Button>
           {modal.absenceMissionId && (
-            <button
-              onClick={onDeleteAbsence}
-              className="w-full py-2.5 border border-[#1B3A5C]/30 text-[#1B3A5C] rounded-xl text-sm font-semibold hover:bg-[#1B3A5C]/5 transition"
-            >
+            <Button variant="outlined" onClick={onDeleteAbsence} className="w-full !py-2.5 !border-[#1B3A5C]/30 !text-[#1B3A5C] hover:!bg-[#1B3A5C]/5">
               ↩ Je serai finalement présent — supprimer cette absence
-            </button>
+            </Button>
           )}
-          <button
-            onClick={onClose}
-            className="w-full py-2 text-gray-400 text-sm hover:text-gray-600 transition"
-          >
-            Annuler
-          </button>
+          <Button variant="text" onClick={onClose} className="w-full !py-2 !text-gray-400 hover:!bg-gray-50">Annuler</Button>
         </div>
       </div>
-    </div>
+    </BottomSheet>
   );
 }
 
@@ -416,26 +402,16 @@ function UncoveredChoiceModal({
 
 function ConfirmModal({ modal, onClose }: { modal: ConfirmState; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+    <BottomSheet open onClose={onClose} zClass="z-[60]">
+      <div className="p-6">
         <h3 className="font-bold text-gray-900 text-lg mb-2">{modal.title}</h3>
         <p className="text-gray-600 text-sm mb-6">{modal.body}</p>
         <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={modal.onConfirm}
-            className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition"
-          >
-            Confirmer
-          </button>
+          <Button variant="outlined" onClick={onClose} className="flex-1 !py-2.5">Annuler</Button>
+          <Button onClick={modal.onConfirm} className="flex-1 !py-2.5 !bg-red-600 hover:!bg-red-700">Confirmer</Button>
         </div>
       </div>
-    </div>
+    </BottomSheet>
   );
 }
 
@@ -942,7 +918,7 @@ function DeclareAbsenceForm({ suggestedStart, suggestedEnd, onClose, onCreated }
         <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500">
           Annuler
         </button>
-        <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
+        <button type="submit" disabled={loading} className="md3-ripple flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
           {loading ? "…" : "Valider"}
         </button>
       </div>
@@ -997,7 +973,7 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
       </div>
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500">Annuler</button>
-        <button type="submit" disabled={loading || !label.trim()} className="flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
+        <button type="submit" disabled={loading || !label.trim()} className="md3-ripple flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
           {loading ? "…" : "Créer"}
         </button>
       </div>
@@ -1247,7 +1223,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
             <button
               key={z}
               onClick={() => setZoom(z)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              className={`md3-ripple px-3 py-1 rounded-lg text-xs font-semibold transition ${
                 zoom === z ? "bg-white text-kine-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
@@ -1263,14 +1239,14 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
             setPanel({ type: "declare_absence", suggestedStart: today, suggestedEnd: inTwoWeeks });
             setDropdown(null);
           }}
-          className="px-3 py-2 border border-gray-200 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition flex items-center gap-1"
+          className="md3-ripple px-3 py-2 border border-gray-200 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition flex items-center gap-1"
         >
           + Déclarer une absence
         </button>
 
         <button
           onClick={() => { setPanel({ type: "add_post" }); setDropdown(null); }}
-          className="px-3 py-2 bg-kine-600 text-white rounded-xl text-xs font-bold hover:bg-kine-700 transition flex items-center gap-1"
+          className="md3-ripple px-3 py-2 bg-kine-600 text-white rounded-xl text-xs font-bold hover:bg-kine-700 transition flex items-center gap-1"
         >
           + Ajouter un poste
         </button>
