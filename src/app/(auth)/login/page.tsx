@@ -44,7 +44,7 @@ export default function LoginPage() {
           <span className="text-4xl font-black text-kine-100 tracking-tight">nect</span>
         </div>
         <p className="text-kine-100 text-sm font-medium tracking-wide">
-          Le job board des kinés de Guadeloupe
+          Trouvez. Remplacez. Collaborez.
         </p>
         {/* Vague décorative */}
         <div className="mt-6 flex gap-2 opacity-40">
@@ -87,9 +87,12 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">
-                {error}
-              </p>
+              <div className="text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">
+                <p className="text-red-500">{error}</p>
+                <Link href="/forgot-password" className="text-red-600 font-semibold underline hover:text-red-700 mt-1 inline-block">
+                  Réinitialiser mon mot de passe
+                </Link>
+              </div>
             )}
 
             <button

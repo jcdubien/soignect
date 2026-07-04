@@ -11,7 +11,9 @@ import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
 
 type ProfileTypeChoice = "TITULAIRE" | "REMPLACANT";
 
-const BIO_STARTERS = ["Je suis…", "Je cherche…", "J'aspire à…"] as const;
+// Item 20 — starters différenciés selon le profil
+const BIO_STARTERS_CANDIDATE = ["Je suis…", "Je cherche…", "J'aspire à…"] as const;
+const BIO_STARTERS_TITULAIRE = ["Je recherche…"] as const;
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
@@ -39,6 +41,17 @@ export default function RegisterPage() {
 
   // Step 2
   const [email, setEmail] = useState("");
+  // Item 21 — vérification email en temps réel
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+  async function checkEmail() {
+    const e = email.toLowerCase().trim();
+    if (!e || !e.includes("@")) { setEmailAvailable(null); return; }
+    try {
+      const r = await fetch(`/api/auth/check-email?email=${encodeURIComponent(e)}`);
+      const d = await r.json();
+      setEmailAvailable(d.available);
+    } catch { setEmailAvailable(null); }
+  }
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [commune, setCommune] = useState("");
@@ -53,7 +66,7 @@ export default function RegisterPage() {
   const [pendingPhotoBlob, setPendingPhotoBlob] = useState<Blob | null>(null);
 
   // Step 3
-  const [starter, setStarter] = useState<typeof BIO_STARTERS[number] | "">("");
+  const [starter, setStarter] = useState<string>("");
   const [bioText, setBioText] = useState("");
 
   const maxBioText = starter ? 280 - starter.length - 1 : 280;
@@ -182,7 +195,7 @@ export default function RegisterPage() {
               </h2>
 
               <form
-                onSubmit={(e) => { e.preventDefault(); if (email && password && name) setStep(3); }}
+                onSubmit={(e) => { e.preventDefault(); if (email && password && name && emailAvailable !== false) setStep(3); }}
                 className="space-y-4"
               >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -191,12 +204,21 @@ export default function RegisterPage() {
                     <input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                      onChange={(e) => { setEmail(e.target.value); setEmailAvailable(null); }}
+                      onBlur={checkEmail}
+                      className={`w-full px-3 py-2.5 border rounded-xl focus:outline-none focus:ring-2 text-sm ${
+                        emailAvailable === false ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-kine-400"
+                      }`}
                       placeholder="vous@exemple.fr"
                       autoCapitalize="none"
                       required
                     />
+                    {emailAvailable === false && (
+                      <p className="text-xs text-red-600 mt-1">
+                        Cet email est déjà utilisé.{" "}
+                        <Link href="/login" className="font-semibold underline hover:text-red-700">Connectez-vous ?</Link>
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Mot de passe</label>
@@ -315,7 +337,7 @@ export default function RegisterPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={!email || !password || !name}
+                    disabled={!email || !password || !name || emailAvailable === false}
                     className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
                   >
                     Continuer →
@@ -336,7 +358,7 @@ export default function RegisterPage() {
 
               {/* Boutons starter */}
               <div className="flex gap-2 flex-wrap mb-3">
-                {BIO_STARTERS.map((s) => (
+                {(profileType === "TITULAIRE" ? BIO_STARTERS_TITULAIRE : BIO_STARTERS_CANDIDATE).map((s) => (
                   <button
                     key={s}
                     type="button"
@@ -398,7 +420,7 @@ export default function RegisterPage() {
               </div>
 
               <p className="text-center text-xs text-gray-400 mt-4">
-                La BioTinder peut être modifiée à tout moment depuis votre profil.
+                Votre accroche peut être modifiée à tout moment depuis votre profil.
               </p>
             </>
           )}

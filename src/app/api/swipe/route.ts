@@ -19,13 +19,16 @@ function getEffectiveDesirability(profile: {
   desirabilityOverride: number | null;
   desirabilityExpiry: Date | null;
   desirabilityScore: number;
+  institutionalPartner?: boolean;
 }): number {
   if (profile.isFounding) return 10;
+  // Boost +2 automatique pour les partenaires CPTS/institutionnels (section 23, item 24)
+  const cptsBoost = profile.institutionalPartner ? 2 : 0;
   if (profile.desirabilityOverride !== null) {
     const expired = profile.desirabilityExpiry && profile.desirabilityExpiry <= new Date();
-    if (!expired) return profile.desirabilityOverride;
+    if (!expired) return Math.min(profile.desirabilityOverride + cptsBoost, 10);
   }
-  return profile.desirabilityScore;
+  return Math.min(profile.desirabilityScore + cptsBoost, 10);
 }
 
 // POST /api/swipe — swipe avec calcul affinityScore (0-100) stocké sur la ligne Swipe

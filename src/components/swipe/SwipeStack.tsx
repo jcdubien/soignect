@@ -288,11 +288,16 @@ function Card({
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
-        {/* Type badge */}
-        <div className="absolute top-3 left-3">
+        {/* Type badge + badge Partenaire CPTS (item 24) */}
+        <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5">
           <span className={`px-2.5 py-1 rounded-full text-xs font-bold text-white shadow ${tc.color}`}>
             {tc.label}
           </span>
+          {(p as Profile & { institutionalPartner?: boolean }).institutionalPartner && (
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold text-white shadow bg-[#1B3A5C] flex items-center gap-1">
+              🏛️ Partenaire CPTS
+            </span>
+          )}
         </div>
 
         {/* Rating */}

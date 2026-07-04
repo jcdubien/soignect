@@ -19,6 +19,7 @@ const schema = z.object({
   desirabilityOverride: z.number().min(0).max(10).nullable().optional(),
   desirabilityExpiry: z.string().datetime().nullable().optional(),
   isActive: z.boolean().optional(),
+  institutionalPartner: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -63,6 +64,7 @@ export async function PATCH(
         desirabilityExpiry: data.desirabilityExpiry ? new Date(data.desirabilityExpiry) : null,
       }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.institutionalPartner !== undefined && { institutionalPartner: data.institutionalPartner }),
     },
     select: { id: true },
   });

@@ -58,10 +58,10 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  // Vérifier le plan d'abonnement (PREMIUM ou BOOST seulement)
+  // Vérifier le plan d'abonnement (PREMIUM/BOOST) — ou partenaire CPTS (Premium gratuit, item 25)
   const myProfile = match.profileAId === profileId ? match.profileA : match.profileB;
-  const plan = (myProfile as typeof myProfile & { subscriptionPlan: SubscriptionPlan }).subscriptionPlan;
-  if (plan === SubscriptionPlan.FREE) {
+  const mp = myProfile as typeof myProfile & { subscriptionPlan: SubscriptionPlan; institutionalPartner?: boolean };
+  if (mp.subscriptionPlan === SubscriptionPlan.FREE && !mp.institutionalPartner) {
     return NextResponse.json({ error: "Fonctionnalité réservée aux abonnés Premium" }, { status: 403 });
   }
 

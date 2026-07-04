@@ -11,6 +11,7 @@ interface Profile {
   subscriptionPlan: string;
   isVerified: boolean;
   isFounding: boolean;
+  institutionalPartner: boolean;
   isActive: boolean;
   desirabilityScore: number;
   desirabilityOverride: number | null;
@@ -46,6 +47,7 @@ export default function ProfilesClient({ initialProfiles }: { initialProfiles: P
       subscriptionPlan: p.subscriptionPlan,
       isVerified: p.isVerified,
       isFounding: p.isFounding,
+      institutionalPartner: p.institutionalPartner,
       isActive: p.isActive,
       desirabilityScore: p.desirabilityScore,
       desirabilityOverride: p.desirabilityOverride,
@@ -68,6 +70,7 @@ export default function ProfilesClient({ initialProfiles }: { initialProfiles: P
         subscriptionPlan: form.subscriptionPlan,
         isVerified: form.isVerified,
         isFounding: form.isFounding,
+        institutionalPartner: form.institutionalPartner,
         isActive: form.isActive,
         desirabilityScore: form.desirabilityScore,
         desirabilityOverride: form.desirabilityOverride ?? null,
@@ -84,6 +87,7 @@ export default function ProfilesClient({ initialProfiles }: { initialProfiles: P
                 subscriptionPlan: (form.subscriptionPlan ?? p.subscriptionPlan) as string,
                 isVerified: form.isVerified ?? p.isVerified,
                 isFounding: form.isFounding ?? p.isFounding,
+                institutionalPartner: form.institutionalPartner ?? p.institutionalPartner,
                 isActive: form.isActive ?? p.isActive,
                 desirabilityScore: form.desirabilityScore ?? p.desirabilityScore,
                 desirabilityOverride: form.desirabilityOverride ?? p.desirabilityOverride,
@@ -285,6 +289,14 @@ export default function ProfilesClient({ initialProfiles }: { initialProfiles: P
                                 onChange={(e) => setForm({ ...form, isFounding: e.target.checked })}
                               />
                               Cabinet fondateur
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={form.institutionalPartner}
+                                onChange={(e) => setForm({ ...form, institutionalPartner: e.target.checked })}
+                              />
+                              Partenaire CPTS (Premium gratuit + boost)
                             </label>
                             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                               <input

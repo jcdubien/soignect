@@ -15,6 +15,7 @@ export default async function AdminProfilesPage() {
       subscriptionPlan: true,
       isVerified: true,
       isFounding: true,
+      institutionalPartner: true,
       isActive: true,
       desirabilityScore: true,
       desirabilityOverride: true,
