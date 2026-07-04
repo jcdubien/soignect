@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { computeMatchScore } from "@/lib/deepseek";
+import { MatchStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-// PATCH /api/matches/[id] — recalcule le score IA d'un match existant
+// PATCH /api/matches/[id] — met à jour le statut (item 12) OU recalcule le score IA
 export async function PATCH(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -26,6 +27,14 @@ export async function PATCH(
   const { profileAId, profileBId } = match;
   if (session.user.profileId !== profileAId && session.user.profileId !== profileBId) {
     return NextResponse.json({ error: "Interdit" }, { status: 403 });
+  }
+
+  // Mise à jour du statut (item 12)
+  const body = await req.json().catch(() => ({}));
+  const status = (body as { status?: string }).status;
+  if (status && (Object.values(MatchStatus) as string[]).includes(status)) {
+    const updated = await prisma.match.update({ where: { id }, data: { status: status as MatchStatus } });
+    return NextResponse.json({ status: updated.status });
   }
 
   if (!match.missionA || !match.missionB) {

@@ -329,7 +329,7 @@ export default function RegisterPage() {
           {step === 3 && (
             <>
               <StepIndicator current={2} total={2} />
-              <h2 className="text-lg font-bold text-gray-800 mb-1">Votre BioTinder</h2>
+              <h2 className="text-lg font-bold text-gray-800 mb-1">Votre accroche</h2>
               <p className="text-gray-400 text-sm mb-4">
                 280 caractères pour convaincre — les premiers verront votre profil en premier.
               </p>

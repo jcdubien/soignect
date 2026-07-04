@@ -88,6 +88,15 @@ enum BriqueStatus {
   INDISPONIBLE
 }
 
+// Statut d'une mise en relation (section 12 recettage)
+enum MatchStatus {
+  EN_ATTENTE
+  DISCUSSION
+  CONFIRME
+  DECLINE
+  EXPIRE
+}
+
 model User {
   id               String    @id @default(cuid())
   email            String    @unique
@@ -260,6 +269,7 @@ model Match {
   missionB   Mission? @relation("MatchMissionB", fields: [missionBId], references: [id])
   aiScore           Float?
   aiFactors         Json?
+  status            MatchStatus @default(EN_ATTENTE)
   ratings           Rating[]
   cabinetRatings    CabinetRating[]
   remplacantRatings RemplacantRating[]

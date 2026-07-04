@@ -22,8 +22,16 @@ export default function LoginPage() {
       setLoading(false);
     } else {
       const session = await fetch("/api/auth/session").then(r => r.json()).catch(() => null);
-      const profileType = session?.user?.profileType;
-      router.push(profileType === "TITULAIRE" ? "/planning" : "/annonces");
+      const su = session?.user;
+      // Profil incomplet → onboarding (parcours d'inscription)
+      if (!su?.profileId) {
+        router.push("/register");
+      } else if (su.profileType === "TITULAIRE") {
+        router.push("/planning");
+      } else {
+        // REMPLACANT / ASSISTANT
+        router.push("/disponibilites");
+      }
     }
   }
 

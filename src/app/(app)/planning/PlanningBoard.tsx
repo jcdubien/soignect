@@ -68,8 +68,8 @@ interface Props {
 
 type Zoom = "month" | "quarter" | "year" | "triennial";
 
-const ZOOM_DAYS: Record<Zoom, number> = { month: 30, quarter: 91, year: 365, triennial: 1095 };
-const ZOOM_LABELS: Record<Zoom, string> = { month: "Mois", quarter: "Trimestre", year: "Année", triennial: "3 ans" };
+const ZOOM_DAYS: Record<Zoom, number> = { month: 30, quarter: 91, year: 365, triennial: 730 };
+const ZOOM_LABELS: Record<Zoom, string> = { month: "Mois", quarter: "Trimestre", year: "Année", triennial: "2 ans" };
 const TRACK_HEIGHT = 44;
 const LABEL_WIDTH  = 140;
 
@@ -213,18 +213,31 @@ function fmtDate(d: Date | string | null): string {
   return new Date(d as string).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" });
 }
 
-function monthLabels(dayWidth: number): { label: string; offset: number }[] {
-  const labels = [];
+interface MonthLabel { monthShort: string; year: string; isYearStart: boolean; offset: number; index: number }
+function monthLabels(dayWidth: number): MonthLabel[] {
+  const labels: MonthLabel[] = [];
   const cur = new Date(RANGE_START);
   cur.setDate(1);
+  let index = 0;
   while (cur < RANGE_END) {
     labels.push({
-      label: cur.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+      monthShort: cur.toLocaleDateString("fr-FR", { month: "short" }),
+      year: cur.toLocaleDateString("fr-FR", { year: "2-digit" }),
+      isYearStart: cur.getMonth() === 0,
       offset: dayOffset(cur) * dayWidth,
+      index,
     });
     cur.setMonth(cur.getMonth() + 1);
+    index++;
   }
   return labels;
+}
+
+// Facteur de saut des labels de mois selon le zoom (item 7 — lisibilité en vue condensée)
+function monthSkipFor(zoom: Zoom): number {
+  if (zoom === "triennial") return 3; // 1 mois sur 3
+  if (zoom === "year") return 2;       // 1 mois sur 2
+  return 1;                            // tous les mois
 }
 
 // Calcule le statut effectif en tenant compte des overrides locaux et des matches
@@ -322,6 +335,7 @@ interface UncoveredChoiceState {
   post: PostData;
   suggestedStart: string;
   suggestedEnd: string;
+  absenceMissionId?: string; // présent si la zone provient d'une absence déclarée (item 1)
 }
 
 function UncoveredChoiceModal({
@@ -329,12 +343,14 @@ function UncoveredChoiceModal({
   isEmployeur,
   onCreateMission,
   onClosePost,
+  onDeleteAbsence,
   onClose,
 }: {
   modal: UncoveredChoiceState;
   isEmployeur: boolean;
   onCreateMission: () => void;
   onClosePost: () => void;
+  onDeleteAbsence: () => void;
   onClose: () => void;
 }) {
   const createLabel = isEmployeur ? "Oui, ouvrir un poste" : "Oui, créer une annonce";
@@ -376,6 +392,14 @@ function UncoveredChoiceModal({
           >
             Non, fermer cette période
           </button>
+          {modal.absenceMissionId && (
+            <button
+              onClick={onDeleteAbsence}
+              className="w-full py-2.5 border border-[#1B3A5C]/30 text-[#1B3A5C] rounded-xl text-sm font-semibold hover:bg-[#1B3A5C]/5 transition"
+            >
+              ↩ Je serai finalement présent — supprimer cette absence
+            </button>
+          )}
           <button
             onClick={onClose}
             className="w-full py-2 text-gray-400 text-sm hover:text-gray-600 transition"
@@ -966,7 +990,7 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
           onChange={e => setPostType(e.target.value)}
           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
         >
-          <option value="REMPLACEMENT_REGULIER">{isEmployeur ? "Vacation régulière" : "Remplacement régulier"}</option>
+          <option value="REMPLACEMENT_REGULIER">{isEmployeur ? "Vacation régulière" : "Remplacement ponctuel"}</option>
           <option value="ASSISTANT">{isEmployeur ? "Poste salarié (CDD)" : "Assistanat (long terme)"}</option>
           <option value="COLLABORATION">{isEmployeur ? "CDI" : "Collaboration libérale"}</option>
         </select>
@@ -998,7 +1022,19 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
   const totalWidth = TOTAL_DAYS * dayWidth;
   const todayOff   = dayOffset(new Date()) * dayWidth;
   const mLabels    = monthLabels(dayWidth);
+  const monthSkip  = monthSkipFor(zoom);
   const todayFull  = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const rowsScrollRef = useRef<HTMLDivElement>(null);
+
+  // Item 3 — scroll initial centré sur "aujourd'hui"
+  useEffect(() => {
+    const el = rowsScrollRef.current;
+    if (!el) return;
+    const target = Math.max(0, LABEL_WIDTH + todayOff - el.clientWidth / 2);
+    el.scrollLeft = target;
+    if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, target - LABEL_WIDTH);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom]);
 
   // Appliquer un statut sur une mission (avec optimistic update)
   const applyStatus = useCallback(async (missionId: string, status: string) => {
@@ -1090,8 +1126,15 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
         id: "self", label: `${cabinetName} (titulaire)`,
         postType: "REMPLACEMENT_REGULIER", noticeMonths: 0, isActive: true, missions: [],
       };
-      setUncoveredChoice({ post: fakeSelfPost, suggestedStart, suggestedEnd });
+      setUncoveredChoice({ post: fakeSelfPost, suggestedStart, suggestedEnd, absenceMissionId: mission.id });
     }
+  }
+
+  // Item 1 — "Je serai finalement présent" : supprime l'absence isSelfPresence
+  async function handleDeleteAbsence(missionId: string) {
+    setUncoveredChoice(null);
+    await fetch(`/api/absences?id=${encodeURIComponent(missionId)}`, { method: "DELETE" });
+    router.refresh();
   }
 
   // Bandeau d'alerte — calcul client au chargement (section 47).
@@ -1154,6 +1197,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
             setUncoveredChoice(null);
             router.push(`/missions/create?startDate=${encodeURIComponent(suggestedStart)}&endDate=${encodeURIComponent(suggestedEnd)}`);
           }}
+          onDeleteAbsence={() => { if (uncoveredChoice.absenceMissionId) handleDeleteAbsence(uncoveredChoice.absenceMissionId); }}
           onClosePost={() => {
             const post = uncoveredChoice.post;
             setUncoveredChoice(null);
@@ -1242,12 +1286,18 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
             <div style={{ width: LABEL_WIDTH, flexShrink: 0 }} className="border-r border-gray-100 bg-gray-50" />
             <div className="overflow-hidden flex-1" ref={scrollRef}>
               <div className="relative h-7" style={{ width: totalWidth }}>
-                {mLabels.map((m, i) => (
-                  <div key={i} className="absolute top-0 bottom-0 flex items-center" style={{ left: m.offset }}>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--lagon-profond)]/80 pl-1 whitespace-nowrap">{m.label}</span>
-                    <div className="absolute top-0 bottom-0 left-0 w-px bg-gray-200" />
-                  </div>
-                ))}
+                {mLabels.map((m) => {
+                  // Item 7 : en vue condensée, 1 mois sur 2/3 ; janvier toujours affiché (changement d'année)
+                  if (m.index % monthSkip !== 0 && !m.isYearStart) return null;
+                  return (
+                    <div key={m.index} className="absolute top-0 bottom-0 flex items-center" style={{ left: m.offset }}>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--lagon-profond)]/80 pl-1 whitespace-nowrap">
+                        {m.monthShort}{m.isYearStart ? ` ${m.year}` : ""}
+                      </span>
+                      <div className="absolute top-0 bottom-0 left-0 w-px bg-gray-200" />
+                    </div>
+                  );
+                })}
                 {/* Signature sections 46-47 — "aujourd'hui" comme flèche de progression :
                     trait lagon pulsant + triangle ▶ pointant vers le futur + label flottant. */}
                 <div
@@ -1265,7 +1315,14 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
           </div>
 
           {/* Lignes */}
-          <div className="flex-1 overflow-y-auto overflow-x-auto">
+          <div
+            ref={rowsScrollRef}
+            className="flex-1 overflow-y-auto overflow-x-auto pr-6"
+            onScroll={(e) => {
+              // Synchronise l'en-tête des mois avec le défilement horizontal des lignes
+              if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, e.currentTarget.scrollLeft - LABEL_WIDTH);
+            }}
+          >
             <div style={{ minWidth: totalWidth + LABEL_WIDTH }}>
               <SelfTimelineRow
                 selfMissions={selfMissions}

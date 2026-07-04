@@ -1,7 +1,9 @@
 import { Resend } from "resend";
 
 // ── Configuration ────────────────────────────────────────────────────────────
-const FROM  = "Soignect <noreply@soignect.fr>";
+// onboarding@resend.dev : expéditeur de test Resend (fonctionne sans domaine vérifié).
+// À remplacer par noreply@soignect.fr une fois le domaine vérifié dans Resend.
+const FROM  = "Soignect <onboarding@resend.dev>";
 const BRAND = "#0B3D5C"; // lagon profond — bouton principal
 
 function baseUrl(): string {

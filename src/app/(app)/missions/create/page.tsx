@@ -21,7 +21,7 @@ const CONFIG = {
     communeLabel:     "Commune du cabinet",
     specialtiesLabel: "Spécialités pratiquées au cabinet",
     pitchTitle:       "En une phrase, ce que vous proposez",
-    pitchStarters:    ["Je recherche…", "Mon cabinet…", "Je propose…"] as const,
+    pitchStarters:    ["Je recherche…"] as const,
     submitLabel:      "Publier le poste →",
   },
   TITULAIRE_EMPLOYEUR: {
@@ -34,7 +34,7 @@ const CONFIG = {
     communeLabel:     "Commune de l'établissement",
     specialtiesLabel: "Spécialités requises",
     pitchTitle:       "En une phrase, ce que vous proposez",
-    pitchStarters:    ["Nous recherchons…", "Notre établissement…", "Nous proposons…"] as const,
+    pitchStarters:    ["Nous recherchons…"] as const,
     submitLabel:      "Ouvrir le poste →",
   },
   REMPLACANT: {
@@ -100,8 +100,19 @@ export default function CreateMissionPage() {
   // Pour TITULAIRE : quel type de besoin ?
   const [needType, setNeedType] = useState<NeedType>("");
 
+  // Item 8 — photo obligatoire avant publication
+  const profileId = (session?.user as { profileId?: string })?.profileId;
+  const [hasPhoto, setHasPhoto] = useState<boolean | null>(null); // null = en cours de chargement
+  useEffect(() => {
+    if (!profileId) return;
+    fetch(`/api/profiles/${profileId}`)
+      .then((r) => r.json())
+      .then((p) => setHasPhoto(Boolean(p?.photoUrl)))
+      .catch(() => setHasPhoto(true)); // en cas d'échec réseau, ne pas bloquer inutilement
+  }, [profileId]);
+
   const [form, setForm] = useState({
-    title: "", description: "", location: "",
+    title: "", location: "",
     specialties: [] as string[],
     startDate: searchParams.get("startDate") ?? "",
     endDate: searchParams.get("endDate") ?? "",
@@ -156,7 +167,6 @@ export default function CreateMissionPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: form.title,
-        description: form.description || undefined,
         location: form.location,
         specialties: form.specialties,
         startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
@@ -239,23 +249,6 @@ export default function CreateMissionPage() {
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
             placeholder={cfg.titlePlaceholder}
           />
-        </div>
-
-        {/* ── Description ── */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {cfg.descLabel}
-            <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
-          </label>
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            maxLength={500}
-            rows={3}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm"
-            placeholder={cfg.descPlaceholder}
-          />
-          <p className="text-right text-xs text-gray-300 mt-0.5">{form.description.length}/500</p>
         </div>
 
         {/* ── Phrase clé (pitch) ── */}
@@ -438,6 +431,16 @@ export default function CreateMissionPage() {
           </div>
         )}
 
+        {/* ── Photo obligatoire (item 8) ── */}
+        {hasPhoto === false && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-center justify-between gap-3">
+            <span>📷 Ajoutez une photo avant de publier une annonce</span>
+            <Link href="/compte" className="shrink-0 font-semibold text-amber-900 underline hover:text-amber-950">
+              Ajouter →
+            </Link>
+          </div>
+        )}
+
         {error && (
           <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{error}</p>
         )}
@@ -451,7 +454,7 @@ export default function CreateMissionPage() {
           </Link>
           <button
             type="submit"
-            disabled={loading || !form.title || !form.location || !!under90Days}
+            disabled={loading || !form.title || !form.location || !!under90Days || hasPhoto === false}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
             {loading ? "Publication…" : cfg.submitLabel}

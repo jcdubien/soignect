@@ -25,8 +25,8 @@ interface Props {
 // ── Constantes timeline ────────────────────────────────────────────────────────
 
 type Zoom = "month" | "quarter" | "year" | "triennial";
-const ZOOM_DAYS: Record<Zoom, number> = { month: 30, quarter: 91, year: 365, triennial: 1095 };
-const ZOOM_LABELS: Record<Zoom, string> = { month: "Mois", quarter: "Trimestre", year: "Année", triennial: "3 ans" };
+const ZOOM_DAYS: Record<Zoom, number> = { month: 30, quarter: 91, year: 365, triennial: 730 };
+const ZOOM_LABELS: Record<Zoom, string> = { month: "Mois", quarter: "Trimestre", year: "Année", triennial: "2 ans" };
 const TRACK_HEIGHT = 56;
 const LABEL_WIDTH = 140;
 

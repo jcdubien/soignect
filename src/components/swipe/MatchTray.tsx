@@ -13,6 +13,8 @@ interface TrayItem {
   scoreDetails:     Record<string, number> | null;
   matchId:          string | null;
   aiScore:          number | null;
+  matchCreatedAt:   string | null;
+  matchStatus:      string | null;
   contratConfirmed: boolean;
 }
 
@@ -65,13 +67,13 @@ function MissionSheet({
       onClick={onClose}
     >
       <div
-        className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl max-h-[85vh] overflow-y-auto shadow-2xl"
+        className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Drag handle (mobile) */}
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
 
-        <div className="px-6 py-5">
+        <div className="px-6 py-5 flex-1 overflow-y-auto">
           {/* En-tête */}
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
@@ -189,18 +191,32 @@ function MissionSheet({
             )}
           </div>
 
-          {/* Annuler la mise en relation — discret, texte rouge sans fond (section 48) */}
-          {canCancel && (
-            <div className="pt-4 mt-3 border-t border-gray-100 flex justify-center">
-              <button
-                onClick={() => setConfirming(true)}
-                className="text-sm font-semibold text-red-600 hover:text-red-700 hover:underline transition"
-              >
-                Annuler cette mise en relation
-              </button>
-            </div>
-          )}
         </div>
+
+        {/* Footer fixe — 3 boutons visibles sans scroll sur mobile (item 4) */}
+        {item.matchId && (
+          <div className="shrink-0 border-t border-gray-100 p-3 flex gap-2 bg-white">
+            <a
+              href={`/match/${item.matchId}`}
+              className="flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-xs font-bold text-center hover:bg-kine-700 transition"
+            >
+              Envoyer un message
+            </a>
+            <a
+              href={`/match/${item.matchId}/contrat`}
+              className="flex-1 py-2.5 border border-kine-200 text-kine-700 rounded-xl text-xs font-bold text-center hover:bg-kine-50 transition"
+            >
+              Générer le contrat
+            </a>
+            <button
+              onClick={() => setConfirming(true)}
+              disabled={!canCancel}
+              className="flex-1 py-2.5 border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50 transition disabled:opacity-40"
+            >
+              Annuler
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modale de confirmation d'annulation */}
@@ -273,7 +289,11 @@ export default function MatchTray({ refreshKey }: MatchTrayProps) {
 
   useEffect(() => { fetchTray(); }, [fetchTray, refreshKey]);
 
-  const matchedItems = items.filter(i => i.matchId);
+  // Item 11 — une mise en relation disparaît du tray après 7 jours (reste dans /matches)
+  const SEVEN_DAYS = 7 * 86400000;
+  const notExpired = (i: TrayItem) =>
+    !i.matchCreatedAt || Date.now() - new Date(i.matchCreatedAt).getTime() < SEVEN_DAYS;
+  const matchedItems = items.filter(i => i.matchId && notExpired(i));
   const likedItems   = items.filter(i => !i.matchId);
   const sorted = [
     ...matchedItems.sort((a, b) => (b.affinityScore ?? 0) - (a.affinityScore ?? 0)),

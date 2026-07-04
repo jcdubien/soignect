@@ -248,22 +248,22 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
               role="switch"
               aria-checked={isEmployeur}
               onClick={() => setIsEmployeur(v => !v)}
-              className={`relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0 ml-4 ${
-                isEmployeur ? "bg-kine-600" : "bg-gray-200"
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ml-4 ${
+                isEmployeur ? "bg-[#1B3A5C]" : "bg-gray-300"
               }`}
             >
               <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
-                isEmployeur ? "translate-x-7" : "translate-x-1"
+                isEmployeur ? "translate-x-6" : "translate-x-1"
               }`} />
             </button>
           </label>
         </section>
       )}
 
-      {/* ── BioTinder ── */}
+      {/* ── Votre accroche (BioTinder en interne) ── */}
       <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-3">
-        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">BioTinder</h2>
-        <p className="text-xs text-gray-400">Votre phrase d&apos;accroche visible sur les cartes d&apos;annonce (280 caractères max)</p>
+        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Votre accroche</h2>
+        <p className="text-xs text-gray-400">Votre phrase visible sur les cartes (280 caractères max)</p>
         <div className="relative">
           <textarea
             value={bioTinder}
@@ -320,9 +320,9 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             role="switch"
             aria-checked={emailOptIn}
             onClick={() => setEmailOptIn(v => !v)}
-            className={`relative w-12 h-6 rounded-full transition-colors duration-200 shrink-0 ${emailOptIn ? "bg-kine-600" : "bg-gray-200"}`}
+            className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${emailOptIn ? "bg-[#1B3A5C]" : "bg-gray-300"}`}
           >
-            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${emailOptIn ? "translate-x-7" : "translate-x-1"}`} />
+            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${emailOptIn ? "translate-x-6" : "translate-x-1"}`} />
           </button>
         </label>
       </section>

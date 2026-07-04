@@ -38,7 +38,7 @@ export async function GET() {
       ],
     },
     select: {
-      id: true, missionAId: true, missionBId: true, aiScore: true,
+      id: true, missionAId: true, missionBId: true, aiScore: true, createdAt: true, status: true,
       missionA: { select: { briqueStatus: true } },
       missionB: { select: { briqueStatus: true } },
     },
@@ -57,6 +57,8 @@ export async function GET() {
       scoreDetails:     s.scoreDetails,
       matchId:          match?.id    ?? null,
       aiScore:          match?.aiScore ?? null,
+      matchCreatedAt:   match?.createdAt ?? null,
+      matchStatus:      match?.status ?? null,
       contratConfirmed: contratConfirmed ?? false,
     };
   });

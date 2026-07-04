@@ -32,6 +32,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   });
 
   const createHref = profileType === "TITULAIRE" ? "/missions/create" : "/disponibilites/create";
+  // Lien du logo adapté au profil (item 6) — accueil = booking
+  const homeHref = profileType === "TITULAIRE" ? "/planning" : "/disponibilites";
 
   // Build contextual summary for header
   const emailPrefix = (session.user.email ?? "").split("@")[0];
@@ -59,7 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* ── Header top ── */}
       <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-40 shadow-sm">
-        <Link href="/annonces" className="flex items-center gap-1.5 flex-shrink-0">
+        <Link href={homeHref} className="flex items-center gap-1.5 flex-shrink-0">
           <span className="text-xl font-black text-kine-600 tracking-tight">Soig</span>
           <span className="text-xl font-black text-gray-800 tracking-tight">nect</span>
         </Link>

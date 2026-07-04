@@ -4,9 +4,19 @@ import Image from "next/image";
 import Link from "next/link";
 import RecommendationForm from "@/components/swipe/RecommendationForm";
 import MatchChatButton from "@/components/chat/MatchChatButton";
+import MatchStatusActions from "@/components/matches/MatchStatusActions";
 import { ProfileType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+// Groupes de statut (item 12)
+const STATUS_GROUPS: { key: string; label: string }[] = [
+  { key: "EN_ATTENTE", label: "En attente" },
+  { key: "DISCUSSION", label: "En discussion" },
+  { key: "CONFIRME",   label: "Confirmées" },
+  { key: "DECLINE",    label: "Déclinées" },
+  { key: "EXPIRE",     label: "Expirées" },
+];
 
 export default async function MatchesPage() {
   const session = await auth();
@@ -107,8 +117,15 @@ export default async function MatchesPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {formatted.map((m) => {
+        <div className="space-y-6">
+          {STATUS_GROUPS.map((g) => {
+            const groupItems = formatted.filter((m) => ((m as { status?: string }).status ?? "EN_ATTENTE") === g.key);
+            if (groupItems.length === 0) return null;
+            return (
+            <section key={g.key}>
+              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{g.label} ({groupItems.length})</h2>
+              <div className="space-y-4">
+          {groupItems.map((m) => {
             const tc    = typeConfig(m.otherProfile.type);
             const score = m.affinityScore !== null ? Math.round(m.affinityScore) : null;
             const scoreColor =
@@ -189,6 +206,15 @@ export default async function MatchesPage() {
                   />
                 </div>
 
+                {/* Actions statut — Confirmer / Décliner (item 12) */}
+                {((m as { status?: string }).status ?? "EN_ATTENTE") !== "CONFIRME" &&
+                 ((m as { status?: string }).status ?? "EN_ATTENTE") !== "DECLINE" &&
+                 ((m as { status?: string }).status ?? "EN_ATTENTE") !== "EXPIRE" && (
+                  <div className="px-4 py-2.5 border-t border-gray-50">
+                    <MatchStatusActions matchId={m.id} status={(m as { status?: string }).status ?? "EN_ATTENTE"} />
+                  </div>
+                )}
+
                 {/* Recommandation binaire */}
                 <div className="px-4 py-3 border-t border-gray-50 bg-gray-50/50">
                   {m.hasRated ? (
@@ -211,6 +237,10 @@ export default async function MatchesPage() {
                   )}
                 </div>
               </div>
+            );
+          })}
+              </div>
+            </section>
             );
           })}
         </div>

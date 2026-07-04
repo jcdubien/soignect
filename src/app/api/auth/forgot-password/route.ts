@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Resend } from "resend";
 import { randomBytes } from "crypto";
+import { sendEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -26,20 +26,15 @@ export async function POST(req: NextRequest) {
     data: { resetToken: token, resetTokenExpiry: expiry },
   });
 
+  const baseUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+
   if (!process.env.RESEND_API_KEY) {
-    console.warn("[forgot-password] RESEND_API_KEY non configurée");
+    console.warn(`[forgot-password] RESEND_API_KEY absente — email NON envoyé. Lien de réinitialisation : ${resetUrl}`);
     return NextResponse.json({ ok: true });
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
-
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  await resend.emails.send({
-    from: "Soignect <no-reply@soignect.fr>",
-    to: user.email,
-    subject: "Réinitialisation de votre mot de passe — Soignect",
-    html: `
+  const html = `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
         <h1 style="font-size:24px;font-weight:900;color:#1f2937;margin:0 0 8px">Soignect</h1>
         <p style="color:#6b7280;font-size:14px;margin:0 0 24px">La mise en relation intelligente des professionnels de santé</p>
@@ -62,8 +57,10 @@ export async function POST(req: NextRequest) {
           Ce lien expire dans 1 heure. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
         </p>
       </div>
-    `,
-  });
+    `;
+
+  await sendEmail(user.email, "Réinitialisation de votre mot de passe — Soignect", html);
+  console.log(`[forgot-password] email de réinitialisation envoyé à ${user.email}`);
 
   return NextResponse.json({ ok: true });
 }
