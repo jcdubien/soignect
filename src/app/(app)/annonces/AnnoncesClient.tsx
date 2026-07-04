@@ -33,7 +33,7 @@ export default function AnnoncesClient({ profileType, titulaireMissions, initial
         />
       </div>
 
-      <MatchTray refreshKey={trayKey} />
+      <MatchTray refreshKey={trayKey} titulaireMissions={titulaireMissions} />
 
       {sheetMission && (
         <div

@@ -2,8 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Mission, Profile } from "@prisma/client";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
+import type { TitulaireMission } from "@/components/swipe/MissionSelector";
+import BottomSheet from "@/components/ui/md3/BottomSheet";
+import Button from "@/components/ui/md3/Button";
 
 type MissionWithProfile = Mission & { profile: Profile };
 
@@ -21,22 +25,45 @@ interface TrayItem {
 interface MatchTrayProps {
   /** Incrémenté par le parent après chaque swipe RIGHT pour forcer un refetch */
   refreshKey?: number;
+  /** Missions ouvertes du titulaire — pour réaffecter une relation (item 10) */
+  titulaireMissions?: TitulaireMission[];
 }
 
 // ── Fiche complète de l'annonce ───────────────────────────────────────────────
 function MissionSheet({
-  item, onClose, onCancelled,
+  item, onClose, onCancelled, titulaireMissions = [], onReassigned,
 }: {
   item: TrayItem;
   onClose: () => void;
   onCancelled: (matchId: string) => void;
+  titulaireMissions?: TitulaireMission[];
+  onReassigned?: () => void;
 }) {
   const { mission } = item;
   const p = mission.profile;
+  const router = useRouter();
 
   const [confirming, setConfirming] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError]           = useState<string | null>(null);
+  const [reassigning, setReassigning] = useState(false);
+
+  // Item 10 — réaffecter cette relation à une autre mission ouverte (si plusieurs)
+  const canReassign = !!item.matchId && titulaireMissions.length > 1;
+  async function handleReassign(missionId: string) {
+    if (!item.matchId || reassigning) return;
+    setReassigning(true);
+    try {
+      await fetch(`/api/matches/${item.matchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetMissionId: missionId }),
+      });
+      onReassigned?.();
+    } finally {
+      setReassigning(false);
+    }
+  }
 
   // Annulation possible uniquement si un match existe et n'est pas confirmé (section 48)
   const canCancel = !!item.matchId && !item.contratConfirmed;
@@ -62,17 +89,8 @@ function MissionSheet({
   const bioText = (mission as MissionWithProfile & { bioTinder?: string | null }).bioTinder ?? null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4 bg-black/50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Drag handle (mobile) */}
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
-
+    <>
+    <BottomSheet open onClose={onClose}>
         <div className="px-6 py-5 flex-1 overflow-y-auto">
           {/* En-tête */}
           <div className="flex items-start justify-between gap-3 mb-4">
@@ -140,6 +158,24 @@ function MissionSheet({
             </div>
           )}
 
+          {/* Réaffecter à une mission (item 10) — si plusieurs missions ouvertes */}
+          {canReassign && (
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Poste concerné</label>
+              <select
+                defaultValue=""
+                disabled={reassigning}
+                onChange={(e) => { if (e.target.value) handleReassign(e.target.value); }}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400 disabled:opacity-50"
+              >
+                <option value="">Choisir la mission cible…</option>
+                {titulaireMissions.map((m) => (
+                  <option key={m.id} value={m.id}>{m.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Bio Tinder */}
           {bioText && (
             <p className="text-kine-700 text-sm italic border-l-2 border-kine-400 pl-3 mb-3 bg-kine-50 rounded-r-xl py-2 pr-2">
@@ -193,31 +229,34 @@ function MissionSheet({
 
         </div>
 
-        {/* Footer fixe — 3 boutons visibles sans scroll sur mobile (item 4) */}
+        {/* Footer fixe — 3 boutons MD3 visibles sans scroll sur mobile (items 4 + 17) */}
         {item.matchId && (
           <div className="shrink-0 border-t border-gray-100 p-3 flex gap-2 bg-white">
-            <a
-              href={`/match/${item.matchId}`}
-              className="flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-xs font-bold text-center hover:bg-kine-700 transition"
+            <Button
+              variant="filled"
+              onClick={() => router.push(`/match/${item.matchId}`)}
+              className="flex-1 !px-2 !py-2.5 !text-xs"
             >
               Envoyer un message
-            </a>
-            <a
-              href={`/match/${item.matchId}/contrat`}
-              className="flex-1 py-2.5 border border-kine-200 text-kine-700 rounded-xl text-xs font-bold text-center hover:bg-kine-50 transition"
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => router.push(`/match/${item.matchId}/contrat`)}
+              className="flex-1 !px-2 !py-2.5 !text-xs"
             >
               Générer le contrat
-            </a>
-            <button
+            </Button>
+            <Button
+              variant="text"
               onClick={() => setConfirming(true)}
               disabled={!canCancel}
-              className="flex-1 py-2.5 border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50 transition disabled:opacity-40"
+              className="flex-1 !px-2 !py-2.5 !text-xs !text-red-600 hover:!bg-red-50"
             >
               Annuler
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+    </BottomSheet>
 
       {/* Modale de confirmation d'annulation */}
       {confirming && (
@@ -255,12 +294,12 @@ function MissionSheet({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
 // ── MatchTray principal ───────────────────────────────────────────────────────
-export default function MatchTray({ refreshKey }: MatchTrayProps) {
+export default function MatchTray({ refreshKey, titulaireMissions = [] }: MatchTrayProps) {
   const [items,       setItems]       = useState<TrayItem[]>([]);
   const [selected,    setSelected]    = useState<TrayItem | null>(null);
   const [, setSeenIds] = useState<Set<string>>(new Set());
@@ -400,6 +439,8 @@ export default function MatchTray({ refreshKey }: MatchTrayProps) {
       {selected && (
         <MissionSheet
           item={selected}
+          titulaireMissions={titulaireMissions}
+          onReassigned={() => { fetchTray(); setSelected(null); }}
           onClose={() => setSelected(null)}
           onCancelled={(matchId) => {
             // Retrait local immédiat, sans reload

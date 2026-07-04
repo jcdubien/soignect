@@ -206,13 +206,13 @@ function MatchModal({ match, onClose }: { match: MatchData; onClose: () => void 
       >
         <button
           onClick={() => router.push(`/match/${match.matchId}`)}
-          className="w-full py-4 bg-white text-emerald-700 rounded-2xl font-bold text-base shadow-lg active:scale-[0.98] transition"
+          className="md3-ripple w-full py-4 bg-white text-emerald-700 rounded-2xl font-bold text-base shadow-lg active:scale-[0.98] transition"
         >
           Envoyer un message →
         </button>
         <button
           onClick={onClose}
-          className="w-full py-3.5 border-2 border-white/40 text-white rounded-2xl font-semibold text-sm hover:border-white/70 active:scale-[0.98] transition"
+          className="md3-ripple w-full py-3.5 border-2 border-white/40 text-white rounded-2xl font-semibold text-sm hover:border-white/70 active:scale-[0.98] transition"
         >
           Voir plus tard
         </button>

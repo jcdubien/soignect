@@ -29,12 +29,31 @@ export async function PATCH(
     return NextResponse.json({ error: "Interdit" }, { status: 403 });
   }
 
-  // Mise à jour du statut (item 12)
   const body = await req.json().catch(() => ({}));
+
+  // Mise à jour du statut (item 12)
   const status = (body as { status?: string }).status;
   if (status && (Object.values(MatchStatus) as string[]).includes(status)) {
     const updated = await prisma.match.update({ where: { id }, data: { status: status as MatchStatus } });
     return NextResponse.json({ status: updated.status });
+  }
+
+  // Réaffectation de la mission cible côté utilisateur (item 10)
+  const targetMissionId = (body as { targetMissionId?: string }).targetMissionId;
+  if (targetMissionId) {
+    const viewerId = session.user.profileId as string;
+    // La nouvelle mission doit appartenir à l'utilisateur
+    const mission = await prisma.mission.findUnique({
+      where: { id: targetMissionId },
+      select: { profileId: true },
+    });
+    if (!mission || mission.profileId !== viewerId) {
+      return NextResponse.json({ error: "Mission invalide" }, { status: 400 });
+    }
+    // On met à jour le côté du match correspondant à l'utilisateur
+    const data = viewerId === profileAId ? { missionAId: targetMissionId } : { missionBId: targetMissionId };
+    await prisma.match.update({ where: { id }, data });
+    return NextResponse.json({ ok: true, targetMissionId });
   }
 
   if (!match.missionA || !match.missionB) {

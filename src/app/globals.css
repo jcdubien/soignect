@@ -58,6 +58,32 @@ body {
 .animate-fade-up { animation: fadeUp 0.35s ease both; }
 .animate-pop     { animation: pop    0.3s ease both; }
 
+/* ── Material Design 3 (item 17) ─────────────────────────────────────────── */
+/* State layer / ripple : teinte subtile au survol et à l'appui */
+.md3-ripple { position: relative; overflow: hidden; }
+.md3-ripple::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.md3-ripple:hover::after  { opacity: 0.06; }
+.md3-ripple:active::after { opacity: 0.12; }
+
+/* Entrée du bottom sheet */
+@keyframes md3SheetIn {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.md3-sheet-in { animation: md3SheetIn 0.22s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .md3-sheet-in { animation: none; }
+}
+
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
