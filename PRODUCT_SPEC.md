@@ -3987,3 +3987,129 @@ Post-pilots      → WhatsApp Business API
                    Templates approuvés Meta
                    Flow QR code à l'inscription
 ```
+
+---
+
+## 52. Recettage 3-4 juillet — corrections identifiées en production
+
+### Liste des 25 corrections (sprint à appliquer)
+
+```
+1.  Modale vacance : ajouter "Je serai finalement présent" 
+    → DELETE Mission isSelfPresence=true
+
+2.  Formulaire annonce : supprimer champ description longue
+    → Garder uniquement accroche 280 signes + "Je recherche..."
+
+3.  Planning Board : padding-right pr-6 + scroll centré sur aujourd'hui
+
+4.  Fiche mise en relation : 3 boutons fixes en bas sur mobile
+
+5.  Email mot de passe oublié : vérifier appel sendEmail()
+
+6.  Redirection post-connexion :
+    TITULAIRE → /planning
+    REMPLACANT → /disponibilites
+
+7.  Timeline : labels mois illisibles → largeur minimale + 1 mois/2
+
+8.  Photo obligatoire avant publication d'annonce
+
+9.  Missions simultanées : vérifier sélecteur chips sur Vercel
+
+10. Affecter une mise en relation à une mission précise
+
+11. Tray : durée de vie 7 jours maximum (Match.createdAt + 7j)
+
+12. Page /matches : tableau de bord par statut
+    Match.status : EN_ATTENTE/DISCUSSION/CONFIRME/DECLINE/EXPIRE
+
+13. "Remplacement régulier" → "Remplacement ponctuel"
+
+14. Zoom timeline : "3 ans" → "2 ans"
+
+15. Toggle "Établissement employeur" : refaire visuellement (44x24px)
+
+16. "BIOTINDER" → "Votre accroche" partout dans l'UI
+
+17. Design général : Material Design 3
+    (Inter/Roboto, cards elevation, bottom sheet, ripple, bottom nav)
+
+18. Email réinitialisation : URL localhost → soignect.vercel.app
+    AUTH_URL et NEXTAUTH_URL dans Vercel
+
+19. Mention "La BioTinder..." → "Votre accroche..." dans onboarding
+
+20. Boutons accroche selon profil :
+    REMPLACANT : "Je suis..." / "Je cherche..." / "J'aspire à..."
+    TITULAIRE : "Je recherche..." uniquement
+
+21. Vérification email en temps réel (onBlur écran 1)
+    GET /api/auth/check-email?email=xxx
+
+22. Message d'erreur connexion : lien "Réinitialiser" 
+    directement sous l'erreur rouge
+
+23. Tagline : "Le job board des kinés de Guadeloupe"
+    → "Trouvez. Remplacez. Collaborez."
+
+24. Badge "Partenaire CPTS" sur les annonces membres CPTS
+
+25. Modèle CPTS : accès gratuit partenaire fondateur
+    → CPTS Nord Basse-Terre gratuit permanent
+    → Autres CPTS : 99€/mois
+    → Toggle institutionalPartner dans /admin
+```
+
+---
+
+## 53. Stratégie CPTS Nord Basse-Terre × Soignect
+
+### Synergies identifiées
+
+La CPTS Nord Basse-Terre est le premier partenaire institutionnel
+de Soignect — Jean-Charles en est secrétaire.
+
+**CPTS comme laboratoire de validation :**
+- Accès gratuit permanent (partenaire fondateur)
+- Valide le modèle B2B institutionnel depuis l'intérieur
+- Fournit un cas concret pour vendre aux autres CPTS
+
+**Widget cpts-nord-basse-terre.fr :**
+- Intégration d'un widget "Postes disponibles dans notre CPTS"
+  alimenté en temps réel par Soignect
+- Professionnels cherchant à s'installer en Nord Basse-Terre
+  voient directement les cabinets qui recrutent
+
+**Tarification institutionnelle :**
+```
+CPTS Nord Basse-Terre   → Gratuit (partenaire fondateur)
+Autres CPTS/MSP         → 99€/mois ou 990€/an
+  Inclus : accès membres, badge Partenaire CPTS,
+  visibilité boostée profils en tension, rapport mensuel
+```
+
+---
+
+## 54. Benchmark — Macasaa vs Soignect
+
+**Macasaa** (MA CArrière SAnté Antilles) :
+Porté par URPS pharmaciens Guadeloupe + Martinique.
+Soutenu par ARS, CTM, Région.
+262 candidats, 57 recruteurs, 12 recrutements en 2 ans.
+Fonctionnement classique : annonce → candidature. Pas de matching.
+
+**Différenciation Soignect :**
+```
+Macasaa              Soignect
+─────────────────────────────────────────
+Annuaire passif      Matching actif (DeepSeek)
+Pharmaciens surtout  Kinés + toutes professions
+Institutionnel       Praticien-to-praticien
+Pas de contrat       Tunnel contrat intégré (CNOMK)
+Gratuit total        Freemium (remplaçants gratuits)
+```
+
+Argument commercial : "Vous connaissez Macasaa ?
+Soignect c'est la prochaine étape — pas juste trouver un profil,
+mais gérer tout le processus jusqu'au contrat signé."
