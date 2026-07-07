@@ -4265,3 +4265,600 @@ Sprint suivant (fusionné avec section 56) :
 4. Cohérence à vérifier avec les durées de préavis des contrats 
    CNOMK générés (section 39)
 ```
+
+---
+
+## 58. Attribution candidat à slot — annonces multi-postes
+
+### Problème identifié
+
+Une annonce peut concerner plusieurs personnes simultanément
+(ex: "Rempla pour deux personnes août 2026"). Actuellement,
+rien ne permet d'attribuer précisément quel candidat va sur
+quel slot disponible au sein de cette même annonce.
+
+### Modèle actuel (rappel)
+
+```
+Mission.maxCandidates : Int @default(10)  // déjà existant
+```
+
+Ce champ existe mais ne structure pas les slots individuellement —
+il limite juste le nombre de candidatures possibles sur l'annonce,
+sans notion de slot nommé ou distinct.
+
+### Correction proposée
+
+Quand une annonce a `maxCandidates > 1`, elle doit se comporter
+comme plusieurs slots identifiés, pas un pool indifférencié :
+
+```
+Annonce "Rempla pour deux personnes août 2026"
+  maxCandidates = 2
+  
+  → Slot 1 : [à pourvoir]
+  → Slot 2 : [à pourvoir]
+
+Quand un match est confirmé pour cette annonce :
+  → Le titulaire choisit à quel slot (1 ou 2) attribuer 
+    le candidat confirmé
+  → Le slot passe à "pourvu"
+  → L'annonce reste visible/active pour le(s) slot(s) 
+    restant(s) tant que tous ne sont pas pourvus
+```
+
+### Modèle de données — extension
+
+```prisma
+// Nouveau modèle pour gérer les slots d'une annonce multi-postes
+model MissionSlot {
+  id          String   @id @default(cuid())
+  missionId   String
+  mission     Mission  @relation(fields: [missionId], references: [id])
+  slotNumber  Int      // 1, 2, 3...
+  label       String?  // Optionnel : "Matin" / "Après-midi" / nom du praticien
+  matchId     String?  // Match attribué à ce slot, si pourvu
+  match       Match?   @relation(fields: [matchId], references: [id])
+  status      SlotStatus @default(OUVERT)
+}
+
+enum SlotStatus {
+  OUVERT
+  POURVU
+}
+```
+
+À la création d'une Mission avec maxCandidates > 1, générer
+automatiquement N MissionSlot (N = maxCandidates).
+
+### UI — attribution du slot
+
+Quand un match passe à contratStatus=CONFIRME sur une annonce
+multi-slots, une modale s'affiche :
+
+```
+┌─────────────────────────────────────────┐
+│ Contrat signé avec Kevin L.              │
+│ Annonce : "Rempla pour deux personnes"   │
+│                                          │
+│ À quel emplacement l'affecter ?         │
+│                                          │
+│ ○ Slot 1 — encore disponible            │
+│ ○ Slot 2 — encore disponible            │
+│                                          │
+│ [Confirmer]                              │
+└─────────────────────────────────────────┘
+```
+
+Une fois tous les slots pourvus, l'annonce se désactive
+automatiquement (isActive = false) et disparaît du feed.
+
+### Affichage du statut sur la carte swipe
+
+```
+"Rempla pour deux personnes août 2026"
+1 poste pourvu · 1 poste disponible
+```
+
+### Ordre d'implémentation
+
+```
+Sprint suivant :
+1. Ajouter le modèle MissionSlot (migration additive)
+2. Génération automatique des slots à la création d'annonce 
+   multi-postes
+3. Modale d'attribution de slot au moment de la confirmation 
+   de contrat
+4. Affichage "N pourvus / M disponibles" sur la carte annonce
+5. Désactivation automatique de l'annonce quand tous les slots 
+   sont pourvus
+```
+
+---
+
+## 59. Internationalisation — roadmap future (i18n)
+
+### Décision de principe
+
+Prévoir l'architecture pour l'internationalisation, mais 
+NE PAS l'implémenter maintenant. C'est un chantier post-MVP,
+après validation du produit en français avec les premiers 
+utilisateurs réels.
+
+### Langues cibles identifiées
+
+```
+Français   → langue principale (MVP actuel)
+Anglais    → international, Caraïbes anglophones
+Espagnol   → Caraïbes hispanophones (Cuba, Rép. Dominicaine, 
+              proximité Guadeloupe/Martinique)
+Roumain    → diaspora médicale roumaine en France
+Portugais  → Guyane (frontière Brésil), diaspora
+Italien    → diaspora médicale italienne en France
+```
+
+### Pourquoi ces langues précisément
+
+Les professionnels de santé européens (roumains, italiens, 
+portugais) sont statistiquement nombreux à venir exercer 
+en France, y compris dans les DOM-TOM. L'espagnol et le 
+portugais ont une pertinence géographique directe pour 
+la Guyane et les Caraïbes voisines.
+
+### Préparation technique (à faire dès maintenant, léger)
+
+Pour ne pas avoir à tout refactorer plus tard, adopter 
+dès maintenant de bonnes pratiques peu coûteuses :
+
+```
+- Centraliser tous les textes UI dans des fichiers de 
+  traduction (même si un seul fichier fr.json existe pour 
+  l'instant) plutôt que des strings en dur dans le JSX
+- Éviter les concaténations de strings qui compliquent 
+  la traduction (ex: "Vous avez " + n + " messages" 
+  plutôt qu'un template i18n-friendly)
+- Utiliser next-intl ou next-i18next comme librairie cible 
+  (compatible Next.js App Router)
+```
+
+### Ce qui n'est PAS à faire maintenant
+
+```
+- Ne pas traduire l'interface dans les 6 langues
+- Ne pas mettre en place next-intl tout de suite 
+  (coût d'intégration non négligeable)
+- Ne pas adapter le matching DeepSeek au multilingue 
+  (les prompts DeepSeek restent en français pour l'instant)
+```
+
+### Quand lancer ce chantier
+
+```
+Déclencheur : après validation du MVP français par les 
+premiers cabinets pilotes ET expression d'un besoin réel 
+(ex: un remplaçant non-francophone s'intéresse à la 
+plateforme, ou une CPTS confirme un besoin identifié)
+
+Ne pas anticiper sans signal utilisateur concret — 
+c'est un investissement lourd (traduction, maintenance 
+de N versions de contenu, tests) qui n'a de sens qu'une 
+fois le produit stabilisé.
+```
+
+---
+
+## 60. Principe architectural — remplissage automatique toujours corrigible à la main
+
+### Le principe fondamental
+
+Un match qui aboutit à un contrat signé remplit automatiquement 
+la timeline (côté titulaire ET côté remplaçant). Mais ce 
+remplissage automatique n'est JAMAIS définitif ou figé — 
+l'utilisateur doit toujours pouvoir le corriger manuellement 
+après coup, des deux côtés du match.
+
+Ce principe généralise et relie les sections 55 et 58 déjà 
+documentées — il s'applique à TOUTE timeline, TOUT profil.
+
+### Scénario 1 — Titulaire avec plusieurs postes
+
+**Les deux problèmes concrets du titulaire :**
+
+```
+Problème A — Couvrir chaque absence prévue
+  Le titulaire doit pouvoir mettre un remplaçant sur CHAQUE 
+  absence prévue : les siennes propres ET celles de chacun 
+  de ses assistants/collaborateurs. Chaque ligne de la 
+  timeline (self + chaque poste) doit pouvoir recevoir 
+  une annonce et un match indépendamment.
+
+Problème B — Anticiper le remplacement d'un partant
+  Dès que le titulaire connaît la date de fin d'un assistant/
+  collaborateur (démission, fin de contrat, préavis posé — 
+  section 57), il doit pouvoir anticiper la recherche du 
+  remplaçant qui prendra la suite, AVANT que le poste ne 
+  devienne réellement vacant.
+```
+
+**La règle de correction manuelle pour le titulaire :**
+
+```
+Quand une annonce matche → le contrat se signe → le système 
+propose une attribution automatique (poste d'origine par défaut,
+section 55).
+
+Mais le titulaire peut TOUJOURS, après coup, corriger :
+- Réattribuer ce match à un autre poste que celui d'origine
+- Attribuer un match à deux endroits différents si le match 
+  concerne une double absence (ex: un même remplaçant couvre
+  deux périodes courtes sur deux postes distincts)
+- Défaire une attribution automatique et la refaire manuellement
+```
+
+### Scénario 2 — Remplaçant qui cherche des cabinets
+
+**Symétrie côté remplaçant :**
+
+```
+Le remplaçant swipe des annonces de cabinets. Quand un match 
+aboutit à un contrat signé, ça remplit automatiquement SA 
+propre timeline personnelle (/disponibilites).
+
+Mais lui aussi doit pouvoir, après coup, corriger manuellement :
+- Modifier les dates réellement retenues sur sa timeline 
+  si elles diffèrent légèrement de ce que le match avait 
+  calculé automatiquement
+- Réajuster si un cabinet a finalement besoin de lui sur 
+  une période différente de celle négociée initialement
+- Détacher un remplissage automatique erroné et le recréer 
+  manuellement
+```
+
+### Scénario 3 — à préciser
+
+Jean-Charles a mentionné "trois scénarios" — les deux premiers 
+sont détaillés ci-dessus (titulaire multi-postes, remplaçant 
+cherchant des cabinets). Le troisième reste à clarifier lors 
+d'un prochain échange.
+
+### Implication technique générale
+
+Sur TOUTE brique de timeline (PlanningBoard ET DisponibilitesBoard),
+même une brique CONFIRME issue d'un match automatique doit 
+rester cliquable pour :
+
+```
+- Voir le détail du match/contrat à l'origine du remplissage
+- Modifier manuellement les dates de cette brique
+- Détacher cette brique de son match d'origine et la 
+  transformer en statut libre (NON_COUVERT, PRESENT, etc.)
+- Réattribuer ce contenu à un autre poste/une autre période
+```
+
+C'est une extension du menu contextuel déjà existant sur 
+les briques (section 33, StatusDropdown) — il doit être 
+enrichi d'options de réattribution, pas seulement de 
+changement de statut simple.
+
+### Ordre d'implémentation
+
+```
+Ce principe doit être vérifié et appliqué en priorité 
+sur toute nouvelle fonctionnalité touchant aux timelines.
+
+Sprint dédié à prévoir :
+1. Enrichir le menu contextuel des briques CONFIRME issues 
+   d'un match : ajouter "Réattribuer" et "Modifier les dates"
+2. Vérifier que ces actions sont possibles à la fois sur 
+   PlanningBoard.tsx (titulaire) et DisponibilitesBoard.tsx 
+   (remplaçant)
+3. S'assurer qu'aucune action de remplissage automatique 
+   (section 55, 58) ne verrouille définitivement une brique 
+   sans possibilité de correction manuelle ultérieure
+```
+
+---
+
+## 61. Tunnel match complet — modale, chat stocké, contrat, signature photo
+
+### Cette section consolide et précise les sections 41, 42, 48
+
+### Étape 1 — Le match arrive dans le tray
+
+Dans chaque scénario (titulaire ET remplaçant), un match 
+confirmé (swipe réciproque) apparaît dans le tray du bas.
+
+### Étape 2 — Clic sur le match → modale de détail
+
+Au clic sur un élément du tray, une modale s'ouvre avec :
+- Détail des scores (dates, géo, spécialités, bio, désirabilité 
+  — déjà existant)
+- Trois boutons d'action (call-to-action) :
+
+```
+[Annuler le match]      [Commencer un chat]      [Envoyer un contrat]
+```
+
+Le bouton "Envoyer un contrat" n'est visible que côté 
+TITULAIRE ou ASSISTANT (celui qui recrute/propose le poste),
+pas côté remplaçant qui candidate.
+
+### Étape 3 — Comportement selon le bouton cliqué
+
+**[Annuler le match]**
+→ Le match est retiré du tray (déjà spécifié section 48)
+→ DELETE /api/match/[matchId]
+
+**[Commencer un chat]**
+→ Ouvre l'interface de messagerie
+→ Le transcript de la conversation DOIT être stocké en base 
+  (persistance complète, pas éphémère)
+→ Dans l'interface de chat, un bouton "Envoyer un contrat" 
+  est visible en permanence (si titulaire/assistant) pour 
+  basculer vers l'étape suivante sans quitter le fil
+
+**[Envoyer un contrat]** (depuis la modale OU depuis le chat)
+→ Bascule vers un nouvel écran dédié
+→ Contrat pré-rempli automatiquement avec les données connues 
+  (dates, RPPS, taux — déjà existant section 39/40)
+→ TOUS les champs restent éditables à la main dans l'interface 
+  avant envoi définitif (déjà spécifié section 41, confirmé ici)
+
+### Étape 4 — Signature par photo (NOUVEAU — précise/remplace 
+la section 42 qui prévoyait une case à cocher)
+
+Au lieu d'une simple case "J'ai lu et j'approuve" (section 42),
+le système demande à CHACUNE DES PARTIES CONCERNÉES de fournir
+une photo de sa signature manuscrite :
+
+```
+Les trois types d'utilisateurs concernés :
+- TITULAIRE
+- ASSISTANT (si signataire d'un contrat de collaboration/
+  sous-traitance dans certains montages)
+- REMPLACANT
+
+Chaque partie prend en photo sa signature manuscrite 
+(sur papier, via la caméra du téléphone) au moment de 
+valider le contrat de son côté.
+```
+
+**Flow de capture :**
+
+```
+1. Le contrat final (tous champs remplis, relu) est affiché
+2. Bouton "Signer avec ma signature" 
+   → Ouvre l'appareil photo (input capture="environment" 
+     ou "user" selon praticité)
+   → L'utilisateur prend en photo sa signature manuscrite 
+     (sur une feuille blanche, ou directement sur un support dédié)
+3. La photo est recadrée/nettoyée automatiquement si possible 
+   (fond blanc, contraste)
+4. La signature capturée est apposée en bas du contrat PDF, 
+   à l'emplacement prévu pour cette partie
+5. Une fois les DEUX parties signées (photo capturée des deux 
+   côtés), le contrat passe au statut CONFIRME
+```
+
+### Révision du modèle de données (remplace/étend section 42)
+
+```prisma
+model Match {
+  // ... champs existants ...
+  
+  contratStatus       ContratStatus @default(AUCUN)
+  contratData         Json?
+  contratEnvoyeAt     DateTime?
+  
+  // Signature PHOTO au lieu de simple validation checkbox
+  signatureTitulaireUrl    String?   // URL Supabase Storage de la photo
+  signatureTitulaireAt     DateTime?
+  signatureRemplacantUrl   String?
+  signatureRemplacantAt    DateTime?
+  
+  blockedStartDate    DateTime?
+  blockedEndDate      DateTime?
+}
+```
+
+### Storage — bucket dédié aux signatures
+
+```sql
+-- Nouveau bucket Supabase Storage
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('signatures', 'signatures', false);
+-- Non public : accessible uniquement aux deux parties du contrat 
+-- concerné + admin, pas en lecture publique comme les avatars
+```
+
+### Transcript de chat — stockage
+
+```prisma
+model Message {
+  // Modèle déjà existant — vérifier qu'il persiste bien 
+  // l'intégralité du fil, pas seulement les derniers messages
+  // Aucune suppression automatique du transcript
+}
+```
+
+### Ordre d'implémentation
+
+```
+Sprint suivant (prioritaire) :
+1. Modale de match : ajouter les 3 boutons CTA 
+   (Annuler / Chat / Contrat)
+2. Vérifier que le transcript de chat est bien stocké 
+   intégralement (audit du modèle Message existant)
+3. Bouton "Envoyer un contrat" visible dans l'interface de chat
+4. Écran de signature par photo :
+   - Capture photo (input file avec capture)
+   - Upload vers bucket "signatures" (non public)
+   - Association au Match (signatureTitulaireUrl / 
+     signatureRemplacantUrl)
+5. Apposition de la signature capturée en bas du PDF généré 
+   (modifier les templates de contrat pour inclure l'image 
+   de signature à la position prévue)
+6. contratStatus passe à CONFIRME uniquement quand LES DEUX 
+   signatures photo sont présentes
+```
+
+### Point de vigilance juridique
+
+Une photo de signature manuscrite n'a pas la valeur d'une 
+signature électronique qualifiée (eIDAS). C'est un consentement 
+visuel informel, comparable à une signature scannée — suffisant 
+pour un MVP entre professionnels de confiance, mais à mentionner 
+clairement dans les mentions légales du contrat généré (déjà 
+prévu section 39/40) :
+
+```
+"Ce document a été signé électroniquement par apposition 
+d'une image de signature manuscrite. Il ne constitue pas 
+une signature électronique qualifiée au sens du règlement 
+eIDAS. Les parties reconnaissent la validité de ce mode 
+de signature pour les besoins de ce contrat."
+```
+
+---
+
+## 62. Scénario 3 — Assistant/Collaborateur autonome + badge de statut
+
+### Scénario 3 (complète la section 60)
+
+**Assistant ou collaborateur cherchant pour son propre compte,
+en autonomie, dissocié de son titulaire.**
+
+Un assistant ou collaborateur peut avoir besoin de trouver 
+lui-même un remplaçant pour couvrir sa propre absence, sans 
+passer par le titulaire du cabinet où il exerce. C'est cohérent 
+avec la réalité du terrain : un assistant en vacances doit 
+parfois organiser lui-même sa couverture (cf. contrats CNOMK 
+section 39 — clause "le remplaçant qu'il choisit doit être 
+agréé par le titulaire").
+
+**Comportement UI spécifique à ce profil :**
+
+```
+Assistant/Collaborateur autonome (pas de rôle titulaire) :
+  → Une SEULE timeline : la sienne
+  → PAS de bouton "Ajouter un poste" (il n'a qu'un seul poste : 
+    le sien, déjà existant de fait)
+  → Peut déclarer ses propres absences (comme le titulaire 
+    sur sa ligne "self" — section 43)
+  → Peut publier une annonce de remplacement sur ses propres 
+    absences déclarées
+  → Reçoit des matchs, chat, envoie un contrat de remplacement 
+    (pas d'assistanat/collaboration, puisqu'il n'est pas 
+    titulaire d'un poste à pourvoir — juste un remplacement 
+    ponctuel de lui-même)
+```
+
+Ce comportement existe potentiellement déjà en partie via 
+le profil ASSISTANT sur /disponibilites, mais il faut vérifier 
+que la timeline de l'assistant autonome fonctionne bien comme 
+décrit ci-dessus (une ligne, pas de gestion multi-postes).
+
+### Badge de statut — visible en évidence
+
+Ajouter un badge de rôle bien visible (en haut du tray ou 
+du header, selon ce qui est le plus lisible) affichant 
+précisément le statut de l'utilisateur connecté :
+
+```
+Rôles libéraux :
+  REMPLAÇANT
+  ASSISTANT
+  COLLABORATEUR
+  TITULAIRE
+
+Rôles salariés (rappel section 26 — cible hospitalière) :
+  DRH (salarié)
+  DIRECTEUR (salarié)
+  SALARIÉ CDD (salarié)
+  SALARIÉ CDI (salarié)
+```
+
+**Design du badge :**
+- Pill/badge coloré, positionné en évidence (header ou 
+  au-dessus du tray du bas)
+- Une couleur distincte par grande catégorie :
+  - Libéraux (remplaçant/assistant/collaborateur/titulaire) 
+    → teinte bleu marine/lagon
+  - Salariés (DRH/directeur/CDD/CDI) → teinte distincte 
+    (ambre ou vert, à définir en cohérence avec la palette 
+    section 46)
+
+### Modèle de données — précision du statut
+
+```prisma
+// Sur Profile — le champ type existant (ProfileType) couvre 
+// TITULAIRE/REMPLACANT/ASSISTANT. Pour les rôles salariés,
+// réutiliser isEmployeur (section 37) + ajouter une précision :
+
+enum SalarieRole {
+  DRH
+  DIRECTEUR
+  SALARIE_CDD
+  SALARIE_CDI
+}
+
+// Sur Profile — ajouter (nullable, uniquement si isEmployeur=true 
+// ET profileType pertinent) :
+salarieRole  SalarieRole?
+```
+
+### Ordre d'implémentation
+
+```
+Sprint suivant :
+1. Vérifier/corriger le comportement de la timeline pour 
+   un ASSISTANT autonome (une seule ligne, pas de multi-postes)
+2. Ajouter le badge de statut visible (header ou au-dessus 
+   du tray)
+3. Étendre le modèle Profile avec salarieRole pour les cas 
+   salariés (DRH/Directeur/CDD/CDI)
+4. Adapter l'affichage du badge selon isEmployeur + salarieRole
+```
+
+---
+
+## 63. Cartes swipe — largeur maximale sur desktop
+
+### Correction
+
+Sur desktop (largeur d'écran >= 1024px), les cartes swipe 
+(style Tinder, écran /annonces) ne doivent jamais dépasser 
+2/3 de la largeur totale de l'écran disponible.
+
+```
+Mobile (< 768px)     → carte pleine largeur (comportement actuel)
+Tablette (768-1024px) → carte centrée, max-width ~600px
+Desktop (>= 1024px)   → carte centrée, max-width = 66% de la 
+                        largeur de la zone de contenu, 
+                        jamais plus large que ça
+```
+
+### Implémentation
+
+```css
+/* Sur le conteneur de la pile de cartes (SwipeStack) */
+.swipe-card-container {
+  max-width: 100%;           /* mobile par défaut */
+}
+
+@media (min-width: 1024px) {
+  .swipe-card-container {
+    max-width: 66.666%;      /* 2/3 sur desktop */
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+```
+
+Ou en Tailwind : `w-full lg:max-w-[66%] mx-auto`
+
+### Ordre d'implémentation
+
+À inclure dans le sprint responsive (déjà en partie traité — 
+section 32/33, comportement mobile-first des timelines). 
+Ce point concerne spécifiquement l'écran swipe, pas les timelines.

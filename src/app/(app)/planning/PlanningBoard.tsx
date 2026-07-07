@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/md3/Button";
@@ -105,17 +105,6 @@ const BRIQUE_STATUS: Record<string, { bg: string; text: string; label: string }>
   ANNULE:           { bg: "bg-gray-300",               text: "text-gray-600",    label: "Annulé" },
 };
 
-// Statuts disponibles selon le contexte de la brique
-const TITULAIRE_STATUSES = ["PRESENT", "ABSENT_CONGE", "ABSENT_MALADIE", "ABSENT_FORMATION"];
-const REMPLACEMENT_STATUSES = ["CONFIRME", "EN_ATTENTE", "RECHERCHE", "ANNULE"];
-const POSTE_STATUSES = ["OCCUPE", "PREAVIS", "RECHERCHE", "NON_COUVERT", "FERME"];
-
-function getAvailableStatuses(mission: MissionData, isSelf: boolean): string[] {
-  if (isSelf) return TITULAIRE_STATUSES;
-  if (mission.missionType === "REMPLACEMENT") return REMPLACEMENT_STATUSES;
-  return POSTE_STATUSES;
-}
-
 // ── Segment helpers ────────────────────────────────────────────────────────────
 
 type SelfSegment =
@@ -149,9 +138,10 @@ function computeUncoveredGaps(missions: MissionData[]): { start: Date; end: Date
   const now = new Date();
   if (now >= RANGE_END) return [];
   const effectiveStart = now > RANGE_START ? now : RANGE_START;
+  // endDate null = occupation en durée indéterminée → couvre jusqu'à la fin de la plage
   const covered = missions
-    .filter(m => toDate(m.startDate) && toDate(m.endDate))
-    .map(m => ({ start: toDate(m.startDate)!, end: toDate(m.endDate)! }))
+    .filter(m => toDate(m.startDate))
+    .map(m => ({ start: toDate(m.startDate)!, end: toDate(m.endDate) ?? RANGE_END }))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
   const gaps: { start: Date; end: Date }[] = [];
   let cursor = effectiveStart;
@@ -325,65 +315,221 @@ function getEffectiveStatus(
   return "RECHERCHE";
 }
 
-// ── Composant StatusDropdown ───────────────────────────────────────────────────
+// ── Menu à 3 choix au clic sur un poste (section 55) ─────────────────────────────
 
-function StatusDropdown({
+function PostMenu({
   dropdown,
-  onSelect,
-  onDetail,
   onClose,
+  onPoserAnnonce,
+  onDetail,
+  onRetirer,
+  onDone,
 }: {
   dropdown: DropdownState;
-  onSelect: (status: string) => void;
-  onDetail: () => void;
   onClose: () => void;
+  onPoserAnnonce: () => void;
+  onDetail: () => void;
+  onRetirer: () => void;
+  onDone: () => void; // fermer + rafraîchir après création
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const statuses = getAvailableStatuses(dropdown.mission, dropdown.isSelf);
+  const { mission, post } = dropdown;
+  const [step, setStep] = useState<"menu" | "presence" | "preavis">("menu");
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose]);
+  // Une brique CONFIRME/OCCUPE sans date de fin = occupation en durée indéterminée
+  // → on peut y poser un préavis (section 57).
+  const isIndeterminate =
+    !toDate(mission.endDate) && ["CONFIRME", "OCCUPE"].includes(mission.briqueStatus);
 
-  // Ajustement pour ne pas sortir de l'écran
-  const left = Math.min(dropdown.x, window.innerWidth - 200);
-  const top  = Math.min(dropdown.y + 4, window.innerHeight - 280);
+  // ── Présence confirmée ──
+  const [pName, setPName] = useState("");
+  const [pStart, setPStart] = useState(toDate(mission.startDate)?.toISOString().slice(0, 10) ?? "");
+  const [pEnd, setPEnd] = useState("");
+
+  async function submitPresence() {
+    if (!pStart || busy) return;
+    setBusy(true);
+    await fetch(`/api/cabinet-posts/${post.id}/presence`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        practitionerName: pName.trim() || undefined,
+        startDate: new Date(pStart).toISOString(),
+        endDate: pEnd ? new Date(pEnd).toISOString() : null,
+      }),
+    });
+    onDone();
+  }
+
+  // ── Préavis ──
+  const defaultDuree = post.postType === "REMPLACEMENT_REGULIER" ? "1mois" : "3mois";
+  const [dureeChoice, setDureeChoice] = useState<"3mois" | "1mois" | "custom">(
+    defaultDuree as "3mois" | "1mois"
+  );
+  const [customNum, setCustomNum] = useState("");
+  const [customUnit, setCustomUnit] = useState<"jours" | "semaines" | "mois">("mois");
+  const [preavisStart, setPreavisStart] = useState(new Date().toISOString().slice(0, 10));
+
+  function preavisJours(): number | null {
+    if (dureeChoice === "3mois") return 90;
+    if (dureeChoice === "1mois") return 30;
+    const n = parseInt(customNum, 10);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return customUnit === "jours" ? n : customUnit === "semaines" ? n * 7 : n * 30;
+  }
+
+  async function submitPreavis() {
+    const j = preavisJours();
+    if (!j || busy) return;
+    setBusy(true);
+    await fetch(`/api/missions/${mission.id}/preavis`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        preavisStart: new Date(preavisStart).toISOString(),
+        dureeJours: j,
+      }),
+    });
+    onDone();
+  }
 
   return (
-    <div
-      ref={ref}
-      className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 py-1 min-w-[180px]"
-      style={{ left, top }}
-    >
-      <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 mb-1">
-        Changer le statut
+    <BottomSheet open onClose={onClose} zClass="z-[60]">
+      <div className="p-6">
+        <div className="mb-4">
+          <h3 className="font-bold text-gray-900 text-base leading-tight">{post.label}</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {mission.title}
+            {toDate(mission.startDate) ? ` · depuis le ${fmtDate(mission.startDate)}` : ""}
+            {toDate(mission.endDate) ? ` → ${fmtDate(mission.endDate)}` : isIndeterminate ? " · durée indéterminée" : ""}
+          </p>
+        </div>
+
+        {/* ── Étape menu ── */}
+        {step === "menu" && (
+          <div className="flex flex-col gap-2.5">
+            <Button onClick={onPoserAnnonce} className="w-full">Poser une annonce →</Button>
+            <Button variant="outlined" onClick={() => setStep("presence")} className="w-full !py-2.5">
+              Déclarer une présence confirmée
+            </Button>
+            {isIndeterminate && (
+              <Button
+                variant="outlined"
+                onClick={() => setStep("preavis")}
+                className="w-full !py-2.5 !border-[var(--ambre)] !text-[#8a5a00] hover:!bg-amber-50"
+              >
+                Poser un préavis
+              </Button>
+            )}
+            <Button variant="text" onClick={onDetail} className="w-full !py-2 !text-kine-600 hover:!bg-kine-50">
+              Voir le détail
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={onRetirer}
+              className="w-full !py-2.5 !border-red-200 !text-red-600 hover:!bg-red-50"
+            >
+              Retirer ce poste
+            </Button>
+            <Button variant="text" onClick={onClose} className="w-full !py-2 !text-gray-400 hover:!bg-gray-50">Annuler</Button>
+          </div>
+        )}
+
+        {/* ── Étape présence confirmée ── */}
+        {step === "presence" && (
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Nom du praticien en poste <span className="text-gray-400 font-normal">(optionnel)</span>
+              </label>
+              <input
+                type="text" value={pName} onChange={e => setPName(e.target.value)} maxLength={100}
+                placeholder='Ex : "Dr Marion L."'
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Date de début</label>
+              {/* Pas de min : la présence peut avoir commencé dans le passé */}
+              <input
+                type="date" value={pStart} onChange={e => setPStart(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Date de fin <span className="text-gray-400 font-normal">(optionnel)</span>
+              </label>
+              <input
+                type="date" value={pEnd} min={pStart || undefined} onChange={e => setPEnd(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outlined" onClick={() => setStep("menu")} className="flex-1 !py-2.5">Retour</Button>
+              <Button onClick={submitPresence} disabled={!pStart || busy} className="flex-1 !py-2.5">
+                {busy ? "…" : "Confirmer"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Étape préavis ── */}
+        {step === "preavis" && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-gray-600">Cette personne a posé son préavis.</p>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Durée du préavis</label>
+              <div className="flex flex-col gap-2">
+                {([
+                  ["3mois", "3 mois (assistanat / collaboration)"],
+                  ["1mois", "1 mois (remplacement)"],
+                  ["custom", "Personnalisé"],
+                ] as const).map(([val, lbl]) => (
+                  <button
+                    key={val} type="button" onClick={() => setDureeChoice(val)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition ${
+                      dureeChoice === val ? "border-kine-400 bg-kine-50 text-kine-700 font-semibold" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {dureeChoice === "custom" && (
+              <div className="flex gap-2">
+                <input
+                  type="number" min={1} value={customNum} onChange={e => setCustomNum(e.target.value)} placeholder="6"
+                  className="w-20 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+                />
+                <select
+                  value={customUnit} onChange={e => setCustomUnit(e.target.value as "jours" | "semaines" | "mois")}
+                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+                >
+                  <option value="jours">jours</option>
+                  <option value="semaines">semaines</option>
+                  <option value="mois">mois</option>
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Départ du préavis</label>
+              <input
+                type="date" value={preavisStart} onChange={e => setPreavisStart(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outlined" onClick={() => setStep("menu")} className="flex-1 !py-2.5">Retour</Button>
+              <Button onClick={submitPreavis} disabled={!preavisJours() || busy} className="flex-1 !py-2.5">
+                {busy ? "…" : "Poser le préavis"}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
-      {statuses.map((s) => {
-        const st = BRIQUE_STATUS[s];
-        return (
-          <button
-            key={s}
-            onClick={() => onSelect(s)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50 transition"
-          >
-            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${st.bg}`} />
-            <span className="text-gray-700">{st.label}</span>
-          </button>
-        );
-      })}
-      <div className="border-t border-gray-100 mt-1 pt-1">
-        <button
-          onClick={onDetail}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-kine-600 hover:bg-kine-50 transition font-medium"
-        >
-          Voir le détail →
-        </button>
-      </div>
-    </div>
+    </BottomSheet>
   );
 }
 
@@ -491,8 +637,9 @@ function MissionBrick({
   onPanelClick: (panel: Panel) => void;
 }) {
   const start = toDate(mission.startDate);
-  const end   = toDate(mission.endDate);
-  if (!start || !end) return null;
+  if (!start) return null;
+  // endDate null = durée indéterminée → brique ouverte jusqu'au bord droit (section 57 mode C)
+  const end = toDate(mission.endDate) ?? RANGE_END;
 
   const left  = Math.max(dayOffset(start), 0) * dayWidth;
   const right = Math.min(dayOffset(end), TOTAL_DAYS) * dayWidth;
@@ -990,8 +1137,27 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
   const [label, setLabel] = useState("");
   const [postType, setPostType] = useState("REMPLACEMENT_REGULIER");
   const [startDate, setStartDate] = useState(""); // date d'occupation, peut être passée
-  const [endDate, setEndDate] = useState("");
+  // Mode de fin d'occupation (section 57) : A=date connue, B=durée prévue, C=indéterminée
+  const [finMode, setFinMode] = useState<"A" | "B" | "C">("C");
+  const [endDate, setEndDate] = useState("");             // mode A
+  const [dureeNum, setDureeNum] = useState("");           // mode B
+  const [dureeUnit, setDureeUnit] = useState<"jours" | "semaines" | "mois">("mois"); // mode B
   const [loading, setLoading] = useState(false);
+
+  // Calcule la date de fin effective selon le mode choisi
+  function computeEndDate(): string | null {
+    if (finMode === "A") return endDate ? new Date(endDate).toISOString() : null;
+    if (finMode === "B" && startDate && dureeNum) {
+      const n = parseInt(dureeNum, 10);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      const d = new Date(startDate);
+      if (dureeUnit === "jours") d.setDate(d.getDate() + n);
+      else if (dureeUnit === "semaines") d.setDate(d.getDate() + n * 7);
+      else d.setMonth(d.getMonth() + n);
+      return d.toISOString();
+    }
+    return null; // mode C — durée indéterminée
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1003,7 +1169,7 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
         label: label.trim(),
         postType,
         startDate: startDate ? new Date(startDate).toISOString() : undefined,
-        endDate: endDate ? new Date(endDate).toISOString() : null,
+        endDate: computeEndDate(),
       }),
     });
     onCreated();
@@ -1050,17 +1216,66 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">
-          Jusqu&apos;à quand ?
-          <span className="text-gray-400 font-normal ml-1">(optionnel, laisser vide si indéterminé)</span>
-        </label>
-        <input
-          type="date"
-          value={endDate}
-          min={startDate || undefined}
-          onChange={e => setEndDate(e.target.value)}
-          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
-        />
+        <label className="block text-xs font-medium text-gray-500 mb-1.5">Comment se termine cette occupation ?</label>
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-2">
+          {([
+            ["A", "Date connue"],
+            ["B", "Durée prévue"],
+            ["C", "Indéterminée"],
+          ] as const).map(([m, lbl]) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setFinMode(m)}
+              className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition ${
+                finMode === m ? "bg-white text-kine-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+
+        {/* Mode A — date de fin connue */}
+        {finMode === "A" && (
+          <input
+            type="date"
+            value={endDate}
+            min={startDate || undefined}
+            onChange={e => setEndDate(e.target.value)}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+          />
+        )}
+
+        {/* Mode B — durée prévue → calcule la date de fin */}
+        {finMode === "B" && (
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min={1}
+              value={dureeNum}
+              onChange={e => setDureeNum(e.target.value)}
+              placeholder="6"
+              className="w-20 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+            />
+            <select
+              value={dureeUnit}
+              onChange={e => setDureeUnit(e.target.value as "jours" | "semaines" | "mois")}
+              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+            >
+              <option value="jours">jours</option>
+              <option value="semaines">semaines</option>
+              <option value="mois">mois</option>
+            </select>
+          </div>
+        )}
+
+        {/* Mode C — durée indéterminée */}
+        {finMode === "C" && (
+          <p className="text-xs text-gray-400 leading-snug">
+            Pas de date de fin. La brique reste confirmée ; vous pourrez poser un préavis plus tard en cliquant dessus.
+          </p>
+        )}
       </div>
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500">Annuler</button>
@@ -1081,7 +1296,8 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
   const [dropdown, setDropdown] = useState<DropdownState | null>(null);
   const [confirmModal, setConfirmModal] = useState<ConfirmState | null>(null);
   const [uncoveredChoice, setUncoveredChoice] = useState<UncoveredChoiceState | null>(null);
-  const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
+  // Overrides de statut locaux (lecture seule ici — le menu poste agit via l'API + refresh)
+  const [localStatuses] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Largeur réactive (mobile-first) — se recalcule au resize / changement d'orientation
@@ -1113,44 +1329,21 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoom, labelWidth]);
 
-  // Appliquer un statut sur une mission (avec optimistic update)
-  const applyStatus = useCallback(async (missionId: string, status: string) => {
-    setLocalStatuses(prev => ({ ...prev, [missionId]: status }));
+  // Retirer définitivement un poste (section 55 [3]) — suppression du CabinetPost
+  function requestRemovePost(post: PostData) {
     setDropdown(null);
-    setConfirmModal(null);
-
-    await fetch(`/api/missions/${missionId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ briqueStatus: status }),
+    setConfirmModal({
+      title: "Retirer ce poste",
+      body: "Le poste et toute sa ligne seront définitivement supprimés du Planning Board. Cette action est irréversible.",
+      onConfirm: async () => {
+        setConfirmModal(null);
+        await fetch(`/api/cabinet-posts/${post.id}`, { method: "DELETE" });
+        router.refresh();
+      },
     });
-  }, []);
-
-  // Demander un changement de statut (avec confirmation si nécessaire)
-  function requestStatusChange(mission: MissionData, status: string) {
-    setDropdown(null);
-
-    if (status === "FERME") {
-      setConfirmModal({
-        title: "Fermer ce créneau",
-        body: "Cette action marque le créneau comme fermé. Vous pourrez le réouvrir en modifiant son statut.",
-        onConfirm: () => applyStatus(mission.id, "FERME"),
-      });
-    } else if (status === "PREAVIS") {
-      const match = mission.matchesA[0] || mission.matchesB[0];
-      const them = match ? (mission.matchesA[0] ? match.profileB : match.profileA) : null;
-      const name = them?.name ?? "le remplaçant";
-      setConfirmModal({
-        title: "Passer en préavis",
-        body: `Confirmer le départ de ${name} ?`,
-        onConfirm: () => applyStatus(mission.id, "PREAVIS"),
-      });
-    } else {
-      applyStatus(mission.id, status);
-    }
   }
 
-  // Ouvrir le dropdown au clic sur une brique
+  // Ouvrir le menu à 3 choix au clic sur une brique de poste
   function openDropdown(mission: MissionData, post: PostData, isSelf: boolean, e: React.MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setDropdown({ mission, post, isSelf, x: rect.left, y: rect.bottom });
@@ -1278,8 +1471,9 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
       });
     }
     post.missions.forEach(m => {
-      const start = toDate(m.startDate), end = toDate(m.endDate);
-      if (!start || !end) return;
+      const start = toDate(m.startDate);
+      if (!start) return;
+      const end = toDate(m.endDate) ?? mWin.end; // durée indéterminée → jusqu'au bord de la fenêtre
       const w = mpct(end) - mpct(start);
       if (w <= 0) return;
       const status = getEffectiveStatus(m, post, localStatuses);
@@ -1363,18 +1557,26 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
         />
       )}
 
-      {/* Dropdown statut */}
+      {/* Menu à 3 choix au clic sur un poste (section 55) */}
       {dropdown && (
-        <StatusDropdown
+        <PostMenu
           dropdown={dropdown}
-          onSelect={(s) => requestStatusChange(dropdown.mission, s)}
+          onClose={() => setDropdown(null)}
+          onPoserAnnonce={() => {
+            const m = dropdown.mission;
+            setDropdown(null);
+            const s = toDate(m.startDate)?.toISOString().slice(0, 10) ?? "";
+            const e = toDate(m.endDate)?.toISOString().slice(0, 10) ?? "";
+            router.push(`/missions/create?startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}`);
+          }}
           onDetail={() => {
             setDropdown(null);
             const hasMatch = dropdown.mission.matchesA.length > 0 || dropdown.mission.matchesB.length > 0;
             if (hasMatch) setPanel({ type: "covered", mission: dropdown.mission, post: dropdown.post });
             else setPanel({ type: "uncovered", post: dropdown.post });
           }}
-          onClose={() => setDropdown(null)}
+          onRetirer={() => requestRemovePost(dropdown.post)}
+          onDone={() => { setDropdown(null); router.refresh(); }}
         />
       )}
 
