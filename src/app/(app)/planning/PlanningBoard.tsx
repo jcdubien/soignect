@@ -75,13 +75,14 @@ const ZOOM_LABELS: Record<Zoom, string> = { month: "Mois", quarter: "Trimestre",
 const TRACK_HEIGHT = 44;
 const LABEL_WIDTH  = 140;
 
+// Plage large pour montrer l'historique réel des postes (occupation antérieure, section 56)
 const RANGE_START = new Date();
-RANGE_START.setMonth(RANGE_START.getMonth() - 6);
+RANGE_START.setMonth(RANGE_START.getMonth() - 18);
 RANGE_START.setDate(1);
 RANGE_START.setHours(0, 0, 0, 0);
 
 const RANGE_END = new Date(RANGE_START);
-RANGE_END.setMonth(RANGE_END.getMonth() + 24);
+RANGE_END.setMonth(RANGE_END.getMonth() + 36);
 
 const TOTAL_DAYS = Math.ceil((RANGE_END.getTime() - RANGE_START.getTime()) / 86400000);
 
@@ -988,6 +989,8 @@ function DeclareAbsenceForm({ suggestedStart, suggestedEnd, onClose, onCreated }
 function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void; onCreated: () => void; isEmployeur: boolean }) {
   const [label, setLabel] = useState("");
   const [postType, setPostType] = useState("REMPLACEMENT_REGULIER");
+  const [startDate, setStartDate] = useState(""); // date d'occupation, peut être passée
+  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -996,7 +999,12 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
     await fetch("/api/cabinet-posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: label.trim(), postType }),
+      body: JSON.stringify({
+        label: label.trim(),
+        postType,
+        startDate: startDate ? new Date(startDate).toISOString() : undefined,
+        endDate: endDate ? new Date(endDate).toISOString() : null,
+      }),
     });
     onCreated();
   }
@@ -1027,6 +1035,32 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
           <option value="ASSISTANT">{isEmployeur ? "Poste salarié (CDD)" : "Assistanat (long terme)"}</option>
           <option value="COLLABORATION">{isEmployeur ? "CDI" : "Collaboration libérale"}</option>
         </select>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">
+          Depuis quand ce poste est-il occupé ?
+          <span className="text-gray-400 font-normal ml-1">(peut être dans le passé)</span>
+        </label>
+        {/* Pas de min : la date peut être antérieure à aujourd'hui (section 56) */}
+        <input
+          type="date"
+          value={startDate}
+          onChange={e => setStartDate(e.target.value)}
+          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">
+          Jusqu&apos;à quand ?
+          <span className="text-gray-400 font-normal ml-1">(optionnel, laisser vide si indéterminé)</span>
+        </label>
+        <input
+          type="date"
+          value={endDate}
+          min={startDate || undefined}
+          onChange={e => setEndDate(e.target.value)}
+          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+        />
       </div>
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500">Annuler</button>

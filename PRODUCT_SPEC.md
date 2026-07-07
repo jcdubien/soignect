@@ -4101,3 +4101,167 @@ Sprint suivant :
    (dépend du workflow contrat complet — sections 41-42,
    à vérifier si déjà codé ou encore à faire)
 ```
+
+---
+
+## 56. Création de poste — date d'occupation manuelle
+
+### Problème actuel
+
+Quand un titulaire crée un poste (assistant/collaborateur), 
+le système semble forcer la période de présence à démarrer 
+à la date du jour de création. Cela ne reflète pas la réalité :
+un assistant peut être en poste depuis plusieurs mois déjà 
+au moment où le titulaire configure enfin son Planning Board 
+sur Soignect.
+
+### Correction demandée
+
+Lors de la création d'un poste (formulaire "Ajouter un poste"),
+ajouter un champ pour préciser la date de début d'occupation
+réelle, qui peut être dans le passé :
+
+```
+Ajouter un poste
+
+Libellé du poste : [Marion]
+Type : [Assistanat (long terme)]
+
+Depuis quand ce poste est-il occupé ? 
+[Date début] — peut être antérieure à aujourd'hui
+  Exemple : le poste existe depuis le 1er janvier 2025,
+  même si on le configure dans Soignect en juillet 2026
+
+Jusqu'à quand (si connu) ?
+[Date fin] — optionnel, laisser vide si indéterminée
+```
+
+### Impact sur le modèle de données
+
+```prisma
+// Sur CabinetPost — le poste lui-même n'a pas de dates
+// C'est la Mission liée (isSelfPresence ou standard) 
+// qui porte les dates réelles d'occupation
+
+// Au moment de la création du poste, créer automatiquement
+// une Mission "présence" avec :
+startDate: <date choisie par l'utilisateur, peut être passée>
+endDate: null (indéterminée) ou date choisie
+briqueStatus: CONFIRME (le poste est occupé, pas en recherche)
+```
+
+### Comportement attendu sur la timeline
+
+Si le titulaire déclare qu'un assistant est en poste depuis 
+le 1er janvier 2025 :
+- La timeline affiche une brique CONFIRME (verte) démarrant 
+  au 1er janvier 2025, pas à la date de création dans l'app
+- Si l'utilisateur navigue vers les mois passés (zoom Année/2ans), 
+  il voit l'historique réel du poste, pas un vide artificiel
+
+### Ordre d'implémentation
+
+```
+Sprint suivant :
+1. Ajouter les champs "Date de début d'occupation" et 
+   "Date de fin (optionnelle)" dans AddPostForm
+2. À la création du poste, créer automatiquement la Mission 
+   de présence associée avec ces dates et briqueStatus=CONFIRME
+3. Vérifier que la timeline affiche correctement cette période, 
+   y compris si elle est antérieure à la date du jour
+```
+
+---
+
+## 57. Correction section 56 — trois modes de fin de poste + gestion du préavis
+
+### Trois modes de déclaration de la fin d'occupation
+
+Lors de la création d'un poste occupé (section 56), au lieu 
+d'un simple champ "date de fin optionnelle", proposer 3 modes 
+clairs :
+
+```
+Comment se termine cette occupation ?
+
+[Mode A] Date de fin connue
+         → Sélecteur de date : "01/09/2026"
+
+[Mode B] Durée prévue
+         → Champ numérique + unité : "6 mois" / "3 semaines"
+         → Calcule automatiquement la date de fin depuis 
+           la date de début
+
+[Mode C] Durée indéterminée
+         → Pas de date de fin pour l'instant
+         → La brique reste CONFIRME sans fin visible
+         → Un mécanisme de préavis se déclenche plus tard 
+           (voir ci-dessous)
+```
+
+### Déclaration du préavis en mode "Durée indéterminée"
+
+Quand un poste est en Mode C (indéterminé), le titulaire doit 
+pouvoir, PLUS TARD, cliquer sur la brique CONFIRME et déclarer 
+que l'assistant/collaborateur a posé son préavis :
+
+```
+Clic sur une brique CONFIRME (poste en durée indéterminée)
+→ Menu contextuel :
+  "Cette personne a posé son préavis"
+  → Sélectionner la durée de préavis :
+    [3 mois] (standard assistanat/collaboration)
+    [1 mois] (standard remplacement)
+    [Personnalisé] → champ libre en jours/semaines/mois
+  → Date de départ du préavis = aujourd'hui (ou date à préciser)
+  → Calcule automatiquement : date de fin = départ + durée préavis
+  → La brique se scinde : CONFIRME jusqu'à la date de fin 
+    du préavis, puis PREAVIS (gris hachuré) sur la période 
+    de préavis elle-même, puis NON_COUVERT après
+```
+
+### Nuance sur la durée du préavis standard
+
+```
+Assistanat / Collaboration : préavis standard 3 mois
+Remplacement               : préavis standard 1 mois
+Période d'essai (si applicable) : préavis réduit 2 semaines à 1 mois,
+  selon ce qui est stipulé dans le contrat CNOMK (section 39 —
+  déjà documenté : 2 semaines dans les 3 premiers mois du contrat,
+  puis 3 mois au-delà pour l'assistanat/collaboration)
+```
+
+Cette règle rejoint ce qui est déjà spécifié dans les templates 
+de contrat CNOMK (section 39) — la cohérence entre le Planning 
+Board et les contrats générés doit être vérifiée : le préavis 
+déclaré sur la timeline devrait correspondre à celui écrit 
+dans le contrat signé, si un contrat existe pour ce poste.
+
+### Modèle de données — extension
+
+```prisma
+// Sur Mission (ou un nouveau champ dédié) — ajouter :
+preavisDeclareAt   DateTime?  // Date à laquelle le préavis a été déclaré
+preavisDureeJours  Int?       // Durée du préavis en jours
+// endDate est recalculée automatiquement = preavisDeclareAt + preavisDureeJours
+```
+
+### UI récapitulative — les 3 modes au clic sur un poste vide/à créer
+
+```
+[Mode A] "Date de fin connue" → date picker
+[Mode B] "Durée prévue" → nombre + unité (jours/semaines/mois)
+[Mode C] "Durée indéterminée" → pas de fin, préavis déclarable plus tard
+```
+
+### Ordre d'implémentation
+
+```
+Sprint suivant (fusionné avec section 56) :
+1. Formulaire "Ajouter un poste" avec les 3 modes de fin
+2. Menu contextuel "Poser un préavis" sur une brique CONFIRME 
+   en durée indéterminée
+3. Calcul automatique de la scission CONFIRME → PREAVIS → NON_COUVERT
+4. Cohérence à vérifier avec les durées de préavis des contrats 
+   CNOMK générés (section 39)
+```
