@@ -174,6 +174,54 @@ function uncoveredUrgency(gapStart: Date): { cls: string; urgent: boolean; label
   return { cls: "bg-[var(--orange-pale)]", urgent: false, label: "À anticiper" };
 }
 
+// ── Vue verticale mobile (portrait < 640px) ──────────────────────────────────────
+// Position en % de la plage totale — pas de scroll horizontal, tout tient dans la carte.
+function pct(d: Date): number {
+  return Math.max(0, Math.min((dayOffset(d) / TOTAL_DAYS) * 100, 100));
+}
+
+interface MobileBrick {
+  key: string;
+  leftPct: number;
+  widthPct: number;
+  colorCls: string;   // "bg-... text-..." ou "timeline-hatch text-white"
+  urgent?: boolean;
+  label: string;
+  title: string;
+  onClick: (e: React.MouseEvent) => void;
+}
+
+// Carte d'un poste empilée verticalement : barre horizontale compacte des segments
+function MobilePostCard({ label, bricks, todayPct }: {
+  label: string; bricks: MobileBrick[]; todayPct: number;
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+      <p className="text-sm font-semibold text-gray-800 truncate mb-2">{label}</p>
+      <div className="relative h-9 rounded-lg bg-[var(--sable-chaud)] overflow-hidden">
+        {bricks.map(b => (
+          <button
+            key={b.key}
+            onClick={b.onClick}
+            title={b.title}
+            className={`md3-ripple absolute top-1 bottom-1 rounded-[5px] flex items-center px-1 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] ${b.colorCls} ${b.urgent ? "motion-safe:animate-pulse" : ""}`}
+            style={{ left: `${b.leftPct}%`, width: `${Math.max(b.widthPct, 2)}%` }}
+          >
+            <span className="text-[9px] font-medium truncate leading-none">{b.label}</span>
+          </button>
+        ))}
+        {/* Ligne "aujourd'hui" verticale à l'intérieur de la carte */}
+        {todayPct >= 0 && todayPct <= 100 && (
+          <div
+            className="planning-today-line absolute top-0 bottom-0 w-px bg-[var(--lagon-profond)] z-10 pointer-events-none"
+            style={{ left: `${todayPct}%` }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Panel types ────────────────────────────────────────────────────────────────
 
 type Panel =
@@ -1140,6 +1188,70 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
   const topAlert = alertList[0] ?? null;
   const alertIsRed = topAlert !== null && topAlert.days < 30;
 
+  // Handler zone non couverte partagé desktop/mobile
+  function handleUncoveredClick(p: PostData, clickedDate: Date) {
+    setDropdown(null);
+    setPanel(null);
+    const start = clickedDate.toISOString().slice(0, 10);
+    const endDate = new Date(clickedDate);
+    endDate.setDate(endDate.getDate() + 30);
+    setUncoveredChoice({ post: p, suggestedStart: start, suggestedEnd: endDate.toISOString().slice(0, 10) });
+  }
+
+  // ── Briques pour la vue verticale mobile ──
+  const todayPct = pct(new Date());
+  const selfBricks: MobileBrick[] = computeSelfSegments(selfMissions).map((seg, i) => {
+    const l = pct(seg.start), w = pct(seg.end) - pct(seg.start);
+    if (seg.kind === "presence") {
+      return {
+        key: `p${i}`, leftPct: l, widthPct: w,
+        colorCls: "bg-[var(--bleu-marine)] text-white", label: "Présence",
+        title: "Présence — cliquez pour déclarer une absence",
+        onClick: () => handlePresenceSegmentClick(seg.start.toISOString().slice(0, 10), seg.end.toISOString().slice(0, 10)),
+      };
+    }
+    const st = seg.covered ? BRIQUE_STATUS["CONFIRME"] : BRIQUE_STATUS["NON_COUVERT"];
+    const typeLabel = BRIQUE_STATUS[seg.mission.briqueStatus]?.label ?? "Absent";
+    return {
+      key: `p${i}`, leftPct: l, widthPct: w,
+      colorCls: `${st.bg} ${st.text}`, label: seg.covered ? `Couvert · ${typeLabel}` : typeLabel,
+      title: `${typeLabel} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)}`,
+      onClick: () => handleAbsenceSegmentClick(seg.mission),
+    };
+  });
+  function buildPostBricks(post: PostData): MobileBrick[] {
+    const bricks: MobileBrick[] = [];
+    const now = new Date();
+    if (post.isActive && now.getTime() < RANGE_END.getTime()) {
+      computeUncoveredGaps(post.missions).forEach((gap, gi) => {
+        const w = pct(gap.end) - pct(gap.start);
+        if (w <= 0) return;
+        const u = uncoveredUrgency(gap.start);
+        bricks.push({
+          key: `g${gi}`, leftPct: pct(gap.start), widthPct: w, colorCls: u.cls, urgent: u.urgent,
+          label: "", title: `Non couvert — commence dans ${daysUntil(gap.start)} j`,
+          onClick: () => handleUncoveredClick(post, gap.start),
+        });
+      });
+    }
+    post.missions.forEach(m => {
+      const start = toDate(m.startDate), end = toDate(m.endDate);
+      if (!start || !end) return;
+      const w = pct(end) - pct(start);
+      if (w <= 0) return;
+      const status = getEffectiveStatus(m, post, localStatuses);
+      const st = BRIQUE_STATUS[status] ?? BRIQUE_STATUS["RECHERCHE"];
+      const isHatch = status === "FERME";
+      bricks.push({
+        key: m.id, leftPct: pct(start), widthPct: w,
+        colorCls: isHatch ? "timeline-hatch text-white" : `${st.bg} ${st.text}`,
+        label: m.title, title: `${m.title} · ${st.label}`,
+        onClick: (e: React.MouseEvent) => openDropdown(m, post, false, e),
+      });
+    });
+    return bricks;
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0 bg-gray-50">
       {/* Bandeau d'alerte contextuel (section 47) */}
@@ -1269,6 +1381,26 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
 
         {/* Timeline */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+
+          {/* Vue VERTICALE — mobile portrait (< 640px) : postes empilés, barres compactes, pas de scroll horizontal */}
+          {isMobile && (
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              <MobilePostCard label={`${cabinetName} (titulaire)`} bricks={selfBricks} todayPct={todayPct} />
+              {allRows.map(post => (
+                <MobilePostCard key={post.id} label={post.label} bricks={buildPostBricks(post)} todayPct={todayPct} />
+              ))}
+              {allRows.length === 0 && (
+                <div className="text-center py-12 text-gray-400 text-sm">
+                  <p className="mb-2">Aucun poste configuré</p>
+                  <button onClick={() => setPanel({ type: "add_post" })} className="md3-ripple px-4 py-2 bg-kine-600 text-white rounded-xl text-xs font-bold">+ Ajouter un poste</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Vue HORIZONTALE — desktop / paysage (>= 640px) */}
+          {!isMobile && (
+          <>
           {/* En-tête mois */}
           <div className="flex flex-shrink-0 border-b border-gray-200 bg-white">
             <div style={{ width: labelWidth, flexShrink: 0 }} className="border-r border-gray-100 bg-gray-50" />
@@ -1360,6 +1492,8 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
               )}
             </div>
           </div>
+          </>
+          )}
 
           {/* Légende */}
           <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-2 flex items-center gap-4 overflow-x-auto">

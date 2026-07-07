@@ -68,6 +68,11 @@ function daysUntil(d: Date): number {
   return Math.round((d.getTime() - Date.now()) / 86400000);
 }
 
+// Position en % de la plage totale — vue verticale mobile (pas de scroll horizontal)
+function pct(d: Date): number {
+  return Math.max(0, Math.min((dayOffset(d) / TOTAL_DAYS) * 100, 100));
+}
+
 function monthLabels(dayWidth: number): { label: string; offset: number }[] {
   const labels = [];
   const cur = new Date(RANGE_START);
@@ -215,7 +220,8 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  const labelWidth = winW < 640 ? 96 : LABEL_WIDTH;
+  const isMobile   = winW < 640;
+  const labelWidth = isMobile ? 96 : LABEL_WIDTH;
   const containerWidth = Math.min(winW - labelWidth - 24, 900);
   const dayWidth   = containerWidth / ZOOM_DAYS[zoom];
   const totalWidth = TOTAL_DAYS * dayWidth;
@@ -352,6 +358,57 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
       {/* ── Timeline ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+
+          {/* Vue VERTICALE — mobile portrait (< 640px) : carte unique, barre compacte, pas de scroll horizontal */}
+          {isMobile && (
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+                <p className="text-sm font-semibold text-gray-800 truncate mb-2">
+                  {profileName ?? (isAssistant ? "Assistant" : "Remplaçant")}
+                </p>
+                <div className="relative h-9 rounded-lg bg-[var(--sable-chaud)] overflow-hidden">
+                  {/* Zone libre à partir d'aujourd'hui */}
+                  <button
+                    onClick={() => {
+                      const s = new Date();
+                      const e = new Date(s); e.setDate(e.getDate() + (isAssistant ? 90 : 30));
+                      setFreeZoneModal({ suggestedStart: s.toISOString().slice(0, 10), suggestedEnd: e.toISOString().slice(0, 10) });
+                    }}
+                    title="Ouvrir cette période à la réservation"
+                    className="md3-ripple absolute top-1 bottom-1 rounded-[5px] bg-kine-50 border border-dashed border-kine-200"
+                    style={{ left: `${pct(new Date())}%`, right: 0 }}
+                  />
+                  {/* Briques disponibilités */}
+                  {missions.map(m => {
+                    const start = toDate(m.startDate), end = toDate(m.endDate);
+                    if (!start || !end) return null;
+                    const w = pct(end) - pct(start);
+                    if (w <= 0) return null;
+                    const st = SLOT_STYLES[m.briqueStatus] ?? SLOT_STYLES["RECHERCHE"];
+                    return (
+                      <div
+                        key={m.id}
+                        title={`${m.title} · ${st.label}`}
+                        className={`absolute top-1 bottom-1 rounded-[5px] flex items-center px-1 overflow-hidden ${st.bg} ${st.text}`}
+                        style={{ left: `${pct(start)}%`, width: `${Math.max(w, 2)}%` }}
+                      >
+                        <span className="text-[9px] font-medium truncate leading-none">{m.title}</span>
+                      </div>
+                    );
+                  })}
+                  {/* Ligne "aujourd'hui" */}
+                  <div className="planning-today-line absolute top-0 bottom-0 w-px bg-[var(--lagon-profond)] z-10 pointer-events-none" style={{ left: `${pct(new Date())}%` }} />
+                </div>
+                {missions.length === 0 && (
+                  <p className="text-xs text-gray-400 mt-2 text-center">Touchez la zone claire pour ajouter une disponibilité</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Vue HORIZONTALE — desktop / paysage (>= 640px) */}
+          {!isMobile && (
+          <>
           {/* En-tête mois */}
           <div className="flex flex-shrink-0 border-b border-gray-200 bg-white">
             <div style={{ width: labelWidth, flexShrink: 0 }} className="border-r border-gray-100 bg-gray-50" />
@@ -426,6 +483,8 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
               )}
             </div>
           </div>
+          </>
+          )}
 
           {/* Légende */}
           <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-2 flex items-center gap-4 overflow-x-auto">
