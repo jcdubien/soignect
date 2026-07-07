@@ -229,20 +229,20 @@ function MissionSheet({
 
         </div>
 
-        {/* Footer fixe — 3 boutons MD3 visibles sans scroll sur mobile (items 4 + 17) */}
+        {/* Footer sticky — 3 boutons pleine largeur, tous visibles sans scroll (items 4 + 17) */}
         {item.matchId && (
-          <div className="shrink-0 border-t border-gray-100 p-3 flex gap-2 bg-white">
+          <div className="shrink-0 sticky bottom-0 border-t border-gray-100 p-3 flex flex-col gap-2 bg-white">
             <Button
               variant="filled"
               onClick={() => router.push(`/match/${item.matchId}`)}
-              className="flex-1 !px-2 !py-2.5 !text-xs"
+              className="w-full !py-2.5 !text-sm"
             >
               Envoyer un message
             </Button>
             <Button
               variant="outlined"
               onClick={() => router.push(`/match/${item.matchId}/contrat`)}
-              className="flex-1 !px-2 !py-2.5 !text-xs"
+              className="w-full !py-2.5 !text-sm"
             >
               Générer le contrat
             </Button>
@@ -250,9 +250,9 @@ function MissionSheet({
               variant="text"
               onClick={() => setConfirming(true)}
               disabled={!canCancel}
-              className="flex-1 !px-2 !py-2.5 !text-xs !text-red-600 hover:!bg-red-50"
+              className="w-full !py-2.5 !text-sm !text-red-600 hover:!bg-red-50"
             >
-              Annuler
+              Annuler cette mise en relation
             </Button>
           </div>
         )}

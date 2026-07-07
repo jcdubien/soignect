@@ -338,7 +338,7 @@ export default function RegisterPage() {
                   <button
                     type="submit"
                     disabled={!email || !password || !name || emailAvailable === false}
-                    className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
+                    className="md3-ripple flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
                   >
                     Continuer →
                   </button>
@@ -413,7 +413,7 @@ export default function RegisterPage() {
                 <button
                   onClick={handleFinalSubmit}
                   disabled={loading}
-                  className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
+                  className="md3-ripple flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
                 >
                   {loading ? "Création…" : "Rejoindre Soignect 🚀"}
                 </button>

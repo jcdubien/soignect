@@ -9,13 +9,12 @@ import { ProfileType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-// Groupes de statut (item 12)
-const STATUS_GROUPS: { key: string; label: string }[] = [
-  { key: "EN_ATTENTE", label: "En attente" },
-  { key: "DISCUSSION", label: "En discussion" },
-  { key: "CONFIRME",   label: "Confirmées" },
-  { key: "DECLINE",    label: "Déclinées" },
-  { key: "EXPIRE",     label: "Expirées" },
+// Groupes de statut repliables (item 12) — Déclinées/Expirées repliées par défaut
+const STATUS_GROUPS: { keys: string[]; label: string; defaultOpen: boolean }[] = [
+  { keys: ["EN_ATTENTE"],          label: "En attente de réponse", defaultOpen: true },
+  { keys: ["DISCUSSION"],          label: "Discussion en cours",   defaultOpen: true },
+  { keys: ["CONFIRME"],            label: "Confirmées",            defaultOpen: true },
+  { keys: ["DECLINE", "EXPIRE"],   label: "Déclinées / Expirées",  defaultOpen: false },
 ];
 
 export default async function MatchesPage() {
@@ -119,11 +118,14 @@ export default async function MatchesPage() {
       ) : (
         <div className="space-y-6">
           {STATUS_GROUPS.map((g) => {
-            const groupItems = formatted.filter((m) => ((m as { status?: string }).status ?? "EN_ATTENTE") === g.key);
+            const groupItems = formatted.filter((m) => g.keys.includes((m as { status?: string }).status ?? "EN_ATTENTE"));
             if (groupItems.length === 0) return null;
             return (
-            <section key={g.key}>
-              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{g.label} ({groupItems.length})</h2>
+            <details key={g.label} open={g.defaultOpen} className="group">
+              <summary className="flex items-center gap-2 cursor-pointer list-none mb-2 select-none">
+                <span className="text-gray-400 transition-transform group-open:rotate-90">▸</span>
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{g.label} ({groupItems.length})</span>
+              </summary>
               <div className="space-y-4">
           {groupItems.map((m) => {
             const tc    = typeConfig(m.otherProfile.type);
@@ -240,7 +242,7 @@ export default async function MatchesPage() {
             );
           })}
               </div>
-            </section>
+            </details>
             );
           })}
         </div>

@@ -37,14 +37,14 @@ export default function MatchStatusActions({
       <button
         onClick={() => setStatus("CONFIRME")}
         disabled={busy}
-        className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition disabled:opacity-40"
+        className="md3-ripple flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition disabled:opacity-40"
       >
         Confirmer
       </button>
       <button
         onClick={() => setStatus("DECLINE")}
         disabled={busy}
-        className="flex-1 py-2 border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50 transition disabled:opacity-40"
+        className="md3-ripple flex-1 py-2 border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50 transition disabled:opacity-40"
       >
         Décliner
       </button>

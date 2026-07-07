@@ -249,7 +249,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
               aria-checked={isEmployeur}
               onClick={() => setIsEmployeur(v => !v)}
               className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ml-4 ${
-                isEmployeur ? "bg-[#1B3A5C]" : "bg-gray-300"
+                isEmployeur ? "bg-[#1B3A5C]" : "bg-[#E0E0E0]"
               }`}
             >
               <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
@@ -320,7 +320,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             role="switch"
             aria-checked={emailOptIn}
             onClick={() => setEmailOptIn(v => !v)}
-            className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${emailOptIn ? "bg-[#1B3A5C]" : "bg-gray-300"}`}
+            className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${emailOptIn ? "bg-[#1B3A5C]" : "bg-[#E0E0E0]"}`}
           >
             <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${emailOptIn ? "translate-x-6" : "translate-x-1"}`} />
           </button>
