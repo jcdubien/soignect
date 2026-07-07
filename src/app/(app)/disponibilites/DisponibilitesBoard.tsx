@@ -68,9 +68,16 @@ function daysUntil(d: Date): number {
   return Math.round((d.getTime() - Date.now()) / 86400000);
 }
 
-// Position en % de la plage totale — vue verticale mobile (pas de scroll horizontal)
-function pct(d: Date): number {
-  return Math.max(0, Math.min((dayOffset(d) / TOTAL_DAYS) * 100, 100));
+// Vue verticale mobile : fenêtre ~6 mois autour d'aujourd'hui (briques lisibles)
+const MOBILE_WINDOW_DAYS = 183;
+function mobileWindow(): { start: Date; end: Date } {
+  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 15);
+  const end = new Date(start); end.setDate(end.getDate() + MOBILE_WINDOW_DAYS);
+  return { start, end };
+}
+function pctIn(d: Date, start: Date, end: Date): number {
+  const span = (end.getTime() - start.getTime()) / 86400000;
+  return Math.max(0, Math.min(((d.getTime() - start.getTime()) / 86400000 / span) * 100, 100));
 }
 
 function monthLabels(dayWidth: number): { label: string; offset: number }[] {
@@ -228,6 +235,10 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
   const todayOff   = dayOffset(new Date()) * dayWidth;
   const todayFull  = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const mLabels    = useMemo(() => monthLabels(dayWidth), [dayWidth]);
+  // Fenêtre mobile ~6 mois
+  const mWin = mobileWindow();
+  const mpct = (d: Date) => pctIn(d, mWin.start, mWin.end);
+  const fmtShort = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" });
 
   // Bandeau d'alerte remplaçant (section 47) — période ouverte (Disponible, sans
   // match) qui commence dans ≤ 90 jours. Calcul client sur les données présentes.
@@ -362,6 +373,9 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
           {/* Vue VERTICALE — mobile portrait (< 640px) : carte unique, barre compacte, pas de scroll horizontal */}
           {isMobile && (
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              <p className="text-[11px] text-gray-400 text-center">
+                Vue 6 mois · {fmtShort(mWin.start)} → {fmtShort(mWin.end)}
+              </p>
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
                 <p className="text-sm font-semibold text-gray-800 truncate mb-2">
                   {profileName ?? (isAssistant ? "Assistant" : "Remplaçant")}
@@ -376,13 +390,13 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
                     }}
                     title="Ouvrir cette période à la réservation"
                     className="md3-ripple absolute top-1 bottom-1 rounded-[5px] bg-kine-50 border border-dashed border-kine-200"
-                    style={{ left: `${pct(new Date())}%`, right: 0 }}
+                    style={{ left: `${mpct(new Date())}%`, right: 0 }}
                   />
                   {/* Briques disponibilités */}
                   {missions.map(m => {
                     const start = toDate(m.startDate), end = toDate(m.endDate);
                     if (!start || !end) return null;
-                    const w = pct(end) - pct(start);
+                    const w = mpct(end) - mpct(start);
                     if (w <= 0) return null;
                     const st = SLOT_STYLES[m.briqueStatus] ?? SLOT_STYLES["RECHERCHE"];
                     return (
@@ -390,14 +404,14 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
                         key={m.id}
                         title={`${m.title} · ${st.label}`}
                         className={`absolute top-1 bottom-1 rounded-[5px] flex items-center px-1 overflow-hidden ${st.bg} ${st.text}`}
-                        style={{ left: `${pct(start)}%`, width: `${Math.max(w, 2)}%` }}
+                        style={{ left: `${mpct(start)}%`, width: `${Math.max(w, 2)}%` }}
                       >
                         <span className="text-[9px] font-medium truncate leading-none">{m.title}</span>
                       </div>
                     );
                   })}
                   {/* Ligne "aujourd'hui" */}
-                  <div className="planning-today-line absolute top-0 bottom-0 w-px bg-[var(--lagon-profond)] z-10 pointer-events-none" style={{ left: `${pct(new Date())}%` }} />
+                  <div className="planning-today-line absolute top-0 bottom-0 w-px bg-[var(--lagon-profond)] z-10 pointer-events-none" style={{ left: `${mpct(new Date())}%` }} />
                 </div>
                 {missions.length === 0 && (
                   <p className="text-xs text-gray-400 mt-2 text-center">Touchez la zone claire pour ajouter une disponibilité</p>

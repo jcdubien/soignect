@@ -3990,126 +3990,114 @@ Post-pilots      → WhatsApp Business API
 
 ---
 
-## 52. Recettage 3-4 juillet — corrections identifiées en production
+## 55. Clic sur un poste — menu à trois choix + attribution post-signature
 
-### Liste des 25 corrections (sprint à appliquer)
+### Menu au clic sur un poste (Planning Board titulaire)
+
+Actuellement le clic ouvre une modale binaire (créer annonce / fermer).
+Il faut un menu à trois choix clair :
 
 ```
-1.  Modale vacance : ajouter "Je serai finalement présent" 
-    → DELETE Mission isSelfPresence=true
+Clic sur un poste (occupé ou vide) →
 
-2.  Formulaire annonce : supprimer champ description longue
-    → Garder uniquement accroche 280 signes + "Je recherche..."
+[1] Poser une annonce
+    → Ouvre le formulaire de création d'annonce
+    → Pré-rempli avec les dates de la zone cliquée
 
-3.  Planning Board : padding-right pr-6 + scroll centré sur aujourd'hui
+[2] Déclarer une présence confirmée
+    → Le kiné actuellement en poste est présent sur une plage
+      donnée, sans passer par le système d'absence
+    → Utile quand on veut simplement enregistrer qui est là
+      sans notion de vacance ni de recherche de remplaçant
+    → Champs : nom du praticien en poste (si pas encore lié),
+      date début, date fin
+    → Statut : CONFIRME directement, sans passer par un match
 
-4.  Fiche mise en relation : 3 boutons fixes en bas sur mobile
-
-5.  Email mot de passe oublié : vérifier appel sendEmail()
-
-6.  Redirection post-connexion :
-    TITULAIRE → /planning
-    REMPLACANT → /disponibilites
-
-7.  Timeline : labels mois illisibles → largeur minimale + 1 mois/2
-
-8.  Photo obligatoire avant publication d'annonce
-
-9.  Missions simultanées : vérifier sélecteur chips sur Vercel
-
-10. Affecter une mise en relation à une mission précise
-
-11. Tray : durée de vie 7 jours maximum (Match.createdAt + 7j)
-
-12. Page /matches : tableau de bord par statut
-    Match.status : EN_ATTENTE/DISCUSSION/CONFIRME/DECLINE/EXPIRE
-
-13. "Remplacement régulier" → "Remplacement ponctuel"
-
-14. Zoom timeline : "3 ans" → "2 ans"
-
-15. Toggle "Établissement employeur" : refaire visuellement (44x24px)
-
-16. "BIOTINDER" → "Votre accroche" partout dans l'UI
-
-17. Design général : Material Design 3
-    (Inter/Roboto, cards elevation, bottom sheet, ripple, bottom nav)
-
-18. Email réinitialisation : URL localhost → soignect.vercel.app
-    AUTH_URL et NEXTAUTH_URL dans Vercel
-
-19. Mention "La BioTinder..." → "Votre accroche..." dans onboarding
-
-20. Boutons accroche selon profil :
-    REMPLACANT : "Je suis..." / "Je cherche..." / "J'aspire à..."
-    TITULAIRE : "Je recherche..." uniquement
-
-21. Vérification email en temps réel (onBlur écran 1)
-    GET /api/auth/check-email?email=xxx
-
-22. Message d'erreur connexion : lien "Réinitialiser" 
-    directement sous l'erreur rouge
-
-23. Tagline : "Le job board des kinés de Guadeloupe"
-    → "Trouvez. Remplacez. Collaborez."
-
-24. Badge "Partenaire CPTS" sur les annonces membres CPTS
-
-25. Modèle CPTS : accès gratuit partenaire fondateur
-    → CPTS Nord Basse-Terre gratuit permanent
-    → Autres CPTS : 99€/mois
-    → Toggle institutionalPartner dans /admin
+[3] Retirer ce poste
+    → Supprime le CabinetPost (avec confirmation)
+    → Le poste disparaît du Planning Board
+    → Différent de "Fermer cette période" — ici c'est
+      la suppression définitive de la ligne entière
 ```
 
----
+### Attribution automatique post-signature
 
-## 53. Stratégie CPTS Nord Basse-Terre × Soignect
+Quand un contrat est signé (contratStatus = CONFIRME, section 41-42),
+le système doit automatiquement proposer d'attribuer la période
+négociée à l'un des plannings disponibles du titulaire — pas
+seulement au poste d'origine de l'annonce.
 
-### Synergies identifiées
+**Cas d'usage concret :**
+Le titulaire a 3 postes (lui-même, Assistant A, Assistant B).
+Il publie une annonce liée au poste "Assistant A" en vacances.
+Un remplaçant matche et signe. Mais entre-temps, c'est finalement
+le poste "Assistant B" qui a une période libre plus urgente,
+ou le titulaire préfère affecter ce remplaçant ailleurleurs.
 
-La CPTS Nord Basse-Terre est le premier partenaire institutionnel
-de Soignect — Jean-Charles en est secrétaire.
+**Flow proposé :**
 
-**CPTS comme laboratoire de validation :**
-- Accès gratuit permanent (partenaire fondateur)
-- Valide le modèle B2B institutionnel depuis l'intérieur
-- Fournit un cas concret pour vendre aux autres CPTS
-
-**Widget cpts-nord-basse-terre.fr :**
-- Intégration d'un widget "Postes disponibles dans notre CPTS"
-  alimenté en temps réel par Soignect
-- Professionnels cherchant à s'installer en Nord Basse-Terre
-  voient directement les cabinets qui recrutent
-
-**Tarification institutionnelle :**
 ```
-CPTS Nord Basse-Terre   → Gratuit (partenaire fondateur)
-Autres CPTS/MSP         → 99€/mois ou 990€/an
-  Inclus : accès membres, badge Partenaire CPTS,
-  visibilité boostée profils en tension, rapport mensuel
-```
+1. Contrat signé (les deux parties ont validé — section 42)
+2. Modale automatique s'affiche au titulaire :
+   "Contrat signé avec [Nom] pour la période [dates].
+    À quel planning souhaitez-vous l'attribuer ?"
+   
+   Liste de tous les CabinetPost du titulaire, y compris :
+   - Le poste d'origine de l'annonce (présélectionné par défaut)
+   - Les autres postes, QU'ILS AIENT une absence déclarée ou non
+   - Un poste sans absence déclarée mais compatible en dates
+     affiche un avertissement : "Ce poste n'a pas de vacance
+     déclarée sur cette période — confirmer l'attribution
+     créera un remplacement ponctuel à cet endroit"
 
----
-
-## 54. Benchmark — Macasaa vs Soignect
-
-**Macasaa** (MA CArrière SAnté Antilles) :
-Porté par URPS pharmaciens Guadeloupe + Martinique.
-Soutenu par ARS, CTM, Région.
-262 candidats, 57 recruteurs, 12 recrutements en 2 ans.
-Fonctionnement classique : annonce → candidature. Pas de matching.
-
-**Différenciation Soignect :**
-```
-Macasaa              Soignect
-─────────────────────────────────────────
-Annuaire passif      Matching actif (DeepSeek)
-Pharmaciens surtout  Kinés + toutes professions
-Institutionnel       Praticien-to-praticien
-Pas de contrat       Tunnel contrat intégré (CNOMK)
-Gratuit total        Freemium (remplaçants gratuits)
+3. Le titulaire choisit → le contrat/mission est rattaché
+   à ce CabinetPost précis
+4. La timeline du poste choisi se recolore en CONFIRME
+   sur la période concernée
 ```
 
-Argument commercial : "Vous connaissez Macasaa ?
-Soignect c'est la prochaine étape — pas juste trouver un profil,
-mais gérer tout le processus jusqu'au contrat signé."
+### Modèle de données
+
+```prisma
+// Sur Mission — déjà existant cabinetPostId, le réutiliser :
+// Le rattachement se fait/modifie à ce moment précis,
+// pas uniquement à la création de l'annonce
+
+// Nouvelle info sur Match ou Mission pour tracer le choix :
+attributedPostId String?  // CabinetPost choisi après signature
+                          // (peut différer du poste d'origine)
+```
+
+### UI — modale d'attribution
+
+```
+┌─────────────────────────────────────────┐
+│ Contrat signé avec Kevin L.              │
+│ Période : 15 juil. → 30 juil. 2026       │
+│                                          │
+│ Attribuer à quel poste ?                │
+│                                          │
+│ ○ Poste "Assistant A" (poste d'origine) │
+│   Vacance déclarée sur cette période ✓  │
+│                                          │
+│ ○ Poste "Assistant B"                   │
+│   ⚠ Pas de vacance déclarée ici          │
+│                                          │
+│ ○ Ma propre présence (titulaire)        │
+│   ⚠ Pas de vacance déclarée ici          │
+│                                          │
+│ [Confirmer l'attribution]                │
+└─────────────────────────────────────────┘
+```
+
+### Ordre d'implémentation
+
+```
+Sprint suivant :
+1. Menu à 3 choix au clic sur un poste (remplace la modale binaire actuelle)
+2. Formulaire "Déclarer une présence confirmée"
+3. Bouton "Retirer ce poste" avec confirmation
+4. Modale d'attribution automatique déclenchée à contratStatus=CONFIRME
+   (dépend du workflow contrat complet — sections 41-42,
+   à vérifier si déjà codé ou encore à faire)
+```

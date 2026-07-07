@@ -175,9 +175,16 @@ function uncoveredUrgency(gapStart: Date): { cls: string; urgent: boolean; label
 }
 
 // ── Vue verticale mobile (portrait < 640px) ──────────────────────────────────────
-// Position en % de la plage totale — pas de scroll horizontal, tout tient dans la carte.
-function pct(d: Date): number {
-  return Math.max(0, Math.min((dayOffset(d) / TOTAL_DAYS) * 100, 100));
+// Fenêtre temporelle réduite (~6 mois autour d'aujourd'hui) pour des briques lisibles.
+const MOBILE_WINDOW_DAYS = 183;
+function mobileWindow(): { start: Date; end: Date } {
+  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 15);
+  const end = new Date(start); end.setDate(end.getDate() + MOBILE_WINDOW_DAYS);
+  return { start, end };
+}
+function pctIn(d: Date, start: Date, end: Date): number {
+  const span = (end.getTime() - start.getTime()) / 86400000;
+  return Math.max(0, Math.min(((d.getTime() - start.getTime()) / 86400000 / span) * 100, 100));
 }
 
 interface MobileBrick {
@@ -1198,10 +1205,12 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
     setUncoveredChoice({ post: p, suggestedStart: start, suggestedEnd: endDate.toISOString().slice(0, 10) });
   }
 
-  // ── Briques pour la vue verticale mobile ──
-  const todayPct = pct(new Date());
+  // ── Briques pour la vue verticale mobile (fenêtre ~6 mois) ──
+  const mWin = mobileWindow();
+  const mpct = (d: Date) => pctIn(d, mWin.start, mWin.end);
+  const todayPct = mpct(new Date());
   const selfBricks: MobileBrick[] = computeSelfSegments(selfMissions).map((seg, i) => {
-    const l = pct(seg.start), w = pct(seg.end) - pct(seg.start);
+    const l = mpct(seg.start), w = mpct(seg.end) - mpct(seg.start);
     if (seg.kind === "presence") {
       return {
         key: `p${i}`, leftPct: l, widthPct: w,
@@ -1224,11 +1233,11 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
     const now = new Date();
     if (post.isActive && now.getTime() < RANGE_END.getTime()) {
       computeUncoveredGaps(post.missions).forEach((gap, gi) => {
-        const w = pct(gap.end) - pct(gap.start);
+        const w = mpct(gap.end) - mpct(gap.start);
         if (w <= 0) return;
         const u = uncoveredUrgency(gap.start);
         bricks.push({
-          key: `g${gi}`, leftPct: pct(gap.start), widthPct: w, colorCls: u.cls, urgent: u.urgent,
+          key: `g${gi}`, leftPct: mpct(gap.start), widthPct: w, colorCls: u.cls, urgent: u.urgent,
           label: "", title: `Non couvert — commence dans ${daysUntil(gap.start)} j`,
           onClick: () => handleUncoveredClick(post, gap.start),
         });
@@ -1237,13 +1246,13 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
     post.missions.forEach(m => {
       const start = toDate(m.startDate), end = toDate(m.endDate);
       if (!start || !end) return;
-      const w = pct(end) - pct(start);
+      const w = mpct(end) - mpct(start);
       if (w <= 0) return;
       const status = getEffectiveStatus(m, post, localStatuses);
       const st = BRIQUE_STATUS[status] ?? BRIQUE_STATUS["RECHERCHE"];
       const isHatch = status === "FERME";
       bricks.push({
-        key: m.id, leftPct: pct(start), widthPct: w,
+        key: m.id, leftPct: mpct(start), widthPct: w,
         colorCls: isHatch ? "timeline-hatch text-white" : `${st.bg} ${st.text}`,
         label: m.title, title: `${m.title} · ${st.label}`,
         onClick: (e: React.MouseEvent) => openDropdown(m, post, false, e),
@@ -1385,6 +1394,9 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
           {/* Vue VERTICALE — mobile portrait (< 640px) : postes empilés, barres compactes, pas de scroll horizontal */}
           {isMobile && (
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              <p className="text-[11px] text-gray-400 text-center">
+                Vue 6 mois · {fmtDate(mWin.start)} → {fmtDate(mWin.end)}
+              </p>
               <MobilePostCard label={`${cabinetName} (titulaire)`} bricks={selfBricks} todayPct={todayPct} />
               {allRows.map(post => (
                 <MobilePostCard key={post.id} label={post.label} bricks={buildPostBricks(post)} todayPct={todayPct} />
