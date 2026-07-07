@@ -191,8 +191,10 @@ export default function PhotoUpload({
       onUploaded?.(url);
       showToast("success", "Photo mise à jour !");
     } catch (err) {
-      console.error("[PhotoUpload]", err);
-      showToast("error", "Erreur lors de l'upload");
+      // Log explicite du message réel renvoyé par Supabase (au lieu d'un générique)
+      console.error("[PhotoUpload] Erreur Supabase:", err);
+      const msg = (err as { message?: string })?.message ?? "inconnue";
+      showToast("error", `Erreur: ${msg}`);
     } finally {
       setUploading(false);
     }
