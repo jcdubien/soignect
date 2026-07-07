@@ -494,7 +494,7 @@ function MissionBrick({
 // ── Timeline row ───────────────────────────────────────────────────────────────
 
 function TimelineRow({
-  post, dayWidth, totalWidth, todayOffset,
+  post, dayWidth, totalWidth, todayOffset, labelWidth,
   onUncoveredClick, onBrickClick, onPanelClick,
   localStatuses,
 }: {
@@ -502,6 +502,7 @@ function TimelineRow({
   dayWidth: number;
   totalWidth: number;
   todayOffset: number;
+  labelWidth: number;
   localStatuses: Record<string, string>;
   onUncoveredClick: (post: PostData, clickedDate: Date) => void;
   onBrickClick: (mission: MissionData, post: PostData, isSelf: boolean, e: React.MouseEvent) => void;
@@ -514,8 +515,8 @@ function TimelineRow({
     <div className="flex border-b border-gray-100 last:border-0" style={{ height: TRACK_HEIGHT }}>
       {/* Label fixe */}
       <div
-        className="shrink-0 flex items-center px-3 border-r border-gray-100 bg-gray-50"
-        style={{ width: LABEL_WIDTH }}
+        className="shrink-0 flex items-center px-2 sm:px-3 border-r border-gray-100 bg-gray-50"
+        style={{ width: labelWidth }}
       >
         <div className="min-w-0">
           <span className="text-xs font-semibold text-gray-700 truncate block">{post.label}</span>
@@ -582,7 +583,7 @@ function TimelineRow({
 // ── Ligne titulaire segmentée ──────────────────────────────────────────────────
 
 function SelfTimelineRow({
-  selfMissions, cabinetName, dayWidth, totalWidth, todayOffset,
+  selfMissions, cabinetName, dayWidth, totalWidth, todayOffset, labelWidth,
   onPresenceClick, onAbsenceClick,
 }: {
   selfMissions: SelfMission[];
@@ -590,6 +591,7 @@ function SelfTimelineRow({
   dayWidth: number;
   totalWidth: number;
   todayOffset: number;
+  labelWidth: number;
   onPresenceClick: (start: string, end: string) => void;
   onAbsenceClick: (mission: SelfMission) => void;
 }) {
@@ -598,8 +600,8 @@ function SelfTimelineRow({
   return (
     <div className="flex border-b border-gray-100" style={{ height: TRACK_HEIGHT }}>
       <div
-        className="shrink-0 flex items-center px-3 border-r border-gray-100 bg-gray-50"
-        style={{ width: LABEL_WIDTH }}
+        className="shrink-0 flex items-center px-2 sm:px-3 border-r border-gray-100 bg-gray-50"
+        style={{ width: labelWidth }}
       >
         <span className="text-xs font-semibold text-gray-700 truncate block">{cabinetName} (titulaire)</span>
       </div>
@@ -993,7 +995,17 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
   const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const containerWidth = typeof window !== "undefined" ? Math.min(window.innerWidth - LABEL_WIDTH - 40, 900) : 700;
+  // Largeur réactive (mobile-first) — se recalcule au resize / changement d'orientation
+  const [winW, setWinW] = useState(800);
+  useEffect(() => {
+    const onResize = () => setWinW(window.innerWidth);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const isMobile   = winW < 640;
+  const labelWidth = isMobile ? 96 : LABEL_WIDTH; // colonne label plus étroite sur mobile
+  const containerWidth = Math.min(winW - labelWidth - 24, 900);
   const dayWidth   = containerWidth / ZOOM_DAYS[zoom];
   const totalWidth = TOTAL_DAYS * dayWidth;
   const todayOff   = dayOffset(new Date()) * dayWidth;
@@ -1006,11 +1018,11 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
   useEffect(() => {
     const el = rowsScrollRef.current;
     if (!el) return;
-    const target = Math.max(0, LABEL_WIDTH + todayOff - el.clientWidth / 2);
+    const target = Math.max(0, labelWidth + todayOff - el.clientWidth / 2);
     el.scrollLeft = target;
-    if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, target - LABEL_WIDTH);
+    if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, target - labelWidth);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom]);
+  }, [zoom, labelWidth]);
 
   // Appliquer un statut sur une mission (avec optimistic update)
   const applyStatus = useCallback(async (missionId: string, status: string) => {
@@ -1212,18 +1224,18 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
       )}
 
       {/* ── En-tête ── */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <div className="flex-1">
-          <h1 className="text-lg font-bold text-gray-900">Mon Planning</h1>
-          <p className="text-xs text-gray-400">{posts.length} poste{posts.length !== 1 ? "s" : ""} · {cabinetName}</p>
+      <div className="bg-white border-b border-gray-100 px-3 sm:px-4 py-3 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
+        <div className="w-full sm:w-auto sm:flex-1 min-w-0">
+          <h1 className="text-base sm:text-lg font-bold text-gray-900">Mon Planning</h1>
+          <p className="text-xs text-gray-400 truncate">{posts.length} poste{posts.length !== 1 ? "s" : ""} · {cabinetName}</p>
         </div>
 
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
           {(["month", "quarter", "year", "triennial"] as Zoom[]).map(z => (
             <button
               key={z}
               onClick={() => setZoom(z)}
-              className={`md3-ripple px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              className={`md3-ripple px-2 sm:px-3 py-1 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
                 zoom === z ? "bg-white text-kine-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
@@ -1259,7 +1271,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* En-tête mois */}
           <div className="flex flex-shrink-0 border-b border-gray-200 bg-white">
-            <div style={{ width: LABEL_WIDTH, flexShrink: 0 }} className="border-r border-gray-100 bg-gray-50" />
+            <div style={{ width: labelWidth, flexShrink: 0 }} className="border-r border-gray-100 bg-gray-50" />
             <div className="overflow-hidden flex-1" ref={scrollRef}>
               <div className="relative h-7" style={{ width: totalWidth }}>
                 {mLabels.map((m) => {
@@ -1296,16 +1308,17 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
             className="flex-1 overflow-y-auto overflow-x-auto pr-6"
             onScroll={(e) => {
               // Synchronise l'en-tête des mois avec le défilement horizontal des lignes
-              if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, e.currentTarget.scrollLeft - LABEL_WIDTH);
+              if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, e.currentTarget.scrollLeft - labelWidth);
             }}
           >
-            <div style={{ minWidth: totalWidth + LABEL_WIDTH }}>
+            <div style={{ minWidth: totalWidth + labelWidth }}>
               <SelfTimelineRow
                 selfMissions={selfMissions}
                 cabinetName={cabinetName}
                 dayWidth={dayWidth}
                 totalWidth={totalWidth}
                 todayOffset={todayOff}
+                labelWidth={labelWidth}
                 onPresenceClick={handlePresenceSegmentClick}
                 onAbsenceClick={handleAbsenceSegmentClick}
               />
@@ -1316,6 +1329,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
                   dayWidth={dayWidth}
                   totalWidth={totalWidth}
                   todayOffset={todayOff}
+                  labelWidth={labelWidth}
                   localStatuses={localStatuses}
                   onUncoveredClick={(p, clickedDate) => {
                     setDropdown(null);
@@ -1367,20 +1381,27 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
 
         {/* Panel latéral droit */}
         {panel && (
-          <div className="w-72 flex-shrink-0 border-l border-gray-200 bg-white overflow-y-auto">
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Détail</span>
-                <button onClick={() => setPanel(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+          <>
+            {/* Backdrop mobile — tap pour fermer */}
+            <div className="fixed inset-0 bg-black/40 z-40 sm:hidden" onClick={() => setPanel(null)} />
+            {/* Panneau : bottom sheet sur mobile, colonne latérale sur desktop */}
+            <div className="fixed inset-x-0 bottom-0 z-50 max-h-[75vh] overflow-y-auto rounded-t-2xl border-t border-gray-200 bg-white shadow-2xl md3-sheet-in
+                            sm:static sm:inset-auto sm:z-auto sm:max-h-none sm:w-72 sm:flex-shrink-0 sm:rounded-none sm:border-t-0 sm:border-l sm:shadow-none sm:animate-none">
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-2 sm:hidden" />
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Détail</span>
+                  <button onClick={() => setPanel(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+                </div>
+                <SidePanel
+                  panel={panel}
+                  onClose={() => setPanel(null)}
+                  onClosePost={requestClosePost}
+                  isEmployeur={isEmployeur}
+                />
               </div>
-              <SidePanel
-                panel={panel}
-                onClose={() => setPanel(null)}
-                onClosePost={requestClosePost}
-                isEmployeur={isEmployeur}
-              />
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>

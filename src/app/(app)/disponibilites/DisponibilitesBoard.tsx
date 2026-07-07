@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -207,7 +207,16 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
   const [freeZoneModal, setFreeZoneModal] = useState<FreeZoneModal | null>(null);
   const [blocking, setBlocking] = useState(false);
 
-  const containerWidth = typeof window !== "undefined" ? Math.min(window.innerWidth - LABEL_WIDTH - 40, 900) : 700;
+  // Largeur réactive (mobile-first) — se recalcule au resize / rotation
+  const [winW, setWinW] = useState(800);
+  useEffect(() => {
+    const onResize = () => setWinW(window.innerWidth);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const labelWidth = winW < 640 ? 96 : LABEL_WIDTH;
+  const containerWidth = Math.min(winW - labelWidth - 24, 900);
   const dayWidth   = containerWidth / ZOOM_DAYS[zoom];
   const totalWidth = TOTAL_DAYS * dayWidth;
   const todayOff   = dayOffset(new Date()) * dayWidth;
@@ -310,20 +319,20 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
       )}
 
       {/* ── En-tête ── */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <div className="flex-1">
-          <h1 className="text-lg font-bold text-gray-900">Mes disponibilités</h1>
-          <p className="text-xs text-gray-400">
+      <div className="bg-white border-b border-gray-100 px-3 sm:px-4 py-3 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
+        <div className="w-full sm:w-auto sm:flex-1 min-w-0">
+          <h1 className="text-base sm:text-lg font-bold text-gray-900">Mes disponibilités</h1>
+          <p className="text-xs text-gray-400 truncate">
             {profileName} · {isAssistant ? "Poste long terme (min. 3 mois)" : "Remplaçant"}
           </p>
         </div>
 
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
           {(["month", "quarter", "year", "triennial"] as Zoom[]).map(z => (
             <button
               key={z}
               onClick={() => setZoom(z)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              className={`md3-ripple px-2 sm:px-3 py-1 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
                 zoom === z ? "bg-white text-kine-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
@@ -345,7 +354,7 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* En-tête mois */}
           <div className="flex flex-shrink-0 border-b border-gray-200 bg-white">
-            <div style={{ width: LABEL_WIDTH, flexShrink: 0 }} className="border-r border-gray-100 bg-gray-50" />
+            <div style={{ width: labelWidth, flexShrink: 0 }} className="border-r border-gray-100 bg-gray-50" />
             <div className="overflow-hidden flex-1">
               <div className="relative h-7" style={{ width: totalWidth }}>
                 {mLabels.map((m, i) => (
@@ -369,12 +378,12 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
 
           {/* Ligne principale */}
           <div className="flex-1 overflow-y-auto overflow-x-auto">
-            <div style={{ minWidth: totalWidth + LABEL_WIDTH }}>
+            <div style={{ minWidth: totalWidth + labelWidth }}>
               <div className="flex border-b border-gray-100" style={{ height: TRACK_HEIGHT }}>
                 {/* Label */}
                 <div
                   className="shrink-0 flex items-center px-3 border-r border-gray-100 bg-gray-50"
-                  style={{ width: LABEL_WIDTH }}
+                  style={{ width: labelWidth }}
                 >
                   <span className="text-xs font-semibold text-gray-700 truncate">
                     {profileName ?? (isAssistant ? "Assistant" : "Remplaçant")}
