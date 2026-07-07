@@ -30,7 +30,6 @@ import ReactCrop, {
   makeAspectCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
-import { getSupabaseClient } from "@/lib/supabase-client";
 
 export interface PhotoUploadProps {
   profileId?: string;
@@ -168,23 +167,22 @@ export default function PhotoUpload({
 
       if (!profileId) return;
 
-      const supabase = getSupabaseClient();
-      const path = `${profileId}.jpg`;
-
-      const { error: uploadErr } = await supabase.storage
-        .from("avatars")
-        .upload(path, blob, { contentType: "image/jpeg", upsert: true });
-      if (uploadErr) throw uploadErr;
-
-      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-      const url = `${data.publicUrl}?t=${Date.now()}`;
-
-      const patchRes = await fetch(`/api/profiles/${profileId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photoUrl: url }),
+      // Upload côté serveur (route API avec clé service_role → bypass RLS).
+      // Le serveur stocke dans le bucket "avatars" ET met à jour Profile.photoUrl.
+      const fd = new FormData();
+      fd.append("file", blob, `${profileId}.jpg`);
+      const res = await fetch(`/api/profiles/${profileId}/photo`, {
+        method: "POST",
+        body: fd,
       });
-      if (!patchRes.ok) throw new Error("PATCH failed");
+      const json = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+      };
+      if (!res.ok || !json.url) {
+        throw new Error(json.error ?? `Upload échoué (${res.status})`);
+      }
+      const url = json.url;
 
       setPhotoUrl(url);
       setSrcUrl(null);
