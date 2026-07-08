@@ -190,12 +190,19 @@ interface MobileBrick {
 }
 
 // Carte d'un poste empilée verticalement : barre horizontale compacte des segments
-function MobilePostCard({ label, bricks, todayPct }: {
-  label: string; bricks: MobileBrick[]; todayPct: number;
+function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
+  label: string; bricks: MobileBrick[]; todayPct: number; onLabelClick?: () => void;
 }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
-      <p className="text-sm font-semibold text-gray-800 truncate mb-2">{label}</p>
+      {onLabelClick ? (
+        <button type="button" onClick={onLabelClick} title="Gérer ce poste"
+          className="text-sm font-semibold text-gray-800 truncate mb-2 block text-left w-full hover:text-kine-700 transition">
+          {label}
+        </button>
+      ) : (
+        <p className="text-sm font-semibold text-gray-800 truncate mb-2">{label}</p>
+      )}
       <div className="relative h-9 rounded-lg bg-[var(--sable-chaud)] overflow-hidden">
         {bricks.map(b => (
           <button
@@ -231,7 +238,7 @@ type Panel =
   | null;
 
 interface DropdownState {
-  mission: MissionData;
+  mission: MissionData | null; // null = ouverture au niveau du poste (poste vide / label)
   post: PostData;
   isSelf: boolean;
   x: number;
@@ -333,18 +340,56 @@ function PostMenu({
   onDone: () => void; // fermer + rafraîchir après création
 }) {
   const { mission, post } = dropdown;
-  const [step, setStep] = useState<"menu" | "presence" | "preavis">("menu");
+  const [step, setStep] = useState<"menu" | "presence" | "preavis" | "modifier">("menu");
   const [busy, setBusy] = useState(false);
 
   // Une brique CONFIRME/OCCUPE sans date de fin = occupation en durée indéterminée
   // → on peut y poser un préavis (section 57).
   const isIndeterminate =
-    !toDate(mission.endDate) && ["CONFIRME", "OCCUPE"].includes(mission.briqueStatus);
+    !!mission && !toDate(mission.endDate) && ["CONFIRME", "OCCUPE"].includes(mission.briqueStatus);
 
   // ── Présence confirmée ──
   const [pName, setPName] = useState("");
-  const [pStart, setPStart] = useState(toDate(mission.startDate)?.toISOString().slice(0, 10) ?? "");
+  const [pStart, setPStart] = useState(toDate(mission?.startDate)?.toISOString().slice(0, 10) ?? "");
   const [pEnd, setPEnd] = useState("");
+
+  // ── Modifier manuellement une occupation existante (section 60) ──
+  const [eName, setEName] = useState(mission?.title ?? "");
+  const [eStart, setEStart] = useState(toDate(mission?.startDate)?.toISOString().slice(0, 10) ?? "");
+  const [eFinMode, setEFinMode] = useState<"A" | "B" | "C">(toDate(mission?.endDate) ? "A" : "C");
+  const [eEnd, setEEnd] = useState(toDate(mission?.endDate)?.toISOString().slice(0, 10) ?? "");
+  const [eDureeNum, setEDureeNum] = useState("");
+  const [eDureeUnit, setEDureeUnit] = useState<"jours" | "semaines" | "mois">("mois");
+
+  function computeModifierEnd(): string | null {
+    if (eFinMode === "A") return eEnd ? new Date(eEnd).toISOString() : null;
+    if (eFinMode === "B" && eStart && eDureeNum) {
+      const n = parseInt(eDureeNum, 10);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      const d = new Date(eStart);
+      if (eDureeUnit === "jours") d.setDate(d.getDate() + n);
+      else if (eDureeUnit === "semaines") d.setDate(d.getDate() + n * 7);
+      else d.setMonth(d.getMonth() + n);
+      return d.toISOString();
+    }
+    return null;
+  }
+
+  async function submitModifier() {
+    if (!mission || !eStart || busy) return;
+    setBusy(true);
+    const title = eName.trim();
+    await fetch(`/api/missions/${mission.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...(title.length >= 3 ? { title } : {}),
+        startDate: new Date(eStart).toISOString(),
+        endDate: computeModifierEnd(),
+      }),
+    });
+    onDone();
+  }
 
   async function submitPresence() {
     if (!pStart || busy) return;
@@ -380,7 +425,7 @@ function PostMenu({
 
   async function submitPreavis() {
     const j = preavisJours();
-    if (!j || busy) return;
+    if (!mission || !j || busy) return;
     setBusy(true);
     await fetch(`/api/missions/${mission.id}/preavis`, {
       method: "POST",
@@ -399,9 +444,15 @@ function PostMenu({
         <div className="mb-4">
           <h3 className="font-bold text-gray-900 text-base leading-tight">{post.label}</h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {mission.title}
-            {toDate(mission.startDate) ? ` · depuis le ${fmtDate(mission.startDate)}` : ""}
-            {toDate(mission.endDate) ? ` → ${fmtDate(mission.endDate)}` : isIndeterminate ? " · durée indéterminée" : ""}
+            {mission ? (
+              <>
+                {mission.title}
+                {toDate(mission.startDate) ? ` · depuis le ${fmtDate(mission.startDate)}` : ""}
+                {toDate(mission.endDate) ? ` → ${fmtDate(mission.endDate)}` : isIndeterminate ? " · durée indéterminée" : ""}
+              </>
+            ) : (
+              "Poste vide — définissez son occupation"
+            )}
           </p>
         </div>
 
@@ -410,8 +461,13 @@ function PostMenu({
           <div className="flex flex-col gap-2.5">
             <Button onClick={onPoserAnnonce} className="w-full">Poser une annonce →</Button>
             <Button variant="outlined" onClick={() => setStep("presence")} className="w-full !py-2.5">
-              Déclarer une présence confirmée
+              {mission ? "Déclarer une présence confirmée" : "Définir l'occupation"}
             </Button>
+            {mission && (
+              <Button variant="outlined" onClick={() => setStep("modifier")} className="w-full !py-2.5">
+                Modifier cette occupation
+              </Button>
+            )}
             {isIndeterminate && (
               <Button
                 variant="outlined"
@@ -421,9 +477,11 @@ function PostMenu({
                 Poser un préavis
               </Button>
             )}
-            <Button variant="text" onClick={onDetail} className="w-full !py-2 !text-kine-600 hover:!bg-kine-50">
-              Voir le détail
-            </Button>
+            {mission && (
+              <Button variant="text" onClick={onDetail} className="w-full !py-2 !text-kine-600 hover:!bg-kine-50">
+                Voir le détail
+              </Button>
+            )}
             <Button
               variant="outlined"
               onClick={onRetirer}
@@ -432,6 +490,61 @@ function PostMenu({
               Retirer ce poste
             </Button>
             <Button variant="text" onClick={onClose} className="w-full !py-2 !text-gray-400 hover:!bg-gray-50">Annuler</Button>
+          </div>
+        )}
+
+        {/* ── Étape modifier (édition manuelle — section 60) ── */}
+        {step === "modifier" && (
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Nom / praticien</label>
+              <input
+                type="text" value={eName} onChange={e => setEName(e.target.value)} maxLength={100}
+                placeholder="Ex : Dr Marion L."
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Date de début</label>
+              <input
+                type="date" value={eStart} onChange={e => setEStart(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Fin</label>
+              <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-2">
+                {([["A", "Date connue"], ["B", "Durée"], ["C", "Indéterminée"]] as const).map(([m, lbl]) => (
+                  <button key={m} type="button" onClick={() => setEFinMode(m)}
+                    className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition ${eFinMode === m ? "bg-white text-kine-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+              {eFinMode === "A" && (
+                <input type="date" value={eEnd} min={eStart || undefined} onChange={e => setEEnd(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+              )}
+              {eFinMode === "B" && (
+                <div className="flex gap-2">
+                  <input type="number" min={1} value={eDureeNum} onChange={e => setEDureeNum(e.target.value)} placeholder="6"
+                    className="w-20 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+                  <select value={eDureeUnit} onChange={e => setEDureeUnit(e.target.value as "jours" | "semaines" | "mois")}
+                    className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400">
+                    <option value="jours">jours</option>
+                    <option value="semaines">semaines</option>
+                    <option value="mois">mois</option>
+                  </select>
+                </div>
+              )}
+              {eFinMode === "C" && <p className="text-xs text-gray-400">Durée indéterminée (pas de date de fin).</p>}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outlined" onClick={() => setStep("menu")} className="flex-1 !py-2.5">Retour</Button>
+              <Button onClick={submitModifier} disabled={!eStart || busy} className="flex-1 !py-2.5">
+                {busy ? "…" : "Enregistrer"}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -698,7 +811,7 @@ function MissionBrick({
 
 function TimelineRow({
   post, dayWidth, totalWidth, todayOffset, labelWidth,
-  onUncoveredClick, onBrickClick, onPanelClick,
+  onUncoveredClick, onBrickClick, onPanelClick, onPostMenuClick,
   localStatuses,
 }: {
   post: PostData;
@@ -710,15 +823,19 @@ function TimelineRow({
   onUncoveredClick: (post: PostData, clickedDate: Date) => void;
   onBrickClick: (mission: MissionData, post: PostData, isSelf: boolean, e: React.MouseEvent) => void;
   onPanelClick: (panel: Panel) => void;
+  onPostMenuClick: (post: PostData) => void;
 }) {
   const now = new Date();
   const isSelf = post.id === "self";
 
   return (
     <div className="flex border-b border-gray-100 last:border-0" style={{ height: TRACK_HEIGHT }}>
-      {/* Label fixe */}
-      <div
-        className="shrink-0 flex items-center px-2 sm:px-3 border-r border-gray-100 bg-gray-50"
+      {/* Label fixe — cliquable : ouvre le menu du poste (gérer / définir / modifier) */}
+      <button
+        type="button"
+        onClick={() => onPostMenuClick(post)}
+        title="Gérer ce poste"
+        className="shrink-0 flex items-center px-2 sm:px-3 border-r border-gray-100 bg-gray-50 text-left hover:bg-gray-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)]"
         style={{ width: labelWidth }}
       >
         <div className="min-w-0">
@@ -727,7 +844,7 @@ function TimelineRow({
             <span className="text-[9px] text-gray-400 font-medium">Fermé</span>
           )}
         </div>
-      </div>
+      </button>
 
       {/* Piste */}
       <div className="relative flex-1 overflow-hidden bg-[var(--sable-chaud)]">
@@ -1319,15 +1436,21 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
   const todayFull  = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const rowsScrollRef = useRef<HTMLDivElement>(null);
 
-  // Item 3 — scroll initial centré sur "aujourd'hui"
+  // Scroll centré sur "aujourd'hui". requestAnimationFrame pour attendre le layout
+  // final (clientWidth fiable), et dépendance sur winW car la largeur réelle n'arrive
+  // qu'après le montage (winW démarre à 800 puis se recale) — sinon la timeline
+  // restait bloquée au bord gauche (début de plage).
   useEffect(() => {
     const el = rowsScrollRef.current;
-    if (!el) return;
-    const target = Math.max(0, labelWidth + todayOff - el.clientWidth / 2);
-    el.scrollLeft = target;
-    if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, target - labelWidth);
+    if (!el || isMobile) return;
+    const id = requestAnimationFrame(() => {
+      const target = Math.max(0, labelWidth + todayOff - el.clientWidth / 2);
+      el.scrollLeft = target;
+      if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, target - labelWidth);
+    });
+    return () => cancelAnimationFrame(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom, labelWidth]);
+  }, [zoom, labelWidth, isMobile, winW]);
 
   // Retirer définitivement un poste (section 55 [3]) — suppression du CabinetPost
   function requestRemovePost(post: PostData) {
@@ -1343,10 +1466,17 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
     });
   }
 
-  // Ouvrir le menu à 3 choix au clic sur une brique de poste
+  // Ouvrir le menu au clic sur une brique de poste (mission ciblée)
   function openDropdown(mission: MissionData, post: PostData, isSelf: boolean, e: React.MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setDropdown({ mission, post, isSelf, x: rect.left, y: rect.bottom });
+    setPanel(null);
+  }
+
+  // Ouvrir le menu au niveau du poste (clic sur le libellé) — marche même si le poste
+  // est vide (mission = null) : permet de définir/modifier son occupation à la main.
+  function openPostMenu(post: PostData) {
+    setDropdown({ mission: null, post, isSelf: false, x: 0, y: 0 });
     setPanel(null);
   }
 
@@ -1565,14 +1695,15 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
           onPoserAnnonce={() => {
             const m = dropdown.mission;
             setDropdown(null);
-            const s = toDate(m.startDate)?.toISOString().slice(0, 10) ?? "";
-            const e = toDate(m.endDate)?.toISOString().slice(0, 10) ?? "";
+            const s = m ? toDate(m.startDate)?.toISOString().slice(0, 10) ?? "" : "";
+            const e = m ? toDate(m.endDate)?.toISOString().slice(0, 10) ?? "" : "";
             router.push(`/missions/create?startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}`);
           }}
           onDetail={() => {
+            const m = dropdown.mission;
             setDropdown(null);
-            const hasMatch = dropdown.mission.matchesA.length > 0 || dropdown.mission.matchesB.length > 0;
-            if (hasMatch) setPanel({ type: "covered", mission: dropdown.mission, post: dropdown.post });
+            const hasMatch = !!m && (m.matchesA.length > 0 || m.matchesB.length > 0);
+            if (hasMatch && m) setPanel({ type: "covered", mission: m, post: dropdown.post });
             else setPanel({ type: "uncovered", post: dropdown.post });
           }}
           onRetirer={() => requestRemovePost(dropdown.post)}
@@ -1635,7 +1766,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
               </p>
               <MobilePostCard label={`${cabinetName} (titulaire)`} bricks={selfBricks} todayPct={todayPct} />
               {allRows.map(post => (
-                <MobilePostCard key={post.id} label={post.label} bricks={buildPostBricks(post)} todayPct={todayPct} />
+                <MobilePostCard key={post.id} label={post.label} bricks={buildPostBricks(post)} todayPct={todayPct} onLabelClick={() => openPostMenu(post)} />
               ))}
               {allRows.length === 0 && (
                 <div className="text-center py-12 text-gray-400 text-sm">
@@ -1722,6 +1853,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
                   }}
                   onBrickClick={openDropdown}
                   onPanelClick={(p) => { setPanel(p); setDropdown(null); }}
+                  onPostMenuClick={openPostMenu}
                 />
               ))}
 
