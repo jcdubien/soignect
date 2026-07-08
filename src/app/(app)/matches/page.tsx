@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,7 +20,9 @@ const STATUS_GROUPS: { keys: string[]; label: string; defaultOpen: boolean }[] =
 
 export default async function MatchesPage() {
   const session = await auth();
-  const profileId = session!.user.profileId!;
+  // Guard propre : pas de session ou profil incomplet → redirection (pas de TypeError)
+  const profileId = (session?.user as { profileId?: string })?.profileId;
+  if (!profileId) redirect("/login");
   const myProfileId = profileId;
 
   const myProfile = await prisma.profile.findUnique({

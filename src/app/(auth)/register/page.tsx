@@ -11,6 +11,29 @@ import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
 
 type ProfileTypeChoice = "TITULAIRE" | "REMPLACANT";
 
+// Création du profil avec un retry automatique (durcissement) : le pooler Supabase
+// peut échouer ponctuellement sous charge. En cas de 5xx ou d'erreur réseau, on
+// réessaie une seule fois après 500 ms avant de remonter l'erreur à l'utilisateur.
+async function createProfileWithRetry(payload: Record<string, unknown>): Promise<Response> {
+  const opts: RequestInit = {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  };
+  try {
+    const res = await fetch("/api/profiles", opts);
+    if (res.status >= 500) {
+      await new Promise((r) => setTimeout(r, 500));
+      return fetch("/api/profiles", opts);
+    }
+    return res;
+  } catch {
+    // Erreur réseau — une seule nouvelle tentative
+    await new Promise((r) => setTimeout(r, 500));
+    return fetch("/api/profiles", opts);
+  }
+}
+
 // Item 20 — starters différenciés selon le profil
 const BIO_STARTERS_CANDIDATE = ["Je suis…", "Je cherche…", "J'aspire à…"] as const;
 const BIO_STARTERS_TITULAIRE = ["Je recherche…"] as const;
@@ -76,10 +99,9 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/profiles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    let res: Response;
+    try {
+      res = await createProfileWithRetry({
         email: email.toLowerCase().trim(),
         password,
         type: profileType,
@@ -88,11 +110,15 @@ export default function RegisterPage() {
         phone: toE164(phoneCountry, phone) || undefined,
         phoneCountry,
         emailOptIn,
-      }),
-    });
+      });
+    } catch {
+      setError("Problème de connexion. Vérifiez votre réseau et réessayez.");
+      setLoading(false);
+      return;
+    }
 
     if (!res.ok) {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setError(data.error?.fieldErrors?.email?.[0] ?? data.error ?? "Erreur lors de la création");
       setLoading(false);
       return;

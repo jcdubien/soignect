@@ -193,17 +193,23 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
             <Text style={S.sigLabel}>Le remplacé</Text>
             <Text style={[S.sigLabel, { marginTop: 2 }]}>{remplace.name || "[Nom du remplacé]"}</Text>
             <Text style={[S.sigLabel, { marginTop: 2 }]}>Date et signature :</Text>
-            {signatureTitulaireImg
-              ? <Image style={S.sigImg} src={signatureTitulaireImg} />
-              : <Text style={[S.sigLabel, { marginTop: 20 }]}> </Text>}
+            {signatureTitulaireImg ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- <Image> @react-pdf (PDF), pas une balise HTML img
+              <Image style={S.sigImg} src={signatureTitulaireImg} />
+            ) : (
+              <Text style={[S.sigLabel, { marginTop: 20 }]}> </Text>
+            )}
           </View>
           <View style={S.sigCol}>
             <Text style={S.sigLabel}>Le remplaçant</Text>
             <Text style={[S.sigLabel, { marginTop: 2 }]}>{remplacant.name || "[Nom du remplaçant]"}</Text>
             <Text style={[S.sigLabel, { marginTop: 2 }]}>Date et signature :</Text>
-            {signatureRemplacantImg
-              ? <Image style={S.sigImg} src={signatureRemplacantImg} />
-              : <Text style={[S.sigLabel, { marginTop: 20 }]}> </Text>}
+            {signatureRemplacantImg ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- <Image> @react-pdf (PDF), pas une balise HTML img
+              <Image style={S.sigImg} src={signatureRemplacantImg} />
+            ) : (
+              <Text style={[S.sigLabel, { marginTop: 20 }]}> </Text>
+            )}
           </View>
         </View>
 
