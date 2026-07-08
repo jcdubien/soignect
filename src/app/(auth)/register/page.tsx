@@ -6,7 +6,6 @@ import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
 import { COMMUNES_GUADELOUPE } from "@/lib/communes";
 import PhotoUpload from "@/components/ui/PhotoUpload";
-import { getSupabaseClient } from "@/lib/supabase-client";
 import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
 
 type ProfileTypeChoice = "TITULAIRE" | "REMPLACANT";
@@ -126,25 +125,17 @@ export default function RegisterPage() {
 
     await signIn("credentials", { email: email.toLowerCase().trim(), password, redirect: false });
 
-    // Upload pending photo if user picked one
+    // Upload de la photo choisie à l'inscription — via la route serveur
+    // (clé service_role, bypass RLS) comme PhotoUpload. L'upload anon direct
+    // échouait en 403 (policies RLS ciblent le rôle authenticated).
     if (pendingPhotoBlob) {
       try {
         const session = await getSession();
         const profileId = (session?.user as { profileId?: string })?.profileId;
         if (profileId) {
-          const supabase = getSupabaseClient();
-          const path = `${profileId}.jpg`;
-          const { error: uploadErr } = await supabase.storage
-            .from("avatars")
-            .upload(path, pendingPhotoBlob, { contentType: "image/jpeg", upsert: true });
-          if (!uploadErr) {
-            const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-            await fetch(`/api/profiles/${profileId}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ photoUrl: data.publicUrl }),
-            });
-          }
+          const fd = new FormData();
+          fd.append("file", pendingPhotoBlob, `${profileId}.jpg`);
+          await fetch(`/api/profiles/${profileId}/photo`, { method: "POST", body: fd });
         }
       } catch (e) {
         console.error("[register] photo upload failed", e);
