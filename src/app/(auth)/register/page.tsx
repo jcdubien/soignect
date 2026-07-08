@@ -128,21 +128,29 @@ export default function RegisterPage() {
     // Upload de la photo choisie à l'inscription — via la route serveur
     // (clé service_role, bypass RLS) comme PhotoUpload. L'upload anon direct
     // échouait en 403 (policies RLS ciblent le rôle authenticated).
+    // Le compte est déjà créé : un échec photo ne doit pas bloquer, mais on
+    // en informe l'utilisateur pour qu'il l'ajoute depuis /compte.
+    let photoUploaded = true;
     if (pendingPhotoBlob) {
       try {
         const session = await getSession();
         const profileId = (session?.user as { profileId?: string })?.profileId;
-        if (profileId) {
+        if (!profileId) {
+          photoUploaded = false;
+        } else {
           const fd = new FormData();
           fd.append("file", pendingPhotoBlob, `${profileId}.jpg`);
-          await fetch(`/api/profiles/${profileId}/photo`, { method: "POST", body: fd });
+          const photoRes = await fetch(`/api/profiles/${profileId}/photo`, { method: "POST", body: fd });
+          photoUploaded = photoRes.ok;
         }
       } catch (e) {
         console.error("[register] photo upload failed", e);
+        photoUploaded = false;
       }
     }
 
-    router.push("/annonces");
+    // Échec d'upload → on redirige vers /compte avec un avis (compte bien créé)
+    router.push(photoUploaded ? "/annonces" : "/compte?photoError=1");
   }
 
   return (
