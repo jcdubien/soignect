@@ -10,9 +10,10 @@ interface Props {
   myProfileId: string;
   partner: { type: string; theirMissionTitle?: string | null };
   aiScore: number | null;
+  myType?: string;
 }
 
-export default function MatchChatButton({ matchId, myProfileId, partner, aiScore }: Props) {
+export default function MatchChatButton({ matchId, myProfileId, partner, aiScore, myType }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -33,6 +34,7 @@ export default function MatchChatButton({ matchId, myProfileId, partner, aiScore
           myProfileId={myProfileId}
           partner={partner}
           aiScore={aiScore}
+          myType={myType}
           onClose={() => setOpen(false)}
         />
       )}

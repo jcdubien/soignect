@@ -3,11 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Mission, Profile } from "@prisma/client";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
 import type { TitulaireMission } from "@/components/swipe/MissionSelector";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import Button from "@/components/ui/md3/Button";
+
+const ChatModal = dynamic(() => import("@/components/chat/ChatModal"), { ssr: false });
 
 type MissionWithProfile = Mission & { profile: Profile };
 
@@ -27,17 +30,22 @@ interface MatchTrayProps {
   refreshKey?: number;
   /** Missions ouvertes du titulaire — pour réaffecter une relation (item 10) */
   titulaireMissions?: TitulaireMission[];
+  /** Type et id du profil courant — gating du bouton contrat + chat inline (section 61) */
+  myProfileType?: string;
+  myProfileId?: string;
 }
 
 // ── Fiche complète de l'annonce ───────────────────────────────────────────────
 function MissionSheet({
-  item, onClose, onCancelled, titulaireMissions = [], onReassigned,
+  item, onClose, onCancelled, titulaireMissions = [], onReassigned, myProfileType, myProfileId,
 }: {
   item: TrayItem;
   onClose: () => void;
   onCancelled: (matchId: string) => void;
   titulaireMissions?: TitulaireMission[];
   onReassigned?: () => void;
+  myProfileType?: string;
+  myProfileId?: string;
 }) {
   const { mission } = item;
   const p = mission.profile;
@@ -47,6 +55,10 @@ function MissionSheet({
   const [cancelling, setCancelling] = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [reassigning, setReassigning] = useState(false);
+  const [chatOpen, setChatOpen]     = useState(false);
+
+  // "Envoyer un contrat" visible uniquement côté recruteur (titulaire/assistant)
+  const canSendContract = myProfileType === "TITULAIRE" || myProfileType === "ASSISTANT";
 
   // Item 10 — réaffecter cette relation à une autre mission ouverte (si plusieurs)
   const canReassign = !!item.matchId && titulaireMissions.length > 1;
@@ -229,34 +241,48 @@ function MissionSheet({
 
         </div>
 
-        {/* Footer sticky — 3 boutons pleine largeur, tous visibles sans scroll (items 4 + 17) */}
+        {/* Footer sticky — 3 CTA (section 61) : Chat / Contrat (recruteur) / Annuler */}
         {item.matchId && (
           <div className="shrink-0 sticky bottom-0 border-t border-gray-100 p-3 flex flex-col gap-2 bg-white">
             <Button
               variant="filled"
-              onClick={() => router.push(`/match/${item.matchId}`)}
+              onClick={() => setChatOpen(true)}
               className="w-full !py-2.5 !text-sm"
             >
-              Envoyer un message
+              Commencer un chat
             </Button>
-            <Button
-              variant="outlined"
-              onClick={() => router.push(`/match/${item.matchId}/contrat`)}
-              className="w-full !py-2.5 !text-sm"
-            >
-              Générer le contrat
-            </Button>
+            {canSendContract && (
+              <Button
+                variant="outlined"
+                onClick={() => router.push(`/match/${item.matchId}/contrat`)}
+                className="w-full !py-2.5 !text-sm"
+              >
+                Envoyer un contrat
+              </Button>
+            )}
             <Button
               variant="text"
               onClick={() => setConfirming(true)}
               disabled={!canCancel}
               className="w-full !py-2.5 !text-sm !text-red-600 hover:!bg-red-50"
             >
-              Annuler cette mise en relation
+              Annuler le match
             </Button>
           </div>
         )}
     </BottomSheet>
+
+      {/* Chat inline (section 61) */}
+      {chatOpen && item.matchId && (
+        <ChatModal
+          matchId={item.matchId}
+          myProfileId={myProfileId ?? ""}
+          partner={{ type: p.type, theirMissionTitle: mission.title }}
+          aiScore={item.affinityScore}
+          myType={myProfileType}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
 
       {/* Modale de confirmation d'annulation */}
       {confirming && (
@@ -299,7 +325,7 @@ function MissionSheet({
 }
 
 // ── MatchTray principal ───────────────────────────────────────────────────────
-export default function MatchTray({ refreshKey, titulaireMissions = [] }: MatchTrayProps) {
+export default function MatchTray({ refreshKey, titulaireMissions = [], myProfileType, myProfileId }: MatchTrayProps) {
   const [items,       setItems]       = useState<TrayItem[]>([]);
   const [selected,    setSelected]    = useState<TrayItem | null>(null);
   const [, setSeenIds] = useState<Set<string>>(new Set());
@@ -440,6 +466,8 @@ export default function MatchTray({ refreshKey, titulaireMissions = [] }: MatchT
         <MissionSheet
           item={selected}
           titulaireMissions={titulaireMissions}
+          myProfileType={myProfileType}
+          myProfileId={myProfileId}
           onReassigned={() => { fetchTray(); setSelected(null); }}
           onClose={() => setSelected(null)}
           onCancelled={(matchId) => {

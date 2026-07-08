@@ -41,6 +41,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
   return (
     <AnnoncesClient
       profileType={profileType}
+      profileId={profileId ?? ""}
       titulaireMissions={titulaireMissions}
       initialMissionId={initialMissionId}
     />

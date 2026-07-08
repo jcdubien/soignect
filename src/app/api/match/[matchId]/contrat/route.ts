@@ -8,6 +8,7 @@ import { buildAssisanatPdf } from "@/lib/contrats/template-assistanat";
 import { buildCollaborationPdf } from "@/lib/contrats/template-collaboration";
 import type { ContractParty } from "@/lib/contrats/types";
 import { sendContratEmail } from "@/lib/email";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 // Force Node.js runtime — @react-pdf/renderer uses Node APIs
@@ -31,6 +32,21 @@ function partyFromProfile(profile: { name: string | null; profession: string; lo
 }
 
 interface Params { params: Promise<{ matchId: string }> }
+
+// Télécharge une signature du bucket privé "signatures" et la renvoie en data URL base64
+async function fetchSignatureDataUrl(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  try {
+    const { data, error } = await getSupabaseAdmin().storage.from("signatures").download(path);
+    if (error || !data) return null;
+    const buf = Buffer.from(await data.arrayBuffer());
+    const ext = path.split(".").pop();
+    const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(req: NextRequest, { params }: Params) {
   const session = await auth();
@@ -91,6 +107,10 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const generatedAt = new Date().toISOString();
 
+  // Signatures photo (section 61) — apposées dans le PDF si présentes
+  const signatureTitulaireImg  = await fetchSignatureDataUrl(match.signatureTitulaireUrl);
+  const signatureRemplacantImg = await fetchSignatureDataUrl(match.signatureRemplacantUrl);
+
   let element: ReturnType<typeof buildRemplacementPdf>;
   let filename: string;
 
@@ -100,6 +120,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate:  missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
       endDate:    missionTitulaire?.endDate?.toISOString()   ?? missionAutre?.endDate?.toISOString()   ?? null,
       retrocessionPct, rayonKm, periodeEssai, generatedAt,
+      signatureTitulaireImg, signatureRemplacantImg,
     });
     filename = "contrat-remplacement.pdf";
   } else if (missionType === MissionType.ASSISTANAT) {
@@ -108,6 +129,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+      signatureTitulaireImg, signatureRemplacantImg,
     });
     filename = "contrat-assistanat.pdf";
   } else {
@@ -116,6 +138,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+      signatureTitulaireImg, signatureRemplacantImg,
     });
     filename = "contrat-collaboration.pdf";
   }

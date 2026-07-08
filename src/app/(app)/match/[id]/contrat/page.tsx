@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
@@ -12,6 +12,21 @@ interface MatchInfo {
   theirName: string | null;
   hasPremium: boolean;
 }
+
+interface SigStatus {
+  mySide: "titulaire" | "remplacant";
+  titulaireSigned: boolean;
+  remplacantSigned: boolean;
+  titulaireAt: string | null;
+  remplacantAt: string | null;
+  mineSigned: boolean;
+  bothSigned: boolean;
+}
+
+const SIGNATURE_LEGAL =
+  "Ce document a été signé électroniquement par apposition d'une image de signature manuscrite. " +
+  "Il ne constitue pas une signature électronique qualifiée au sens du règlement eIDAS. Les parties " +
+  "reconnaissent la validité de ce mode de signature pour les besoins de ce contrat.";
 
 const TYPE_LABELS: Record<string, string> = {
   REMPLACEMENT:  "Remplacement",
@@ -34,6 +49,15 @@ export default function ContratPage() {
   const [retrocessionPct, setRetrocessionPct] = useState(70);
   const [redevancePct,    setRedevancePct]    = useState(40);
 
+  // Signature photo (section 61)
+  const [sig, setSig] = useState<SigStatus | null>(null);
+  const [signing, setSigning] = useState(false);
+  const sigInputRef = useRef<HTMLInputElement>(null);
+
+  function loadSig() {
+    fetch(`/api/match/${id}/signature`).then(r => (r.ok ? r.json() : null)).then(setSig).catch(() => {});
+  }
+
   useEffect(() => {
     fetch(`/api/match/${id}/contrat-info`)
       .then(r => r.json())
@@ -43,7 +67,29 @@ export default function ContratPage() {
       })
       .catch(() => setError("Impossible de charger les informations du match."))
       .finally(() => setLoading(false));
+    loadSig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  async function handleSignFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setSigning(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/match/${id}/signature`, { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(data.error ?? "Échec de l'envoi de la signature."); return; }
+      loadSig();
+    } catch {
+      setError("Erreur réseau lors de l'envoi de la signature.");
+    } finally {
+      setSigning(false);
+    }
+  }
 
   function buildUrl() {
     const params = new URLSearchParams({
@@ -223,6 +269,65 @@ export default function ContratPage() {
       {/* Mention légale */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-700">
         ⚠️ <strong>Document indicatif</strong> — Document pré-rempli à titre indicatif. À faire valider par un avocat ou l'Ordre des masseurs-kinésithérapeutes avant signature.
+      </div>
+
+      {/* Signature par photo (section 61) */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-4">
+        <div>
+          <h2 className="text-sm font-bold text-gray-800">Signature du contrat</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Chaque partie prend en photo sa signature manuscrite. Le contrat est confirmé quand les deux ont signé.
+          </p>
+        </div>
+
+        {sig && (
+          <div className="flex flex-col gap-2">
+            {/* Ma signature */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-gray-600">Ma signature</span>
+              {sig.mineSigned ? (
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">Signée ✓</span>
+              ) : (
+                <span className="text-xs font-semibold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full">En attente</span>
+              )}
+            </div>
+            {/* Signature de l'autre partie */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-gray-600">Signature de l&apos;autre partie</span>
+              {(sig.mySide === "titulaire" ? sig.remplacantSigned : sig.titulaireSigned) ? (
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">Signée ✓</span>
+              ) : (
+                <span className="text-xs font-semibold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full">En attente</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {sig?.bothSigned ? (
+          <p className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-center">
+            ✅ Contrat confirmé — les deux parties ont signé
+          </p>
+        ) : (
+          <>
+            <input
+              ref={sigInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleSignFile}
+            />
+            <button
+              onClick={() => sigInputRef.current?.click()}
+              disabled={signing}
+              className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-black active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {signing ? "Envoi…" : (sig?.mineSigned ? "✍️ Refaire ma signature" : "✍️ Signer avec ma signature")}
+            </button>
+          </>
+        )}
+
+        <p className="text-[11px] text-gray-400 leading-snug border-t border-gray-100 pt-3">{SIGNATURE_LEGAL}</p>
       </div>
 
       {/* Erreur */}

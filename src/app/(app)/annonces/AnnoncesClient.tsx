@@ -8,11 +8,12 @@ import { TitulaireMission } from "@/components/swipe/MissionSelector";
 
 interface Props {
   profileType: string;
+  profileId: string;
   titulaireMissions: TitulaireMission[];
   initialMissionId?: string;
 }
 
-export default function AnnoncesClient({ profileType, titulaireMissions, initialMissionId }: Props) {
+export default function AnnoncesClient({ profileType, profileId, titulaireMissions, initialMissionId }: Props) {
   const [trayKey,      setTrayKey]      = useState(0);
   const [sheetMission, setSheetMission] = useState<RecentMission | null>(null);
 
@@ -33,7 +34,7 @@ export default function AnnoncesClient({ profileType, titulaireMissions, initial
         />
       </div>
 
-      <MatchTray refreshKey={trayKey} titulaireMissions={titulaireMissions} />
+      <MatchTray refreshKey={trayKey} titulaireMissions={titulaireMissions} myProfileType={profileType} myProfileId={profileId} />
 
       {sheetMission && (
         <div

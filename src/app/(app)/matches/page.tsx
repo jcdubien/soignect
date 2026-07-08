@@ -205,6 +205,7 @@ export default async function MatchesPage() {
                     myProfileId={myProfileId}
                     partner={{ type: m.otherProfile.type, theirMissionTitle: m.theirMission?.title ?? null }}
                     aiScore={m.affinityScore}
+                    myType={viewerType}
                   />
                 </div>
 

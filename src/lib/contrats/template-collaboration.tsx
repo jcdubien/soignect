@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
-import type { ContractDataCollaboration } from "./types";
+import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
+import { type ContractDataCollaboration, SIGNATURE_LEGAL_MENTION } from "./types";
 
 const S = StyleSheet.create({
   page: { fontFamily: "Helvetica", fontSize: 10, paddingTop: 50, paddingBottom: 60, paddingHorizontal: 55, lineHeight: 1.5, color: "#1a1a1a" },
@@ -22,6 +22,8 @@ const S = StyleSheet.create({
   sigBlock: { flexDirection: "row", justifyContent: "space-between", marginTop: 30 },
   sigCol: { width: "45%", borderTopWidth: 0.5, borderTopColor: "#555", paddingTop: 6 },
   sigLabel: { fontSize: 8.5, color: "#555" },
+  sigImg: { height: 45, marginTop: 4, objectFit: "contain" },
+  eidas: { marginTop: 18, fontSize: 7.5, color: "#777", fontFamily: "Helvetica-Oblique", lineHeight: 1.4 },
   footer: { position: "absolute", bottom: 25, left: 55, right: 55, textAlign: "center", fontSize: 7.5, color: "#888", borderTopWidth: 0.5, borderTopColor: "#ccc", paddingTop: 5 },
   pageNum: { position: "absolute", bottom: 12, right: 55, fontSize: 7.5, color: "#aaa" },
 });
@@ -35,7 +37,8 @@ const LEGAL_MENTION =
   "Document pré-rempli à titre indicatif — à faire valider par un avocat ou l'Ordre des masseurs-kinésithérapeutes avant signature.";
 
 export function buildCollaborationPdf(data: ContractDataCollaboration) {
-  const { titulaire, collaborateur, startDate, minMonths, redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt } = data;
+  const { titulaire, collaborateur, startDate, minMonths, redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+    signatureTitulaireImg, signatureRemplacantImg } = data;
   const dureeStr = minMonths ? `${minMonths} mois` : "[durée à compléter]";
 
   return (
@@ -270,15 +273,23 @@ export function buildCollaborationPdf(data: ContractDataCollaboration) {
             <Text style={S.sigLabel}>Le titulaire</Text>
             <Text style={[S.sigLabel, { marginTop: 2 }]}>{titulaire.name || "[Nom du titulaire]"}</Text>
             <Text style={[S.sigLabel, { marginTop: 2 }]}>Date et signature :</Text>
-            <Text style={[S.sigLabel, { marginTop: 20 }]}> </Text>
+            {signatureTitulaireImg
+              ? <Image style={S.sigImg} src={signatureTitulaireImg} />
+              : <Text style={[S.sigLabel, { marginTop: 20 }]}> </Text>}
           </View>
           <View style={S.sigCol}>
             <Text style={S.sigLabel}>Le collaborateur</Text>
             <Text style={[S.sigLabel, { marginTop: 2 }]}>{collaborateur.name || "[Nom du collaborateur]"}</Text>
             <Text style={[S.sigLabel, { marginTop: 2 }]}>Date et signature :</Text>
-            <Text style={[S.sigLabel, { marginTop: 20 }]}> </Text>
+            {signatureRemplacantImg
+              ? <Image style={S.sigImg} src={signatureRemplacantImg} />
+              : <Text style={[S.sigLabel, { marginTop: 20 }]}> </Text>}
           </View>
         </View>
+
+        {(signatureTitulaireImg || signatureRemplacantImg) && (
+          <Text style={S.eidas}>{SIGNATURE_LEGAL_MENTION}</Text>
+        )}
 
         {/* Pied de page */}
         <Text style={S.footer}>{LEGAL_MENTION}</Text>

@@ -21,6 +21,8 @@ interface ChatModalProps {
   partner: ChatPartner;
   aiScore: number | null;
   onClose: () => void;
+  /** Type du profil courant — le bouton contrat n'est visible que côté recruteur */
+  myType?: string;
 }
 
 const TYPE_EMOJI: Record<string, string> = {
@@ -35,7 +37,8 @@ const TYPE_LABEL: Record<string, string> = {
   TITULAIRE: "Cabinet / Titulaire",
 };
 
-export default function ChatModal({ matchId, myProfileId, partner, aiScore, onClose }: ChatModalProps) {
+export default function ChatModal({ matchId, myProfileId, partner, aiScore, onClose, myType }: ChatModalProps) {
+  const canSendContract = myType === "TITULAIRE" || myType === "ASSISTANT";
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -147,6 +150,16 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
           </div>
         )}
       </div>
+
+      {/* Bouton contrat permanent (section 61) — côté recruteur uniquement */}
+      {canSendContract && (
+        <a
+          href={`/match/${matchId}/contrat`}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-kine-50 border-b border-kine-100 text-kine-700 text-sm font-semibold hover:bg-kine-100 transition"
+        >
+          📄 Envoyer un contrat
+        </a>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 bg-gray-50">

@@ -66,6 +66,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="text-xl font-black text-gray-800 tracking-tight">nect</span>
         </Link>
 
+        {/* Badge de statut (section 62) — rôle libéral, teinte bleu marine */}
+        <span className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[var(--bleu-marine)]/10 text-[var(--bleu-marine)] border border-[var(--bleu-marine)]/25">
+          {({ TITULAIRE: "Titulaire", REMPLACANT: "Remplaçant", ASSISTANT: "Assistant", COLLABORATEUR: "Collaborateur" } as Record<string, string>)[profileType ?? ""] ?? "Profil"}
+        </span>
+
         {/* Résumé contextuel — section 21 */}
         <div className="flex-1 min-w-0 hidden sm:flex items-center gap-2 text-xs text-gray-500 overflow-hidden">
           <span

@@ -276,6 +276,12 @@ model Match {
   messages          Message[]
   createdAt         DateTime @default(now())
 
+  // Signature par photo (section 61) — chemin Storage bucket "signatures" (non public)
+  signatureTitulaireUrl   String?
+  signatureTitulaireAt    DateTime?
+  signatureRemplacantUrl  String?
+  signatureRemplacantAt   DateTime?
+
   @@unique([profileAId, profileBId])
 }
 
