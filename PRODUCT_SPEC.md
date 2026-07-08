@@ -4862,3 +4862,129 @@ Ou en Tailwind : `w-full lg:max-w-[66%] mx-auto`
 À inclure dans le sprint responsive (déjà en partie traité — 
 section 32/33, comportement mobile-first des timelines). 
 Ce point concerne spécifiquement l'écran swipe, pas les timelines.
+
+---
+
+## 64. Consolidation définitive — clic universel sur toute brique de timeline
+
+### Cette section prime sur les sections 55, 56, 57 et 60 en cas 
+### de contradiction — c'est la spec de référence finale du comportement clic.
+
+### Constat au recettage
+
+Malgré les sprints précédents, le clic sur une brique de timeline 
+ne propose pas encore le menu complet attendu, et le padding 
+des timelines est revenu bord à bord (régression possible du 
+sprint responsive).
+
+### RÉGRESSION À CORRIGER — padding timeline
+
+```
+Les timelines (PlanningBoard ET DisponibilitesBoard) sont 
+de nouveau collées au bord d'écran, sans marge visible.
+→ Revérifier le padding-right (pr-4 minimum) sur le conteneur 
+  scrollable de chaque timeline
+→ Vérifier qu'aucun sprint ultérieur n'a supprimé ce padding 
+  par inadvertance (conflit de classes Tailwind, override CSS)
+```
+
+### LE MENU UNIVERSEL — clic sur n'importe quelle brique/période
+
+Que ce soit une zone vide (NON_COUVERT), une brique occupée 
+(CONFIRME, PRESENT...), ou une zone de préavis, le clic doit 
+TOUJOURS ouvrir un menu avec les options pertinentes parmi :
+
+```
+[1] Poser une annonce
+    → Sur cette période précise, ouvre le formulaire pré-rempli 
+      avec les dates de la zone cliquée
+
+[2] Modifier la période
+    → Édite les dates de début/fin de l'occupation actuelle 
+      (ex: corriger la durée réelle d'un remplacement en cours, 
+      ou allonger/raccourcir une présence déclarée)
+
+[3] Déclarer une absence
+    → Marque cette période comme vacance (section 43)
+    → Devient une zone NON_COUVERT cliquable pour proposer 
+      une annonce
+
+[4] Indiquer que je suis finalement présent
+    → Annule une absence déclarée par erreur (section 43, 
+      déjà spécifié — vérifier que ce bouton est bien 
+      accessible depuis CE menu unifié, pas seulement 
+      depuis un chemin séparé)
+
+[5] Fermer temporairement ce poste
+    → Le poste reste configuré mais est marqué FERME 
+      sur la période choisie (pas de recherche possible 
+      pendant ce temps)
+
+[6] Indiquer une occupation externe (hors Soignect)
+    → Le titulaire déclare que le poste est occupé par 
+      un assistant/collaborateur nommé, recruté par un 
+      autre biais que Soignect (bouche à oreille, autre 
+      plateforme, connaissance personnelle)
+    → Champs : nom de la personne, date début, 
+      date de fin (définie OU indéterminée — les 3 modes 
+      de la section 57 s'appliquent ici aussi)
+    → Statut résultant : CONFIRME, sans lien à un Match 
+      Soignect (matchId = null)
+```
+
+### Distinction pré-rempli vs modifiable — règle absolue
+
+```
+SI la période provient d'un match Soignect (un contrat a été 
+signé via la plateforme) :
+  → Les champs sont PRÉ-REMPLIS automatiquement avec les 
+    données du match (nom du remplaçant, dates négociées)
+  → MAIS restent 100% modifiables manuellement à tout moment
+  → Aucune donnée issue d'un match n'est en lecture seule
+
+SI la période est déclarée manuellement (hors Soignect, 
+via l'option [6] ci-dessus) :
+  → Champs vides à remplir par le titulaire
+  → Modifiables à tout moment également
+```
+
+Ce principe rejoint et confirme la section 60 (remplissage 
+automatique toujours corrigible) — ici précisé : y compris 
+le nom de la personne et les dates exactes, pas seulement 
+la réattribution à un autre poste.
+
+### Le menu s'adapte selon le contexte de la brique cliquée
+
+```
+Brique NON_COUVERT (vide)     → options [1] [3 n/a] [5] [6]
+Brique CONFIRME (via Soignect) → options [2] [3] [5] (pré-rempli, modifiable)
+Brique CONFIRME (externe)      → options [2] [3] [5] [6-modifier]
+Brique PRESENT (soi-même)      → options [3] [5 n/a]
+Brique ABSENT_* (vacance)      → options [1] [4] [3-modifier dates]
+Brique PREAVIS                 → options [1] [2] (voir dates préavis)
+```
+
+### Ordre d'implémentation — priorité immédiate
+
+```
+Sprint suivant, avant toute autre feature :
+
+1. CORRIGER LA RÉGRESSION de padding (rapide, prioritaire)
+
+2. Construire LE MENU UNIVERSEL unique (StatusDropdown enrichi, 
+   section 33) qui remplace tous les chemins de clic actuellement 
+   dispersés (modale binaire section 37, menu section 33, 
+   modale vacance section 43...) — un seul point d'entrée cohérent
+
+3. Ajouter l'option [6] "Occupation externe hors Soignect" 
+   qui n'existe pas encore du tout
+
+4. Vérifier que TOUTE brique CONFIRME (qu'elle vienne d'un 
+   match ou d'une déclaration manuelle) reste éditable via 
+   ce même menu
+
+5. Appliquer la même logique sur DisponibilitesBoard.tsx 
+   côté remplaçant (les briques de sa propre timeline doivent 
+   aussi être éditables selon les mêmes principes, adaptés 
+   à son contexte)
+```

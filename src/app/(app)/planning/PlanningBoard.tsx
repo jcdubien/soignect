@@ -243,6 +243,8 @@ interface DropdownState {
   isSelf: boolean;
   x: number;
   y: number;
+  suggestedStart?: string; // dates de la zone cliquée (préremplissage annonce / occupation)
+  suggestedEnd?: string;
 }
 
 interface ConfirmState {
@@ -348,10 +350,10 @@ function PostMenu({
   const isIndeterminate =
     !!mission && !toDate(mission.endDate) && ["CONFIRME", "OCCUPE"].includes(mission.briqueStatus);
 
-  // ── Présence confirmée ──
+  // ── Occupation externe / présence ──
   const [pName, setPName] = useState("");
-  const [pStart, setPStart] = useState(toDate(mission?.startDate)?.toISOString().slice(0, 10) ?? "");
-  const [pEnd, setPEnd] = useState("");
+  const [pStart, setPStart] = useState(toDate(mission?.startDate)?.toISOString().slice(0, 10) ?? dropdown.suggestedStart ?? "");
+  const [pEnd, setPEnd] = useState(toDate(mission?.endDate)?.toISOString().slice(0, 10) ?? dropdown.suggestedEnd ?? "");
 
   // ── Modifier manuellement une occupation existante (section 60) ──
   const [eName, setEName] = useState(mission?.title ?? "");
@@ -387,6 +389,19 @@ function PostMenu({
         startDate: new Date(eStart).toISOString(),
         endDate: computeModifierEnd(),
       }),
+    });
+    onDone();
+  }
+
+  // [5] Fermer temporairement — marque la période FERME (grisé hachuré), pas de suppression
+  const isFerme = mission?.briqueStatus === "FERME";
+  async function submitFermer() {
+    if (!mission || busy) return;
+    setBusy(true);
+    await fetch(`/api/missions/${mission.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briqueStatus: isFerme ? "CONFIRME" : "FERME" }),
     });
     onDone();
   }
@@ -456,18 +471,22 @@ function PostMenu({
           </p>
         </div>
 
-        {/* ── Étape menu ── */}
+        {/* ── Étape menu universel (section 64) — options adaptées au contexte ── */}
         {step === "menu" && (
           <div className="flex flex-col gap-2.5">
+            {/* [1] Poser une annonce */}
             <Button onClick={onPoserAnnonce} className="w-full">Poser une annonce →</Button>
-            <Button variant="outlined" onClick={() => setStep("presence")} className="w-full !py-2.5">
-              {mission ? "Déclarer une présence confirmée" : "Définir l'occupation"}
-            </Button>
+            {/* [2] Modifier la période — TOUTE occupation reste éditable, y compris issue d'un match */}
             {mission && (
               <Button variant="outlined" onClick={() => setStep("modifier")} className="w-full !py-2.5">
-                Modifier cette occupation
+                Modifier la période
               </Button>
             )}
+            {/* [6] Occupation externe hors Soignect (nom + dates, CONFIRME sans matchId) */}
+            <Button variant="outlined" onClick={() => setStep("presence")} className="w-full !py-2.5">
+              {mission ? "Occupation externe (hors Soignect)" : "Définir l'occupation (hors Soignect)"}
+            </Button>
+            {/* Préavis — si occupation en durée indéterminée */}
             {isIndeterminate && (
               <Button
                 variant="outlined"
@@ -477,11 +496,18 @@ function PostMenu({
                 Poser un préavis
               </Button>
             )}
+            {/* [5] Fermer temporairement — marque la période FERME (réversible) */}
+            {mission && (
+              <Button variant="outlined" onClick={submitFermer} disabled={busy} className="w-full !py-2.5">
+                {isFerme ? "Rouvrir cette période" : "Fermer temporairement"}
+              </Button>
+            )}
             {mission && (
               <Button variant="text" onClick={onDetail} className="w-full !py-2 !text-kine-600 hover:!bg-kine-50">
                 Voir le détail
               </Button>
             )}
+            {/* Suppression définitive du poste entier */}
             <Button
               variant="outlined"
               onClick={onRetirer}
@@ -548,12 +574,16 @@ function PostMenu({
           </div>
         )}
 
-        {/* ── Étape présence confirmée ── */}
+        {/* ── Étape occupation externe hors Soignect (section 64 [6]) — CONFIRME sans matchId ── */}
         {step === "presence" && (
           <div className="flex flex-col gap-3">
+            <p className="text-xs text-gray-400 leading-snug -mt-1">
+              Poste occupé par une personne recrutée hors Soignect. Enregistré comme confirmé,
+              sans lien à un match. Laissez la date de fin vide si la durée est indéterminée.
+            </p>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
-                Nom du praticien en poste <span className="text-gray-400 font-normal">(optionnel)</span>
+                Nom de la personne <span className="text-gray-400 font-normal">(optionnel)</span>
               </label>
               <input
                 type="text" value={pName} onChange={e => setPName(e.target.value)} maxLength={100}
@@ -1473,10 +1503,10 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
     setPanel(null);
   }
 
-  // Ouvrir le menu au niveau du poste (clic sur le libellé) — marche même si le poste
-  // est vide (mission = null) : permet de définir/modifier son occupation à la main.
-  function openPostMenu(post: PostData) {
-    setDropdown({ mission: null, post, isSelf: false, x: 0, y: 0 });
+  // Ouvrir le menu au niveau du poste (clic sur le libellé ou une zone vide) — marche
+  // même si le poste est vide (mission = null). suggested = dates de la zone cliquée.
+  function openPostMenu(post: PostData, suggested?: { start: string; end: string }) {
+    setDropdown({ mission: null, post, isSelf: false, x: 0, y: 0, suggestedStart: suggested?.start, suggestedEnd: suggested?.end });
     setPanel(null);
   }
 
@@ -1552,14 +1582,14 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
   const topAlert = alertList[0] ?? null;
   const alertIsRed = topAlert !== null && topAlert.days < 30;
 
-  // Handler zone non couverte partagé desktop/mobile
+  // Handler zone non couverte partagé desktop/mobile — ouvre le menu universel
+  // (section 64) pré-rempli avec les dates de la zone cliquée.
   function handleUncoveredClick(p: PostData, clickedDate: Date) {
-    setDropdown(null);
     setPanel(null);
     const start = clickedDate.toISOString().slice(0, 10);
     const endDate = new Date(clickedDate);
     endDate.setDate(endDate.getDate() + 30);
-    setUncoveredChoice({ post: p, suggestedStart: start, suggestedEnd: endDate.toISOString().slice(0, 10) });
+    openPostMenu(p, { start, end: endDate.toISOString().slice(0, 10) });
   }
 
   // ── Briques pour la vue verticale mobile (fenêtre ~6 mois) ──
@@ -1694,9 +1724,9 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
           onClose={() => setDropdown(null)}
           onPoserAnnonce={() => {
             const m = dropdown.mission;
+            const s = m ? (toDate(m.startDate)?.toISOString().slice(0, 10) ?? "") : (dropdown.suggestedStart ?? "");
+            const e = m ? (toDate(m.endDate)?.toISOString().slice(0, 10) ?? "") : (dropdown.suggestedEnd ?? "");
             setDropdown(null);
-            const s = m ? toDate(m.startDate)?.toISOString().slice(0, 10) ?? "" : "";
-            const e = m ? toDate(m.endDate)?.toISOString().slice(0, 10) ?? "" : "";
             router.push(`/missions/create?startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}`);
           }}
           onDetail={() => {
@@ -1842,15 +1872,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
                   todayOffset={todayOff}
                   labelWidth={labelWidth}
                   localStatuses={localStatuses}
-                  onUncoveredClick={(p, clickedDate) => {
-                    setDropdown(null);
-                    setPanel(null);
-                    const start = clickedDate.toISOString().slice(0, 10);
-                    const endDate = new Date(clickedDate);
-                    endDate.setDate(endDate.getDate() + 30);
-                    const end = endDate.toISOString().slice(0, 10);
-                    setUncoveredChoice({ post: p, suggestedStart: start, suggestedEnd: end });
-                  }}
+                  onUncoveredClick={handleUncoveredClick}
                   onBrickClick={openDropdown}
                   onPanelClick={(p) => { setPanel(p); setDropdown(null); }}
                   onPostMenuClick={openPostMenu}

@@ -180,9 +180,11 @@ function FreeZoneChoiceModal({
 function SlotBrick({
   slot,
   dayWidth,
+  onEdit,
 }: {
   slot: MissionSlot;
   dayWidth: number;
+  onEdit: (slot: MissionSlot) => void;
 }) {
   const start = toDate(slot.startDate);
   const end   = toDate(slot.endDate);
@@ -196,15 +198,89 @@ function SlotBrick({
   const st = SLOT_STYLES[slot.briqueStatus] ?? SLOT_STYLES["RECHERCHE"];
 
   return (
-    <div
-      className={`absolute top-1.5 bottom-1.5 rounded-[6px] flex items-center px-2.5 select-none overflow-hidden ${st.bg} ${st.text}`}
+    <button
+      type="button"
+      onClick={() => onEdit(slot)}
+      className={`absolute top-1.5 bottom-1.5 rounded-[6px] flex items-center px-2.5 select-none overflow-hidden cursor-pointer transition-[filter,box-shadow] duration-200 hover:brightness-95 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] ${st.bg} ${st.text}`}
       style={{ left, width: Math.max(width, 28) }}
-      title={`${slot.title} · ${st.label}`}
+      title={`${slot.title} · ${st.label} — cliquez pour modifier`}
     >
       {/* Libellé masqué si brique trop petite (< 40px) — vue condensée (section 47) */}
       {Math.max(width, 28) >= 40 && (
         <span className="text-[11px] font-semibold truncate">{slot.title}</span>
       )}
+    </button>
+  );
+}
+
+// Modale d'édition d'une disponibilité (section 64 — toute brique reste modifiable)
+function SlotEditModal({ slot, onClose, onSaved }: {
+  slot: MissionSlot; onClose: () => void; onSaved: () => void;
+}) {
+  const [title, setTitle] = useState(slot.title);
+  const [start, setStart] = useState(toDate(slot.startDate)?.toISOString().slice(0, 10) ?? "");
+  const [end, setEnd]     = useState(toDate(slot.endDate)?.toISOString().slice(0, 10) ?? "");
+  const [busy, setBusy]   = useState(false);
+
+  async function save() {
+    if (!start || !end || busy) return;
+    setBusy(true);
+    await fetch(`/api/missions/${slot.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...(title.trim().length >= 3 ? { title: title.trim() } : {}),
+        startDate: new Date(start).toISOString(),
+        endDate: new Date(end).toISOString(),
+      }),
+    });
+    onSaved();
+  }
+
+  async function remove() {
+    if (busy) return;
+    setBusy(true);
+    await fetch(`/api/missions/${slot.id}`, { method: "DELETE" });
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:px-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
+        <h3 className="font-bold text-gray-900 text-base mb-4">Modifier la période</h3>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Intitulé</label>
+            <input type="text" value={title} onChange={e => setTitle(e.target.value)} maxLength={100}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Début</label>
+            <input type="date" value={start} onChange={e => setStart(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Fin</label>
+            <input type="date" value={end} min={start || undefined} onChange={e => setEnd(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={remove} disabled={busy}
+              className="px-3 py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition disabled:opacity-40">
+              Supprimer
+            </button>
+            <button onClick={onClose} disabled={busy}
+              className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-40">
+              Annuler
+            </button>
+            <button onClick={save} disabled={!start || !end || busy}
+              className="flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition disabled:opacity-40">
+              {busy ? "…" : "Enregistrer"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -217,6 +293,7 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
 
   const [zoom, setZoom] = useState<Zoom>("quarter");
   const [freeZoneModal, setFreeZoneModal] = useState<FreeZoneModal | null>(null);
+  const [editSlot, setEditSlot] = useState<MissionSlot | null>(null);
   const [blocking, setBlocking] = useState(false);
 
   // Largeur réactive (mobile-first) — se recalcule au resize / rotation
@@ -311,6 +388,15 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
         />
       )}
 
+      {/* Édition d'une disponibilité au clic sur la brique (section 64) */}
+      {editSlot && (
+        <SlotEditModal
+          slot={editSlot}
+          onClose={() => setEditSlot(null)}
+          onSaved={() => { setEditSlot(null); router.refresh(); }}
+        />
+      )}
+
       {/* Bandeau d'alerte contextuel (section 47) — période ouverte sans réponse */}
       {openAlert && (
         <div className={`flex-shrink-0 flex items-center gap-3 px-4 py-2 text-xs font-semibold ${
@@ -400,14 +486,16 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
                     if (w <= 0) return null;
                     const st = SLOT_STYLES[m.briqueStatus] ?? SLOT_STYLES["RECHERCHE"];
                     return (
-                      <div
+                      <button
                         key={m.id}
-                        title={`${m.title} · ${st.label}`}
+                        type="button"
+                        onClick={() => setEditSlot(m)}
+                        title={`${m.title} · ${st.label} — modifier`}
                         className={`absolute top-1 bottom-1 rounded-[5px] flex items-center px-1 overflow-hidden ${st.bg} ${st.text}`}
                         style={{ left: `${mpct(start)}%`, width: `${Math.max(w, 2)}%` }}
                       >
                         <span className="text-[9px] font-medium truncate leading-none">{m.title}</span>
-                      </div>
+                      </button>
                     );
                   })}
                   {/* Ligne "aujourd'hui" */}
@@ -447,8 +535,8 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
             </div>
           </div>
 
-          {/* Ligne principale */}
-          <div className="flex-1 overflow-y-auto overflow-x-auto">
+          {/* Ligne principale — pr-4 : marge à droite (régression padding, section 64) */}
+          <div className="flex-1 overflow-y-auto overflow-x-auto pr-4">
             <div style={{ minWidth: totalWidth + labelWidth }}>
               <div className="flex border-b border-gray-100" style={{ height: TRACK_HEIGHT }}>
                 {/* Label */}
@@ -474,7 +562,7 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
 
                     {/* Briques */}
                     {missions.map(m => (
-                      <SlotBrick key={m.id} slot={m} dayWidth={dayWidth} />
+                      <SlotBrick key={m.id} slot={m} dayWidth={dayWidth} onEdit={setEditSlot} />
                     ))}
 
                     {/* Ligne aujourd'hui — lagon profond, pulsation douce (sections 46-47) */}
