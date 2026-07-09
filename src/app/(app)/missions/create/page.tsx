@@ -97,8 +97,18 @@ export default function CreateMissionPage() {
     ? { remplacement: "Courte durée", assistant: "Contrat moyen terme", collaboration: "Contrat long terme" }
     : { remplacement: "Courte durée", assistant: "Contrat long terme", collaboration: "Libéral indépendant" };
 
-  // Pour TITULAIRE : quel type de besoin ?
-  const [needType, setNeedType] = useState<NeedType>("");
+  // Pour TITULAIRE : quel type de besoin ? Pré-sélectionné depuis le Planning Board
+  // (section 92) via ?needType=… selon le postType du CabinetPost cliqué.
+  const initialNeedType: NeedType = (() => {
+    const n = searchParams.get("needType");
+    return n === "assistant" || n === "collaboration" || n === "remplacement" ? n : "";
+  })();
+  const [needType, setNeedType] = useState<NeedType>(initialNeedType);
+
+  // Poste précis du planning auquel lier l'annonce (section 92 / 55) — le futur
+  // match s'attribuera directement à cette ligne du Planning Board. Stateful pour
+  // survivre à l'aller-retour vers /compte (photo obligatoire, item 15).
+  const [cabinetPostId, setCabinetPostId] = useState<string | null>(searchParams.get("cabinetPostId"));
 
   // Item 8 — photo obligatoire avant publication
   const profileId = (session?.user as { profileId?: string })?.profileId;
@@ -134,6 +144,7 @@ export default function CreateMissionPage() {
       const d = JSON.parse(raw);
       if (d?.form) setForm((prev) => ({ ...prev, ...d.form }));
       if (d?.needType) setNeedType(d.needType);
+      if (d?.cabinetPostId) setCabinetPostId(d.cabinetPostId);
       setDraftRestored(true);
       localStorage.removeItem(DRAFT_KEY);
     } catch { /* brouillon illisible : ignoré */ }
@@ -141,7 +152,7 @@ export default function CreateMissionPage() {
 
   function goAddPhoto() {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, needType }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, needType, cabinetPostId }));
     } catch { /* quota indisponible : on redirige quand même */ }
     router.push("/compte?returnTo=/missions/create");
   }
@@ -194,6 +205,7 @@ export default function CreateMissionPage() {
         pitch: pitchFull,
         missionType: missionTypeMap[needType] ?? "REMPLACEMENT",
         dateFlexibility: form.dateFlexibility,
+        cabinetPostId: cabinetPostId ?? undefined,
       }),
     });
 

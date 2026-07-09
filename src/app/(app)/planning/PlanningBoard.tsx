@@ -291,6 +291,23 @@ function monthLabels(dayWidth: number): MonthLabel[] {
   return labels;
 }
 
+// Publication ciblée depuis une zone du planning (section 92) — construit l'URL du
+// formulaire d'annonce en reprenant le TYPE du poste et en liant cabinetPostId, pour
+// que le futur match s'attribue directement à cette ligne du planning.
+function buildCreateHref(opts: { postType: string; postId: string; start: string; end: string }): string {
+  const needType =
+    opts.postType === "ASSISTANT" ? "assistant" :
+    opts.postType === "COLLABORATION" ? "collaboration" : "remplacement";
+  const params = new URLSearchParams();
+  if (opts.start) params.set("startDate", opts.start);
+  // Pas d'endDate pour assistant/collaboration (durée = minMonths ; un endDate court
+  // ferait échouer la validation 90 jours côté serveur).
+  if (opts.end && needType === "remplacement") params.set("endDate", opts.end);
+  params.set("needType", needType);
+  if (opts.postId && opts.postId !== "self") params.set("cabinetPostId", opts.postId);
+  return `/missions/create?${params.toString()}`;
+}
+
 // Facteur de saut des labels de mois selon le zoom (item 7 — lisibilité en vue condensée)
 function monthSkipFor(zoom: Zoom): number {
   if (zoom === "triennial") return 3; // 1 mois sur 3
@@ -1108,7 +1125,13 @@ function SidePanel({
           </Link>
         )}
         <Link
-          href="/missions/create"
+          href={buildCreateHref({
+            postType: post.postType,
+            postId: post.id,
+            // Successeur : démarre à la fin du poste précédent si connue (section 92)
+            start: toDate(latestMission?.endDate)?.toISOString().slice(0, 10) ?? "",
+            end: "",
+          })}
           className="w-full py-3 border border-kine-200 text-kine-700 rounded-xl text-sm font-semibold text-center hover:bg-kine-50 transition"
         >
           + Publier une annonce
@@ -1730,9 +1753,9 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
           modal={uncoveredChoice}
           isEmployeur={isEmployeur}
           onCreateMission={() => {
-            const { suggestedStart, suggestedEnd } = uncoveredChoice;
+            const { suggestedStart, suggestedEnd, post } = uncoveredChoice;
             setUncoveredChoice(null);
-            router.push(`/missions/create?startDate=${encodeURIComponent(suggestedStart)}&endDate=${encodeURIComponent(suggestedEnd)}`);
+            router.push(buildCreateHref({ postType: post.postType, postId: post.id, start: suggestedStart, end: suggestedEnd }));
           }}
           onDeleteAbsence={() => { if (uncoveredChoice.absenceMissionId) handleDeleteAbsence(uncoveredChoice.absenceMissionId); }}
           onClosePost={() => {
@@ -1767,7 +1790,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
             const s = m ? (toDate(m.startDate)?.toISOString().slice(0, 10) ?? "") : (dropdown.suggestedStart ?? "");
             const e = m ? (toDate(m.endDate)?.toISOString().slice(0, 10) ?? "") : (dropdown.suggestedEnd ?? "");
             setDropdown(null);
-            router.push(`/missions/create?startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}`);
+            router.push(buildCreateHref({ postType: dropdown.post.postType, postId: dropdown.post.id, start: s, end: e }));
           }}
           onDetail={() => {
             const m = dropdown.mission;
