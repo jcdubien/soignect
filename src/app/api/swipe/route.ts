@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Prisma, SwipeDirection } from "@prisma/client";
 import { computeAffinityScore, computeMatchScore } from "@/lib/deepseek";
 import { sendNewRelationEmail } from "@/lib/email";
+import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,15 @@ export async function POST(req: NextRequest) {
   let match = null;
 
   if (direction === SwipeDirection.RIGHT) {
+    // Traçabilité (section 86) — fire-and-forget
+    logTraceEvent({
+      eventType: "SWIPE_RIGHT",
+      missionId: swipedMissionId,
+      commune: swipedMission.location,
+      missionType: swipedMission.missionType,
+      metadata: affinityScore !== undefined ? { affinityScore } : undefined,
+    });
+
     let reciprocalMissionFilter: { swipedMissionId: string | { in: string[] } };
 
     if (targetMissionId) {
@@ -186,6 +196,15 @@ export async function POST(req: NextRequest) {
             aiFactors,
           },
           include: { profileA: true, profileB: true, missionA: true, missionB: true },
+        });
+
+        // Traçabilité (section 86) — match créé, fire-and-forget
+        logTraceEvent({
+          eventType: "MATCH_CREATED",
+          matchId: match.id,
+          missionId: swipedMissionId,
+          commune: swipedMission.location,
+          missionType: swipedMission.missionType,
         });
 
         // Email "nouvelle mise en relation" à l'autre partie (fire-and-forget)

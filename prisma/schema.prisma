@@ -392,3 +392,21 @@ model CabinetPost {
   isActive     Boolean   @default(true)
   missions     Mission[] @relation("PostMissions")
 }
+
+// Back-office de traçabilité (section 86) — table d'événements horodatés, écrite
+// en parallèle des tables métier pour l'analyse statistique future (pitch ARS/CGSS).
+// Alimentée par de simples inserts fire-and-forget dans les routes existantes.
+model TraceEvent {
+  id          String   @id @default(cuid())
+  eventType   String   // "MISSION_PUBLISHED", "SWIPE_RIGHT", "MATCH_CREATED", "CONTRACT_SIGNED", ...
+  missionId   String?
+  matchId     String?
+  commune     String?  // dénormalisé pour agrégation géographique sans jointures
+  profession  String?
+  missionType String?
+  occurredAt  DateTime @default(now())
+  metadata    Json?
+
+  @@index([eventType, commune, occurredAt])
+  @@index([commune, profession, occurredAt])
+}

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { BriqueStatus, MatchStatus } from "@prisma/client";
+import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -102,6 +103,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
       });
     }
     await prisma.match.update({ where: { id: matchId }, data: { status: MatchStatus.CONFIRME } });
+
+    // Traçabilité (section 86) — contrat signé par les deux parties.
+    // Fire-and-forget : on enrichit avec la commune sans bloquer la réponse.
+    const traceMissionId = missionIds[0];
+    prisma.mission
+      .findUnique({ where: { id: traceMissionId }, select: { location: true, missionType: true } })
+      .then((m) =>
+        logTraceEvent({
+          eventType: "CONTRACT_SIGNED",
+          matchId,
+          missionId: traceMissionId,
+          commune: m?.location ?? null,
+          missionType: m?.missionType ?? null,
+        })
+      )
+      .catch(() => logTraceEvent({ eventType: "CONTRACT_SIGNED", matchId, missionId: traceMissionId }));
   }
 
   return NextResponse.json({ ok: true, mySide: side, bothSigned }, { status: 201 });

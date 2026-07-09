@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import Link from "next/link";
-import RecommendationForm from "@/components/swipe/RecommendationForm";
 import MatchChatButton from "@/components/chat/MatchChatButton";
 import MatchStatusActions from "@/components/matches/MatchStatusActions";
 import { ProfileType } from "@prisma/client";
@@ -38,9 +37,6 @@ export default async function MatchesPage() {
       profileB: true,
       missionA: true,
       missionB: true,
-      // Notation avec les nouveaux modèles
-      cabinetRatings:    { where: { raterId: profileId } },
-      remplacantRatings: { where: { raterId: profileId } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -63,23 +59,12 @@ export default async function MatchesPage() {
     const theirMissionId = (isA ? m.missionBId : m.missionAId) ?? null;
     const affinityScore  = theirMissionId ? (swipeScore[theirMissionId] ?? null) : null;
 
-    // "A-t-il déjà évalué ?" — selon le type du viewer
-    const hasRated = viewerType === "TITULAIRE"
-      ? m.remplacantRatings.length > 0
-      : m.cabinetRatings.length > 0;
-
-    const didRecommend: boolean | null = viewerType === "TITULAIRE"
-      ? (m.remplacantRatings[0]?.recommended ?? null)
-      : (m.cabinetRatings[0]?.recommended ?? null);
-
     return {
       ...m,
       otherProfile: isA ? m.profileB : m.profileA,
       myMission:    isA ? m.missionA : m.missionB,
       theirMission: isA ? m.missionB : m.missionA,
       affinityScore,
-      hasRated,
-      didRecommend,
     };
   });
 
@@ -220,28 +205,8 @@ export default async function MatchesPage() {
                     <MatchStatusActions matchId={m.id} status={(m as { status?: string }).status ?? "EN_ATTENTE"} />
                   </div>
                 )}
-
-                {/* Recommandation binaire */}
-                <div className="px-4 py-3 border-t border-gray-50 bg-gray-50/50">
-                  {m.hasRated ? (
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        m.didRecommend
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-red-100 text-red-600"
-                      }`}>
-                        {m.didRecommend ? "Recommandé 👍" : "Non recommandé 👎"}
-                      </span>
-                      <span className="text-xs text-gray-400">Votre évaluation</span>
-                    </div>
-                  ) : (
-                    <RecommendationForm
-                      matchId={m.id}
-                      ratedId={m.otherProfile.id}
-                      viewerType={viewerType}
-                    />
-                  )}
-                </div>
+                {/* Recommandation retirée (section 78/79) — la notation vivra dans un
+                    système dédié post-mission, séparé de l'écran de mise en relation. */}
               </div>
             );
           })}

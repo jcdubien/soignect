@@ -4988,3 +4988,2079 @@ Sprint suivant, avant toute autre feature :
    aussi être éditables selon les mêmes principes, adaptés 
    à son contexte)
 ```
+
+---
+
+## 65. Renommage de poste + flow guidé libéral/salarié
+
+### Point 1 — Renommer un poste depuis le menu de sa timeline
+
+Le menu universel (section 64) doit aussi permettre de modifier 
+le LABEL du poste lui-même, pas seulement son occupation.
+
+```
+Ajout au menu universel — option toujours présente en haut :
+[✎] Renommer ce poste
+    → Champ texte pré-rempli avec le libellé actuel ("matheo")
+    → Permet de corriger : ex. si la personne s'appelle en 
+      réalité Jean-Claude et pas Matheo (erreur de saisie 
+      initiale, ou changement de titulaire du poste)
+    → Sauvegarde : PATCH sur CabinetPost.label
+```
+
+Cette option doit être accessible en permanence sur le menu 
+de n'importe quelle brique de ce poste, pas seulement à 
+la création.
+
+### Point 2 — Flow guidé pour basculer libéral/salarié
+
+Actuellement (section 37), le passage libéral/salarié est 
+un simple toggle "isEmployeur" dans /compte. Cette proposition 
+l'enrichit : au lieu d'un interrupteur brut, proposer un 
+petit flow de questions qui détermine précisément la bonne 
+terminologie et configuration.
+
+```
+Sur /compte, remplacer le toggle simple par :
+"Modifier le type de structure" → ouvre un mini-questionnaire
+
+Question 1 : "Comment décririez-vous votre structure ?"
+  ○ Cabinet libéral (moi-même + éventuels assistants/collaborateurs)
+  ○ Établissement employeur (clinique, EHPAD, centre de santé...)
+
+Si "Établissement employeur" sélectionné :
+Question 2 : "Quel type de contrats proposez-vous principalement ?"
+  ○ CDI uniquement
+  ○ CDD et vacations
+  ○ Un mélange des deux
+
+→ Ajuste automatiquement isEmployeur = true
+→ Les libellés s'adaptent selon les réponses (pas juste un 
+  binaire Vacation/CDD/CDI générique, mais orienté vers 
+  ce qui est réellement pratiqué)
+```
+
+### Modèle de données — précision
+
+```prisma
+// Sur Profile — déjà existant isEmployeur, ajouter en complément :
+contractPreference String?  // "CDI_ONLY" | "CDD_VACATION" | "MIXTE"
+                            // Affine l'affichage des types de 
+                            // postes proposés dans "Ajouter un poste"
+```
+
+### Ordre d'implémentation
+
+```
+Sprint suivant :
+1. Option "Renommer ce poste" dans le menu universel (rapide, 
+   à fusionner avec le sprint du menu universel section 64 
+   s'il n'est pas encore lancé)
+2. Flow guidé 2 questions sur /compte pour remplacer le toggle 
+   simple isEmployeur
+```
+
+---
+
+## 66. Favicon et icônes d'application
+
+### Besoin
+
+Ajouter un favicon professionnel pour Soignect — actuellement 
+absent ou générique, ce qui nuit à la crédibilité perçue 
+(onglet navigateur, favoris, écran d'accueil mobile).
+
+### Éléments à fournir
+
+```
+favicon.ico          → 32x32 et 16x16 (multi-résolution classique)
+icon-192.png         → pour Android / PWA (192x192)
+icon-512.png         → pour Android / PWA haute résolution (512x512)
+apple-touch-icon.png → pour iOS "Ajouter à l'écran d'accueil" (180x180)
+```
+
+### Design suggéré
+
+Cohérent avec l'identité déjà en place (section 46/47) :
+- Fond lagon profond (#0B3D5C) ou sable chaud (#F2E8D5)
+- Symbole simple et reconnaissable même en petit format 
+  (16x16px doit rester lisible) — éviter le logo texte complet 
+  "Soignect", privilégier une version simplifiée (ex: juste 
+  le "S" stylisé, ou un pictogramme lié au soin/mise en relation)
+
+### Emplacement technique (Next.js App Router)
+
+```
+src/app/favicon.ico
+src/app/icon.png          (192x192, généré automatiquement 
+                            par Next.js dans le <head>)
+src/app/apple-icon.png    (180x180)
+```
+
+Next.js 13+ App Router détecte automatiquement ces fichiers 
+s'ils sont nommés ainsi dans le dossier app/ — pas besoin 
+de configuration manuelle dans le layout.
+
+### Ordre d'implémentation
+
+Sprint léger, peut être fait rapidement — pas de logique 
+métier, juste des assets à créer et placer au bon endroit. 
+Peut être fusionné avec n'importe quel autre sprint sans risque.
+
+---
+
+## 67. Score géographique graduel + ciblage multi-communes
+
+### Problème actuel
+
+Le score géographique (composante du calcul d'affinité, 
+section 25) est probablement binaire ou trop grossier — 
+pas de graduation réelle selon la distance kilométrique.
+
+### Correction 1 — Score de proximité graduel (pas binaire)
+
+Remplacer le calcul actuel par une vraie graduation basée 
+sur la distance réelle entre les deux communes :
+
+```typescript
+function scoreGeo(distanceKm: number): number {
+  if (distanceKm === 0)   return 20  // Même commune
+  if (distanceKm <= 10)   return 18  // Très proche (ex: Pointe-à-Pitre/Gosier)
+  if (distanceKm <= 20)   return 14
+  if (distanceKm <= 35)   return 10
+  if (distanceKm <= 50)   return 6
+  if (distanceKm <= 80)   return 3
+  return 0                            // Très loin (ex: Saint-François/Pointe-Noire, ~100km)
+}
+```
+
+Nécessite une table de distances entre communes (ou calcul 
+via coordonnées GPS + formule de Haversine) plutôt qu'une 
+simple comparaison de nom de commune identique/différent.
+
+### Table des coordonnées communes (à constituer)
+
+```prisma
+// Sur CommuneAPL (déjà existant) ou nouvelle table dédiée :
+// Ajouter latitude/longitude par commune pour calculer 
+// les distances réelles
+
+model CommuneAPL {
+  // ... champs existants ...
+  latitude   Float?
+  longitude  Float?
+}
+```
+
+Calcul de distance (formule de Haversine, standard pour 
+des distances courtes comme en Guadeloupe) :
+
+```typescript
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // rayon terre en km
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * 
+            Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+```
+
+### Correction 2 — Ciblage multi-communes pour le remplaçant
+
+Un remplaçant doit pouvoir cibler sa recherche sur PLUSIEURS 
+communes à la fois (pas une seule zone unique), par exemple 
+"je suis mobile entre Pointe-à-Pitre, Le Gosier et Sainte-Anne".
+
+```prisma
+// Sur Profile (remplaçant) — remplacer la commune unique par :
+communesCiblees String[]  // Array de communes, au lieu d'une 
+                          // seule commune de résidence
+// Garder la commune de résidence principale séparément si besoin
+```
+
+**UI — sélection multi-communes dans le profil remplaçant :**
+
+```
+Zones de mobilité (plusieurs communes possibles)
+[x] Pointe-à-Pitre
+[x] Le Gosier  
+[x] Sainte-Anne
+[ ] Saint-François
+[+ Ajouter une commune]
+```
+
+### Calcul du score géo avec ciblage multi-communes
+
+```typescript
+function scoreGeoMultiCommunes(missionCommune: string, remplacantCommunes: string[]): number {
+  // Prendre la MEILLEURE distance parmi toutes les communes ciblées 
+  // par le remplaçant vs la commune de la mission
+  const distances = remplacantCommunes.map(c => 
+    distanceKm(coordsOf(c), coordsOf(missionCommune))
+  )
+  const minDistance = Math.min(...distances)
+  return scoreGeo(minDistance)
+}
+```
+
+### Ordre d'implémentation
+
+```
+Sprint dédié (nécessite données géographiques — plus lourd) :
+1. Ajouter latitude/longitude sur CommuneAPL pour toutes 
+   les communes déjà en base (112 communes DOM, section 15)
+2. Implémenter le calcul de distance Haversine
+3. Remplacer scoreGeo binaire par la version graduelle
+4. Ajouter communesCiblees[] sur Profile (remplaçant)
+5. UI de sélection multi-communes dans /compte et à l'inscription
+6. Adapter computeAffinityScore pour utiliser le nouveau 
+   calcul multi-communes
+```
+
+### Priorité
+
+Sprint à part entière, pas urgent pour les tout premiers 
+bêta testeurs (le score géo actuel fonctionne, juste de façon 
+moins précise) — mais important avant un déploiement plus large, 
+car la précision géographique est un argument de qualité fort 
+du matching Soignect.
+
+---
+
+## 68. Correction section 66 — logo réel fourni + déclinaisons
+
+### Logo fourni par Jean-Charles
+
+Concept : deux croix médicales entrelacées (bleu + vert/teal) 
+avec une flèche montante teal traversant le point de jonction, 
+texte "SOIGNECT" en bas de la croix verte. Fond blanc.
+
+### Déclinaisons nécessaires selon l'usage
+
+```
+Logo complet (fourni)          → Utiliser tel quel pour :
+                                  - Écran de connexion (déjà 
+                                    utilisé en texte "Soig/nect", 
+                                    remplacer par ce logo visuel)
+                                  - icon-512.png (icône app haute 
+                                    résolution)
+                                  - apple-touch-icon.png (180x180, 
+                                    lisible à cette taille)
+
+Version simplifiée (à créer)   → Pour favicon.ico (16x16, 32x32) :
+                                  - Retirer le texte "SOIGNECT" 
+                                    (illisible en si petit)
+                                  - Ne garder que les deux croix 
+                                    entrelacées + flèche, 
+                                    éventuellement juste la 
+                                    silhouette simplifiée
+                                  - Tester la lisibilité à 16px 
+                                    avant de valider
+
+icon-192.png                   → Version intermédiaire : logo 
+                                  complet mais peut nécessiter 
+                                  un léger nettoyage si le texte 
+                                  devient trop petit à cette taille
+```
+
+### Action recommandée
+
+Demander à Claude Code de :
+1. Utiliser le logo fourni tel quel pour icon-512.png et 
+   apple-touch-icon.png
+2. Générer une version simplifiée sans texte pour favicon.ico 
+   et icon-192.png (garder uniquement les 2 croix + flèche, 
+   sans le mot "SOIGNECT")
+3. Remplacer le logo texte "Soig/nect" actuel sur l'écran de 
+   connexion par ce logo visuel réel
+
+---
+
+## 69. Retrait des cases à cocher "Spécialités" — matching via DeepSeek uniquement
+
+### Correction
+
+Retirer le champ "Spécialités pratiquées au cabinet" (liste 
+de cases à cocher : Orthopédique, Neurologique, Pédiatrique...) 
+de l'interface utilisateur, à la fois :
+- Dans le formulaire "Publier un poste" (création d'annonce)
+- Dans les écrans de recherche/filtrage
+
+Cette liste manuelle ajoute de la friction au formulaire 
+(cohérent avec la simplification déjà actée — section du 
+recettage initial, point 2 : supprimer les champs redondants).
+
+### Ce qui est conservé
+
+La notion de spécialités reste utilisée EN INTERNE pour :
+- Le matching DeepSeek (scoreSpecialties dans le calcul 
+  d'affinité, section 25)
+- Toute logique de recherche/filtrage pertinente
+
+Mais elle n'est plus saisie via une liste de cases à cocher 
+explicite. À la place, la pertinence des spécialités est 
+déduite automatiquement par DeepSeek à partir du texte libre 
+de l'accroche (BioTinder, section 24) — le modèle analyse 
+sémantiquement "orientation généraliste, sport, gériatrie" 
+écrit en texte libre, sans que l'utilisateur ait à cocher 
+une liste séparée qui répète la même information.
+
+### Impact technique
+
+```
+Mission.specialties : String[]  
+  → Le champ reste dans le schéma (pas de migration destructive)
+  → Mais n'est plus rempli via une UI de cases à cocher
+  → Peut soit rester vide (non utilisé), soit être calculé 
+    automatiquement en arrière-plan si on veut extraire 
+    des mots-clés depuis le texte de l'accroche (optionnel, 
+    pas prioritaire)
+
+scoreSpecialties() dans deepseek.ts
+  → Si Mission.specialties reste vide, cette composante du 
+    score peut soit être neutralisée (score par défaut), 
+    soit être remplacée par une analyse DeepSeek du texte 
+    de l'accroche en plus de l'analyse bio déjà existante
+```
+
+### UI — ce qui disparaît
+
+```
+AVANT (formulaire Publier un poste) :
+"Spécialités pratiquées au cabinet"
+[Orthopédique] [Neurologique] [Pédiatrique] [Respiratoire]
+[Gériatrique] [Sportif] [Rééducation vestibulaire]
+[Lymphœdème] [Obstétrique/Périnéal] [Oncologie]
+
+APRÈS :
+Ce bloc de cases à cocher est retiré. La pertinence des 
+spécialités est portée par le champ "En une phrase, ce que 
+vous proposez" (accroche 280 signes) déjà existant, analysé 
+par DeepSeek.
+```
+
+### Ordre d'implémentation
+
+```
+Sprint léger :
+1. Retirer le bloc UI "Spécialités pratiquées au cabinet" 
+   du formulaire de création d'annonce (missions/create)
+2. Retirer tout bloc similaire dans les écrans de recherche/
+   filtrage s'il en existe
+3. Vérifier que scoreSpecialties() ne casse pas si 
+   Mission.specialties est systématiquement vide 
+   (fallback neutre plutôt qu'une erreur)
+4. Ne pas toucher au schéma Prisma (pas de migration)
+```
+
+---
+
+## 70. Correction section 8 — préserver le formulaire lors de la redirection photo obligatoire
+
+### Problème identifié
+
+Quand un titulaire tente de publier une annonce sans avoir 
+de photo, le système redirige vers /compte (comportement 
+attendu, section 8). Mais après avoir ajouté la photo, 
+il n'y a aucun moyen de revenir au formulaire de création 
+d'annonce — tout ce qui avait été rempli (titre, type de 
+besoin, accroche, dates...) est perdu. L'utilisateur doit 
+tout ressaisir depuis zéro.
+
+### Corrections possibles — retenir l'option la plus simple
+
+**Option retenue : bouton de retour + sauvegarde locale du brouillon**
+
+```
+1. Avant la redirection vers /compte, sauvegarder l'état 
+   actuel du formulaire dans le localStorage du navigateur 
+   (clé : "soignect_draft_mission")
+
+2. Sur /compte, après ajout réussi de la photo, afficher 
+   un bandeau : "Photo ajoutée ! Continuer la publication 
+   de votre annonce" avec un bouton qui ramène vers 
+   /missions/create
+
+3. Sur /missions/create, au chargement, vérifier si un 
+   brouillon existe dans localStorage :
+   - Si oui, restaurer automatiquement tous les champs 
+     déjà remplis
+   - Supprimer le brouillon du localStorage une fois 
+     l'annonce publiée avec succès (ou si l'utilisateur 
+     l'annule explicitement)
+```
+
+### Alternative plus simple (fallback si trop complexe)
+
+Si la sauvegarde de brouillon est jugée trop lourde pour 
+ce sprint, au minimum :
+
+```
+Un bouton "← Retour à mon annonce en cours" visible sur 
+/compte quand l'utilisateur y a été redirigé depuis 
+/missions/create (via un paramètre d'URL ?returnTo=/missions/create)
+```
+
+Cette alternative ne restaure pas les données saisies mais 
+évite au moins de perdre complètement le fil et de devoir 
+chercher comment revenir en arrière.
+
+### Recommandation
+
+Privilégier l'option 1 (sauvegarde localStorage) — c'est 
+l'expérience la plus fluide et évite la frustration réelle 
+que Jean-Charles a rencontrée en testant.
+
+### Ordre d'implémentation
+
+Sprint léger à fusionner avec d'autres corrections du soir :
+
+```
+1. Dans missions/create/page.tsx : sauvegarder le state du 
+   formulaire dans localStorage à chaque changement significatif 
+   (ou au moment de la redirection vers /compte spécifiquement)
+2. Rediriger vers /compte avec ?returnTo=/missions/create
+3. Sur /compte, après upload photo réussi, si returnTo est 
+   présent dans l'URL, afficher le bandeau de retour
+4. Sur missions/create, restaurer le brouillon localStorage 
+   au chargement si présent
+5. Nettoyer le brouillon après publication réussie
+```
+
+---
+
+## 71. Accroche 280 signes — passage en champ obligatoire
+
+### Correction immédiate
+
+Le champ "En une phrase, ce que vous proposez" (accroche, 
+280 signes, actuellement marqué "optionnel") devient 
+OBLIGATOIRE. C'est le cœur du matching DeepSeek — d'autant 
+plus depuis le retrait des cases à cocher spécialités 
+(section 69), qui reportait déjà la charge du matching sur 
+ce texte libre.
+
+```
+AVANT : "En une phrase, ce que vous proposez (optionnel · 280 signes)"
+APRÈS : "En une phrase, ce que vous proposez (280 signes)"
+        Champ requis, formulaire non soumissible sans ce texte
+```
+
+### Application
+
+```
+- Formulaire "Publier un poste" (missions/create)
+- Formulaire "Mes disponibilités" (côté remplaçant)
+- BioTinder/accroche sur /compte (déjà quasi-obligatoire 
+  dans l'esprit, à confirmer requis aussi)
+```
+
+### Validation
+
+```typescript
+// zod schema — retirer .optional() sur bioTinder/accroche
+bioTinder: z.string().min(20, "Décrivez en quelques mots ce que 
+  vous proposez (20 caractères minimum)").max(280)
+```
+
+Un minimum de caractères (ex: 20) évite qu'un utilisateur 
+contourne l'obligation avec un texte vide de sens ("."). 
+280 reste le maximum déjà en place.
+
+---
+
+## 72. Roadmap matching — vision territoriale en 3 temps (contexte stratégique)
+
+### Rappel du principe fondamental (maintenant)
+
+Le cœur du matching repose sur :
+1. Commune(s) ciblée(s) + score de proximité graduel (section 67)
+2. Accroche 280 signes obligatoire (section 71), analysée par 
+   DeepSeek pour la compatibilité de valeurs/projet
+
+### Phase 2 — Notations (déjà partiellement actée)
+
+Système de recommandation binaire (section 4, section 25) — 
+déjà spécifié, à terminer d'implémenter si pas encore fait 
+(vérifier l'état des modèles CabinetRating/RemplacantRating).
+
+### Phase 3 — Vente aux CPTS : pondération territoriale du score
+
+Nouvelle brique business à ne PAS implémenter maintenant, 
+mais à garder en tête comme axe de monétisation institutionnelle 
+avancé (rejoint et enrichit la section 53 — CPTS × Soignect) :
+
+```
+Concept : une CPTS partenaire (payante, au-delà du statut 
+"partenaire fondateur" gratuit de la CPTS Nord Basse-Terre) 
+pourrait acheter la capacité de RÉORIENTER le score de 
+désirabilité/matching en fonction des besoins réels de 
+son territoire.
+
+Exemple concret :
+  Une CPTS identifie que la commune de Trois-Rivières manque 
+  cruellement de kinés depuis 6 mois. Elle "booste" 
+  artificiellement le score des annonces situées à 
+  Trois-Rivières (ou dans un rayon donné) pour les rendre 
+  plus visibles aux remplaçants qui swipent, au-delà du 
+  score de désirabilité standard déjà existant (section 23).
+
+Ce n'est pas juste un boost commercial (comme le plan 
+Premium/Boost déjà existant) — c'est un boost À VOCATION 
+DE SANTÉ PUBLIQUE, piloté par une institution qui a une 
+vision fine et réelle des besoins de son territoire, 
+au-delà de ce que les données APL peuvent capter.
+```
+
+**Ce concept est distinct de la désirabilité standard (section 23)** :
+```
+Désirabilité standard    → payée par le cabinet lui-même 
+                           (Premium/Boost), boost commercial
+Pondération territoriale → payée par la CPTS/institution, 
+                           boost à vocation de santé publique, 
+                           applicable à TOUS les cabinets 
+                           d'une zone identifiée comme prioritaire
+```
+
+### Ordre d'implémentation
+
+```
+MAINTENANT : section 71 (accroche obligatoire) — sprint léger
+
+Sprint dédié ultérieur : section 67 (score géo graduel + 
+multi-communes) — prérequis technique nécessaire avant 
+d'envisager la phase 3
+
+Phase business à ne pas coder avant : vente CPTS pondération 
+territoriale (section 72) — nécessite d'abord des CPTS payantes 
+réelles et un besoin confirmé, pas à anticiper en code
+```
+
+---
+
+## 73. BUG BLOQUANT — bouton "Publier" grisé sur annonce Assistanat
+
+### Problème
+
+Sur le formulaire de publication d'annonce type Assistanat, 
+le bouton "Publier le poste" reste grisé (désactivé) quelle 
+que soit la durée sélectionnée. Suspicion : la validation 
+de durée minimale (section 37.E — 90 jours pour ASSISTANAT) 
+ne gère pas correctement tous les cas, notamment "durée 
+non définie".
+
+### Toutes les options de durée doivent fonctionner
+
+```
+- Non définie (indéterminée)
+- 3 mois minimum
+- 6 mois minimum  
+- 12 mois
+- 24 mois
+```
+
+### Hypothèse du bug
+
+La validation JS calcule probablement `dureeJours` à partir 
+de `endDate - startDate`. Si l'utilisateur choisit "non définie" 
+(pas de date de fin), `endDate` est `null` ou `undefined` → 
+le calcul `dureeJours < 90` peut retourner `NaN < 90` qui 
+vaut... à vérifier, mais le comportement est probablement 
+incorrect (bloque le bouton alors que "non défini" devrait 
+être valide, ou l'inverse selon l'implémentation).
+
+### Correction attendue
+
+```typescript
+// Validation à corriger
+const missionDays = form.startDate && form.endDate
+  ? Math.floor((new Date(form.endDate).getTime() - 
+                new Date(form.startDate).getTime()) / 86400000)
+  : null  // Explicitement null si pas de date de fin
+
+const needs90Days = needType === "assistant"
+const under90Days = needs90Days && 
+  missionDays !== null &&  // Si null (durée indéterminée), 
+                            // ne PAS bloquer
+  missionDays < 90
+
+// Le bouton "Publier" doit être actif si :
+// - durée indéterminée (missionDays === null) → OK, pas de blocage
+// - durée définie ET >= 90 jours → OK
+// - durée définie ET < 90 jours → bloqué (correct)
+```
+
+### Vérification nécessaire
+
+Tester chacun des 5 cas listés ci-dessus et confirmer que 
+le bouton "Publier" devient actif dans tous les cas valides.
+
+---
+
+## 74. Transparence — afficher l'analyse DeepSeek du texte accroche
+
+### Idée proposée
+
+Comme l'accroche 280 signes devient LE cœur du matching 
+(section 71), il serait utile que la personne qui reçoit 
+un match puisse voir un résumé de ce que DeepSeek a compris/
+analysé dans le profil de l'autre partie — pas juste le score 
+final, mais une explication de la compatibilité perçue.
+
+### Exemple de ce que ça pourrait donner
+
+```
+Sur la modale de match ou la fiche de match, en plus du 
+score d'affinité (déjà affiché) :
+
+"Ce que Soignect a identifié en commun :
+Vous recherchez tous les deux un cadre professionnel 
+axé sur la gériatrie et la prévention, avec une approche 
+détendue du travail en équipe."
+```
+
+Cette explication serait générée par un appel DeepSeek 
+supplémentaire (ou intégrée dans le même appel que le 
+scoring), demandant explicitement un résumé en une phrase 
+des points de convergence entre les deux accroches.
+
+### Prompt DeepSeek à ajouter (exemple)
+
+```typescript
+const explanationPrompt = `
+Tu es un algorithme de matching professionnel.
+Voici deux descriptions professionnelles qui ont été 
+mises en relation :
+
+Profil A : "${bioA}"
+Profil B : "${bioB}"
+
+Résume en UNE phrase (30 mots maximum) ce qui rend ces 
+deux profils compatibles, du point de vue des valeurs, 
+du projet professionnel ou de l'ambiance recherchée.
+Réponds uniquement avec cette phrase, sans préambule.
+`
+```
+
+### Stockage
+
+```prisma
+// Sur Match ou Swipe — ajouter :
+matchExplanation String? @db.VarChar(300)  
+  // Généré une fois au moment du swipe RIGHT réciproque, 
+  // pas recalculé à chaque affichage
+```
+
+### Ordre d'implémentation
+
+```
+Sprint à part entière (pas urgent, mais bonne feature de 
+confiance/transparence pour les utilisateurs) :
+
+1. Ajouter matchExplanation au modèle Match
+2. Générer l'explication au moment de la création du match 
+   (appel DeepSeek supplémentaire, fire-and-forget pour ne 
+   pas bloquer le flow)
+3. Afficher cette explication sur la modale "C'est un match !" 
+   et/ou sur la fiche de match dans le tray
+```
+
+### Priorité
+
+Section 73 (bug bouton grisé) est BLOQUANTE — à corriger 
+immédiatement ce soir.
+Section 74 (transparence DeepSeek) est une amélioration — 
+peut attendre un sprint dédié plus tard.
+
+---
+
+## 75. Retours test multi-profils — notification email, tray, score d'affinité
+
+### A. Notification email sur mise en relation — VÉRIFIER/CORRIGER
+
+Le code envoie déjà un email "nouvelle mise en relation" via 
+Resend (section 51, déjà implémenté selon l'audit Sprint B). 
+Mais en test réel, aucun email n'est reçu.
+
+**Cause la plus probable : RESEND_API_KEY absente des variables 
+d'environnement Vercel** (déjà signalée comme point de vigilance 
+lors du sprint durcissement).
+
+```
+Action immédiate (pas du code, une vérification) :
+1. Aller sur Vercel → Settings → Environment Variables
+2. Vérifier si RESEND_API_KEY est présente
+3. Si absente, créer un compte sur resend.com, générer une 
+   clé API, l'ajouter dans Vercel (scope Production)
+4. Redéployer
+5. Retester : un swipe réciproque doit déclencher l'email
+```
+
+Si la clé est bien présente et que l'email ne part toujours 
+pas, demander à Claude Code d'ajouter un log explicite sur 
+l'appel `sendNewRelationEmail` pour diagnostiquer.
+
+### B. Bouton contrat masqué en Premium — reconsidérer l'affichage
+
+Actuellement, le bouton "Envoyer un contrat" est totalement 
+invisible si le titulaire n'est pas Premium/Boost. Ça manque 
+de transparence — l'utilisateur ne comprend pas pourquoi 
+il n'y a pas de bouton du tout.
+
+```
+Correction : afficher le bouton "Envoyer un contrat" TOUJOURS,
+mais visuellement grisé/verrouillé si le profil n'est pas 
+Premium, avec un badge "Premium" et au clic, une redirection 
+vers /premium plutôt qu'une absence totale du bouton.
+
+(Ce comportement était déjà spécifié plus tôt dans le 
+projet — section sur /match/[id] — vérifier qu'il est bien 
+appliqué aussi dans la modale du tray, pas seulement sur 
+la page /match/[id] dédiée.)
+```
+
+### C. Structure du tray — séparer "vos choix" des "mises en relation"
+
+**Problème de fond identifié :** tout ce qui apparaît dans 
+le tray du bas est actuellement traité comme équivalent, 
+mélangé dans une seule liste. Or il y a une vraie différence 
+conceptuelle :
+
+```
+"Vos choix"              = tout ce sur quoi VOUS avez swipé 
+                           à droite (unilatéral, pas encore 
+                           forcément réciproque)
+
+"Vos mises en relation"  = uniquement les choix RÉCIPROQUES 
+                           (l'autre partie a aussi swipé à 
+                           droite) — c'est la vraie notion 
+                           de "match"
+```
+
+**Correction structurelle demandée :**
+
+```
+Le tray doit distinguer visuellement/structurellement :
+
+1. Une zone "Vos choix" — tout ce que l'utilisateur a swipé 
+   à droite, en attente de réciprocité
+   
+2. Une zone DÉDIÉE "Vos mises en relation" — mise en évidence 
+   (couleur, position en premier, badge distinct), contenant 
+   UNIQUEMENT les swipes réciproques confirmés
+
+Actuellement tout s'affiche à la suite, sans cette distinction 
+claire — seul le premier élément semble mis en avant, mais 
+pas structurellement séparé.
+```
+
+Cette correction touche le composant MatchTray (et 
+potentiellement une refonte de layout : deux sections 
+distinctes plutôt qu'une liste unique).
+
+### D. Redistribution du score d'affinité (les spécialités disparaissent)
+
+Suite au retrait des cases à cocher spécialités (section 69), 
+la composante "Spécialités" du score (actuellement 20 pts, 
+toujours à 0 en pratique) doit être redistribuée.
+
+**Nouvelle pondération proposée :**
+
+```
+AVANT (section 25, avec spécialités actives) :
+Dates + flexibilité    35 pts
+Bio DeepSeek            25 pts
+Proximité géo           20 pts
+Spécialités             10 pts  ← à retirer/redistribuer
+Désirabilité            10 pts
+
+APRÈS (spécialités retirées) :
+Dates + flexibilité    35 pts
+Bio DeepSeek            30 pts  (+5, le texte libre porte 
+                                 maintenant toute la charge 
+                                 sémantique, spécialités incluses)
+Proximité géo           25 pts  (+5, cohérent avec le passage 
+                                 au score gradué section 67)
+Désirabilité            10 pts
+TOTAL                  100 pts
+```
+
+### E. Expliquer le critère "Visibilité" aux utilisateurs
+
+Le score détaillé affiche une composante "Visibilité" (0-10) 
+sans explication — l'utilisateur ne comprend pas ce que ça 
+représente (c'est en réalité le score de désirabilité, 
+section 23 : boost admin/abonnement/zone).
+
+```
+Ajouter un petit texte d'aide (tooltip ou sous-texte) :
+"Visibilité : mise en avant du profil selon son abonnement 
+et sa localisation (zones prioritaires)"
+
+Renommer éventuellement "Visibilité" en quelque chose de 
+plus clair pour l'utilisateur final, ex: "Mise en avant" 
+ou garder "Visibilité" mais avec l'explication toujours visible.
+```
+
+### F. Confirmation — score géo gradué (déjà spécifié section 67)
+
+Confirmé par ce test : le score "Lieu" doit passer d'un calcul 
+actuel probablement binaire à un calcul gradué selon la distance 
+réelle commune à commune (déjà détaillé section 67 — Haversine, 
+latitude/longitude). Pas de nouveauté ici, juste confirmation 
+de la priorité.
+
+### G. Score "Dates" — correspondance graduelle, pas binaire
+
+Le score de dates doit refléter une correspondance graduelle : 
+exactitude parfaite = score maximal, correspondance approximative 
+= score partiel proportionnel à l'écart. Ce comportement existe 
+déjà en théorie (section 25, scoreDates avec flexibilité) — 
+à vérifier que le calcul actuel produit bien un score cohérent 
+avec cette logique (17/30 dans l'exemple montré semble déjà 
+graduel, à confirmer que c'est bien voulu et pas un bug).
+
+### Ordre d'implémentation
+
+```
+Sprint A (urgent, ce soir) :
+1. Vérifier RESEND_API_KEY sur Vercel (action manuelle, pas 
+   de code)
+2. Bouton contrat visible mais grisé si non-Premium (au lieu 
+   d'absent), y compris dans la modale du tray
+
+Sprint B (structurel, peut attendre un peu) :
+3. Séparer "Vos choix" et "Vos mises en relation" dans le tray 
+   — refonte de layout
+4. Redistribuer le score : Bio 30pts, Géo 25pts, Dates 35pts, 
+   Désirabilité 10pts (retirer complètement Spécialités)
+5. Ajouter l'explication du critère "Visibilité"
+
+Déjà planifié séparément :
+6. Score géo gradué → section 67 (sprint dédié, plus lourd)
+```
+
+---
+
+## 76. Protection juridique et association d'un partenaire — points de vigilance
+
+### Sur la protection de l'idée (rappel factuel, pas un conseil juridique)
+
+- Une idée/concept n'est pas brevetable en tant que tel
+- Le code est protégé automatiquement par le droit d'auteur 
+  dès sa création (pas de dépôt nécessaire)
+- Le nom "Soignect" peut être déposé comme marque à l'INPI 
+  (~190€/classe) — protège le nom, pas le concept
+- L'horodatage du PRODUCT_SPEC et des commits Git constitue 
+  une preuve d'antériorité utile en cas de litige, sans être 
+  une protection légale formelle
+
+### Avant d'associer un partenaire (marketing/business)
+
+Points à clarifier AVANT tout partage de code ou d'accès, 
+à documenter par écrit (même simplement) :
+
+```
+- Répartition de propriété (parts, pourcentages) si société 
+  créée à terme
+- Qui apporte quoi : Jean-Charles apporte le concept, le code 
+  existant, la légitimité métier (SNMKR, CPTS) ; le partenaire 
+  apporte marketing/business — valoriser les deux apports
+- Clause de non-concurrence si le partenaire quitte le projet
+- Qui détient le nom de domaine, le repo GitHub, le compte 
+  Vercel/Supabase (actuellement tout est au nom de Jean-Charles 
+  — décider si ça reste ainsi ou si ça doit être transféré 
+  à une structure commune)
+- Accord de confidentialité (NDA) simple avant de montrer 
+  le produit en détail, même à quelqu'un de confiance
+```
+
+### Recommandation pratique
+
+Avant de donner accès au code ou aux identifiants (Vercel, 
+Supabase, GitHub), rédiger un document simple d'une page 
+(pas besoin d'un avocat à ce stade) qui acte :
+- Qui a initié le projet et quand (déjà tracé par ce PRODUCT_SPEC)
+- Les rôles de chacun
+- Ce qui se passe si l'association ne fonctionne pas
+
+Un avocat spécialisé en propriété intellectuelle/startups 
+devient pertinent seulement si le projet prend une vraie 
+dimension commerciale (levée de fonds, société formalisée) — 
+pas nécessaire pour cette étape de test avec un partenaire 
+de confiance.
+
+---
+
+## 77. Acquisition d'utilisateurs — invitation légale, pas création automatique
+
+### Ce qui est à proscrire
+
+Créer automatiquement des comptes (avec mot de passe généré) 
+pour des personnes dont les coordonnées ont été récupérées 
+sur des sites tiers (Facebook, petites annonces) sans leur 
+consentement. Violation RGPD directe + risque réputationnel 
+majeur pour un produit basé sur la confiance professionnelle.
+
+### Alternative légale et efficace — le système d'invitation
+
+```
+1. Constituer une liste de PROSPECTS (pas de comptes) :
+   nom, email, source (où trouvé), statut (invité/inscrit)
+   → Table séparée, PAS la table User/Profile
+
+2. Envoyer un email d'invitation personnalisé (pas un compte 
+   déjà créé) :
+   "Bonjour [Nom], je vous invite à découvrir Soignect, 
+   une plateforme de mise en relation des professionnels 
+   de santé en Guadeloupe. [Lien d'inscription]"
+   
+3. La personne clique et s'inscrit ELLE-MÊME, avec son propre 
+   email et mot de passe — jamais de compte pré-créé
+```
+
+### Modèle de données — table Prospect (distincte de User)
+
+```prisma
+model Prospect {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  source      String?  // "Facebook groupe kiné", "SNMKR", etc.
+  invitedAt   DateTime?
+  convertedAt DateTime?  // Rempli si devenu un vrai User
+  createdAt   DateTime @default(now())
+}
+```
+
+### Sourcing légal des emails de prospects
+
+```
+✅ Légal :
+- Ton propre réseau professionnel (SNMKR, CPTS) — tu as 
+  déjà une relation légitime
+- Annuaires professionnels publics (Ordre des kinés, 
+  RPPS public) — usage professionnel B2B généralement toléré 
+  sous RGPD si finalité légitime et opt-out proposé
+- Emails collectés via un formulaire "Être prévenu du 
+  lancement" sur une landing page
+- Parrainage : un utilisateur existant invite un confrère 
+  (lui-même envoie l'email, pas toi)
+
+❌ Illégal ou risqué :
+- Scraping Facebook/Instagram de noms et emails
+- Achat de bases de données email non qualifiées
+- Extraction automatisée de sites de petites annonces
+```
+
+### Feature produit — parrainage (bien plus efficace)
+
+Plutôt que le scraping, construire une feature de parrainage 
+intégrée au produit :
+
+```
+Sur /compte : "Inviter un confrère"
+→ Champ email + message personnalisable
+→ Envoi d'un email d'invitation depuis Soignect 
+  (via Resend, template dédié)
+→ Tracking : qui a invité qui, taux de conversion
+→ Éventuel bonus (ex: badge, boost temporaire de visibilité) 
+  pour les parrains actifs
+```
+
+C'est légal, plus efficace (recommandation par un pair = 
+confiance immédiate), et cohérent avec ton positionnement 
+professionnel (SNMKR, CPTS).
+
+### Ordre d'implémentation
+
+```
+Sprint futur (pas urgent pour les tout premiers bêta testeurs) :
+1. Feature "Inviter un confrère" sur /compte
+2. Email d'invitation via Resend avec lien d'inscription
+3. Tracking basique des invitations/conversions
+```
+
+### Priorité immédiate pour Jean-Charles
+
+Pour le lancement initial, le canal le plus efficace reste 
+celui déjà identifié : poster dans le groupe Facebook des 
+10 000 kinés de Guadeloupe (que tu rejoins légitimement en 
+tant que membre), pas du scraping automatisé.
+
+---
+
+## 78. BUG — recommandation affichée prématurément, avant toute mission réalisée
+
+### Problème identifié
+
+Sur la page "Mes mises en relation", la question "Recommandez-vous 
+ce cabinet ?" (Oui/Non) apparaît dès la phase de mise en relation 
+initiale — avant même d'avoir ouvert le chat, avant tout contrat 
+signé, avant que la mission ait eu lieu. C'est une incohérence 
+logique totale : on ne peut pas recommander une expérience qui 
+n'a pas encore eu lieu.
+
+Cette règle était pourtant déjà spécifiée dès les premières 
+sections du projet (section sur /match/[id] — bouton "Noter" 
+grisé avec tooltip jusqu'à la date de fin de mission) mais 
+n'est visiblement pas appliquée sur cette page "Mes mises 
+en relation".
+
+### Règle à respecter — séquence complète
+
+```
+1. Mise en relation créée (swipe réciproque)
+   → PAS de recommandation possible
+   → Actions disponibles : Ouvrir le chat, Confirmer, Décliner
+
+2. Chat en cours, contrat éventuellement envoyé/signé
+   → PAS de recommandation possible
+   → La mission n'a pas encore eu lieu
+
+3. Contrat confirmé (double signature), mission en cours
+   → PAS de recommandation possible
+   → On ne peut pas juger une collaboration en cours
+
+4. Date de fin de mission dépassée
+   → SEULEMENT MAINTENANT la recommandation devient possible
+   → "Recommanderiez-vous ce cabinet à un confrère ?" Oui/Non
+```
+
+### Correction à appliquer
+
+```
+Sur la page "Mes mises en relation" (et partout où ce bloc 
+apparaît — tray, fiche match), la question de recommandation 
+ne doit s'afficher QUE SI :
+
+- Un contrat a été confirmé (contratStatus = CONFIRME) ET
+- La date de fin de la mission (blockedEndDate ou endDate 
+  de la Mission liée) est dans le passé (< aujourd'hui)
+
+Sinon, ce bloc est totalement absent (pas grisé, absent) 
+tant que ces deux conditions ne sont pas remplies.
+```
+
+### Code de vérification
+
+```typescript
+function canShowRecommendation(match: Match): boolean {
+  if (match.contratStatus !== "CONFIRME") return false
+  const endDate = match.blockedEndDate ?? mission.endDate
+  if (!endDate) return false  // Durée indéterminée : jamais 
+                                // de recommandation tant que 
+                                // pas de date de fin connue/passée
+  return new Date(endDate) < new Date()
+}
+```
+
+### Ordre d'implémentation
+
+Correction urgente à ajouter au prochain sprint — c'est un 
+bug de logique métier visible immédiatement par tout testeur, 
+qui nuit à la crédibilité du système de notation (déjà pensé 
+comme un argument de confiance fort du produit, section 4).
+
+```
+1. Retirer l'affichage de "Recommandez-vous ce cabinet ?" 
+   sur la page "Mes mises en relation" pour toute mise en 
+   relation qui n'a pas encore de contrat confirmé ET 
+   date de fin passée
+2. Vérifier que cette même règle est appliquée partout 
+   ailleurs où la recommandation pourrait apparaître 
+   (tray, fiche match individuelle)
+```
+
+---
+
+## 79. Correction section 78 — système dédié de notation post-mission (façon Airbnb)
+
+### Le vrai besoin — pas un simple correctif d'affichage
+
+Il ne s'agit pas juste de cacher/griser la recommandation sur 
+l'écran actuel de mise en relation. Il faut un SYSTÈME SÉPARÉ 
+qui se déclenche automatiquement le lendemain de la fin de 
+mission, symétrique entre les deux parties (comme Airbnb : 
+le voyageur note l'hôte ET l'hôte note le voyageur, chacun 
+sans voir la note de l'autre avant d'avoir soumis la sienne).
+
+### Déclenchement du système
+
+```
+Jour J = date de fin de mission (blockedEndDate ou endDate)
+Jour J+1 = déclenchement automatique de la demande de notation
+
+Les DEUX parties reçoivent la même sollicitation en parallèle :
+- Le remplaçant/assistant est invité à noter le cabinet
+- Le cabinet est invité à noter le remplaçant/assistant
+```
+
+### Relances itératives en cas de non-complétion
+
+```
+J+1   : Première sollicitation (email + notification in-app)
+J+8   : Relance si pas encore répondu
+J+15  : Relance si pas encore répondu
+J+22  : Relance si pas encore répondu
+J+30  : Dernière relance, puis abandon (la notation reste 
+        possible manuellement plus tard depuis /matches, 
+        mais plus de relance automatique après un mois)
+```
+
+### Où vit cette notation — nouvel espace dédié
+
+Plutôt que d'apparaître sur la fiche de mise en relation 
+initiale (qui reste focalisée sur le processus match → chat 
+→ contrat), créer un espace dédié :
+
+```
+Nouvelle section : "Missions terminées — à évaluer"
+Accessible depuis /matches ou une page dédiée /evaluations
+
+Affiche uniquement les missions dont la date de fin est 
+passée ET qui n'ont pas encore été évaluées par l'utilisateur 
+courant.
+
+Pour chaque mission terminée non évaluée :
+"Comment s'est passée votre mission avec [Nom] ?"
+[Recommanderiez-vous cette personne/ce cabinet à un confrère ?]
+  ✓ Oui    ✗ Non
+[Critères détaillés optionnels — section 4]
+```
+
+### Principe de symétrie sans visibilité croisée immédiate
+
+```
+Comme sur Airbnb : chaque partie note l'autre indépendamment.
+La note n'est révélée aux deux parties (ou publiée si c'est 
+une note publique côté cabinet, section 4) qu'une fois que 
+LES DEUX ont soumis leur évaluation, OU après un délai 
+(ex: 14 jours), pour éviter les notations de représailles 
+(l'un attend de voir la note de l'autre avant de noter 
+en retour).
+```
+
+### Modèle de données
+
+```prisma
+// Sur CabinetRating et RemplacantRating (déjà existants, 
+// section 4) — ajouter :
+
+model CabinetRating {
+  // ... champs existants ...
+  missionEndDate    DateTime  // Date de fin de la mission concernée
+  sollicitedAt      DateTime  // J+1, date de première sollicitation
+  lastReminderAt    DateTime? // Date de la dernière relance envoyée
+  reminderCount     Int       @default(0)
+  isPublished       Boolean   @default(false) // Déjà existant
+}
+
+// Idem pour RemplacantRating
+```
+
+### Job de relance automatique
+
+```
+Un cron (ou tâche planifiée) qui tourne quotidiennement :
+1. Cherche les missions dont blockedEndDate = hier (J+1)
+   → Crée les sollicitations initiales pour les deux parties
+2. Cherche les sollicitations non complétées dont 
+   lastReminderAt date de plus de 7 jours ET reminderCount < 4
+   → Envoie une relance (email via Resend)
+   → Incrémente reminderCount, met à jour lastReminderAt
+3. Au-delà de reminderCount = 4 (soit J+30), arrête les relances 
+   automatiques — la notation reste possible manuellement
+```
+
+### Emails de sollicitation/relance (via Resend, section 51)
+
+```
+Sollicitation initiale (J+1) :
+Sujet : "Comment s'est passée votre mission avec [Nom] ?"
+Corps : "Votre mission du [dates] est terminée. 
+         Donnez votre avis en 10 secondes."
+[Bouton → lien direct vers l'évaluation]
+
+Relance (J+8, J+15, J+22, J+30) :
+Sujet : "N'oubliez pas d'évaluer votre dernière mission"
+Corps : plus bref, rappel simple avec le lien
+```
+
+### Ordre d'implémentation
+
+```
+Sprint dédié (plus conséquent que section 78 initiale) :
+1. Nouvelle page/section "Missions terminées à évaluer"
+2. Vérifier/étendre le modèle CabinetRating/RemplacantRating 
+   avec les champs de tracking (sollicitedAt, lastReminderAt, 
+   reminderCount)
+3. Job quotidien de détection des missions terminées J+1 
+   → création des sollicitations
+4. Job quotidien de relance (email Resend) selon le calendrier 
+   J+8/15/22/30
+5. Retirer complètement le bloc "Recommandez-vous ?" de l'écran 
+   de mise en relation initiale (correction section 78 — 
+   ce n'est PAS le bon endroit, quelle que soit la condition)
+6. Symétrie de visibilité : ne révéler les notes qu'une fois 
+   les deux parties ayant répondu, ou après délai de 14 jours
+```
+
+### Priorité
+
+Ce sprint est plus lourd qu'un simple correctif d'affichage — 
+à traiter après le cœur du tunnel (menu universel, bugs 
+bloquants du jour), pas ce soir. Mais RETIRER le bloc 
+prématuré de l'écran actuel (partie simple de la section 78) 
+reste à faire dès ce soir pour éviter la confusion immédiate.
+
+---
+
+## 80. Deux éléments nouveaux issus de la synthèse orale
+
+### Nouveau 1 — Éditeur de contrat en texte enrichi embarqué
+
+Contrairement à ce qui était spécifié jusqu'ici (formulaire 
+avec champs séparés : rayon km, durée ans, taux %, checkbox 
+période d'essai), Jean-Charles précise que TOUS les détails 
+économiques et légaux doivent être éditables directement dans 
+un éditeur de texte enrichi embarqué — pas une collection 
+de champs de formulaire séparés.
+
+```
+AVANT (spécifié sections 39/40) :
+Formulaire avec champs distincts :
+- Rayon non-concurrence (input number)
+- Durée non-concurrence (input number)
+- Taux rétrocession (input number)
+- Checkbox période d'essai
+
+APRÈS (précision demandée) :
+Le contrat généré (texte CNOMK complet) s'affiche dans un 
+éditeur de texte enrichi (type WYSIWYG léger) où l'utilisateur 
+peut cliquer directement dans le texte et modifier n'importe 
+quelle valeur inline — les rayons, durées, taux, clauses — 
+sans passer par des champs de formulaire séparés en dehors 
+du texte.
+```
+
+Cela change l'approche technique : au lieu de générer le PDF 
+depuis des données structurées uniquement, il faut un éditeur 
+de texte riche (ex: TipTap, Slate, ou solution similaire 
+compatible React) qui permette l'édition directe du contenu 
+avant génération finale du PDF.
+
+### Nouveau 2 — Limite absolue de 10 échanges de chat avant décision
+
+Sur le fil de discussion d'un match, un maximum de 10 échanges 
+(messages) est autorisé avant que le système impose une 
+décision : soit l'édition d'un contrat, soit l'annulation 
+du match. Objectif : éviter les discussions interminables 
+sans engagement, forcer la décisivité.
+
+```
+Comportement à implémenter :
+- Compter les messages échangés sur un match (les deux 
+  parties confondues)
+- À l'approche de la limite (ex: après 8 messages), afficher 
+  un bandeau d'alerte dans le chat : 
+  "Il vous reste 2 échanges avant de devoir statuer 
+  (contrat ou annulation)"
+- Au 10ème message, bloquer l'envoi de nouveaux messages 
+  tant qu'une décision n'est pas prise (bouton contrat 
+  ou bouton annuler devient obligatoire pour continuer)
+```
+
+Cette contrainte est cohérente avec la philosophie du produit : 
+un outil de pilotage rapide, pas un espace de discussion 
+prolongée sans finalité.
+
+### Ordre d'implémentation
+
+```
+Ces deux éléments sont substantiels — sprints dédiés séparés, 
+après stabilisation du cœur du tunnel (menu universel, bugs 
+du jour) :
+
+1. Éditeur de texte enrichi pour le contrat — nécessite le 
+   choix d'une librairie (TipTap recommandé pour React/Next.js), 
+   intégration avec la génération PDF finale
+2. Limite de 10 échanges — plus simple, un compteur + une 
+   contrainte UI sur ChatModal.tsx
+```
+
+---
+
+## 81. Récapitulatif consolidé — confrontation vision orale vs spec écrite
+
+### Ce qui est CONFIRMÉ et déjà correctement documenté
+
+```
+✅ Booking comme écran d'accueil (section 44)
+✅ Timeline centrée sur "aujourd'hui", navigable dans le temps 
+   (section 46/47 — flèche aujourd'hui, zooms Mois/Trimestre/
+   Année/2ans)
+✅ Timeline unique pour remplaçant (disponibilites board)
+✅ Timeline unique pour assistant autonome cherchant ses 
+   propres remplaçants (section 62, scénario 3)
+✅ Timelines multiples pour titulaire avec plusieurs postes 
+   (section 60, scénario 1)
+✅ Clic sur timeline → déclarer une vacance → proposer une 
+   annonce pré-remplie avec les dates de la zone (sections 
+   43, 55, 64 — menu universel)
+✅ Matching sur critères géo + bio DeepSeek (section 25, 
+   révisé section 75 : Dates 35/Bio 30/Géo 25/Désirabilité 10)
+✅ Score géographique gradué par distance réelle (section 67)
+✅ Bonus de pertinence territoriale pour vente CPTS (section 
+   72 — MAIS Jean-Charles souhaite l'avancer dans le temps, 
+   pas le repousser après traction commerciale confirmée — 
+   à rediscuter la priorité)
+✅ Portefeuille remplaçant : distinction entre "mes vacances 
+   déclarées" et "zones restant à pourvoir" (disponibilites 
+   board, section 43 appliqué symétriquement)
+✅ Système de notation post-mission avec relances hebdomadaires 
+   jusqu'à un mois, respect de la confraternité (section 79 
+   — déjà aligné avec cette demande)
+✅ Interface épurée, minimum de cases à cocher (sections 69, 
+   71 — retrait spécialités, simplification formulaires)
+```
+
+### Ce qui est NOUVEAU et à ajouter (section 80 ci-dessus)
+
+```
+🆕 Éditeur de contrat en texte enrichi embarqué (pas des 
+   champs de formulaire séparés)
+🆕 Limite de 10 échanges de chat avant décision obligatoire 
+   (contrat ou annulation)
+```
+
+### Point à clarifier — priorité de la pertinence territoriale
+
+Jean-Charles semble vouloir avancer la section 72 (bonus 
+territorial pour vente CPTS) plus tôt que ce qui était 
+initialement cadré ("pas à coder avant traction commerciale 
+confirmée"). Cela dépend du score géo gradué (section 67) 
+comme prérequis technique — donc la vraie question est : 
+veut-on prioriser le sprint section 67 (score géo gradué + 
+données GPS communes) plus tôt dans la roadmap, sachant 
+qu'il permettrait ensuite d'implémenter plus vite le bonus 
+territorial ?
+
+### Ce qui reste flou ou à préciser davantage
+
+```
+? La "projection temporelle adaptable" — navigation vers 
+  les dates passées : est-ce déjà couvert par les zooms 
+  existants (Mois/Trimestre/Année/2ans) qui montrent une 
+  fenêtre glissante autour d'aujourd'hui, ou faut-il un 
+  contrôle de navigation supplémentaire (boutons ← → pour 
+  se déplacer dans le temps librement, y compris très loin 
+  dans le passé) ?
+```
+
+### Priorité immédiate (rappel, inchangée par cette synthèse)
+
+Les bugs bloquants et le menu universel (sections 64, 73, 
+78/79 partie simple) restent la priorité de ce soir. Les 
+deux nouveaux éléments (section 80) et la question de 
+priorité territoriale sont à traiter dans les sprints suivants, 
+une fois le tunnel de base stabilisé et testé par de vrais 
+utilisateurs.
+
+---
+
+## 82. Algorithme territorial — penser correctement, pas juste interroger l'IA sur du flou
+
+### L'exigence formulée par Jean-Charles
+
+Ne pas se contenter d'un appel DeepSeek qui "devine" la 
+pertinence territoriale à partir de texte flou. Construire 
+un vrai algorithme structuré, avec des données réelles et 
+un calcul reproductible, où l'IA (DeepSeek) intervient là 
+où elle apporte une vraie valeur (analyse sémantique du texte 
+libre), et où le calcul géographique/statistique repose sur 
+des données factuelles, pas sur une estimation du modèle.
+
+### Distinction claire des deux couches
+
+```
+COUCHE 1 — Calcul déterministe (PAS d'IA, données factuelles)
+  - Distance géographique réelle (Haversine, section 67)
+  - Indice APL par profession et par commune (sections 15, 29, 30)
+  - Densité de professionnels par territoire (RPPS, section 30)
+  - Historique des postes non couverts sur une zone donnée 
+    (données internes Soignect — combien de temps un poste 
+    reste vacant dans telle commune)
+
+COUCHE 2 — Analyse sémantique (IA DeepSeek, pertinente ici)
+  - Compatibilité de valeurs/projet entre deux textes libres 
+    (bioTinder/accroche) — c'est LE bon usage de l'IA dans 
+    ce produit, pas le calcul géographique
+```
+
+L'erreur à éviter : demander à DeepSeek "quelle est la 
+pertinence géographique de cette annonce" en lui donnant 
+du texte flou — ça donnerait un résultat non reproductible, 
+non auditable, et difficile à justifier commercialement 
+face à une CPTS qui paierait pour ce service.
+
+### Vers un vrai indice de tension territoriale (à construire)
+
+```
+Pour chaque commune × profession, calculer un score de 
+tension composite basé sur des données vérifiables :
+
+TensionScore = f(
+  APL_actuel,                    // Section 15/29 — donnée DREES
+  nb_postes_non_couverts_30j,    // Donnée interne Soignect, 
+                                   // calculée en continu
+  duree_moyenne_vacance_poste,   // Donnée interne Soignect
+  ratio_offre_demande_zone       // Nb annonces actives / 
+                                   // Nb remplaçants disponibles 
+                                   // dans un rayon donné
+)
+```
+
+Ce score est un CALCUL, pas une estimation IA — reproductible, 
+explicable, et défendable commercialement devant une CPTS 
+qui voudrait comprendre pourquoi elle paie pour tel niveau 
+de boost.
+
+### Facturation du bonus territorial — modèle par points
+
+Jean-Charles précise un point important : le bonus de 
+pertinence géographique doit être QUANTIFIABLE et FACTURABLE 
+par tranche, pas un boost binaire tout-ou-rien.
+
+```
+Modèle de facturation par points de boost territorial :
+
+Une CPTS ou maison de santé peut acheter un nombre de POINTS 
+de boost territorial à appliquer sur les annonces de sa zone :
+
+  +5 points de boost territorial  → tarif A €/mois
+  +10 points de boost territorial → tarif B €/mois  
+  +20 points de boost territorial → tarif C €/mois
+
+Ces points s'ADDITIONNENT au score de désirabilité standard 
+existant (section 23), mais sont comptabilisés et facturés 
+séparément — traçabilité claire de ce qui est acheté et 
+pourquoi.
+```
+
+### Modèle de données
+
+```prisma
+model TerritorialBoost {
+  id              String   @id @default(cuid())
+  institutionId   String   // CPTS ou MSP acheteuse
+  institution     Profile  @relation(fields: [institutionId], references: [id])
+  targetCommunes  String[] // Communes concernées par ce boost
+  targetProfession Profession?  // null = toutes professions
+  pointsAllocated Int      // Nombre de points achetés
+  pricePerMonth   Float    // Tarif payé
+  activeFrom      DateTime
+  activeUntil     DateTime?
+  createdAt       DateTime @default(now())
+}
+```
+
+Le calcul du score de désirabilité (section 23) intègre 
+ensuite ce boost territorial comme composante additionnelle, 
+distincte et traçable :
+
+```typescript
+function calcDesirability(profile: Profile, mission: Mission, commune: CommuneAPL): number {
+  let score = /* calcul standard existant, section 23 */
+  
+  // Boost territorial acheté par une institution (nouveau)
+  const territorialBoost = getActiveTerritorialBoost(commune, mission.profession)
+  score += territorialBoost?.pointsAllocated ?? 0
+  
+  return Math.min(score, 20) // plafond à ajuster si le boost 
+                               // territorial doit dépasser le 
+                               // plafond standard de 10
+}
+```
+
+### Pourquoi ce modèle est commercialement fort
+
+```
+Un cabinet paie pour SA propre visibilité (Premium/Boost, 
+section 11) — logique individuelle.
+
+Une CPTS paie pour la visibilité DE TOUTE UNE ZONE — logique 
+de santé publique. C'est un produit différent, avec une 
+justification différente (données de tension réelle, pas 
+juste "je veux être vu plus"), qui légitime un tarif 
+institutionnel plus élevé et un argumentaire commercial 
+factuel : "voici les données qui montrent que cette zone 
+est sous-tension, voici combien coûte le boost pour 
+compenser cet écart."
+```
+
+### Ordre d'implémentation — séquence technique nécessaire
+
+```
+Prérequis absolu (à faire avant tout le reste) :
+1. Score géographique gradué (section 67) — distance réelle 
+   Haversine + coordonnées GPS des communes
+
+Ensuite, construction de l'indice de tension :
+2. Table de suivi des postes non couverts dans le temps 
+   (déjà en partie disponible via briqueStatus + historique 
+   des Mission, à agréger)
+3. Calcul du TensionScore par commune × profession (job 
+   périodique, ex: recalcul hebdomadaire)
+4. Stockage du TensionScore dans CommuneAPL ou table dédiée
+
+Puis la brique commerciale :
+5. Modèle TerritorialBoost (achat de points par une institution)
+6. Interface admin pour qu'une CPTS (ou Jean-Charles en son 
+   nom au début) configure et active un boost territorial
+7. Intégration dans le calcul de désirabilité final
+```
+
+### Priorité réelle
+
+Cette brique est ambitieuse et représente un vrai axe de 
+différenciation face à Macasaa (section 54) et un axe de 
+revenu institutionnel fort (section 53). Mais elle a une 
+dépendance technique claire : le score géo gradué (section 67) 
+doit être fait EN PREMIER, sinon toute la couche territoriale 
+n'a pas de fondation solide.
+
+**Recommandation d'ordre** : après stabilisation du tunnel 
+de base (bugs du jour, menu universel), faire du score géo 
+gradué (section 67) la PROCHAINE priorité de fond, précisément 
+parce qu'il conditionne cette vision territoriale que 
+Jean-Charles veut avancer dans le temps.
+
+---
+
+## 83. Correction méthodologique — vraie formule APL, à reprendre demain
+
+### Ce qu'on avait implémenté (trop simpliste)
+
+Notre calcul actuel (sections 15, 29) était une densité 
+simplifiée (nombre de professionnels / population), avec 
+une distance à vol d'oiseau (Haversine, section 67) — 
+proche de ce que la vraie méthodologie DREES appelle 
+justement la limite des indicateurs classiques à éviter.
+
+### Ce que la vraie APL DREES fait réellement
+
+```
+1. Distance en TEMPS DE TRAJET RÉEL (pas à vol d'oiseau)
+   Source officielle : distancier Metric de l'Insee, qui 
+   calcule le temps moyen de parcours en voiture d'une 
+   commune à une autre, en tenant compte du type de route, 
+   de la sinuosité et de l'altimétrie.
+   → Pertinent pour la Guadeloupe : le relief (Basse-Terre 
+     montagneuse vs Grande-Terre plate) rend la distance à 
+     vol d'oiseau très trompeuse localement.
+
+2. Prise en compte des COMMUNES VOISINES
+   L'offre et la demande des communes environnantes sont 
+   intégrées, pas seulement la commune elle-même — c'est 
+   ce qui corrige la limite de la simple densité communale.
+
+3. Pondération par ACTIVITÉ RÉELLE du professionnel
+   Un professionnel à mi-temps ne compte pas comme un 
+   équivalent temps plein — l'offre est mesurée en ETP 
+   (équivalent temps plein), calculé à partir du volume 
+   d'actes réalisés, pas juste "présent ou pas".
+
+4. Seuils de temps DIFFÉRENTS selon la profession
+   Ex: 30 minutes pour les médecins généralistes — d'autres 
+   seuils existent pour d'autres professions/services.
+
+5. Formules DIFFÉRENTES médecins vs paramédicaux
+   Confirmé : la DREES publie des jeux de données et 
+   méthodologies séparés pour médecins généralistes, 
+   infirmiers, sages-femmes, kinésithérapeutes, chirurgiens-
+   dentistes — pas une formule unique.
+```
+
+### Nouvelle question soulevée — échelle CPTS plutôt que commune
+
+Jean-Charles propose de réfléchir à un découpage par CPTS 
+plutôt que par commune, avec l'ambition de calculer cet 
+indice pour TOUTES les CPTS de France, en le confrontant 
+à l'indice APL officiel actuel/futur.
+
+```
+Question ouverte à trancher lors de la reprise :
+- Le découpage géographique administratif (commune, EPCI, 
+  CPTS) n'est effectivement pas homogène sur le territoire 
+  français — les périmètres CPTS varient en taille et en 
+  logique de regroupement selon les régions.
+- Faut-il calculer l'indice à l'échelle commune (comme la 
+  DREES) puis l'agréger à l'échelle CPTS pour la vente 
+  institutionnelle, plutôt que de recalculer un découpage 
+  CPTS distinct ?
+- Existe-t-il une donnée publique officielle du découpage 
+  des CPTS (liste des communes membres par CPTS) à récupérer, 
+  similaire à ce qui existe pour les zones ARS (déjà utilisé, 
+  section 14-16) ?
+```
+
+### Ce que ça implique pour la suite (à reprendre, pas ce soir)
+
+```
+Avant de coder quoi que ce soit sur le score géo gradué 
+(section 67) et la couche territoriale (section 82), 
+il faut clarifier :
+
+1. Reste-t-on sur une distance à vol d'oiseau simplifiée 
+   (Haversine, rapide à implémenter) pour le MVP, en 
+   assumant que c'est une approximation raisonnable en 
+   Guadeloupe vu la taille du territoire, OU vise-t-on 
+   d'emblée un vrai temps de trajet routier (nécessite 
+   une API de calcul d'itinéraire, ex: Google Maps 
+   Distance Matrix, OSRM, ou équivalent) ?
+
+2. Le distancier Metric de l'Insee est-il exploitable / 
+   accessible en API pour un usage comme Soignect, ou 
+   est-ce réservé à un usage interne DREES ?
+
+3. Faut-il répliquer la vraie formule APL (avec ETP, seuils 
+   par profession) ou construire un indice DÉLIBÉRÉMENT 
+   plus simple mais TRANSPARENT et adapté à l'usage Soignect 
+   (pas nécessairement identique à l'APL officiel, mais 
+   cohérent et défendable) ?
+
+4. Rechercher l'existence d'un découpage géographique 
+   officiel des CPTS (liste des communes par CPTS) 
+   disponible en open data.
+```
+
+### Décision de méthode pour la session de reprise
+
+Cette question mérite une vraie session de travail dédiée, 
+pas une décision précipitée en fin de journée. À reprendre 
+avec calme, en confrontant les options ci-dessus, avant 
+de lancer le sprint technique du score géo gradué (section 67).
+
+Le sprint des bugs bloquants et du menu universel (priorité 
+de ce soir) n'est pas impacté par cette question — il peut 
+avancer indépendamment.
+
+---
+
+## 84. Distinction critique — tension inter-territoriale vs intra-territoriale
+
+### Le problème identifié par Jean-Charles
+
+Selon les critères NATIONAUX, la Guadeloupe dans son ensemble 
+n'est pas en zone sous-dotée en kinésithérapie (rappel : 
+confirmé sections 14-16, arrêté ARS — pas de zone "sous-dotée" 
+kiné en Guadeloupe au sens national/ARS).
+
+MAIS à l'échelle INTRA-département ou INTRA-CPTS, il existe 
+de vraies disparités : certaines communes (ex: Pointe-Noire, 
+déjà identifiée zone intermédiaire) ont un besoin réel plus 
+fort que d'autres communes du même département qui sont 
+déjà bien dotées (ex: Le Lamentin, cité en exemple).
+
+**Le risque à éviter absolument** : un algorithme de boost 
+territorial qui se base uniquement sur des seuils nationaux 
+(ARS, DREES) ne détecterait AUCUNE tension en Guadeloupe, 
+puisque le département entier est classé "non prioritaire" 
+au niveau national — alors qu'il existe une vraie hétérogénéité 
+interne qui mérite d'être valorisée.
+
+### La bonne échelle de calcul — RELATIVE, pas ABSOLUE
+
+```
+ERREUR À NE PAS FAIRE :
+Comparer chaque commune à un seuil NATIONAL fixe 
+(ex: "sous-doté si APL < X au niveau France entière")
+→ Résultat : la Guadeloupe entière serait "non prioritaire", 
+  aucune commune ne ressortirait comme nécessitant un boost.
+
+BONNE APPROCHE (déjà pressentie section 15, à confirmer/
+renforcer) :
+Comparer chaque commune à la MÉDIANE ou aux QUARTILES de 
+son propre territoire de référence (département ou CPTS), 
+PAS à un seuil national absolu.
+→ Résultat : même si toute la Guadeloupe est "bien dotée" 
+  au sens national, Pointe-Noire ressort comme relativement 
+  moins dotée que Le Lamentin AU SEIN du même département — 
+  et c'est CETTE tension relative qui doit générer le boost.
+```
+
+### Ce qui était déjà bien pensé (à confirmer/consolider)
+
+Le calcul de boost déjà spécifié section 15 utilisait bien 
+une logique de comparaison PAR DÉPARTEMENT (P25/médiane 
+départementale), pas un seuil national — c'est la bonne 
+direction. Cette section 84 vient confirmer et renforcer 
+ce principe comme RÈGLE ABSOLUE à ne jamais casser, y compris 
+quand on construira la couche CPTS (section 82/83) : 
+
+```
+RÈGLE ABSOLUE pour tout calcul de tension territoriale 
+dans Soignect :
+
+Le score de tension d'une commune (ou d'une zone CPTS) 
+se calcule TOUJOURS relativement à son territoire de 
+référence immédiat (département, ou CPTS si le découpage 
+CPTS est retenu) — JAMAIS par rapport à un seuil national 
+absolu.
+
+Ça permet de révéler les tensions INTRA-territoriales même 
+dans des régions globalement bien dotées au niveau national — 
+c'est précisément ce qui rend Soignect utile là où les 
+indicateurs nationaux (ARS) sont trop grossiers pour capter 
+la réalité de terrain.
+```
+
+### Pourquoi c'est un vrai argument de vente CPTS
+
+C'est exactement l'argument qui justifie que Soignect apporte 
+une valeur que l'ARS/DREES n'apporte pas à cette échelle fine :
+
+```
+"Au niveau national, votre département n'est pas prioritaire. 
+Mais AU SEIN de votre CPTS, telle commune est structurellement 
+moins bien couverte que ses voisines. Soignect peut orienter 
+la visibilité des annonces de remplacement vers cette zone 
+précise, alors que les dispositifs nationaux ne peuvent pas 
+descendre à cette granularité."
+```
+
+C'est un angle mort des dispositifs publics existants (ARS, 
+zonage national) que Soignect peut occuper.
+
+### Impact sur le calcul du TensionScore (section 82)
+
+```typescript
+// Correction du principe de calcul (section 82) — 
+// toujours relatif au territoire de référence, jamais absolu
+
+function calcTensionScore(
+  commune: CommuneAPL, 
+  toutesLesCommunesDuMemeTerritoire: CommuneAPL[]  
+  // = même département, ou même CPTS selon le découpage retenu
+): number {
+  const valeursDuTerritoire = toutesLesCommunesDuMemeTerritoire
+    .map(c => c.aplKine) // ou profession concernée
+    .sort((a, b) => a - b)
+  
+  const mediane = valeursDuTerritoire[Math.floor(valeursDuTerritoire.length / 2)]
+  const p25 = valeursDuTerritoire[Math.floor(valeursDuTerritoire.length * 0.25)]
+  
+  // Comparaison RELATIVE à ce territoire, jamais à un seuil national
+  if (commune.aplKine < p25) return 3      // Tension forte relative
+  if (commune.aplKine < mediane) return 1  // Tension modérée relative
+  return 0                                  // Bien doté relativement
+}
+```
+
+### Ordre d'implémentation
+
+Cette clarification s'intègre directement dans le sprint 
+du score géo gradué + couche territoriale (sections 67, 82, 
+83) déjà planifié pour la reprise. Pas de nouveau sprint 
+séparé — c'est une précision de PRINCIPE à respecter dans 
+l'implémentation de ces sections, particulièrement importante 
+à ne pas perdre de vue.
+
+### Point à trancher également à la reprise
+
+Le territoire de référence pour ce calcul relatif doit-il 
+être :
+```
+- Le département (comme actuellement, section 15) — plus 
+  simple, données déjà structurées ainsi
+- La CPTS (nouvelle idée, section 83) — plus fin et plus 
+  vendable commercialement, mais nécessite le découpage 
+  CPTS en données, à rechercher
+- Les deux niveaux, avec le département comme fallback 
+  si le découpage CPTS n'est pas disponible pour une zone donnée
+```
+
+---
+
+## 85. Clients institutionnels — CPTS, MSP, ARS, CGSS : logiques distinctes
+
+### Le problème à trancher — ce ne sont pas les mêmes acheteurs
+
+```
+CPTS (Communauté Professionnelle Territoriale de Santé)
+  Logique  : coordination locale entre professionnels d'un 
+             territoire, structure de terrain, budget limité 
+             mais décision rapide (Jean-Charles en est 
+             secrétaire — accès direct)
+  Besoin   : combler des trous de planning concrets sur SON 
+             territoire, argument très opérationnel
+  Budget   : modeste (structure associative, financement 
+             conventionnel limité)
+  Décideur : bureau CPTS, décision relativement rapide
+
+MSP (Maison de Santé Pluriprofessionnelle)
+  Logique  : structure d'exercice coordonné, plus proche 
+             d'un "gros cabinet" que d'une institution
+  Besoin   : identique à un cabinet, mais à plus grande échelle 
+             (plusieurs professions sous un même toit)
+  Budget   : intermédiaire, décision portée par le gérant/
+             coordinateur MSP
+  Décideur : rapide, un peu comme un cabinet
+
+ARS (Agence Régionale de Santé)
+  Logique  : pilotage RÉGIONAL de l'offre de soins, enjeu 
+             de politique publique, pas de gestion 
+             opérationnelle directe de plannings
+  Besoin   : VISION AGRÉGÉE de la tension territoriale 
+             (tableaux de bord, cartographie), pas 
+             l'outil de matching lui-même
+  Budget   : potentiellement important (marché public), 
+             mais process d'achat long et complexe 
+             (appels d'offres, cahier des charges)
+  Décideur : administration, cycle de décision long 
+             (plusieurs mois, voire années)
+
+CGSS (Caisse Générale de Sécurité Sociale — équivalent CPAM 
+       dans les DOM)
+  Logique  : gestion de l'Assurance Maladie dans les DOM, 
+             intérêt pour la maîtrise des dépenses de santé 
+             et la lutte contre les déserts médicaux
+  Besoin   : proche de l'ARS — vision agrégée, pas l'outil 
+             opérationnel
+  Budget   : institutionnel, process d'achat public complexe
+  Décideur : administration, cycle long
+```
+
+### Ce que ça implique — deux produits différents, pas un seul
+
+```
+PRODUIT A — "Soignect Territoire" (déjà en germe, sections 
+82-84)
+  Vendu à : CPTS et MSP
+  Nature  : boost de visibilité ciblé sur leur zone, 
+            fonctionnalité intégrée à la plateforme existante
+  Prix    : modeste (cohérent avec budget CPTS/MSP), 
+            ex: 99-199€/mois déjà évoqué section 26
+  Vente   : directe, rapide, toi-même en tant que secrétaire 
+            CPTS peux ouvrir des portes
+
+PRODUIT B — "Soignect Observatoire" (nouveau, à explorer)
+  Vendu à : ARS, CGSS, voire Conseil Départemental
+  Nature  : PAS l'outil de matching lui-même, mais un 
+            TABLEAU DE BORD / RAPPORT AGRÉGÉ anonymisé 
+            sur les tensions de recrutement observées via 
+            Soignect (durée moyenne de vacance de poste par 
+            zone, taux de couverture, évolution dans le temps)
+  Prix    : plus élevé (budget institutionnel), mais process 
+            d'achat public long — pas pour maintenant
+  Vente   : nécessite une vraie donnée agrégée sur plusieurs 
+            mois/années d'usage Soignect avant d'être crédible 
+            — pas vendable avant d'avoir du volume réel
+```
+
+### "L'un n'empêche pas l'autre" — confirmé, mais pas en même temps
+
+```
+Séquence réaliste :
+1. MAINTENANT → Produit A (CPTS/MSP), ton accès direct 
+   via ton réseau, prix modeste, vente rapide
+2. DANS 12-24 MOIS → Produit B (ARS/CGSS), une fois que 
+   Soignect a accumulé assez de données réelles sur plusieurs 
+   territoires pour produire un observatoire crédible et 
+   vendable à un acheteur institutionnel exigeant
+```
+
+Vendre à une ARS/CGSS AVANT d'avoir des données solides serait 
+prématuré — ils achèteront une preuve de valeur (données 
+réelles accumulées), pas une promesse. Le Produit A sert 
+justement à accumuler cette légitimité et ces données.
+
+### Sur le prix du Produit A — à trancher, pas urgent ce soir
+
+```
+Déjà évoqué (section 26) : 99€/mois ou 990€/an pour CPTS/MSP.
+Reste à valider :
+- Est-ce trop cher pour une petite CPTS comme celle de 
+  Jean-Charles (test réel avec sa propre structure, 
+  actuellement gratuite en tant que partenaire fondateur, 
+  section 53) ?
+- Faut-il un tarif dégressif selon la taille de la CPTS 
+  (nombre de communes, nombre de professionnels couverts) ?
+```
+
+### Ordre d'implémentation
+
+```
+Produit A (CPTS/MSP) : suite logique directe des sections 
+82-84 déjà en cours de réflexion — pas de nouveau développement 
+séparé, c'est la même brique technique.
+
+Produit B (ARS/CGSS/Observatoire) : à ne PAS développer 
+maintenant. Noter l'idée, la garder en réserve stratégique 
+pour dans 12-24 mois, une fois que Soignect aura assez 
+d'historique de données réelles pour construire un vrai 
+observatoire crédible.
+```
+
+---
+
+## 86. Back-office de traçabilité — collecter la preuve dès maintenant
+
+### Principe fondamental
+
+Sans collecte structurée dès le premier jour d'usage réel, 
+Soignect ne pourra JAMAIS produire de preuve crédible pour 
+un pitch ARS/CGSS dans 18 mois — on ne peut pas reconstruire 
+un historique après coup. La collecte doit commencer 
+MAINTENANT, même si elle n'est exploitée que plus tard.
+
+### Ce qu'il faut tracer — inventaire des données probantes
+
+```
+NIVEAU 1 — Traçabilité des annonces et couverture
+- Chaque annonce publiée : commune, profession, type de poste, 
+  date de publication
+- Délai entre publication et premier swipe reçu
+- Délai entre publication et match confirmé
+- Délai entre match et contrat signé
+- Délai TOTAL entre "poste devient non couvert" et "poste 
+  redevient couvert" — LA métrique clé de preuve d'utilité
+- Si un poste reste non couvert au-delà d'un seuil (30j, 90j) 
+  → tracer cette vacance prolongée comme donnée de tension
+
+NIVEAU 2 — Traçabilité des échanges (déjà en partie acquis)
+- Nombre de messages échangés avant décision (contrat ou 
+  annulation) — déjà lié à la limite de 10 échanges, section 80
+- Taux de conversion : swipe → match → chat → contrat → 
+  signature (funnel complet)
+- Taux d'annulation de match et à quelle étape
+
+NIVEAU 3 — Traçabilité géographique agrégée
+- Répartition des annonces par commune dans le temps
+- Évolution du taux de couverture par commune (mois par mois)
+- Corrélation entre le score de tension calculé (section 82) 
+  et le temps réel de couverture observé — CECI EST LA PREUVE 
+  ULTIME : si Soignect prédit qu'une commune est tendue ET 
+  que les données confirment que les postes y restent plus 
+  longtemps non couverts, c'est une preuve statistique solide
+
+NIVEAU 4 — Traçabilité de la valeur ajoutée
+- Nombre total de mises en relation confirmées depuis le 
+  lancement
+- Nombre de contrats effectivement signés
+- Répartition par profession, par type de contrat 
+  (remplacement/assistanat/collaboration)
+- Anonymisé : jamais de données nominatives dans un rapport 
+  destiné à une administration
+```
+
+### Modèle de données dédié — table d'événements horodatés
+
+Plutôt que de recalculer ces métriques a posteriori depuis 
+les tables métier (Mission, Match, Swipe), créer une table 
+d'événements dédiée, écrite en continu, pensée pour l'analyse 
+statistique future :
+
+```prisma
+model TraceEvent {
+  id            String   @id @default(cuid())
+  eventType     String   // "MISSION_PUBLISHED", "SWIPE_RIGHT", 
+                          // "MATCH_CREATED", "CONTRACT_SIGNED",
+                          // "MISSION_COVERED", "MISSION_EXPIRED_UNCOVERED"
+  missionId     String?
+  matchId       String?
+  commune       String?  // Dénormalisé pour faciliter l'agrégation 
+                         // géographique sans jointures lourdes
+  profession    String?
+  missionType   String?
+  occurredAt    DateTime @default(now())
+  metadata      Json?    // Données contextuelles additionnelles 
+                         // selon le type d'événement
+  
+  @@index([eventType, commune, occurredAt])
+  @@index([commune, profession, occurredAt])
+}
+```
+
+Cette table est écrite en PARALLÈLE des tables métier normales 
+(Mission, Match...) à chaque événement clé — un simple insert 
+supplémentaire dans chaque route API concernée, sans impact 
+sur la logique métier existante.
+
+### Rapport agrégé — structure du futur pitch ARS/CGSS
+
+À terme (dans 12-18 mois, section 85), ce back-office 
+permettra de générer un rapport type :
+
+```
+"Sur les 18 derniers mois, Soignect a permis de couvrir 
+X postes de remplacement/assistanat en Guadeloupe.
+
+Le délai moyen de couverture d'un poste est passé de 
+Y jours (zones bien dotées) à Z jours (zones tendues 
+identifiées par notre indice de tension).
+
+Dans les communes identifiées comme tendues par notre 
+algorithme (Pointe-Noire, etc.), le taux de couverture 
+à 30 jours est de X%, contre Y% dans les communes bien 
+dotées — confirmant statistiquement la pertinence de 
+notre indice de tension intra-territorial (section 84).
+
+Ce système a permis d'éviter N ruptures de continuité 
+des soins sur le territoire."
+```
+
+C'est ce type de phrase, appuyée sur des vraies données 
+longitudinales, qui rend un pitch ARS crédible — pas une 
+promesse ni un concept.
+
+### Interface admin — dashboard de suivi (pour toi, dès maintenant)
+
+Avant même de penser au pitch ARS, ce back-office sert 
+D'ABORD à Jean-Charles lui-même pour piloter le produit :
+
+```
+Nouvelle section /admin/observatoire (ou équivalent) :
+- Délai moyen de couverture par commune (carte ou tableau)
+- Évolution du nombre de mises en relation dans le temps 
+  (graphe)
+- Taux de conversion du funnel complet
+- Liste des postes restés non couverts au-delà de 30/60/90 jours 
+  (alerte visuelle pour identifier les zones vraiment en tension)
+```
+
+### Ordre d'implémentation
+
+```
+PRIORITÉ HAUTE — à intégrer TRÈS TÔT, avant même le sprint 
+territorial complet (sections 67, 82-84), car chaque jour 
+sans collecte est une donnée perdue à jamais :
+
+1. Créer le modèle TraceEvent (migration additive, simple)
+2. Instrumenter les points clés déjà existants dans le code :
+   - Publication d'annonce (déjà dans /api/missions POST)
+   - Swipe RIGHT (déjà dans /api/swipe POST)
+   - Création de match (déjà dans /api/swipe POST)
+   - Signature de contrat (déjà dans /api/match/[id]/signature)
+   - Détection de mission restée non couverte au-delà d'un 
+     seuil (nouveau job périodique à créer, ex: quotidien)
+3. Dashboard admin basique /admin/observatoire pour visualiser 
+   ces données au fil de l'eau
+
+Ce sprint est TECHNIQUEMENT LÉGER (ajouter des inserts dans 
+des routes déjà existantes) mais STRATÉGIQUEMENT CRITIQUE — 
+à prioriser dès que possible, idéalement avant même de finir 
+tous les correctifs UX du menu universel, car c'est la 
+donnée qui ne peut jamais être rattrapée rétroactivement.
+```
+
+### Recommandation de priorité réelle
+
+Compte tenu de l'importance de ne rien perdre, ce sprint 
+(instrumentation TraceEvent) devrait passer AVANT le score 
+géo gradué (section 67) dans l'ordre des priorités de reprise — 
+un score géo imparfait peut être amélioré plus tard sans 
+perte, mais un mois d'usage réel non tracé est perdu 
+définitivement.

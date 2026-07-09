@@ -43,9 +43,6 @@ export default async function MatchPage({ params }: Props) {
       profileB: true,
       missionA: true,
       missionB: true,
-      // Nouveaux modèles de notation
-      cabinetRatings:    { where: { raterId: profileId } },
-      remplacantRatings: { where: { raterId: profileId } },
     },
   });
 
@@ -66,20 +63,6 @@ export default async function MatchPage({ params }: Props) {
       })
     : null;
   const affinityScore = mySwipe?.affinityScore ?? null; // 0-100, déjà la bonne échelle
-
-  // Condition notation : mission terminée + pas encore évalué
-  const missionEndDate = theirMission?.endDate ?? null;
-  const missionFinished = missionEndDate && new Date(missionEndDate) < new Date();
-
-  const alreadyRated = myProfile.type === "TITULAIRE"
-    ? match.remplacantRatings.length > 0
-    : match.cabinetRatings.length > 0;
-
-  const canRate = missionFinished && !alreadyRated;
-
-  const missionEndLabel = missionEndDate
-    ? new Date(missionEndDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
-    : null;
 
   const isPremium =
     (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan === "PREMIUM" ||
@@ -153,40 +136,21 @@ export default async function MatchPage({ params }: Props) {
             <span className="text-lg">📄</span>
           </Link>
         ) : (
-          <div className="w-full flex items-center justify-between px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl opacity-60 cursor-not-allowed">
+          /* Verrouillé (non-Premium) — jamais caché : clic → page /premium (item 8) */
+          <Link
+            href="/premium"
+            className="w-full flex items-center justify-between px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 active:scale-[0.98] transition"
+          >
             <div>
               <p className="text-gray-500 font-semibold text-sm">Générer le contrat PDF</p>
-              <p className="text-gray-400 text-xs">Réservé aux abonnés Premium</p>
+              <p className="text-gray-400 text-xs">Réservé aux abonnés Premium — débloquer</p>
             </div>
             <span className="px-2.5 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">Premium</span>
-          </div>
+          </Link>
         )}
 
-        {/* 3. Recommandation post-mission */}
-        {alreadyRated ? (
-          <div className="w-full flex items-center justify-between px-5 py-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
-            <p className="text-emerald-700 font-semibold text-sm">Mission évaluée ✓</p>
-            <span className="text-emerald-400 text-lg">✓</span>
-          </div>
-        ) : canRate ? (
-          <Link
-            href={`/matches?matchId=${match.id}`}
-            className="w-full flex items-center justify-between px-5 py-4 bg-white border border-yellow-200 text-yellow-700 rounded-2xl font-semibold hover:bg-yellow-50 active:scale-[0.98] transition"
-          >
-            <span>Recommander après la mission</span>
-            <span className="text-lg">👍</span>
-          </Link>
-        ) : (
-          <div className="w-full flex items-center justify-between px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl opacity-60 cursor-not-allowed">
-            <div>
-              <p className="text-gray-500 font-semibold text-sm">Recommander après la mission</p>
-              <p className="text-gray-400 text-xs">
-                {missionEndLabel ? `Disponible après le ${missionEndLabel}` : "Disponible en fin de mission"}
-              </p>
-            </div>
-            <span className="text-gray-300 text-lg">👍</span>
-          </div>
-        )}
+        {/* Recommandation retirée (section 78/79) — la notation vivra dans un
+            système dédié post-mission, séparé de cet écran de mise en relation. */}
       </div>
 
       <Link href="/annonces" className="text-center text-sm text-gray-400 hover:text-kine-600 transition">

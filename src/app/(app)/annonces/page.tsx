@@ -11,6 +11,16 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
   const profileType = (session?.user as { profileType?: string })?.profileType ?? "REMPLACANT";
   const { missionId: initialMissionId } = await searchParams;
 
+  // Statut Premium (item 8) — gating du bouton "Envoyer un contrat" dans le tray
+  let isPremium = false;
+  if (profileId) {
+    const me = await prisma.profile.findUnique({
+      where: { id: profileId },
+      select: { subscriptionPlan: true },
+    });
+    isPremium = me?.subscriptionPlan === "PREMIUM" || me?.subscriptionPlan === "BOOST";
+  }
+
   let titulaireMissions: TitulaireMission[] = [];
 
   if (profileType === "TITULAIRE" && profileId) {
@@ -42,6 +52,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
     <AnnoncesClient
       profileType={profileType}
       profileId={profileId ?? ""}
+      isPremium={isPremium}
       titulaireMissions={titulaireMissions}
       initialMissionId={initialMissionId}
     />

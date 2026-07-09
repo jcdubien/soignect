@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { COMMUNES_GUADELOUPE, SPECIALTIES_KINE } from "@/lib/communes";
+import { COMMUNES_GUADELOUPE } from "@/lib/communes";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -47,14 +47,8 @@ export default function CreateDisponibilitePage() {
     : null;
   const under90Days = isAssistant && missionDays !== null && missionDays < 90;
 
-  function toggleSpecialty(s: string) {
-    setForm((prev) => ({
-      ...prev,
-      specialties: prev.specialties.includes(s)
-        ? prev.specialties.filter((x) => x !== s)
-        : [...prev.specialties, s],
-    }));
-  }
+  // Accroche 280 signes OBLIGATOIRE — min 20 caractères (section 71 / item 14)
+  const bioValid = form.bioTinder.trim().length >= 20;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -130,8 +124,11 @@ export default function CreateDisponibilitePage() {
         <div className="bg-kine-50 rounded-2xl p-4 border border-kine-100">
           <label className="block text-sm font-semibold text-kine-700 mb-1">
             En une phrase, qui vous êtes
-            <span className="text-kine-400 font-normal ml-1">(optionnel · 280 signes)</span>
+            <span className="text-kine-400 font-normal ml-1">(280 signes · obligatoire)</span>
           </label>
+          <p className="text-xs text-kine-600/70 mb-2">
+            C&apos;est ce texte qui alimente le matching intelligent — présentez-vous en quelques mots (20 caractères minimum).
+          </p>
           <textarea
             value={form.bioTinder}
             onChange={(e) => {
@@ -146,7 +143,12 @@ export default function CreateDisponibilitePage() {
                 : "Je suis kiné passionné, disponible pour remplacements courts en Guadeloupe…"
             }
           />
-          <p className="text-right text-xs text-gray-300 mt-0.5">{form.bioTinder.length}/280</p>
+          <div className="flex justify-between items-center mt-0.5">
+            {!bioValid ? (
+              <span className="text-xs text-amber-600">Encore {Math.max(0, 20 - form.bioTinder.trim().length)} caractère(s)</span>
+            ) : <span />}
+            <span className="text-xs text-gray-300">{form.bioTinder.length}/280</span>
+          </div>
         </div>
 
         {/* Description */}
@@ -182,26 +184,7 @@ export default function CreateDisponibilitePage() {
           </select>
         </div>
 
-        {/* Spécialités */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Mes spécialités</label>
-          <div className="flex flex-wrap gap-2">
-            {SPECIALTIES_KINE.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggleSpecialty(s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                  form.specialties.includes(s)
-                    ? "bg-kine-500 text-white border-kine-500"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-kine-300"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Spécialités retirées (section 69) — matching via DeepSeek à partir de l'accroche */}
 
         {/* Dates de disponibilité (REMPLACANT) */}
         {!isAssistant && (
@@ -323,7 +306,7 @@ export default function CreateDisponibilitePage() {
           </Link>
           <button
             type="submit"
-            disabled={loading || !form.title || !form.location || !!under90Days}
+            disabled={loading || !form.title || !form.location || !bioValid || !!under90Days}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
             {loading ? "Publication…" : "Publier mes disponibilités →"}

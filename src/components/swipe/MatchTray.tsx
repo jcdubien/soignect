@@ -33,11 +33,13 @@ interface MatchTrayProps {
   /** Type et id du profil courant — gating du bouton contrat + chat inline (section 61) */
   myProfileType?: string;
   myProfileId?: string;
+  /** Abonné Premium/Boost — débloque l'envoi de contrat (item 8) */
+  isPremium?: boolean;
 }
 
 // ── Fiche complète de l'annonce ───────────────────────────────────────────────
 function MissionSheet({
-  item, onClose, onCancelled, titulaireMissions = [], onReassigned, myProfileType, myProfileId,
+  item, onClose, onCancelled, titulaireMissions = [], onReassigned, myProfileType, myProfileId, isPremium,
 }: {
   item: TrayItem;
   onClose: () => void;
@@ -46,6 +48,7 @@ function MissionSheet({
   onReassigned?: () => void;
   myProfileType?: string;
   myProfileId?: string;
+  isPremium?: boolean;
 }) {
   const { mission } = item;
   const p = mission.profile;
@@ -131,25 +134,30 @@ function MissionSheet({
                   style={{ width: `${Math.min(item.affinityScore, 100)}%` }}
                 />
               </div>
-              {/* Détail des composantes */}
+              {/* Détail des composantes (section 64 — Spécialités retiré) */}
               {item.scoreDetails && (
-                <div className="grid grid-cols-3 gap-1.5 mt-2">
-                  {[
-                    { key: "dates",        label: "Dates",      max: 30 },
-                    { key: "geo",          label: "Lieu",       max: 20 },
-                    { key: "specialty",    label: "Spécialités",max: 20 },
-                    { key: "bio",          label: "Affinité",   max: 20 },
-                    { key: "desirability", label: "Visibilité", max: 10 },
-                  ].map(({ key, label, max }) => {
-                    const val = item.scoreDetails?.[key] ?? 0;
-                    return (
-                      <div key={key} className="flex flex-col items-center bg-white rounded-xl p-1.5">
-                        <span className="text-[9px] text-gray-400 uppercase tracking-wide">{label}</span>
-                        <span className="text-sm font-bold text-kine-600">{val}<span className="text-[9px] text-gray-300">/{max}</span></span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <>
+                  <div className="grid grid-cols-4 gap-1.5 mt-2">
+                    {[
+                      { key: "dates",        label: "Dates",      max: 35 },
+                      { key: "bio",          label: "Affinité",   max: 30 },
+                      { key: "geo",          label: "Proximité",  max: 25 },
+                      { key: "desirability", label: "Visibilité", max: 10 },
+                    ].map(({ key, label, max }) => {
+                      const val = item.scoreDetails?.[key] ?? 0;
+                      return (
+                        <div key={key} className="flex flex-col items-center bg-white rounded-xl p-1.5">
+                          <span className="text-[9px] text-gray-400 uppercase tracking-wide">{label}</span>
+                          <span className="text-sm font-bold text-kine-600">{val}<span className="text-[9px] text-gray-300">/{max}</span></span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Explication du critère Visibilité (item 12) */}
+                  <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
+                    <span className="font-semibold text-gray-500">Visibilité</span> : mise en avant du profil selon son abonnement et sa localisation.
+                  </p>
+                </>
               )}
             </div>
           )}
@@ -251,14 +259,27 @@ function MissionSheet({
             >
               Commencer un chat
             </Button>
+            {/* Envoyer un contrat — jamais caché (item 8). Grisé + badge Premium
+                si non-Premium ; le clic redirige alors vers /premium. */}
             {canSendContract && (
-              <Button
-                variant="outlined"
-                onClick={() => router.push(`/match/${item.matchId}/contrat`)}
-                className="w-full !py-2.5 !text-sm"
-              >
-                Envoyer un contrat
-              </Button>
+              isPremium ? (
+                <Button
+                  variant="outlined"
+                  onClick={() => router.push(`/match/${item.matchId}/contrat`)}
+                  className="w-full !py-2.5 !text-sm"
+                >
+                  Envoyer un contrat
+                </Button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => router.push("/premium")}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-full border border-gray-200 bg-gray-50 text-gray-400 hover:bg-gray-100 transition"
+                >
+                  Envoyer un contrat
+                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px] font-bold">Premium</span>
+                </button>
+              )
             )}
             <Button
               variant="text"
@@ -325,7 +346,7 @@ function MissionSheet({
 }
 
 // ── MatchTray principal ───────────────────────────────────────────────────────
-export default function MatchTray({ refreshKey, titulaireMissions = [], myProfileType, myProfileId }: MatchTrayProps) {
+export default function MatchTray({ refreshKey, titulaireMissions = [], myProfileType, myProfileId, isPremium }: MatchTrayProps) {
   const [items,       setItems]       = useState<TrayItem[]>([]);
   const [selected,    setSelected]    = useState<TrayItem | null>(null);
   const [, setSeenIds] = useState<Set<string>>(new Set());
@@ -358,107 +379,124 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
   const SEVEN_DAYS = 7 * 86400000;
   const notExpired = (i: TrayItem) =>
     !i.matchCreatedAt || Date.now() - new Date(i.matchCreatedAt).getTime() < SEVEN_DAYS;
-  const matchedItems = items.filter(i => i.matchId && notExpired(i));
-  const likedItems   = items.filter(i => !i.matchId);
-  const sorted = [
-    ...matchedItems.sort((a, b) => (b.affinityScore ?? 0) - (a.affinityScore ?? 0)),
-    ...likedItems.sort((a, b) => (b.affinityScore ?? 0) - (a.affinityScore ?? 0)),
-  ];
+  const byScore = (a: TrayItem, b: TrayItem) => (b.affinityScore ?? 0) - (a.affinityScore ?? 0);
+  // Vos mises en relation = réciproques confirmées (matchId). Vos choix = swipes droite en attente.
+  const matchedItems = items.filter(i => i.matchId && notExpired(i)).sort(byScore);
+  const likedItems   = items.filter(i => !i.matchId).sort(byScore);
 
   const totalUnread = unreadIds.size;
 
-  if (sorted.length === 0) return null;
+  if (matchedItems.length === 0 && likedItems.length === 0) return null;
+
+  function renderItem(item: TrayItem) {
+    const p         = item.mission.profile;
+    const initials  = getInitials(p.name);
+    const initColor = getInitialsColor(p.name);
+    const isUnread  = item.matchId ? unreadIds.has(item.matchId) : false;
+    const shortName = p.name
+      ? p.name.split(" ")[0].slice(0, 10)
+      : { TITULAIRE: "Cabinet", REMPLACANT: "Kine", ASSISTANT: "Assist." }[p.type] ?? "Profil";
+
+    return (
+      <button
+        key={item.mission.id}
+        onClick={() => {
+          setSelected(item);
+          if (item.matchId) {
+            setUnreadIds(prev => {
+              const next = new Set(prev);
+              next.delete(item.matchId as string);
+              return next;
+            });
+            setSeenIds(prev => new Set(Array.from(prev).concat([item.matchId as string])));
+          }
+        }}
+        className="relative shrink-0 flex flex-col items-center gap-0.5 group"
+      >
+        <div className={`relative w-11 h-11 rounded-2xl overflow-hidden border-2 transition group-hover:scale-105 ${
+          item.matchId
+            ? "border-emerald-400 shadow-emerald-100 shadow-md"
+            : "border-kine-200"
+        }`}>
+          {p.photoUrl ? (
+            <Image
+              src={p.photoUrl}
+              alt={item.mission.title}
+              fill
+              className="object-cover"
+              sizes="44px"
+              unoptimized
+            />
+          ) : (
+            <div className={`w-full h-full ${initColor} flex items-center justify-center`}>
+              <span className="text-sm font-black text-white">{initials}</span>
+            </div>
+          )}
+
+          {/* Badge rouge non-lu */}
+          {isUnread && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white" />
+          )}
+
+          {/* Pastille match vu */}
+          {item.matchId && !isUnread && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border border-white flex items-center justify-center">
+              <span className="text-white text-[7px] font-bold">✓</span>
+            </div>
+          )}
+        </div>
+
+        {/* Nom abrégé */}
+        <span className="text-[9px] text-gray-500 font-medium leading-none truncate max-w-[48px]">
+          {shortName}
+        </span>
+
+        {/* Score affinité */}
+        {item.affinityScore !== null && (
+          <span className="text-[8px] font-bold text-kine-600 bg-kine-50 rounded-full px-1.5 leading-3 py-0.5">
+            {Math.round(item.affinityScore)}
+          </span>
+        )}
+      </button>
+    );
+  }
 
   return (
     <>
-      <div className="shrink-0 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
-        <div className="px-3 pt-2 pb-3" style={{ height: 92 }}>
-          {/* Libellé + badge global */}
-          <div className="flex items-center gap-2 mb-2">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-              Vos matchs
-            </p>
-            {totalUnread > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
-                {totalUnread}
-              </span>
-            )}
-          </div>
+      <div className="shrink-0 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)] max-h-[210px] overflow-y-auto">
+        <div className="px-3 pt-2 pb-3 space-y-2.5">
 
-          <div className="flex gap-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
-            {sorted.map((item) => {
-              const p         = item.mission.profile;
-              const initials  = getInitials(p.name);
-              const initColor = getInitialsColor(p.name);
-              const isUnread  = item.matchId ? unreadIds.has(item.matchId) : false;
-              const shortName = p.name
-                ? p.name.split(" ")[0].slice(0, 10)
-                : { TITULAIRE: "Cabinet", REMPLACANT: "Kine", ASSISTANT: "Assist." }[p.type] ?? "Profil";
-
-              return (
-                <button
-                  key={item.mission.id}
-                  onClick={() => {
-                    setSelected(item);
-                    if (item.matchId) {
-                      setUnreadIds(prev => {
-                        const next = new Set(prev);
-                        next.delete(item.matchId as string);
-                        return next;
-                      });
-                      setSeenIds(prev => new Set(Array.from(prev).concat([item.matchId as string])));
-                    }
-                  }}
-                  className="relative shrink-0 flex flex-col items-center gap-0.5 group"
-                >
-                  <div className={`relative w-11 h-11 rounded-2xl overflow-hidden border-2 transition group-hover:scale-105 ${
-                    item.matchId
-                      ? "border-emerald-400 shadow-emerald-100 shadow-md"
-                      : "border-kine-200"
-                  }`}>
-                    {p.photoUrl ? (
-                      <Image
-                        src={p.photoUrl}
-                        alt={item.mission.title}
-                        fill
-                        className="object-cover"
-                        sizes="44px"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className={`w-full h-full ${initColor} flex items-center justify-center`}>
-                        <span className="text-sm font-black text-white">{initials}</span>
-                      </div>
-                    )}
-
-                    {/* Badge rouge non-lu */}
-                    {isUnread && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white" />
-                    )}
-
-                    {/* Pastille match vu */}
-                    {item.matchId && !isUnread && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border border-white flex items-center justify-center">
-                        <span className="text-white text-[7px] font-bold">✓</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Nom abrégé */}
-                  <span className="text-[9px] text-gray-500 font-medium leading-none truncate max-w-[48px]">
-                    {shortName}
+          {/* ── Vos mises en relation (réciproques confirmées, mises en avant) ── */}
+          {matchedItems.length > 0 && (
+            <div className="rounded-2xl bg-emerald-50/60 border border-emerald-100 px-2.5 py-2">
+              <div className="flex items-center gap-2 mb-1.5">
+                <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">
+                  Vos mises en relation
+                </p>
+                {totalUnread > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
+                    {totalUnread}
                   </span>
+                )}
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                {matchedItems.map(renderItem)}
+              </div>
+            </div>
+          )}
 
-                  {/* Score affinité */}
-                  {item.affinityScore !== null && (
-                    <span className="text-[8px] font-bold text-kine-600 bg-kine-50 rounded-full px-1.5 leading-3 py-0.5">
-                      {Math.round(item.affinityScore)}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {/* ── Vos choix (swipes à droite en attente de réciprocité) ── */}
+          {likedItems.length > 0 && (
+            <div className="px-0.5">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                Vos choix
+                <span className="ml-1 text-gray-300 normal-case tracking-normal font-normal">· en attente de réponse</span>
+              </p>
+              <div className="flex gap-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                {likedItems.map(renderItem)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -468,6 +506,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
           titulaireMissions={titulaireMissions}
           myProfileType={myProfileType}
           myProfileId={myProfileId}
+          isPremium={isPremium}
           onReassigned={() => { fetchTray(); setSelected(null); }}
           onClose={() => setSelected(null)}
           onCancelled={(matchId) => {

@@ -25,6 +25,7 @@ ALTER TABLE "public"."Rating"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."CabinetRating"     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."RemplacantRating"  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."CabinetPost"       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."TraceEvent"        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."_prisma_migrations" ENABLE ROW LEVEL SECURITY;
 
 -- CommuneAPL : données publiques de référence (APL par commune). RLS déjà activée

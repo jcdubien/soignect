@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { BriqueStatus, MissionType, ProfileType } from "@prisma/client";
 import { getCommuneZonage } from "@/lib/communes";
+import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -134,6 +135,14 @@ export async function POST(req: NextRequest) {
       briqueStatus: briqueStatus ?? BriqueStatus.RECHERCHE,
       cabinetPostId: cabinetPostId ?? null,
     },
+  });
+
+  // Traçabilité (section 86) — fire-and-forget, ne bloque pas la réponse
+  logTraceEvent({
+    eventType: "MISSION_PUBLISHED",
+    missionId: mission.id,
+    commune: mission.location,
+    missionType: mission.missionType,
   });
 
   return NextResponse.json(mission, { status: 201 });

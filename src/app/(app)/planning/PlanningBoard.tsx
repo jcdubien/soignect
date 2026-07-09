@@ -342,8 +342,22 @@ function PostMenu({
   onDone: () => void; // fermer + rafraîchir après création
 }) {
   const { mission, post } = dropdown;
-  const [step, setStep] = useState<"menu" | "presence" | "preavis" | "modifier">("menu");
+  const [step, setStep] = useState<"menu" | "presence" | "preavis" | "modifier" | "renommer">("menu");
   const [busy, setBusy] = useState(false);
+
+  // [✎] Renommer ce poste (item 6 / section 65) — PATCH CabinetPost.label
+  const [newLabel, setNewLabel] = useState(post.label);
+  async function submitRenommer() {
+    const trimmed = newLabel.trim();
+    if (!trimmed || busy) return;
+    setBusy(true);
+    await fetch(`/api/cabinet-posts/${post.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: trimmed }),
+    });
+    onDone();
+  }
 
   // Une brique CONFIRME/OCCUPE sans date de fin = occupation en durée indéterminée
   // → on peut y poser un préavis (section 57).
@@ -502,6 +516,10 @@ function PostMenu({
                 {isFerme ? "Rouvrir cette période" : "Fermer temporairement"}
               </Button>
             )}
+            {/* [✎] Renommer ce poste (PATCH CabinetPost.label) */}
+            <Button variant="text" onClick={() => setStep("renommer")} className="w-full !py-2 !text-gray-600 hover:!bg-gray-50">
+              ✎ Renommer ce poste
+            </Button>
             {mission && (
               <Button variant="text" onClick={onDetail} className="w-full !py-2 !text-kine-600 hover:!bg-kine-50">
                 Voir le détail
@@ -516,6 +534,24 @@ function PostMenu({
               Retirer ce poste
             </Button>
             <Button variant="text" onClick={onClose} className="w-full !py-2 !text-gray-400 hover:!bg-gray-50">Annuler</Button>
+          </div>
+        )}
+
+        {/* ── Étape renommer (item 6 / section 65) ── */}
+        {step === "renommer" && (
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Nouveau libellé du poste</label>
+              <input
+                type="text" value={newLabel} onChange={e => setNewLabel(e.target.value)} maxLength={100} autoFocus
+                placeholder="Ex : Poste sport · Dr Marie L."
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="text" onClick={() => setStep("menu")} className="flex-1 !py-2.5 !text-gray-500">Retour</Button>
+              <Button onClick={submitRenommer} disabled={busy || !newLabel.trim()} className="flex-1 !py-2.5">Renommer</Button>
+            </div>
           </div>
         )}
 

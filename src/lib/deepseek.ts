@@ -16,9 +16,8 @@ export interface AffinityResult {
   total: number;
   details: {
     dates: number;        // 0-35
-    geo: number;          // 0-20
-    specialty: number;    // 0-10
-    bio: number;          // 0-25
+    geo: number;          // 0-25
+    bio: number;          // 0-30
     desirability: number; // 0-10
   };
 }
@@ -62,30 +61,22 @@ function scoreDates(mission: AffinityInput, profile: AffinityInput): number {
   return 17; // neutre si aucune date renseignée
 }
 
+// Proximité géographique : 0-25 pts (section 64 — repondération)
 function scoreGeo(a: AffinityInput, b: AffinityInput): number {
-  if (!a.location || !b.location) return 10;
-  return a.location.toLowerCase() === b.location.toLowerCase() ? 20 : 5;
+  if (!a.location || !b.location) return 12;
+  return a.location.toLowerCase() === b.location.toLowerCase() ? 25 : 6;
 }
 
-// Spécialités : +2.5 pts par commune, max 10 pts (section 25)
-function scoreSpecialties(a: AffinityInput, b: AffinityInput): number {
-  const aArr = (a.specialties ?? []).map(s => s.toLowerCase().trim());
-  const bSet = new Set((b.specialties ?? []).map(s => s.toLowerCase().trim()));
-  if (aArr.length === 0 && bSet.size === 0) return 5;
-  const common = aArr.filter(s => bSet.has(s)).length;
-  return Math.min(Math.round(common * 2.5), 10);
-}
-
-// Bio : 0-25 pts (section 25)
+// Bio DeepSeek : 0-30 pts (section 64 — repondération)
 async function scoreBio(a: AffinityInput, b: AffinityInput): Promise<number> {
   const bioA = a.bioTinder ?? a.bio;
   const bioB = b.bioTinder ?? b.bio;
-  if (!bioA || !bioB) return 12;
+  if (!bioA || !bioB) return 15;
   try {
     const prompt = `Tu es un algorithme de matching professionnel.
-Compare ces deux descriptions professionnelles et donne un score de 0 à 25
+Compare ces deux descriptions professionnelles et donne un score de 0 à 30
 basé sur la compatibilité des valeurs, aspirations et recherches.
-Réponds uniquement avec un entier entre 0 et 25, sans explication.
+Réponds uniquement avec un entier entre 0 et 30, sans explication.
 
 Profil A : "${bioA}"
 Profil B : "${bioB}"`;
@@ -104,26 +95,25 @@ Profil B : "${bioB}"`;
         max_tokens: 5,
       }),
     });
-    if (!res.ok) return 12;
+    if (!res.ok) return 15;
     const data = await res.json() as { choices: Array<{ message: { content: string } }> };
-    const n = parseInt(data.choices[0]?.message?.content?.trim() ?? "12");
-    return isNaN(n) ? 12 : Math.min(Math.max(n, 0), 25);
+    const n = parseInt(data.choices[0]?.message?.content?.trim() ?? "15");
+    return isNaN(n) ? 15 : Math.min(Math.max(n, 0), 30);
   } catch {
-    return 12;
+    return 15;
   }
 }
 
-// Pondération section 25 : dates=35, bio=25, geo=20, specialty=10, desirability=10
+// Pondération section 64 : dates=35, bio=30, geo=25, desirability=10 (Spécialités retiré)
 export async function computeAffinityScore(
   swiper: AffinityInput,
   mission: AffinityInput
 ): Promise<AffinityResult> {
   const dates        = scoreDates(mission, swiper);
   const geo          = scoreGeo(swiper, mission);
-  const specialty    = scoreSpecialties(swiper, mission);
   const bio          = await scoreBio(swiper, mission);
   const desirability = Math.min(Math.max(mission.desirabilityScore ?? 0, 0), 10);
-  return { total: dates + geo + specialty + bio + desirability, details: { dates, geo, specialty, bio, desirability } };
+  return { total: dates + geo + bio + desirability, details: { dates, geo, bio, desirability } };
 }
 
 // ── Ancien système de scoring 0-1 (conservé pour compatibilité) ───────────────

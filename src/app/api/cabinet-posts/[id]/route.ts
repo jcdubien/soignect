@@ -16,22 +16,38 @@ export async function PATCH(
   if (!post) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   if (post.cabinetId !== session.user.profileId) return NextResponse.json({ error: "Interdit" }, { status: 403 });
 
-  const { isActive } = await req.json();
-  if (typeof isActive !== "boolean") return NextResponse.json({ error: "isActive requis" }, { status: 400 });
+  const body = await req.json();
+  const { isActive, label } = body as { isActive?: unknown; label?: unknown };
 
-  // Fermeture : cascade briqueStatus = ANNULE sur toutes les missions liées
-  if (!isActive) {
-    await prisma.mission.updateMany({
-      where: { cabinetPostId: id },
-      data: { briqueStatus: "ANNULE", statusUpdatedAt: new Date() },
-    });
-    console.log(`[cabinet-post] closed ${id} — missions cascaded to ANNULE`);
+  const data: { isActive?: boolean; label?: string } = {};
+
+  // Renommage du poste (item 6 / section 65) — PATCH CabinetPost.label
+  if (typeof label === "string") {
+    const trimmed = label.trim();
+    if (!trimmed) return NextResponse.json({ error: "Libellé vide" }, { status: 400 });
+    data.label = trimmed.slice(0, 100);
+  }
+
+  if (typeof isActive === "boolean") {
+    data.isActive = isActive;
+    // Fermeture : cascade briqueStatus = ANNULE sur toutes les missions liées
+    if (!isActive) {
+      await prisma.mission.updateMany({
+        where: { cabinetPostId: id },
+        data: { briqueStatus: "ANNULE", statusUpdatedAt: new Date() },
+      });
+      console.log(`[cabinet-post] closed ${id} — missions cascaded to ANNULE`);
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "Aucun champ à mettre à jour (label ou isActive)" }, { status: 400 });
   }
 
   const updated = await prisma.cabinetPost.update({
     where: { id },
-    data: { isActive },
-    select: { id: true, isActive: true },
+    data,
+    select: { id: true, isActive: true, label: true },
   });
 
   return NextResponse.json(updated);

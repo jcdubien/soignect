@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { COMMUNES_GUADELOUPE, SPECIALTIES_KINE } from "@/lib/communes";
+import { COMMUNES_GUADELOUPE } from "@/lib/communes";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -122,12 +122,40 @@ export default function CreateMissionPage() {
     dateFlexibility: 0,
   });
 
+  // Item 15 — préserver le formulaire lors de la redirection photo obligatoire.
+  // Le brouillon est sauvegardé en localStorage avant d'aller sur /compte, puis
+  // restauré (et effacé) au retour sur le formulaire.
+  const DRAFT_KEY = "missionDraft";
+  const [draftRestored, setDraftRestored] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d?.form) setForm((prev) => ({ ...prev, ...d.form }));
+      if (d?.needType) setNeedType(d.needType);
+      setDraftRestored(true);
+      localStorage.removeItem(DRAFT_KEY);
+    } catch { /* brouillon illisible : ignoré */ }
+  }, []);
+
+  function goAddPhoto() {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, needType }));
+    } catch { /* quota indisponible : on redirige quand même */ }
+    router.push("/compte?returnTo=/missions/create");
+  }
+
   // Validation 90 jours pour ASSISTANAT/CDD (front-end)
   const missionDays = form.startDate && form.endDate
     ? Math.floor((new Date(form.endDate).getTime() - new Date(form.startDate).getTime()) / 86400000)
     : null;
   const needs90Days = needType === "assistant";
   const under90Days = needs90Days && missionDays !== null && missionDays < 90;
+
+  // Accroche 280 signes OBLIGATOIRE — min 20 caractères (section 71 / item 14)
+  const pitchCombined = `${form.pitchStarter ? form.pitchStarter + " " : ""}${form.pitchText.trim()}`.trim();
+  const pitchValid = pitchCombined.length >= 20;
 
   const showDates =
     profileType === "REMPLACANT" ||
@@ -136,15 +164,6 @@ export default function CreateMissionPage() {
   const showMinMonths =
     profileType === "ASSISTANT" ||
     (profileType === "TITULAIRE" && (needType === "assistant" || needType === "collaboration"));
-
-  function toggleSpecialty(s: string) {
-    setForm((prev) => ({
-      ...prev,
-      specialties: prev.specialties.includes(s)
-        ? prev.specialties.filter((x) => x !== s)
-        : [...prev.specialties, s],
-    }));
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -202,6 +221,13 @@ export default function CreateMissionPage() {
         <p className="text-gray-400 text-sm">{cfg.pageSubtitle}</p>
       </div>
 
+      {/* Bandeau de retour après ajout de photo (item 15) */}
+      {draftRestored && (
+        <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-800">
+          ✓ Votre annonce a été restaurée. {hasPhoto ? "Vous pouvez maintenant la publier." : "Reprenez où vous en étiez."}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
 
         {/* ── Sélecteur de besoin (TITULAIRE uniquement) ── */}
@@ -255,8 +281,11 @@ export default function CreateMissionPage() {
         <div className="bg-kine-50 rounded-2xl p-4 space-y-3 border border-kine-100">
           <label className="block text-sm font-semibold text-kine-700">
             {cfg.pitchTitle}
-            <span className="text-kine-400 font-normal ml-1">(optionnel · 280 signes)</span>
+            <span className="text-kine-400 font-normal ml-1">(280 signes · obligatoire)</span>
           </label>
+          <p className="text-xs text-kine-600/70">
+            C&apos;est ce texte qui alimente le matching intelligent — décrivez ce que vous recherchez en quelques mots (20 caractères minimum).
+          </p>
           <div className="flex gap-2 flex-wrap">
             {cfg.pitchStarters.map((s) => (
               <button
@@ -296,9 +325,12 @@ export default function CreateMissionPage() {
                   placeholder="…complétez en quelques mots"
                 />
               </div>
-              <p className="text-right text-xs text-gray-300 mt-0.5">
-                {form.pitchStarter.length + 1 + form.pitchText.length}/280
-              </p>
+              <div className="flex justify-between items-center mt-0.5">
+                {!pitchValid ? (
+                  <span className="text-xs text-amber-600">Encore {Math.max(0, 20 - pitchCombined.length)} caractère(s)</span>
+                ) : <span />}
+                <span className="text-xs text-gray-300">{form.pitchStarter.length + 1 + form.pitchText.length}/280</span>
+              </div>
             </div>
           )}
         </div>
@@ -319,28 +351,8 @@ export default function CreateMissionPage() {
           </select>
         </div>
 
-        {/* ── Spécialités ── */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {cfg.specialtiesLabel}
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {SPECIALTIES_KINE.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggleSpecialty(s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                  form.specialties.includes(s)
-                    ? "bg-kine-500 text-white border-kine-500"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-kine-300"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* ── Spécialités retirées (section 69) — le matching est géré par
+             DeepSeek à partir du texte de l'accroche, plus de cases à cocher. ── */}
 
         {/* ── Avertissement durée minimale 3 mois ── */}
         {under90Days && (
@@ -431,13 +443,17 @@ export default function CreateMissionPage() {
           </div>
         )}
 
-        {/* ── Photo obligatoire (item 8) ── */}
+        {/* ── Photo obligatoire (item 8) — préserve le brouillon (item 15) ── */}
         {hasPhoto === false && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-center justify-between gap-3">
             <span>📷 Ajoutez une photo avant de publier une annonce</span>
-            <Link href="/compte" className="shrink-0 font-semibold text-amber-900 underline hover:text-amber-950">
+            <button
+              type="button"
+              onClick={goAddPhoto}
+              className="shrink-0 font-semibold text-amber-900 underline hover:text-amber-950"
+            >
               Ajouter →
-            </Link>
+            </button>
           </div>
         )}
 
@@ -454,7 +470,7 @@ export default function CreateMissionPage() {
           </Link>
           <button
             type="submit"
-            disabled={loading || !form.title || !form.location || !!under90Days || hasPhoto === false}
+            disabled={loading || !form.title || !form.location || !pitchValid || !!under90Days || hasPhoto === false}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
             {loading ? "Publication…" : cfg.submitLabel}

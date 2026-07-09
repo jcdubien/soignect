@@ -1,12 +1,20 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import CompteForm from "./CompteForm";
 
 export const dynamic = "force-dynamic";
 
-export default async function ComptePage({ searchParams }: { searchParams: Promise<{ photoError?: string }> }) {
-  const { photoError } = await searchParams;
+// Sécurité : n'autoriser que des chemins internes relatifs comme cible de retour.
+function safeReturnTo(v?: string): string | null {
+  if (!v) return null;
+  return v.startsWith("/") && !v.startsWith("//") ? v : null;
+}
+
+export default async function ComptePage({ searchParams }: { searchParams: Promise<{ photoError?: string; returnTo?: string }> }) {
+  const { photoError, returnTo: rawReturnTo } = await searchParams;
+  const returnTo = safeReturnTo(rawReturnTo);
   const session = await auth();
   if (!session?.user?.profileId) redirect("/login");
 
@@ -92,6 +100,21 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
             ✅ Votre compte a bien été créé. En revanche l&apos;envoi de votre photo a échoué —
             vous pouvez l&apos;ajouter dès maintenant ci-dessous.
+          </div>
+        </div>
+      )}
+      {/* Bandeau de retour vers l'annonce en cours (item 15) */}
+      {returnTo && (
+        <div className="mx-auto max-w-2xl px-4 pt-4">
+          <div className="bg-kine-50 border border-kine-200 rounded-xl px-4 py-3 text-sm text-kine-800 flex items-center justify-between gap-3">
+            <span>
+              {profile.photoUrl
+                ? "✓ Photo ajoutée — vous pouvez reprendre votre annonce."
+                : "Ajoutez votre photo ci-dessous, puis reprenez votre annonce."}
+            </span>
+            <Link href={returnTo} className="shrink-0 font-semibold text-kine-700 underline hover:text-kine-900">
+              Reprendre mon annonce →
+            </Link>
           </div>
         </div>
       )}
