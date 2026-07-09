@@ -7430,3 +7430,341 @@ Priorité haute — cas d'usage réel immédiat pour Jean-Charles.
 s'il n'est pas déjà lancé, ou en correction immédiate si 
 le menu universel existe déjà mais ne gère pas cette 
 pré-sélection de type.
+
+---
+
+## 93. Concept design — écran d'accueil avec bulle contextuelle (à concevoir, pas ce soir)
+
+### Vision décrite par Jean-Charles
+
+Refonte de l'écran d'accueil (Planning/Disponibilités) en 
+deux zones distinctes :
+
+```
+GAUCHE — Timeline verticale compacte
+  Défilement vertical, briques colorées identiques au code 
+  couleur actuel (Confirmé/Recrutement/Non couvert/Fermé...)
+  Reste l'élément structurant principal de l'écran
+
+DROITE — Bulle contextuelle façon bande dessinée (phylactère)
+  Élément visuel type "bulle de BD", affichée en continu 
+  ou déclenchée au clic, qui résume l'information la plus 
+  pertinente à l'instant présent :
+  
+  - Si une mission est CONFIRMÉE et proche/en cours :
+    Rappel de cette mission (avec qui, où, quand)
+  
+  - Si un match récent n'est PAS encore conclu :
+    Rappel du dernier match + injonction à poursuivre 
+    ("Vous avez un match avec [Nom] — continuez la conversation")
+```
+
+### Principe directeur
+
+```
+"Visuellement simple, pilotable en un minimum d'actions"
+
+L'idée est de transformer l'écran d'accueil d'un simple 
+planning passif en une interface qui GUIDE activement 
+l'utilisateur vers l'action la plus utile du moment — 
+sans qu'il ait à chercher où regarder.
+```
+
+### Lien avec l'existant
+
+Ce concept enrichit et rend plus vivant/amical le bandeau 
+d'alerte déjà existant (section 47 — bandeau rouge/orange 
+pour zones non couvertes). La bulle contextuelle serait une 
+évolution graphique de ce principe : au lieu d'un simple 
+bandeau texte, une vraie interface de guidage avec un ton 
+plus humain (bulle de dialogue plutôt qu'alerte système).
+
+### Statut — concept à concevoir, pas à coder maintenant
+
+Cette idée est un vrai axe de différenciation visuelle 
+(section 91 évoquait déjà le besoin d'une expérience "sexy" 
+pour les remplaçants/assistants, moteur d'acquisition du 
+produit). Mais elle nécessite une vraie session de conception 
+dédiée avant tout développement :
+
+```
+Points à trancher lors d'une future session design :
+- Maquette précise de la bulle (position, taille, animation 
+  d'apparition, contenu exact selon les différents cas)
+- Priorisation : que faire si PLUSIEURS informations sont 
+  pertinentes en même temps (mission confirmée ET match 
+  en attente) ?
+- Cohérence avec Material Design 3 déjà engagé (section 17) 
+  — la bulle BD doit s'intégrer sans casser le langage visuel
+- Comportement selon le device (mobile vertical vs desktop 
+  horizontal, section 33)
+```
+
+### Ordre d'implémentation
+
+À ne PAS développer maintenant. Noter comme axe de refonte 
+visuelle prioritaire pour une session dédiée future, une fois 
+que les bugs fonctionnels actuels (sections 89-92) sont 
+stabilisés et que le produit tourne de façon fiable pour 
+les premiers bêta testeurs. C'est une amélioration d'expérience, 
+pas une correction bloquante.
+
+---
+
+## 94. Principe directeur — deux langages visuels distincts selon le profil
+
+### Décision actée
+
+L'interface NE sera PAS unifiée visuellement entre les deux 
+côtés du marketplace. Deux langages graphiques différents, 
+volontairement :
+
+```
+TITULAIRE / CABINET (celui qui recrute, qui paie)
+  → Interface SOBRE, professionnelle, outil de pilotage
+  → Reste dans l'esprit Material Design 3 déjà engagé 
+    (section 17), sérieux, orienté efficacité
+  → Aucun changement de direction — c'est la bonne interface 
+    pour un professionnel qui gère son cabinet
+
+REMPLAÇANT / ASSISTANT (celui qui est recruté, gratuit à vie)
+  → Interface plus VISUELLE, sympa, engageante
+  → Élément différenciant (bulle contextuelle section 93, 
+    code couleur vivant, expérience mobile-first soignée)
+  → Cohérent avec leur rôle de moteur d'acquisition gratuit 
+    (section 11) — c'est un public plus jeune, plus mobile, 
+    plus habitué aux interfaces type app grand public 
+    (à la Tinder/Airbnb dans l'esprit, pas dans la fonction)
+```
+
+### Justification stratégique
+
+```
+Le titulaire cherche un OUTIL DE TRAVAIL fiable — il paie, 
+il veut du sérieux et de l'efficacité, pas du divertissement.
+
+Le remplaçant/assistant est un UTILISATEUR À SÉDUIRE — il ne 
+paie rien, il faut lui donner envie d'utiliser l'app plutôt 
+qu'un groupe Facebook ou un autre canal. L'expérience doit 
+être agréable, presque ludique, pour maximiser l'engagement 
+et la fidélité (et donc la disponibilité de main d'œuvre pour 
+les cabinets, section 11 — remplaçants gratuits = moteur 
+d'acquisition).
+```
+
+### Ce que ça implique concrètement
+
+```
+PlanningBoard.tsx (titulaire) : reste sobre, MD3 standard, 
+pas de bulle BD, pas de fioritures — un outil de gestion.
+
+DisponibilitesBoard.tsx (remplaçant/assistant) : terrain 
+d'expérimentation visuelle plus poussée — bulle contextuelle 
+(section 93), couleurs plus vives éventuellement, animations 
+plus marquées, ton plus chaleureux dans les textes.
+```
+
+Cette distinction doit être gardée à l'esprit pour TOUTE 
+future décision de design — ne pas chercher à uniformiser 
+les deux interfaces par souci de cohérence technique, c'est 
+un choix stratégique assumé.
+
+### Ordre d'implémentation
+
+Rien à coder ce soir — ce principe guide les futures sessions 
+de conception (notamment la session dédiée évoquée section 93), 
+en particulier pour ne pas accidentellement appliquer les 
+futurs raffinements visuels "sympa" au PlanningBoard titulaire 
+par erreur.
+
+---
+
+## 95. Simplification profil — "Chercheur de poste" avec préférences multiples
+
+### Le problème identifié
+
+Le modèle actuel force un choix rigide à l'inscription : 
+REMPLACANT ou ASSISTANT (voire COLLABORATEUR), comme si 
+c'était une identité figée. Or dans la réalité, un même 
+professionnel peut être ouvert à plusieurs types d'engagement 
+simultanément : accepter des remplacements ponctuels tout en 
+restant à l'écoute d'une belle opportunité d'assistanat long 
+terme, par exemple.
+
+### Concept proposé — profil unifié "Chercheur de poste"
+
+```
+Au lieu de : REMPLACANT (identité fixe) OU ASSISTANT (identité fixe)
+
+Nouveau modèle : un seul type de profil non-titulaire, avec 
+des PRÉFÉRENCES DE RECHERCHE multiples et modifiables à tout 
+moment :
+
+"Je recherche :" (cases à cocher, plusieurs choix possibles)
+  ☐ Des remplacements ponctuels
+  ☐ Un poste d'assistanat (long terme)
+  ☐ Une collaboration libérale
+```
+
+Ces préférences déterminent quelles annonces apparaissent 
+dans le feed/swipe de la personne, et peuvent être modifiées 
+à tout moment depuis /compte — pas figées à l'inscription.
+
+### Terminologie — proposition
+
+```
+Jean-Charles propose : "Chercheur de poste"
+
+Alternative à considérer : garder "Remplaçant" comme terme 
+générique ombrelle (déjà culturellement ancré dans la 
+profession — section 11, "remplaçants gratuits à vie" est 
+déjà le vocabulaire habituel du secteur), et simplement 
+ajouter la flexibilité des préférences multiples DESSOUS 
+ce terme, sans forcément renommer le type de profil lui-même.
+
+Décision à trancher : le mot exact importe moins que le 
+principe (flexibilité de recherche multi-type) — à valider 
+lors de la reprise, éventuellement en testant les deux 
+formulations auprès de premiers utilisateurs.
+```
+
+### Impact sur le modèle de données
+
+```prisma
+// Option A — étendre Profile avec un tableau de préférences
+model Profile {
+  // ... champs existants ...
+  // Remplacer ou compléter le ProfileType rigide par :
+  searchPreferences MissionType[]  
+    // [REMPLACEMENT, ASSISTANAT, COLLABORATION] — un ou plusieurs
+}
+
+// Le ProfileType (TITULAIRE vs non-TITULAIRE) reste nécessaire 
+// pour distinguer qui recrute vs qui cherche — mais la 
+// sous-catégorie REMPLACANT/ASSISTANT devient une préférence 
+// de recherche plutôt qu'une identité figée
+```
+
+### Impact sur le matching et le feed
+
+```
+Le feed d'annonces visibles pour un "chercheur de poste" 
+se filtre désormais sur l'INTERSECTION entre :
+- Les missionType présents dans ses searchPreferences
+- Les critères habituels (dates, géo, bio DeepSeek)
+
+Une personne qui coche uniquement "Remplacements ponctuels" 
+ne verra jamais d'annonce d'assistanat, et inversement — 
+mais quelqu'un qui coche les deux verra l'ensemble, avec 
+le score de pertinence habituel appliqué à chaque annonce.
+```
+
+### Impact sur les timelines (section 62)
+
+Ce changement ne remet pas en cause la logique déjà actée 
+section 62 (timeline unique pour non-titulaire, pas de 
+multi-postes) — juste la façon dont on détermine QUELLES 
+annonces cette personne voit dans son feed.
+
+### Complexité de la migration
+
+```
+Ce n'est PAS une correction légère — ça touche :
+- Le modèle Profile et potentiellement ProfileType
+- L'écran d'onboarding (remplacer le choix binaire par 
+  des cases à cocher)
+- La logique de filtrage du feed
+- Potentiellement le calcul du score d'affinité qui utilise 
+  actuellement le type de profil quelque part
+- Les données déjà existantes des bêta testeurs (migration 
+  de leurs profils actuels REMPLACANT/ASSISTANT vers le 
+  nouveau modèle de préférences)
+```
+
+### Recommandation de priorité
+
+Idée solide et probablement juste sur le fond, mais c'est 
+une refonte de modèle de données substantielle, pas une 
+correction de sprint léger. À traiter dans une session dédiée, 
+après stabilisation des bugs actuels (sections 89-92) et 
+probablement après avoir eu un premier retour de tes bêta 
+testeurs sur le modèle actuel — ça permettra de confirmer 
+si cette friction (choix rigide à l'inscription) est vraiment 
+ressentie comme un problème par de vrais utilisateurs avant 
+d'investir dans cette refonte.
+
+### Ordre d'implémentation (si validé plus tard)
+
+```
+1. Décider de la terminologie finale
+2. Étendre le modèle Profile (migration additive, garder 
+   ProfileType existant en parallèle pendant la transition)
+3. Nouvel écran d'onboarding avec cases à cocher multiples
+4. Migration des profils existants (mapper REMPLACANT → 
+   searchPreferences=[REMPLACEMENT], ASSISTANT → 
+   searchPreferences=[ASSISTANAT], avec possibilité pour 
+   l'utilisateur d'élargir ensuite)
+5. Adapter le filtrage du feed
+6. Mettre à jour /compte pour permettre la modification 
+   des préférences à tout moment
+```
+
+---
+
+## 96. Complément section 95 — favoriser activement l'assistanat sur le remplacement
+
+### Précision de l'intention
+
+Confirmé : côté titulaire, rien ne change (il cherche soit 
+un assistant, soit un remplaçant, selon son besoin réel).
+
+Côté chercheur de poste (section 95), les populations sont 
+largement les mêmes personnes — un même professionnel peut 
+être ouvert aux deux. MAIS le produit doit activement 
+PROMOUVOIR l'assistanat comme l'option plus favorable :
+
+```
+Argument à mettre en avant dans l'UX :
+"Un poste d'assistanat vous couvre une plage de temps de 
+façon beaucoup plus sécurisée qu'un remplacement, qui reste 
+plus précaire."
+```
+
+### Pourquoi favoriser l'assistanat — double bénéfice
+
+```
+Pour le professionnel (remplaçant/assistant) :
+- Revenu plus stable et prévisible sur la durée
+- Moins de recherche répétée de mission en mission
+- Sécurité professionnelle accrue
+
+Pour Soignect (business) :
+- Un contrat d'assistanat/collaboration est une transaction 
+  de plus haute valeur qu'un remplacement ponctuel
+  (déjà reflété : Boost plan requis pour ces types de contrat, 
+  section 39/40)
+- Une relation long terme = moins de friction répétée, 
+  plus de fidélisation du titulaire ET du remplaçant
+```
+
+### Pistes UX pour favoriser l'assistanat (à concevoir plus tard)
+
+```
+- Lors de l'inscription/mise à jour des préférences (section 95), 
+  présenter l'assistanat en premier, avec un message de mise 
+  en avant ("Sécurisez votre activité")
+- Sur le feed swipe, un badge visuel distinctif sur les 
+  annonces d'assistanat/collaboration ("Poste stable") par 
+  rapport aux remplacements ponctuels
+- Éventuellement, un léger boost de désirabilité (section 23) 
+  pour les annonces d'assistanat/collaboration côté visibilité, 
+  cohérent avec la volonté de les favoriser
+```
+
+### Statut — reste dans le périmètre "pas ce soir"
+
+Cette précision s'ajoute à la section 95, qui reste une 
+refonte à traiter en session dédiée après stabilisation des 
+bugs actuels et retour des premiers bêta testeurs. Rien à 
+coder maintenant — c'est une intention stratégique à intégrer 
+lors de la conception de cette refonte.
