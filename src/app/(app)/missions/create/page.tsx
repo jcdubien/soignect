@@ -122,7 +122,7 @@ export default function CreateMissionPage() {
   }, [profileId]);
 
   const [form, setForm] = useState({
-    title: "", location: "",
+    title: searchParams.get("title") ?? "", location: "",
     specialties: [] as string[],
     startDate: searchParams.get("startDate") ?? "",
     endDate: searchParams.get("endDate") ?? "",

@@ -294,7 +294,7 @@ function monthLabels(dayWidth: number): MonthLabel[] {
 // Publication ciblée depuis une zone du planning (section 92) — construit l'URL du
 // formulaire d'annonce en reprenant le TYPE du poste et en liant cabinetPostId, pour
 // que le futur match s'attribue directement à cette ligne du planning.
-function buildCreateHref(opts: { postType: string; postId: string; start: string; end: string }): string {
+function buildCreateHref(opts: { postType: string; postId: string; postLabel?: string; start: string; end: string }): string {
   const needType =
     opts.postType === "ASSISTANT" ? "assistant" :
     opts.postType === "COLLABORATION" ? "collaboration" : "remplacement";
@@ -305,6 +305,8 @@ function buildCreateHref(opts: { postType: string; postId: string; start: string
   if (opts.end && needType === "remplacement") params.set("endDate", opts.end);
   params.set("needType", needType);
   if (opts.postId && opts.postId !== "self") params.set("cabinetPostId", opts.postId);
+  // Titre suggéré "Succession poste [nom]" (section 92) — éditable par le titulaire
+  if (opts.postLabel && opts.postId !== "self") params.set("title", `Succession poste ${opts.postLabel}`);
   return `/missions/create?${params.toString()}`;
 }
 
@@ -1128,6 +1130,7 @@ function SidePanel({
           href={buildCreateHref({
             postType: post.postType,
             postId: post.id,
+            postLabel: post.label,
             // Successeur : démarre à la fin du poste précédent si connue (section 92)
             start: toDate(latestMission?.endDate)?.toISOString().slice(0, 10) ?? "",
             end: "",
@@ -1755,7 +1758,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
           onCreateMission={() => {
             const { suggestedStart, suggestedEnd, post } = uncoveredChoice;
             setUncoveredChoice(null);
-            router.push(buildCreateHref({ postType: post.postType, postId: post.id, start: suggestedStart, end: suggestedEnd }));
+            router.push(buildCreateHref({ postType: post.postType, postId: post.id, postLabel: post.label, start: suggestedStart, end: suggestedEnd }));
           }}
           onDeleteAbsence={() => { if (uncoveredChoice.absenceMissionId) handleDeleteAbsence(uncoveredChoice.absenceMissionId); }}
           onClosePost={() => {
@@ -1790,7 +1793,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
             const s = m ? (toDate(m.startDate)?.toISOString().slice(0, 10) ?? "") : (dropdown.suggestedStart ?? "");
             const e = m ? (toDate(m.endDate)?.toISOString().slice(0, 10) ?? "") : (dropdown.suggestedEnd ?? "");
             setDropdown(null);
-            router.push(buildCreateHref({ postType: dropdown.post.postType, postId: dropdown.post.id, start: s, end: e }));
+            router.push(buildCreateHref({ postType: dropdown.post.postType, postId: dropdown.post.id, postLabel: dropdown.post.label, start: s, end: e }));
           }}
           onDetail={() => {
             const m = dropdown.mission;
