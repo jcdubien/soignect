@@ -166,11 +166,12 @@ function uncoveredUrgency(gapStart: Date): { cls: string; urgent: boolean; label
 }
 
 // ── Vue verticale mobile (portrait < 640px) ──────────────────────────────────────
-// Fenêtre temporelle réduite (~6 mois autour d'aujourd'hui) pour des briques lisibles.
-const MOBILE_WINDOW_DAYS = 183;
-function mobileWindow(): { start: Date; end: Date } {
-  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 15);
-  const end = new Date(start); end.setDate(end.getDate() + MOBILE_WINDOW_DAYS);
+// La fenêtre temporelle dépend du zoom sélectionné (section 91) — sinon le zoom
+// n'a aucun effet visible sur mobile. ~10% de passé, le reste pour le futur (section 87).
+function mobileWindow(spanDays: number): { start: Date; end: Date } {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - Math.round(spanDays * 0.1));
+  const end = new Date(start); end.setDate(end.getDate() + spanDays);
   return { start, end };
 }
 function pctIn(d: Date, start: Date, end: Date): number {
@@ -1632,7 +1633,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
   }
 
   // ── Briques pour la vue verticale mobile (fenêtre ~6 mois) ──
-  const mWin = mobileWindow();
+  const mWin = mobileWindow(ZOOM_DAYS[zoom]);
   const mpct = (d: Date) => pctIn(d, mWin.start, mWin.end);
   const todayPct = mpct(new Date());
   const selfBricks: MobileBrick[] = computeSelfSegments(selfMissions).map((seg, i) => {
@@ -1792,7 +1793,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
             <button
               key={z}
               onClick={() => setZoom(z)}
-              className={`md3-ripple px-2 sm:px-3 py-1 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
+              className={`md3-ripple px-3 py-2 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
                 zoom === z ? "bg-white text-kine-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
@@ -1831,7 +1832,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
           {isMobile && (
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
               <p className="text-[11px] text-gray-400 text-center">
-                Vue 6 mois · {fmtDate(mWin.start)} → {fmtDate(mWin.end)}
+                Vue {ZOOM_LABELS[zoom]} · {fmtDate(mWin.start)} → {fmtDate(mWin.end)}
               </p>
               <MobilePostCard label={`${cabinetName} (titulaire)`} bricks={selfBricks} todayPct={todayPct} />
               {allRows.map(post => (

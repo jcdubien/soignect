@@ -7305,3 +7305,128 @@ Sprint léger, à regrouper avec la correction section 89
 (même zone de code, PlanningBoard.tsx et DisponibilitesBoard.tsx) 
 — probablement liées techniquement puisque les deux concernent 
 le rendu de l'en-tête/colonne label selon le zoom sélectionné.
+
+---
+
+## 91. Corrections mobile — zoom non fonctionnel, navigation Planning manquante
+
+### Point 1 — BUG : le zoom ne fonctionne pas sur mobile
+
+Sur mobile, les boutons de zoom (Mois/Trimestre/Année/2 ans) 
+ne semblent pas répondre correctement — à diagnostiquer et 
+corriger sur PlanningBoard.tsx et DisponibilitesBoard.tsx.
+
+```
+Vérifier :
+- Les boutons de zoom sont-ils bien cliquables/tappables 
+  sur mobile (taille de zone de tap suffisante, pas de 
+  chevauchement avec un autre élément) ?
+- Le state zoom se met-il à jour correctement au tap ?
+- Le recalcul de containerWidth/dayWidth se déclenche-t-il 
+  bien après un changement de zoom sur mobile (peut être lié 
+  au listener resize, section responsive déjà fait) ?
+```
+
+### Point 2 — Ciblage multi-communes pour le remplaçant (rappel section 67)
+
+Confirmation du besoin déjà documenté (section 67) : un 
+remplaçant doit pouvoir cibler sa recherche sur plusieurs 
+communes simultanément, pas une seule zone unique. Ce point 
+reste dans le sprint dédié section 67 (score géo gradué + 
+multi-communes), pas une correction isolée ce soir — mais 
+Jean-Charles le remonte car il l'a identifié en testant 
+concrètement le manque.
+
+### Point 3 — BUG NAVIGATION : accès à "Planning"/"Disponibilités" 
+manquant sur mobile
+
+Sur mobile, il n'existe aucun lien explicite vers /planning 
+(titulaire) ou /disponibilites (remplaçant) dans la navigation 
+mobile — le seul moyen d'y accéder est de taper sur le logo 
+"Soignect" en haut à gauche, ce qui n'est pas du tout intuitif.
+
+**Correction : ajouter ce lien dans la barre de navigation 
+mobile du bas (bottom nav)**, entre "Compte" et "Relations".
+
+```
+Navigation mobile actuelle (bottom nav) :
+[Annonces] [+ Annonce] [Compte] [Relations]
+
+Navigation mobile corrigée :
+[Annonces] [+ Annonce] [Planning/Disponibilités] [Compte] [Relations]
+```
+
+Le libellé et l'icône s'adaptent selon le profil :
+```
+TITULAIRE/CABINET      → "Planning" (icône calendrier/tableau)
+REMPLACANT/ASSISTANT   → "Disponibilités" (même icône ou 
+                          variante cohérente)
+```
+
+### Ordre d'implémentation
+
+```
+Sprint prioritaire (navigation cassée sur mobile = bloquant 
+pour l'usage réel) :
+
+1. Ajouter le lien Planning/Disponibilités dans la bottom nav 
+   mobile (layout.tsx), entre Compte et Relations
+2. Diagnostiquer et corriger le bug de zoom non fonctionnel 
+   sur mobile (PlanningBoard.tsx, DisponibilitesBoard.tsx)
+3. Le point multi-communes reste dans le sprint section 67, 
+   pas ce soir
+```
+
+---
+
+## 92. BUG/MANQUE — clic sur zone vide d'un poste assistant/collaborateur ne propose pas la publication
+
+### Problème identifié
+
+Sur le Planning Board titulaire, quand la ligne d'un poste 
+assistant/collaborateur a une zone NON_COUVERT (le poste 
+n'est plus occupé, ex: l'assistant précédent est parti), 
+le clic sur cette zone ne permet pas de publier une offre 
+pour trouver un successeur sur CE poste précis.
+
+C'est le cas d'usage réel exact de Jean-Charles : deux de 
+ses postes vont se libérer dans un mois, il doit pouvoir 
+publier une annonce d'assistanat/collaboration ciblée sur 
+ce poste précis depuis la timeline.
+
+### Comportement attendu
+
+```
+Clic sur une zone NON_COUVERT d'un poste assistant/collaborateur
+→ Menu universel (section 64) doit proposer :
+  [1] Poser une annonce
+      → Pré-remplit le TYPE de l'annonce selon le postType 
+        du CabinetPost concerné :
+        - Si CabinetPost.postType = ASSISTANT 
+          → missionType pré-sélectionné = ASSISTANAT
+        - Si CabinetPost.postType = COLLABORATION 
+          → missionType pré-sélectionné = COLLABORATION
+      → Pré-remplit les dates de début (à partir de la fin 
+        du poste précédent ou de la date cliquée)
+      → Le titre peut suggérer : "Succession poste [nom]" 
+        ou similaire
+      → cabinetPostId pré-lié à ce poste précis (pour que 
+        le futur match s'attribue automatiquement à cette 
+        ligne, cohérent avec section 55)
+```
+
+### Vérification nécessaire
+
+Il est possible que ce comportement existe déjà partiellement 
+(via computeUncoveredGaps et onUncoveredClick, section 64) 
+mais qu'il ne pré-remplisse pas correctement le TYPE de 
+mission selon le postType du poste concerné — à vérifier 
+et corriger si le type n'est pas repris automatiquement.
+
+### Ordre d'implémentation
+
+Priorité haute — cas d'usage réel immédiat pour Jean-Charles. 
+À intégrer dans le sprint du menu universel (section 64) 
+s'il n'est pas déjà lancé, ou en correction immédiate si 
+le menu universel existe déjà mais ne gère pas cette 
+pré-sélection de type.
