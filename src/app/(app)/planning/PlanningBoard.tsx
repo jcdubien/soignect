@@ -1493,7 +1493,8 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
   }, []);
   const isMobile   = winW < 640;
   const labelWidth = isMobile ? 96 : LABEL_WIDTH; // colonne label plus étroite sur mobile
-  const containerWidth = Math.min(winW - labelWidth - 24, 900);
+  // Piste = 90% de l'espace disponible après la colonne de labels (section 87)
+  const containerWidth = Math.min((winW - labelWidth) * 0.9, 900);
   const dayWidth   = containerWidth / ZOOM_DAYS[zoom];
   const totalWidth = TOTAL_DAYS * dayWidth;
   const todayOff   = dayOffset(new Date()) * dayWidth;
@@ -1510,7 +1511,8 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
     const el = rowsScrollRef.current;
     if (!el || isMobile) return;
     const id = requestAnimationFrame(() => {
-      const target = Math.max(0, labelWidth + todayOff - el.clientWidth / 2);
+      // "Aujourd'hui" positionné à ~10% depuis la gauche (section 87) : 90% pour le futur
+      const target = Math.max(0, labelWidth + todayOff - el.clientWidth * 0.1);
       el.scrollLeft = target;
       if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, target - labelWidth);
     });

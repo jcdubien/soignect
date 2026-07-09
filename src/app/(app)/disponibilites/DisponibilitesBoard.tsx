@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -306,12 +306,29 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
   }, []);
   const isMobile   = winW < 640;
   const labelWidth = isMobile ? 96 : LABEL_WIDTH;
-  const containerWidth = Math.min(winW - labelWidth - 24, 900);
+  // Piste = 90% de l'espace disponible après la colonne de labels (section 87)
+  const containerWidth = Math.min((winW - labelWidth) * 0.9, 900);
   const dayWidth   = containerWidth / ZOOM_DAYS[zoom];
   const totalWidth = TOTAL_DAYS * dayWidth;
   const todayOff   = dayOffset(new Date()) * dayWidth;
   const todayFull  = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const mLabels    = useMemo(() => monthLabels(dayWidth), [dayWidth]);
+
+  // Scroll horizontal : en-tête des mois synchronisé au corps + position initiale
+  // "aujourd'hui" à ~10% depuis la gauche (section 87), 90% pour le futur.
+  const monthHeaderRef = useRef<HTMLDivElement>(null);
+  const rowsScrollRef  = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rowsScrollRef.current;
+    if (!el || isMobile) return;
+    const id = requestAnimationFrame(() => {
+      const target = Math.max(0, labelWidth + todayOff - el.clientWidth * 0.1);
+      el.scrollLeft = target;
+      if (monthHeaderRef.current) monthHeaderRef.current.scrollLeft = Math.max(0, target - labelWidth);
+    });
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom, labelWidth, isMobile, winW]);
   // Fenêtre mobile ~6 mois
   const mWin = mobileWindow();
   const mpct = (d: Date) => pctIn(d, mWin.start, mWin.end);
@@ -514,7 +531,7 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
           {/* En-tête mois */}
           <div className="flex flex-shrink-0 border-b border-gray-200 bg-white">
             <div style={{ width: labelWidth, flexShrink: 0 }} className="border-r border-gray-100 bg-gray-50" />
-            <div className="overflow-hidden flex-1">
+            <div ref={monthHeaderRef} className="overflow-hidden flex-1">
               <div className="relative h-7" style={{ width: totalWidth }}>
                 {mLabels.map((m, i) => (
                   <div key={i} className="absolute top-0 bottom-0 flex items-center" style={{ left: m.offset }}>
@@ -536,7 +553,13 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
           </div>
 
           {/* Ligne principale — pr-4 : marge à droite (régression padding, section 64) */}
-          <div className="flex-1 overflow-y-auto overflow-x-auto pr-4">
+          <div
+            ref={rowsScrollRef}
+            className="flex-1 overflow-y-auto overflow-x-auto pr-4"
+            onScroll={(e) => {
+              if (monthHeaderRef.current) monthHeaderRef.current.scrollLeft = Math.max(0, e.currentTarget.scrollLeft - labelWidth);
+            }}
+          >
             <div style={{ minWidth: totalWidth + labelWidth }}>
               <div className="flex border-b border-gray-100" style={{ height: TRACK_HEIGHT }}>
                 {/* Label */}

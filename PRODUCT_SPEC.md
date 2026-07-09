@@ -7064,3 +7064,143 @@ géo gradué (section 67) dans l'ordre des priorités de reprise —
 un score géo imparfait peut être amélioré plus tard sans 
 perte, mais un mois d'usage réel non tracé est perdu 
 définitivement.
+
+---
+
+## 87. Timeline — largeur 90% et positionnement "aujourd'hui" décalé à gauche
+
+### Correction du positionnement temporel
+
+Actuellement, la ligne "aujourd'hui" est centrée dans la 
+fenêtre de la timeline, ce qui donne autant de place au passé 
+qu'au futur. Or c'est le FUTUR qui intéresse l'utilisateur 
+(planifier, couvrir les postes à venir) — le passé n'est 
+qu'une référence occasionnelle.
+
+```
+AVANT : passé 50% ←──────── aujourd'hui ────────→ 50% futur
+APRÈS : passé 10% ←── aujourd'hui ────────────→ 90% futur
+```
+
+### Correction de la largeur de la timeline
+
+La timeline (zone scrollable après la colonne de labels) 
+doit occuper 90% de la largeur disponible de l'écran, pas 
+une largeur calculée arbitrairement.
+
+### Implémentation
+
+```typescript
+// Dans PlanningBoard.tsx et DisponibilitesBoard.tsx
+
+// 1. Largeur de la piste = 90% de l'espace disponible 
+//    (après la colonne labels)
+const containerWidth = Math.min((winW - labelWidth) * 0.9, 900)
+
+// 2. Position du scroll initial : "aujourd'hui" doit être 
+//    positionné à 10% depuis la gauche de la fenêtre visible, 
+//    pas au centre
+
+useEffect(() => {
+  const el = rowsScrollRef.current
+  if (!el) return
+  // Au lieu de centrer (todayOff - clientWidth/2), 
+  // positionner aujourd'hui à 10% de la largeur visible
+  const target = Math.max(0, todayOff - el.clientWidth * 0.1)
+  el.scrollLeft = target
+}, [zoom, labelWidth])
+```
+
+### Résultat attendu visuellement
+
+```
+[Label] |←10%→| AUJOURD'HUI |←──────── 90% futur ────────→|
+                    ▶
+```
+
+L'utilisateur voit un léger contexte de passé récent (10%) 
+pour comprendre où il se situe, mais la grande majorité de 
+l'espace visible est consacrée à ce qui reste à planifier.
+
+### Ordre d'implémentation
+
+Sprint léger, ajustement de calcul sur les deux boards 
+(PlanningBoard.tsx et DisponibilitesBoard.tsx) — cohérent 
+avec le sprint responsive déjà fait (section 33), juste 
+un réglage du ratio passé/futur et de la largeur globale.
+
+---
+
+## 88. Corrections formulaire disponibilités remplaçant
+
+### Point 1 — Modale d'ouverture de période : pas de date de fin présupposée
+
+Actuellement, au clic sur une zone libre de sa timeline, le 
+remplaçant voit une modale qui présuppose déjà une durée fixe 
+(ex: "31 août 2026 → 30 sept. 2026, 30 jours"). C'est trop 
+prescriptif — la durée n'est pas encore décidée à ce stade.
+
+```
+AVANT :
+"Ouvrir cette période à la réservation ?"
+Période sélectionnée
+31 août 2026 → 30 sept. 2026
+30 jours
+[Oui, je suis disponible →] [Non, bloquer ces dates] [Annuler]
+
+APRÈS :
+"Ouvrir cette période à la réservation ?"
+Disponible à partir du 31 août 2026
+[Oui, je suis disponible →] [Non, bloquer ces dates] [Annuler]
+```
+
+La date de fin réelle sera précisée sur l'écran suivant 
+(le formulaire "Mes dates de disponibilité" avec Du/Au, 
+déjà existant). Le calcul de "date de début du dernier bloc 
+libre" remplace la logique actuelle qui propose une plage 
+de 30 jours par défaut.
+
+### Point 2 — Reconsidérer le minimum de 20 caractères
+
+Le minimum actuel de 20 caractères sur l'accroche (section 71) 
+semble trop bas pour garantir un texte réellement exploitable 
+par DeepSeek pour le matching sémantique. À reconsidérer : 
+augmenter ce minimum (ex: 40-50 caractères) pour s'assurer 
+que le texte soit substantiel, tout en restant simple à 
+remplir rapidement.
+
+```
+Proposition : passer le minimum de 20 à 40 caractères
+Message d'aide ajusté en conséquence : 
+"Présentez-vous en quelques mots (40 caractères minimum)"
+```
+
+### Point 3 — Retirer le champ "Taux de rétrocession souhaité"
+
+Cohérent avec la philosophie de simplification déjà actée 
+(sections 69, 71) : retirer ce champ du formulaire de création 
+de disponibilité. Le taux de rétrocession se négocie dans 
+la discussion/le contrat (section 61), pas comme un critère 
+de filtrage rigide dès la création de l'annonce.
+
+```
+Retirer le champ "Taux de rétrocession souhaité" de 
+disponibilites/create/page.tsx
+```
+
+### Point 4 — Correction grammaticale du placeholder
+
+```
+AVANT : "Je suis kiné passionné, disponible pour remplacements 
+         courts en Guadeloupe..."
+APRÈS : "Je suis un kiné passionné, disponible pour remplacements 
+         courts en Guadeloupe..."
+```
+
+Simple ajout de l'article "un" manquant.
+
+### Ordre d'implémentation
+
+Sprint léger, 4 corrections ciblées sur disponibilites/create/page.tsx 
+et le composant de modale d'ouverture de période (FreeZoneModal 
+ou équivalent).
