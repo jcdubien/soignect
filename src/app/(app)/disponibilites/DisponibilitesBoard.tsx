@@ -103,22 +103,15 @@ interface FreeZoneModal {
 
 function FreeZoneChoiceModal({
   modal,
-  isAssistant,
   onOpenDispo,
   onBlockDates,
   onClose,
 }: {
   modal: FreeZoneModal;
-  isAssistant: boolean;
   onOpenDispo: () => void;
   onBlockDates: () => void;
   onClose: () => void;
 }) {
-  const dur = modal.suggestedStart && modal.suggestedEnd
-    ? Math.floor((new Date(modal.suggestedEnd).getTime() - new Date(modal.suggestedStart).getTime()) / 86400000)
-    : null;
-  const under90 = isAssistant && dur !== null && dur < 90;
-
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
@@ -131,28 +124,17 @@ function FreeZoneChoiceModal({
           </h3>
         </div>
 
+        {/* Pas de durée présupposée (section 88) — la fin sera précisée à l'écran suivant */}
         <div className="bg-gray-50 rounded-xl p-3 mb-4 text-sm text-gray-600">
-          <p className="text-xs text-gray-400 mb-1">Période sélectionnée</p>
           <p className="font-medium">
-            {new Date(modal.suggestedStart).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
-            {" → "}
-            {new Date(modal.suggestedEnd).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+            Disponible à partir du{" "}
+            {new Date(modal.suggestedStart).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
           </p>
-          {dur !== null && (
-            <p className="text-xs text-gray-400 mt-0.5">{dur} jour{dur > 1 ? "s" : ""}</p>
-          )}
         </div>
-
-        {under90 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 mb-4">
-            ⚠️ Les postes d&apos;assistanat nécessitent minimum <strong>3 mois (90 jours)</strong>.
-          </div>
-        )}
 
         <div className="flex flex-col gap-2.5">
           <button
             onClick={onOpenDispo}
-            disabled={!!under90}
             className="w-full py-3 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition disabled:opacity-40"
           >
             Oui, je suis disponible →
@@ -394,11 +376,11 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
       {freeZoneModal && (
         <FreeZoneChoiceModal
           modal={freeZoneModal}
-          isAssistant={isAssistant}
           onOpenDispo={() => {
-            const { suggestedStart, suggestedEnd } = freeZoneModal;
+            const { suggestedStart } = freeZoneModal;
             setFreeZoneModal(null);
-            router.push(`/disponibilites/create?startDate=${encodeURIComponent(suggestedStart)}&endDate=${encodeURIComponent(suggestedEnd)}`);
+            // Pas d'endDate présupposé (section 88) — la fin sera saisie sur le formulaire Du/Au
+            router.push(`/disponibilites/create?startDate=${encodeURIComponent(suggestedStart)}`);
           }}
           onBlockDates={handleBlockDates}
           onClose={() => setFreeZoneModal(null)}

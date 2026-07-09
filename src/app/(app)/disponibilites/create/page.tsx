@@ -8,8 +8,6 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-const RETROCESSION_OPTIONS = [60, 65, 70, 75, 80, 85, 90];
-
 export default function CreateDisponibilitePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -35,7 +33,6 @@ export default function CreateDisponibilitePage() {
     startDate: searchParams.get("startDate") ?? "",
     endDate: searchParams.get("endDate") ?? "",
     minMonths: "",
-    retrocessionRate: "",
     dateFlexibility: 0,
   });
 
@@ -47,8 +44,8 @@ export default function CreateDisponibilitePage() {
     : null;
   const under90Days = isAssistant && missionDays !== null && missionDays < 90;
 
-  // Accroche 280 signes OBLIGATOIRE — min 20 caractères (section 71 / item 14)
-  const bioValid = form.bioTinder.trim().length >= 20;
+  // Accroche 280 signes OBLIGATOIRE — min 40 caractères (section 71 / 88)
+  const bioValid = form.bioTinder.trim().length >= 40;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,7 +64,6 @@ export default function CreateDisponibilitePage() {
         startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
         endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
         minMonths: form.minMonths ? parseInt(form.minMonths) : null,
-        retrocessionRate: form.retrocessionRate ? parseInt(form.retrocessionRate) : null,
         missionType: isAssistant ? "ASSISTANAT" : "REMPLACEMENT",
         dateFlexibility: form.dateFlexibility,
       }),
@@ -127,7 +123,7 @@ export default function CreateDisponibilitePage() {
             <span className="text-kine-400 font-normal ml-1">(280 signes · obligatoire)</span>
           </label>
           <p className="text-xs text-kine-600/70 mb-2">
-            C&apos;est ce texte qui alimente le matching intelligent — présentez-vous en quelques mots (20 caractères minimum).
+            C&apos;est ce texte qui alimente le matching intelligent — présentez-vous en quelques mots (40 caractères minimum).
           </p>
           <textarea
             value={form.bioTinder}
@@ -140,12 +136,12 @@ export default function CreateDisponibilitePage() {
             placeholder={
               isAssistant
                 ? "J'aspire à intégrer un cabinet dynamique en Guadeloupe…"
-                : "Je suis kiné passionné, disponible pour remplacements courts en Guadeloupe…"
+                : "Je suis un kiné passionné, disponible pour remplacements courts en Guadeloupe…"
             }
           />
           <div className="flex justify-between items-center mt-0.5">
             {!bioValid ? (
-              <span className="text-xs text-amber-600">Encore {Math.max(0, 20 - form.bioTinder.trim().length)} caractère(s)</span>
+              <span className="text-xs text-amber-600">Encore {Math.max(0, 40 - form.bioTinder.trim().length)} caractère(s)</span>
             ) : <span />}
             <span className="text-xs text-gray-300">{form.bioTinder.length}/280</span>
           </div>
@@ -268,23 +264,7 @@ export default function CreateDisponibilitePage() {
           </div>
         )}
 
-        {/* Taux de rétrocession souhaité */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Taux de rétrocession souhaité
-            <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
-          </label>
-          <select
-            value={form.retrocessionRate}
-            onChange={(e) => setForm({ ...form, retrocessionRate: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-          >
-            <option value="">Non précisé</option>
-            {RETROCESSION_OPTIONS.map((r) => (
-              <option key={r} value={r}>{r} %</option>
-            ))}
-          </select>
-        </div>
+        {/* Taux de rétrocession retiré (section 88) — se négocie dans la discussion/le contrat */}
 
         {/* Avertissement 90j minimum pour les assistants */}
         {under90Days && (

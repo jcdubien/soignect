@@ -153,9 +153,9 @@ export default function CreateMissionPage() {
   const needs90Days = needType === "assistant";
   const under90Days = needs90Days && missionDays !== null && missionDays < 90;
 
-  // Accroche 280 signes OBLIGATOIRE — min 20 caractères (section 71 / item 14)
+  // Accroche 280 signes OBLIGATOIRE — min 40 caractères (section 71 / 88)
   const pitchCombined = `${form.pitchStarter ? form.pitchStarter + " " : ""}${form.pitchText.trim()}`.trim();
-  const pitchValid = pitchCombined.length >= 20;
+  const pitchValid = pitchCombined.length >= 40;
 
   const showDates =
     profileType === "REMPLACANT" ||
@@ -284,7 +284,7 @@ export default function CreateMissionPage() {
             <span className="text-kine-400 font-normal ml-1">(280 signes · obligatoire)</span>
           </label>
           <p className="text-xs text-kine-600/70">
-            C&apos;est ce texte qui alimente le matching intelligent — décrivez ce que vous recherchez en quelques mots (20 caractères minimum).
+            C&apos;est ce texte qui alimente le matching intelligent — décrivez ce que vous recherchez en quelques mots (40 caractères minimum).
           </p>
           <div className="flex gap-2 flex-wrap">
             {cfg.pitchStarters.map((s) => (
@@ -327,7 +327,7 @@ export default function CreateMissionPage() {
               </div>
               <div className="flex justify-between items-center mt-0.5">
                 {!pitchValid ? (
-                  <span className="text-xs text-amber-600">Encore {Math.max(0, 20 - pitchCombined.length)} caractère(s)</span>
+                  <span className="text-xs text-amber-600">Encore {Math.max(0, 40 - pitchCombined.length)} caractère(s)</span>
                 ) : <span />}
                 <span className="text-xs text-gray-300">{form.pitchStarter.length + 1 + form.pitchText.length}/280</span>
               </div>
