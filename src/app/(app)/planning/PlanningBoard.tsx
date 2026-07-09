@@ -901,7 +901,7 @@ function TimelineRow({
         type="button"
         onClick={() => onPostMenuClick(post)}
         title="Gérer ce poste"
-        className="shrink-0 flex items-center px-2 sm:px-3 border-r border-gray-100 bg-gray-50 text-left hover:bg-gray-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)]"
+        className="shrink-0 sticky left-0 z-20 flex items-center px-2 sm:px-3 border-r border-gray-100 bg-gray-50 text-left hover:bg-gray-100 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)]"
         style={{ width: labelWidth }}
       >
         <div className="min-w-0">
@@ -986,7 +986,7 @@ function SelfTimelineRow({
   return (
     <div className="flex border-b border-gray-100" style={{ height: TRACK_HEIGHT }}>
       <div
-        className="shrink-0 flex items-center px-2 sm:px-3 border-r border-gray-100 bg-gray-50"
+        className="shrink-0 sticky left-0 z-20 flex items-center px-2 sm:px-3 border-r border-gray-100 bg-gray-50"
         style={{ width: labelWidth }}
       >
         <span className="text-xs font-semibold text-gray-700 truncate block">{cabinetName} (titulaire)</span>
@@ -1511,8 +1511,9 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
     const el = rowsScrollRef.current;
     if (!el || isMobile) return;
     const id = requestAnimationFrame(() => {
-      // "Aujourd'hui" positionné à ~10% depuis la gauche (section 87) : 90% pour le futur
-      const target = Math.max(0, labelWidth + todayOff - el.clientWidth * 0.1);
+      // "Aujourd'hui" à ~10% de la piste visible APRÈS la colonne label sticky
+      // (sections 87 + 90) : 90% pour le futur, sans passer sous le label figé.
+      const target = Math.max(0, todayOff - (el.clientWidth - labelWidth) * 0.1);
       el.scrollLeft = target;
       if (scrollRef.current) scrollRef.current.scrollLeft = Math.max(0, target - labelWidth);
     });

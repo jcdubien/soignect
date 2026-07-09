@@ -80,18 +80,30 @@ function pctIn(d: Date, start: Date, end: Date): number {
   return Math.max(0, Math.min(((d.getTime() - start.getTime()) / 86400000 / span) * 100, 100));
 }
 
-function monthLabels(dayWidth: number): { label: string; offset: number }[] {
+function monthLabels(dayWidth: number): { label: string; offset: number; index: number; isYearStart: boolean }[] {
   const labels = [];
   const cur = new Date(RANGE_START);
   cur.setDate(1);
+  let index = 0;
   while (cur < RANGE_END) {
     labels.push({
       label: cur.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
       offset: dayOffset(cur) * dayWidth,
+      index,
+      isYearStart: cur.getMonth() === 0,
     });
     cur.setMonth(cur.getMonth() + 1);
+    index++;
   }
   return labels;
+}
+
+// Saut des labels de mois selon le zoom (section 89) — évite la fusion des labels
+// en vue large : 1 mois sur 3 (trimestre) en "2 ans", 1 sur 2 en "Année".
+function monthSkipFor(zoom: Zoom): number {
+  if (zoom === "triennial") return 3;
+  if (zoom === "year") return 2;
+  return 1;
 }
 
 // ── Modale choix zone libre ────────────────────────────────────────────────────
@@ -295,6 +307,7 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
   const todayOff   = dayOffset(new Date()) * dayWidth;
   const todayFull  = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const mLabels    = useMemo(() => monthLabels(dayWidth), [dayWidth]);
+  const monthSkip  = monthSkipFor(zoom);
 
   // Scroll horizontal : en-tête des mois synchronisé au corps + position initiale
   // "aujourd'hui" à ~10% depuis la gauche (section 87), 90% pour le futur.
@@ -304,7 +317,9 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
     const el = rowsScrollRef.current;
     if (!el || isMobile) return;
     const id = requestAnimationFrame(() => {
-      const target = Math.max(0, labelWidth + todayOff - el.clientWidth * 0.1);
+      // "Aujourd'hui" à ~10% de la piste visible APRÈS la colonne label sticky
+      // (sections 87 + 90), sans passer sous le label figé.
+      const target = Math.max(0, todayOff - (el.clientWidth - labelWidth) * 0.1);
       el.scrollLeft = target;
       if (monthHeaderRef.current) monthHeaderRef.current.scrollLeft = Math.max(0, target - labelWidth);
     });
@@ -515,12 +530,16 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
             <div style={{ width: labelWidth, flexShrink: 0 }} className="border-r border-gray-100 bg-gray-50" />
             <div ref={monthHeaderRef} className="overflow-hidden flex-1">
               <div className="relative h-7" style={{ width: totalWidth }}>
-                {mLabels.map((m, i) => (
-                  <div key={i} className="absolute top-0 bottom-0 flex items-center" style={{ left: m.offset }}>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--lagon-profond)]/80 pl-1 whitespace-nowrap">{m.label}</span>
-                    <div className="absolute top-0 bottom-0 left-0 w-px bg-gray-200" />
-                  </div>
-                ))}
+                {mLabels.map((m, i) => {
+                  // Section 89 — n'affiche qu'un label tous les N mois (+ débuts d'année)
+                  if (m.index % monthSkip !== 0 && !m.isYearStart) return null;
+                  return (
+                    <div key={i} className="absolute top-0 bottom-0 flex items-center" style={{ left: m.offset }}>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--lagon-profond)]/80 pl-1 whitespace-nowrap">{m.label}</span>
+                      <div className="absolute top-0 bottom-0 left-0 w-px bg-gray-200" />
+                    </div>
+                  );
+                })}
                 {/* Signature sections 46-47 — flèche de progression "aujourd'hui" */}
                 <div
                   className="planning-today-line absolute top-0 bottom-0 w-px bg-[var(--lagon-profond)] z-20 cursor-help"
@@ -544,9 +563,10 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
           >
             <div style={{ minWidth: totalWidth + labelWidth }}>
               <div className="flex border-b border-gray-100" style={{ height: TRACK_HEIGHT }}>
-                {/* Label */}
+                {/* Label — sticky (section 90) : reste visible sur tous les zooms
+                    malgré le défilement horizontal automatique vers "aujourd'hui". */}
                 <div
-                  className="shrink-0 flex items-center px-3 border-r border-gray-100 bg-gray-50"
+                  className="shrink-0 sticky left-0 z-20 flex items-center px-3 border-r border-gray-100 bg-gray-50"
                   style={{ width: labelWidth }}
                 >
                   <span className="text-xs font-semibold text-gray-700 truncate">

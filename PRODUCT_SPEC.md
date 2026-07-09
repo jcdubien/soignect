@@ -7204,3 +7204,104 @@ Simple ajout de l'article "un" manquant.
 Sprint léger, 4 corrections ciblées sur disponibilites/create/page.tsx 
 et le composant de modale d'ouverture de période (FreeZoneModal 
 ou équivalent).
+
+---
+
+## 89. BUG — labels de mois illisibles en zoom "2 ans"
+
+### Problème confirmé sur le côté remplaçant (DisponibilitesBoard)
+
+En vue "2 ans", les labels de mois se chevauchent complètement 
+et deviennent illisibles : "JUIN 2JUIL. 2AOÛT 2SEPT. 2OCT. 2NOV. 
+2DÉC. 2JANV.FÉVR.MARS..." — un texte totalement fusionné, 
+sans espacement.
+
+C'était déjà identifié comme problème (point 7 de la liste 
+originale) et corrigé pour les zooms Mois/Trimestre/Année, 
+mais le zoom "2 ans" spécifiquement n'a pas la même gestion — 
+essayer d'afficher 24 labels de mois individuels dans la même 
+largeur ne peut pas fonctionner visuellement.
+
+### Correction nécessaire — spécifique au zoom 2 ans
+
+```
+En vue "2 ans", ne PAS essayer d'afficher chaque mois 
+individuellement. Deux options :
+
+Option A (recommandée) : afficher un label tous les 3 mois 
+(un par trimestre) : "T3 2026", "T4 2026", "T1 2027"...
+
+Option B : afficher uniquement les changements d'année 
+("2026", "2027") avec des graduations mineures non labellisées 
+entre les deux
+
+Réutiliser la logique déjà en place pour le zoom "Année" 
+(qui gère bien l'espacement) mais avec un pas encore plus 
+large, adapté spécifiquement à 24 mois de largeur.
+```
+
+### Vérifier aussi côté PlanningBoard (titulaire)
+
+Ce bug a été identifié côté DisponibilitesBoard (remplaçant), 
+mais il faut vérifier si le même problème existe sur 
+PlanningBoard.tsx en zoom "2 ans" — les deux composants 
+partagent probablement la même logique de calcul des labels 
+de mois (monthLabels), donc la correction doit s'appliquer 
+aux deux.
+
+### Point positif à noter (pas un bug)
+
+Le positionnement de la ligne "aujourd'hui" à environ 10% 
+depuis la gauche (au lieu du centre) fonctionne bien en vue 
+Trimestre (image 1) — confirmation que la correction 
+section 87 a été appliquée avec succès.
+
+### Ordre d'implémentation
+
+Sprint léger, correction ciblée sur le calcul des labels 
+de mois (fonction monthLabels ou équivalent) spécifiquement 
+pour le cas zoom = "2 ans" (triennial dans le code), à 
+appliquer sur PlanningBoard.tsx ET DisponibilitesBoard.tsx.
+
+---
+
+## 90. BUG — label de poste/personne visible uniquement en zoom "2 ans"
+
+### Problème
+
+La colonne fixe à gauche affichant le nom (ex: "Julien MORISOT" 
+côté remplaçant, ou le nom d'un poste côté titulaire) n'apparaît 
+que sur le zoom "2 ans". Sur les zooms Mois/Trimestre/Année, 
+cette colonne de label est absente ou non visible.
+
+### Comportement attendu
+
+La colonne de label (nom du poste ou de la personne) doit 
+être visible de façon IDENTIQUE et cohérente sur TOUS les 
+niveaux de zoom (Mois, Trimestre, Année, 2 ans) — ce n'est 
+pas une information qui dépend du zoom temporel, elle identifie 
+la ligne elle-même.
+
+### Correction
+
+```
+Vérifier le rendu de la colonne labelWidth (section 33/64) 
+sur chaque zoom :
+- Mois → label doit être visible
+- Trimestre → label doit être visible (déjà confirmé OK 
+  d'après les captures précédentes)
+- Année → label doit être visible
+- 2 ans → label déjà visible (confirmé fonctionnel)
+
+Identifier pourquoi le label ne s'affiche pas sur certains 
+zooms — probablement un problème de largeur de conteneur ou 
+de calcul de containerWidth qui écrase la colonne label sur 
+certains ratios d'écran/zoom, ou un CSS conditionnel mal ciblé.
+```
+
+### Ordre d'implémentation
+
+Sprint léger, à regrouper avec la correction section 89 
+(même zone de code, PlanningBoard.tsx et DisponibilitesBoard.tsx) 
+— probablement liées techniquement puisque les deux concernent 
+le rendu de l'en-tête/colonne label selon le zoom sélectionné.
