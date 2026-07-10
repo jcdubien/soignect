@@ -95,13 +95,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
   // Contrat confirmé quand les DEUX signatures photo sont présentes (section 61) :
   // remplit la timeline (missions liées → CONFIRME) et confirme le match.
   if (bothSigned) {
-    const missionIds = [updated.missionAId, updated.missionBId].filter((x): x is string => !!x);
-    if (missionIds.length > 0) {
-      await prisma.mission.updateMany({
-        where: { id: { in: missionIds } },
-        data: { briqueStatus: BriqueStatus.CONFIRME, statusUpdatedAt: now },
+    // Noms des deux parties pour renseigner matchedName sur chaque poste (section 1c / 6) :
+    // le poste de A est rempli par B, et inversement.
+    const full = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: {
+        missionAId: true, missionBId: true,
+        profileA: { select: { name: true } },
+        profileB: { select: { name: true } },
+      },
+    });
+    if (full?.missionAId) {
+      await prisma.mission.update({
+        where: { id: full.missionAId },
+        data: { briqueStatus: BriqueStatus.CONFIRME, statusUpdatedAt: now, matchedName: full.profileB?.name ?? null },
       });
     }
+    if (full?.missionBId) {
+      await prisma.mission.update({
+        where: { id: full.missionBId },
+        data: { briqueStatus: BriqueStatus.CONFIRME, statusUpdatedAt: now, matchedName: full.profileA?.name ?? null },
+      });
+    }
+    const missionIds = [updated.missionAId, updated.missionBId].filter((x): x is string => !!x);
     await prisma.match.update({ where: { id: matchId }, data: { status: MatchStatus.CONFIRME } });
 
     // Traçabilité (section 86) — contrat signé par les deux parties.

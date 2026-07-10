@@ -35,6 +35,8 @@ interface MatchTrayProps {
   myProfileId?: string;
   /** Abonné Premium/Boost — débloque l'envoi de contrat (item 8) */
   isPremium?: boolean;
+  /** Filtre le tray sur une disponibilité précise du remplaçant (section 7) */
+  disponibiliteId?: string;
 }
 
 // ── Fiche complète de l'annonce ───────────────────────────────────────────────
@@ -388,7 +390,7 @@ function MissionSheet({
 }
 
 // ── MatchTray principal ───────────────────────────────────────────────────────
-export default function MatchTray({ refreshKey, titulaireMissions = [], myProfileType, myProfileId, isPremium }: MatchTrayProps) {
+export default function MatchTray({ refreshKey, titulaireMissions = [], myProfileType, myProfileId, isPremium, disponibiliteId }: MatchTrayProps) {
   const [items,       setItems]       = useState<TrayItem[]>([]);
   const [selected,    setSelected]    = useState<TrayItem | null>(null);
   const [, setSeenIds] = useState<Set<string>>(new Set());
@@ -397,7 +399,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
 
   const fetchTray = useCallback(async () => {
     try {
-      const r = await fetch("/api/tray");
+      const r = await fetch(`/api/tray${disponibiliteId ? `?disponibiliteId=${encodeURIComponent(disponibiliteId)}` : ""}`);
       if (!r.ok) return;
       const data: TrayItem[] = await r.json();
       setItems(data);
@@ -413,7 +415,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
       }
       prevMatchIdsRef.current = currentMatchIds;
     } catch { /* silencieux */ }
-  }, []);
+  }, [disponibiliteId]);
 
   useEffect(() => { fetchTray(); }, [fetchTray, refreshKey]);
 
@@ -428,7 +430,22 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
 
   const totalUnread = unreadIds.size;
 
-  if (matchedItems.length === 0 && likedItems.length === 0) return null;
+  // État vide filtré (section 7) : message clair au lieu de masquer le tray
+  if (matchedItems.length === 0 && likedItems.length === 0) {
+    if (disponibiliteId) {
+      return (
+        <div className="shrink-0 bg-white border-t border-gray-100 px-4 py-3 text-center">
+          <p className="text-xs text-gray-500">
+            Aucune mise en relation pour cette disponibilité pour l&apos;instant.
+          </p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            Continuez à explorer les annonces ci-dessus.
+          </p>
+        </div>
+      );
+    }
+    return null;
+  }
 
   function renderItem(item: TrayItem) {
     const p         = item.mission.profile;

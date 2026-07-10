@@ -26,6 +26,8 @@ interface MissionData {
   briqueStatus: string;
   statusUpdatedAt: Date | string | null;
   statusNote: string | null;
+  matchedName?: string | null;        // nom du successeur matché (section 1c/6)
+  departureDate?: Date | string | null; // date de départ prévue — fin effective (section 6)
   matchesA: MatchInfo[];
   matchesB: MatchInfo[];
 }
@@ -139,9 +141,11 @@ function computeUncoveredGaps(missions: MissionData[]): { start: Date; end: Date
   if (now >= RANGE_END) return [];
   const effectiveStart = now > RANGE_START ? now : RANGE_START;
   // endDate null = occupation en durée indéterminée → couvre jusqu'à la fin de la plage
+  // La date de départ prévue (section 6) borne la couverture : après elle, la période
+  // devient non couverte (donc NON_COUVERT, ou RECRUTEMENT si une annonce la couvre).
   const covered = missions
     .filter(m => toDate(m.startDate))
-    .map(m => ({ start: toDate(m.startDate)!, end: toDate(m.endDate) ?? RANGE_END }))
+    .map(m => ({ start: toDate(m.startDate)!, end: toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END }))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
   const gaps: { start: Date; end: Date }[] = [];
   let cursor = effectiveStart;
@@ -327,21 +331,14 @@ function getEffectiveStatus(
   if (local) return local;
 
   const stored = mission.briqueStatus;
+  // PREAVIS retiré (section 6) — les anciennes briques s'affichent comme CONFIRME
+  if (stored === "PREAVIS") return "CONFIRME";
   // Si le statut a été modifié manuellement (différent du défaut RECHERCHE), on l'utilise
   if (stored !== "RECHERCHE") return stored;
 
-  // Sinon on calcule depuis les matches (comportement précédent)
+  // Sinon on calcule depuis les matches : un match = poste confirmé (plus de zone préavis)
   const hasMatch = mission.matchesA.length > 0 || mission.matchesB.length > 0;
-  if (hasMatch) {
-    const endDate = toDate(mission.endDate);
-    if (endDate && post.noticeMonths > 0) {
-      const noticeStart = new Date(endDate);
-      noticeStart.setMonth(noticeStart.getMonth() - post.noticeMonths);
-      if (new Date() >= noticeStart) return "PREAVIS";
-    }
-    return "CONFIRME";
-  }
-  return "RECHERCHE";
+  return hasMatch ? "CONFIRME" : "RECHERCHE";
 }
 
 // ── Menu à 3 choix au clic sur un poste (section 55) ─────────────────────────────
@@ -455,34 +452,20 @@ function PostMenu({
     onDone();
   }
 
-  // ── Préavis ──
-  const defaultDuree = post.postType === "REMPLACEMENT_REGULIER" ? "1mois" : "3mois";
-  const [dureeChoice, setDureeChoice] = useState<"3mois" | "1mois" | "custom">(
-    defaultDuree as "3mois" | "1mois"
+  // ── Date de départ prévue (section 6) — un seul champ, vide par défaut, pas de durée.
+  // Déclencheur silencieux : à cette date, la couverture s'arrête → Recrutement (si annonce)
+  // ou Non couvert (sinon). Avant, le poste reste affiché Confirmé.
+  const [departureDate, setDepartureDate] = useState(
+    toDate(mission?.departureDate)?.toISOString().slice(0, 10) ?? ""
   );
-  const [customNum, setCustomNum] = useState("");
-  const [customUnit, setCustomUnit] = useState<"jours" | "semaines" | "mois">("mois");
-  const [preavisStart, setPreavisStart] = useState(new Date().toISOString().slice(0, 10));
-
-  function preavisJours(): number | null {
-    if (dureeChoice === "3mois") return 90;
-    if (dureeChoice === "1mois") return 30;
-    const n = parseInt(customNum, 10);
-    if (!Number.isFinite(n) || n <= 0) return null;
-    return customUnit === "jours" ? n : customUnit === "semaines" ? n * 7 : n * 30;
-  }
 
   async function submitPreavis() {
-    const j = preavisJours();
-    if (!mission || !j || busy) return;
+    if (!mission || busy) return;
     setBusy(true);
-    await fetch(`/api/missions/${mission.id}/preavis`, {
-      method: "POST",
+    await fetch(`/api/missions/${mission.id}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        preavisStart: new Date(preavisStart).toISOString(),
-        dureeJours: j,
-      }),
+      body: JSON.stringify({ departureDate: departureDate ? new Date(departureDate).toISOString() : null }),
     });
     onDone();
   }
@@ -520,14 +503,14 @@ function PostMenu({
             <Button variant="outlined" onClick={() => setStep("presence")} className="w-full !py-2.5">
               {mission ? "Occupation externe (hors Soignect)" : "Définir l'occupation (hors Soignect)"}
             </Button>
-            {/* Préavis — si occupation en durée indéterminée */}
+            {/* Date de départ prévue (section 6) — si occupation en durée indéterminée */}
             {isIndeterminate && (
               <Button
                 variant="outlined"
                 onClick={() => setStep("preavis")}
                 className="w-full !py-2.5 !border-[var(--ambre)] !text-[#8a5a00] hover:!bg-amber-50"
               >
-                Poser un préavis
+                Indiquer une date de départ
               </Button>
             )}
             {/* [5] Fermer temporairement — marque la période FERME (réversible) */}
@@ -676,53 +659,21 @@ function PostMenu({
         {/* ── Étape préavis ── */}
         {step === "preavis" && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-gray-600">Cette personne a posé son préavis.</p>
+            <p className="text-sm text-gray-600">
+              Indiquez la date de départ prévue de la personne en poste. À cette date, le poste
+              basculera automatiquement en recrutement (ou non couvert si aucune annonce).
+            </p>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Durée du préavis</label>
-              <div className="flex flex-col gap-2">
-                {([
-                  ["3mois", "3 mois (assistanat / collaboration)"],
-                  ["1mois", "1 mois (remplacement)"],
-                  ["custom", "Personnalisé"],
-                ] as const).map(([val, lbl]) => (
-                  <button
-                    key={val} type="button" onClick={() => setDureeChoice(val)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition ${
-                      dureeChoice === val ? "border-kine-400 bg-kine-50 text-kine-700 font-semibold" : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {dureeChoice === "custom" && (
-              <div className="flex gap-2">
-                <input
-                  type="number" min={1} value={customNum} onChange={e => setCustomNum(e.target.value)} placeholder="6"
-                  className="w-20 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
-                />
-                <select
-                  value={customUnit} onChange={e => setCustomUnit(e.target.value as "jours" | "semaines" | "mois")}
-                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
-                >
-                  <option value="jours">jours</option>
-                  <option value="semaines">semaines</option>
-                  <option value="mois">mois</option>
-                </select>
-              </div>
-            )}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Départ du préavis</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Date de départ prévue</label>
               <input
-                type="date" value={preavisStart} onChange={e => setPreavisStart(e.target.value)}
+                type="date" value={departureDate} onChange={e => setDepartureDate(e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
               />
             </div>
             <div className="flex gap-2 pt-1">
               <Button variant="outlined" onClick={() => setStep("menu")} className="flex-1 !py-2.5">Retour</Button>
-              <Button onClick={submitPreavis} disabled={!preavisJours() || busy} className="flex-1 !py-2.5">
-                {busy ? "…" : "Poser le préavis"}
+              <Button onClick={submitPreavis} disabled={busy} className="flex-1 !py-2.5">
+                {busy ? "…" : departureDate ? "Enregistrer la date" : "Retirer la date"}
               </Button>
             </div>
           </div>
@@ -837,8 +788,11 @@ function MissionBrick({
 }) {
   const start = toDate(mission.startDate);
   if (!start) return null;
-  // endDate null = durée indéterminée → brique ouverte jusqu'au bord droit (section 57 mode C)
-  const end = toDate(mission.endDate) ?? RANGE_END;
+  // Fin effective : date de départ prévue (section 6) sinon endDate ; null = durée
+  // indéterminée → brique ouverte jusqu'au bord droit (section 57 mode C).
+  const end = toDate(mission.departureDate) ?? toDate(mission.endDate) ?? RANGE_END;
+  // Segment CONFIRMÉ/RECRUTEMENT : affiche le nom du successeur matché s'il existe (section 6)
+  const brickLabel = mission.matchedName || mission.title;
 
   const left  = Math.max(dayOffset(start), 0) * dayWidth;
   const right = Math.min(dayOffset(end), TOTAL_DAYS) * dayWidth;
@@ -887,7 +841,7 @@ function MissionBrick({
     >
       {/* Libellé masqué si brique trop petite (< 40px) — vue condensée (section 47) */}
       {Math.max(width, 24) >= 40 && (
-        <span className="text-[11px] font-medium truncate">{mission.title}</span>
+        <span className="text-[11px] font-medium truncate">{brickLabel}</span>
       )}
     </div>
   );
@@ -1345,7 +1299,7 @@ function DeclareAbsenceForm({ suggestedStart, suggestedEnd, onClose, onCreated }
 
 function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void; onCreated: () => void; isEmployeur: boolean }) {
   const [label, setLabel] = useState("");
-  const [postType, setPostType] = useState("REMPLACEMENT_REGULIER");
+  const [postType, setPostType] = useState("TITULAIRE");
   const [startDate, setStartDate] = useState(""); // date d'occupation, peut être passée
   // Mode de fin d'occupation (section 57) : A=date connue, B=durée prévue, C=indéterminée
   const [finMode, setFinMode] = useState<"A" | "B" | "C">("C");
@@ -1407,7 +1361,9 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
           onChange={e => setPostType(e.target.value)}
           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
         >
-          <option value="REMPLACEMENT_REGULIER">{isEmployeur ? "Vacation régulière" : "Remplacement ponctuel"}</option>
+          {/* Section 5 — "Remplacement ponctuel" retiré (occupation temporaire, pas un type de poste) */}
+          <option value="TITULAIRE">Titulaire</option>
+          <option value="ASSOCIE">Associé</option>
           <option value="ASSISTANT">{isEmployeur ? "Poste salarié (CDD)" : "Assistanat (long terme)"}</option>
           <option value="COLLABORATION">{isEmployeur ? "CDI" : "Collaboration libérale"}</option>
         </select>
@@ -1699,16 +1655,18 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
     post.missions.forEach(m => {
       const start = toDate(m.startDate);
       if (!start) return;
-      const end = toDate(m.endDate) ?? mWin.end; // durée indéterminée → jusqu'au bord de la fenêtre
+      // Fin effective : date de départ prévue (section 6) sinon endDate sinon bord fenêtre
+      const end = toDate(m.departureDate) ?? toDate(m.endDate) ?? mWin.end;
       const w = mpct(end) - mpct(start);
       if (w <= 0) return;
       const status = getEffectiveStatus(m, post, localStatuses);
       const st = BRIQUE_STATUS[status] ?? BRIQUE_STATUS["RECHERCHE"];
       const isHatch = status === "FERME";
+      const brickLabel = m.matchedName || m.title;
       bricks.push({
         key: m.id, leftPct: mpct(start), widthPct: w,
         colorCls: isHatch ? "timeline-hatch text-white" : `${st.bg} ${st.text}`,
-        label: m.title, title: `${m.title} · ${st.label}`,
+        label: brickLabel, title: `${brickLabel} · ${st.label}`,
         onClick: (e: React.MouseEvent) => openDropdown(m, post, false, e),
       });
     });
@@ -1969,7 +1927,6 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
               { color: "bg-[var(--bleu-marine)]",   label: "Titulaire" },
               { color: "bg-[var(--vert-palme)]",    label: "Confirmé" },
               { color: "bg-[var(--ambre)]",         label: "Recrutement" },
-              { color: "bg-[var(--ambre)]",         label: "Préavis" },
               { color: "bg-gray-700",               label: "Fermé" },
               { color: "bg-[#E8633D]/20 border border-[#E8633D]/40", label: "Non couvert" },
             ].map(l => (

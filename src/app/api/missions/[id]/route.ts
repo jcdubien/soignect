@@ -18,6 +18,7 @@ const updateSchema = z.object({
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),
   statusNote: z.string().max(200).optional().nullable(),
   statusUpdatedAt: z.string().datetime().optional(),
+  departureDate: z.string().datetime().optional().nullable(), // date de départ prévue (section 6)
 });
 
 export async function PATCH(
@@ -39,7 +40,7 @@ export async function PATCH(
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { briqueStatus, statusNote, statusUpdatedAt, startDate, endDate, ...rest } = parsed.data;
+  const { briqueStatus, statusNote, statusUpdatedAt, startDate, endDate, departureDate, ...rest } = parsed.data;
 
   const updated = await prisma.mission.update({
     where: { id },
@@ -47,6 +48,7 @@ export async function PATCH(
       ...rest,
       startDate: startDate ? new Date(startDate) : startDate,
       endDate: endDate ? new Date(endDate) : endDate,
+      ...(departureDate !== undefined && { departureDate: departureDate ? new Date(departureDate) : null }),
       ...(briqueStatus !== undefined && {
         briqueStatus,
         statusNote: statusNote ?? null,

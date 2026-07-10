@@ -7887,3 +7887,443 @@ au problème principal (absence totale d'action).
 Sprint léger — ajouter un bouton "Retirer ce choix" sur la 
 fiche de détail des éléments non-réciproques du tray, avec 
 la route de suppression/désactivation du Swipe correspondant.
+
+## 99. Segmentation clients et révision de la grille tarifaire Cabinet
+
+### Segments clients confirmés (mise à jour)
+
+```
+1. Remplaçants/assistants — produit d'appel, gratuit à vie
+2. Cabinets (titulaires) — client payant principal
+3. Structures privées (EHPAD, cliniques, centres de rééducation/SSR)
+   — NOUVEAU segment payant, prix distinct du Cabinet
+4. CPTS / MSP — client institutionnel (voir section 85, Produit A)
+5. ARS / CGSS — client institutionnel futur (voir section 85, Produit B)
+
+Exclusion explicite : hôpitaux publics — hors modèle (salariat, 
+pas de remplacement libéral).
+```
+
+### Structures privées — segment distinct du Cabinet
+
+```
+Contrairement aux cabinets libéraux (souvent 1-2 kinés, budget 
+contraint), les structures privées (EHPAD, cliniques, SSR) sont 
+des employeurs avec un budget structurel plus important et des 
+besoins de recrutement à plus grande échelle (plusieurs sites, 
+plusieurs professions).
+
+Tarification à définir séparément de la grille Cabinet — 
+probablement plus élevée, potentiellement basée sur le nombre 
+de sites/lits plutôt qu'un forfait fixe unique. Non chiffré à 
+ce stade — à trancher avant intégration Stripe.
+```
+
+### Révision du prix Cabinet — comparables marché
+
+```
+Constat initial : le prix Cabinet Premium (39€/mois) a été jugé 
+trop élevé par rapport au budget réel d'un petit cabinet libéral.
+
+Comparables marché identifiés :
+- Doctolib Pro (logiciel de gestion de cabinet complet — agenda, 
+  dossier patient, facturation) : à partir de 139€ TTC/mois. 
+  PAS un comparable direct — outil métier quotidien, pas un 
+  outil de recrutement ponctuel comme Soignect.
+- App'Ines (concurrent direct sur le recrutement/remplacement 
+  kiné) : diffusion d'annonces gratuite et illimitée pour les 
+  cabinets ; l'abonnement payant n'existe qu'en périphérie 
+  (recrutement salariat pour établissements).
+- Rempleo : pas d'abonnement mensuel, tarification à l'acte 
+  (paiement à la mise en relation/signature).
+
+Conclusion : sur le marché du recrutement/remplacement kiné 
+spécifiquement (pas la gestion de cabinet), 39€/mois positionne 
+Soignect au-dessus de son concurrent direct principal (App'Ines), 
+qui est quasi gratuit sur son cœur de fonctionnalité pour les 
+cabinets.
+```
+
+### Statut — à trancher avant intégration Stripe
+
+```
+Piste retenue à ce stade : baisser sensiblement le tarif Cabinet 
+(ordre de grandeur à discuter, ex: 9-25€ plutôt que 39€), la 
+vraie valeur commerciale étant portée par le matching IA, le 
+score d'affinité, et les segments institutionnels/structures 
+privées plutôt que par l'abonnement Cabinet de base.
+
+Chiffrage définitif non figé — voir aussi section 100 (mode 
+lancement gratuit), qui repousse la question de prix final : 
+Stripe doit être fonctionnel et testable, mais les gates 
+Premium/Boost restent désactivées jusqu'à la masse critique 
+définie section 100. Le nouveau prix Cabinet et le tarif 
+Structures privées doivent être tranchés avant la désactivation 
+du mode gratuit, pas avant le lancement lui-même.
+```
+
+---
+
+## 100. Mode lancement gratuit — feature flag admin
+
+### Principe
+
+```
+Le produit est livré en usage gratuit et complet dès le 
+lancement, le temps d'atteindre une masse critique d'utilisateurs 
+— indépendamment des tarifs finaux qui restent à trancher 
+(section 99). Stripe doit être fonctionnel et testable en 
+parallèle (checkout, webhook), mais sans effet bloquant tant 
+que le mode gratuit est actif.
+```
+
+### Modifications base de données (additive)
+
+```prisma
+model PlatformConfig {
+  id              String   @id @default(cuid())
+  freeAccessMode  Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}
+```
+
+### Comportement
+
+```
+- Tant que freeAccessMode = true : tous les comptes ont accès 
+  aux fonctionnalités Premium/Boost, indépendamment du 
+  subscriptionPlan réel en base
+- Stripe reste pleinement fonctionnel (checkout, webhook, mise 
+  à jour de subscriptionPlan) mais sans effet visible tant que 
+  le flag est actif — un cabinet peut déjà souscrire, l'effet 
+  se déclenche seulement à la désactivation du flag
+- Interface admin : toggle sur une page admin dédiée, avec 
+  affichage du nombre de cabinets actifs actuel pour aider à 
+  la décision (définition simple retenue pour la v1 du compteur : 
+  compte CABINET créé)
+- Seuil de masse critique retenu : nombre de cabinets actifs 
+  (ordre de grandeur 20-30), pas une durée fixe
+- Bascule freeAccessMode = false : les gates redeviennent actives 
+  selon subscriptionPlan, sans code à toucher
+```
+
+### Priorité
+
+Sprint proche — nécessaire avant l'activation commerciale, 
+indépendant du chiffrage final des prix (section 99).
+
+---
+
+## 101. Acquisition via lien direct annonce (canal Facebook)
+
+### Principe
+
+```
+Levier d'acquisition : partage sur groupe Facebook d'un lien 
+direct vers une annonce spécifique. La personne clique, arrive 
+sur la page de CETTE annonce précise (pas le feed général), et 
+doit se connecter/créer un compte pour candidater — c'est le 
+canal principal de recrutement des premiers remplaçants/assistants.
+```
+
+### Comportement — aperçu partiel avant connexion
+
+```
+Visible SANS compte (page publique) :
+- Titre du poste
+- Ville/commune
+- Dates
+- Type (remplacement/assistanat/collaboration)
+- 1-2 lignes d'accroche tronquées
+
+Gated (nécessite un compte) :
+- Bio complète du cabinet
+- Contact
+- Action de swipe/candidature
+
+Raisons de l'aperçu partiel plutôt qu'un mur de connexion 
+immédiat : réduction du taux de rebond, cohérence avec les 
+pages SEO publiques déjà existantes (Guadeloupe/Saint-Barth/
+Saint-Martin), et exploitation des balises Open Graph (titre, 
+lieu, dates) pour un aperçu attractif directement dans le post 
+Facebook avant même le clic.
+```
+
+### Redirection post-connexion
+
+```
+Après inscription/connexion depuis ce lien, la personne doit 
+atterrir exactement sur cette même annonce (paramètre de retour, 
+ex: ?return_to=/annonces/[id]) — pas sur le dashboard générique, 
+pour ne pas perdre l'intention initiale du clic.
+```
+
+### Tracking
+
+```
+TraceEvent dédié (ex: FACEBOOK_GROUP_CLICK ou équivalent) 
+déclenché à l'arrivée sur la page publique via ce canal, pour 
+mesurer la conversion du canal Facebook jusqu'à l'inscription 
+et la candidature.
+```
+
+---
+
+## 102. BUG — Synchronisation bidirectionnelle Timeline ↔ Annonce
+
+### Problème
+
+```
+Poser une annonce ciblée sur le poste d'un salarié (via le menu 
+universel, cabinetPostId) ne modifie pas la timeline de ce poste 
+— elle reste affichée en "Confirmé" au lieu de "Recrutement". 
+Aucun raccourci inverse n'existe non plus pour déclarer 
+directement une période à couvrir depuis un clic sur la timeline.
+```
+
+### Règle métier attendue
+
+```
+Poser une annonce sur un poste pour une période donnée et 
+déclarer une période à couvrir depuis la timeline sont deux 
+entrées vers le même état — bidirectionnel :
+
+1. Annonce → Timeline : poser une annonce sur un poste pour une 
+   période donnée fait basculer automatiquement la timeline de 
+   ce poste en "Recrutement" sur exactement cette période.
+
+2. Timeline → Annonce : cliquer sur la timeline d'un poste 
+   (période libre ou "Confirmé") propose "Chercher un 
+   remplacement sur cette période", ouvre le flux de création 
+   d'annonce existant, pré-rempli avec le poste et la période 
+   cliquée. Si l'annonce n'est finalement pas publiée, la 
+   déclaration de période est annulée (pas d'état orphelin).
+
+3. Synchronisation retour : si l'annonce est retirée ou le poste 
+   pourvu (contrat signé), la timeline reflète le nouvel état.
+```
+
+---
+
+## 103. BUG — Type de poste incorrect dans "Ajouter un poste"
+
+### Problème
+
+```
+Le champ "Type" du formulaire "Ajouter un poste" (Planning Board) 
+propose actuellement : Remplacement ponctuel, Assistanat (long 
+terme), Collaboration libérale. Confusion conceptuelle : un poste 
+est une structure permanente du cabinet ; un remplacement ponctuel 
+n'est pas un type de poste, c'est une occupation temporaire qui 
+se greffe sur un poste déjà existant (section 102).
+```
+
+### Comportement attendu
+
+```
+Liste "Type" corrigée : Titulaire, Associé, Assistanat (long 
+terme), Collaboration libérale.
+
+"Remplacement ponctuel" est retiré de cette liste — un 
+remplacement ponctuel ne se crée jamais à l'étape "Ajouter un 
+poste", il se déclenche uniquement via le flux annonce/timeline 
+(section 102).
+```
+
+---
+
+## 104. FIX — Simplification du préavis et réduction des statuts timeline
+
+### Simplification du formulaire "Poser un préavis"
+
+```
+Avant : sélection d'une durée (3 mois / 1 mois / personnalisé) 
+puis d'une date de début de préavis, la date de départ effective 
+étant calculée en interne (début + durée) — logique jugée 
+contre-intuitive et trop de friction.
+
+Après : un seul champ, "Date de départ prévue" (sélecteur de 
+date, vide par défaut, pas de pré-remplissage à aujourd'hui). 
+Le sélecteur de durée est entièrement supprimé — ce que le 
+cabinet connaît concrètement, c'est la date de départ annoncée, 
+pas une durée à calculer.
+```
+
+### Réduction des statuts visibles sur la timeline
+
+```
+Statuts réduits à 4 états, suppression du segment "Préavis" 
+dédié (trop de granularité, inutile pour l'usage réel) :
+
+1. CONFIRMÉ — poste occupé normalement
+2. RECRUTEMENT — poste mis à l'annonce ; dès qu'un match est 
+   confirmé, le nom du remplaçant/successeur s'affiche 
+   directement sur le segment (ex: "Recrutement — Julie D.")
+3. FERMÉ — fermeture volontaire (inchangé)
+4. NON COUVERT — aucune personne trouvée, le poste garde son 
+   statut d'origine mais est affiché comme non pourvu
+
+La "date de départ prévue" devient un déclencheur silencieux : 
+à cette date, bascule automatique Confirmé → Recrutement (si une 
+annonce existe déjà) ou → Non couvert (si aucune annonce publiée). 
+Avant cette date, le poste reste affiché en Confirmé sans aucune 
+indication visuelle de préavis en cours sur la timeline.
+```
+
+---
+
+## 105. FEATURE — Raccourci "Voir mes mises en relation" depuis une disponibilité (côté remplaçant)
+
+### Problème
+
+```
+Côté remplaçant, le menu contextuel ouvert depuis une 
+disponibilité (page /disponibilites) ne propose que "Modifier 
+la période" — aucun accès direct à l'état des mises en relation 
+liées à cette disponibilité précise.
+```
+
+### Comportement attendu
+
+```
+Ajouter au menu contextuel d'une disponibilité : "Voir mes mises 
+en relation" (jamais "match" dans l'UI — vocabulaire déjà acté 
+section 75).
+
+Ce lien amène vers l'interface swipe générale, avec le tray du 
+bas ("Vos mises en relation") filtré sur cette disponibilité 
+précise uniquement (via un paramètre, ex: ?disponibiliteId=xxx). 
+Le carrousel de swipe du dessus reste sur le feed général non 
+filtré — seul le tray est filtré.
+
+État vide clair si aucune mise en relation n'existe encore pour 
+cette disponibilité.
+```
+
+---
+
+## 106. STYLE — Restylage des boutons swipe (Pass / Intérêt)
+
+### Problème
+
+```
+Les boutons de swipe (croix rouge = PASS, cœur vert = INTÉRESSÉ) 
+utilisent des icônes génériques de type stock — trop rapprochées 
+à certains niveaux de zoom/résolution, et visuellement pauvres 
+pour un élément aussi central de l'expérience.
+```
+
+### Direction visuelle retenue (Material Design 3)
+
+```
+- Espacement minimum garanti entre les deux boutons à tous les 
+  breakpoints, y compris mobile
+- Bouton PASS : style "outlined FAB" — fond clair, contour 
+  subtil, icône X fine (lucide-react, strokeWidth 1.5-2)
+- Bouton INTÉRESSÉ : style "filled FAB" — fond plein couleur de 
+  marque (#0B3D5C ou variante cohérente), icône cœur blanche
+- Taille ~56-64px, ombre légère (elevation Material 3), 
+  micro-interaction scale au tap
+```
+
+---
+
+## 107. Vision produit — Interface remplaçant/assistant comme "portfolio professionnel dans la poche"
+
+### Principe directeur
+
+```
+L'interface remplaçant/assistant est le vrai produit central 
+de Soignect (pas le Planning Board cabinet, qui est un outil 
+de gestion). Elle doit fonctionner comme une vue d'ensemble 
+immédiate de tout l'avenir professionnel de l'utilisateur, 
+consultable en un coup d'œil :
+
+- Statut clair de chaque contrat : juste renseigné / en 
+  discussion / signé
+- Ne jamais perdre le fil de où on en est
+- Planning rempli visible, optimisé pour faciliter concrètement 
+  la vie de remplaçant
+- Une fiche fiable, condensée, "dans la poche"
+```
+
+### Principe UX transverse
+
+```
+Le moins de choix possible, rien qui demande réflexion — 
+l'action doit tomber sous la main immédiatement. Repère 
+négatif explicite à éviter : interface de réservation type 
+Doctolib, jugée austère et peu intuitive.
+
+Design system dual déjà acté (section 94) : sobre/professionnel 
+pour titulaires, plus visuel/engageant pour remplaçants/
+assistants — ce principe reste valide, mais la vision ci-dessus 
+va au-delà d'un habillage visuel : c'est une refonte de logique 
+autour d'une vue centrale unique type tableau de bord de vie 
+professionnelle.
+```
+
+### Statut
+
+À concevoir plus tard — vision stratégique à garder en tête 
+pour la prochaine refonte de l'interface remplaçant, pas un 
+sprint immédiat.
+
+---
+
+## 108. Complément section 86 — Dashboard Observatoire comme asset commercial
+
+### Précision
+
+```
+Le dashboard /admin/observatoire (identifié manquant, section 86) 
+n'est pas qu'un outil de pilotage interne : c'est l'asset 
+commercial du segment institutionnel (CPTS/ARS/CGSS, section 85, 
+Produit B). Doit inclure des visualisations graphiques (courbes 
+de délai de couverture, représentation de la tension par 
+territoire, funnel de conversion) directement exploitables dans 
+un pitch face à un interlocuteur ARS/CGSS/CPTS — pas seulement 
+des tableaux de données brutes.
+```
+
+### Dépendance
+
+```
+Ce dashboard doit être construit après le TensionScore 
+territorial (sections 82-84, non commencé) pour avoir des 
+données pertinentes à afficher — pas avant.
+```
+
+---
+
+## 109. Éditeur admin ciblé — CRUD Profile/Mission/Swipe/Match/Contract
+
+### Principe
+
+```
+Un éditeur intégré à l'admin Soignect (pas seulement le Table 
+Editor Supabase) pour intervenir manuellement sur les données, 
+sans sortir de l'application.
+
+Périmètre retenu : scénario ciblé, uniquement les tables où 
+Jean-Charles intervient vraiment souvent — Profile, Mission, 
+Swipe, Match, Contract. Pas un éditeur générique sur toutes 
+les tables.
+```
+
+### Exigences
+
+```
+- Page admin dédiée, accès réservé au rôle super-admin
+- Suppression : confirmation renforcée (double confirmation ou 
+  saisie du nom de l'élément à supprimer)
+- Toute modification manuelle génère un TraceEvent dédié (ex: 
+  ADMIN_MANUAL_EDIT) avec la table, l'id, et le type d'action, 
+  pour garder une traçabilité des interventions manuelles
+- En attendant : le Table Editor Supabase reste le filet de 
+  sécurité pour les corrections urgentes
+```
+
+### Priorité
+
+v1.1 — après le lancement, non bloquant.

@@ -17,6 +17,8 @@ const createSchema = z.object({
 
 // Type de poste → type de mission d'occupation
 const POST_TO_MISSION: Record<PostType, MissionType> = {
+  [PostType.TITULAIRE]:             MissionType.REMPLACEMENT,
+  [PostType.ASSOCIE]:               MissionType.COLLABORATION,
   [PostType.ASSISTANT]:             MissionType.ASSISTANAT,
   [PostType.COLLABORATION]:         MissionType.COLLABORATION,
   [PostType.REMPLACEMENT_REGULIER]: MissionType.REMPLACEMENT,

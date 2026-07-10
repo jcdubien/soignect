@@ -12,9 +12,10 @@ interface Props {
   isPremium?: boolean;
   titulaireMissions: TitulaireMission[];
   initialMissionId?: string;
+  disponibiliteId?: string;
 }
 
-export default function AnnoncesClient({ profileType, profileId, isPremium, titulaireMissions, initialMissionId }: Props) {
+export default function AnnoncesClient({ profileType, profileId, isPremium, titulaireMissions, initialMissionId, disponibiliteId }: Props) {
   const [trayKey,      setTrayKey]      = useState(0);
   const [sheetMission, setSheetMission] = useState<RecentMission | null>(null);
 
@@ -35,7 +36,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, titu
         />
       </div>
 
-      <MatchTray refreshKey={trayKey} titulaireMissions={titulaireMissions} myProfileType={profileType} myProfileId={profileId} isPremium={isPremium} />
+      <MatchTray refreshKey={trayKey} titulaireMissions={titulaireMissions} myProfileType={profileType} myProfileId={profileId} isPremium={isPremium} disponibiliteId={disponibiliteId} />
 
       {sheetMission && (
         <div

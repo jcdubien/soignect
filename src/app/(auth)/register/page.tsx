@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
 import Image from "next/image";
@@ -54,7 +54,18 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 }
 
 export default function RegisterPage() {
+  // Suspense requis car RegisterForm lit useSearchParams (section 3)
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const router = useRouter();
+  const rawReturnTo = useSearchParams().get("return_to");
+  const returnTo = rawReturnTo && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//") ? rawReturnTo : null;
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -150,8 +161,9 @@ export default function RegisterPage() {
       }
     }
 
-    // Échec d'upload → on redirige vers /compte avec un avis (compte bien créé)
-    router.push(photoUploaded ? "/annonces" : "/compte?photoError=1");
+    // Échec d'upload → on redirige vers /compte avec un avis (compte bien créé).
+    // Sinon, retour à l'annonce d'origine si présente (section 3), sinon /annonces.
+    router.push(photoUploaded ? (returnTo ?? "/annonces") : "/compte?photoError=1");
   }
 
   return (

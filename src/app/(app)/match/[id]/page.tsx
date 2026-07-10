@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { SubscriptionPlan } from "@prisma/client";
+import { hasPremiumAccess } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 
@@ -64,9 +65,9 @@ export default async function MatchPage({ params }: Props) {
     : null;
   const affinityScore = mySwipe?.affinityScore ?? null; // 0-100, déjà la bonne échelle
 
-  const isPremium =
-    (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan === "PREMIUM" ||
-    (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan === "BOOST";
+  const isPremium = await hasPremiumAccess(
+    (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan
+  );
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8 flex flex-col gap-6">

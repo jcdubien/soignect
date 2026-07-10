@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/missions", label: "Annonces" },
   { href: "/admin/ratings", label: "Recommandations" },
   { href: "/admin/apl", label: "Données APL" },
+  { href: "/admin/config", label: "Configuration" },
 ];
 
 export default function AdminSidebar() {

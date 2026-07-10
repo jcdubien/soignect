@@ -1,24 +1,26 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hasPremiumAccess } from "@/lib/platform";
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
 import AnnoncesClient from "./AnnoncesClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function AnnoncesPage({ searchParams }: { searchParams: Promise<{ missionId?: string }> }) {
+export default async function AnnoncesPage({ searchParams }: { searchParams: Promise<{ missionId?: string; disponibiliteId?: string }> }) {
   const session = await auth();
   const profileId   = (session?.user as { profileId?: string })?.profileId ?? null;
   const profileType = (session?.user as { profileType?: string })?.profileType ?? "REMPLACANT";
-  const { missionId: initialMissionId } = await searchParams;
+  const { missionId: initialMissionId, disponibiliteId } = await searchParams;
 
-  // Statut Premium (item 8) — gating du bouton "Envoyer un contrat" dans le tray
+  // Statut Premium (item 8) — gating du bouton "Envoyer un contrat" dans le tray.
+  // Prend en compte le mode lancement gratuit (section 2).
   let isPremium = false;
   if (profileId) {
     const me = await prisma.profile.findUnique({
       where: { id: profileId },
       select: { subscriptionPlan: true },
     });
-    isPremium = me?.subscriptionPlan === "PREMIUM" || me?.subscriptionPlan === "BOOST";
+    isPremium = await hasPremiumAccess(me?.subscriptionPlan);
   }
 
   let titulaireMissions: TitulaireMission[] = [];
@@ -55,6 +57,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
       isPremium={isPremium}
       titulaireMissions={titulaireMissions}
       initialMissionId={initialMissionId}
+      disponibiliteId={disponibiliteId}
     />
   );
 }

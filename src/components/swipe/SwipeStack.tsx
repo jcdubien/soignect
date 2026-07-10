@@ -10,6 +10,7 @@ import {
 } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { X, Heart } from "lucide-react";
 import { Mission, MissionType, Profile } from "@prisma/client";
 import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
@@ -759,24 +760,26 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           </motion.div>
         </div>
 
-        {/* ── Boutons ✕ ♥ ── */}
+        {/* ── Boutons Pass / Intérêt — FAB Material 3 (section 8) ── */}
         {displayMissions.length > 0 && (
-          <div className="flex items-center justify-center gap-8 py-3 shrink-0">
+          <div className="flex items-center justify-center gap-10 sm:gap-14 py-3 shrink-0">
+            {/* PASS — outlined FAB : fond clair, contour subtil, icône grise → rouge doux */}
             <button
               onClick={() => doSwipe("LEFT")}
               disabled={swiping}
               aria-label="Passer"
-              className="w-16 h-16 rounded-full bg-white border-2 border-red-200 text-red-400 text-3xl shadow-lg hover:bg-red-50 hover:border-red-400 active:scale-95 transition disabled:opacity-40 flex items-center justify-center"
+              className="shrink-0 w-16 h-16 rounded-full bg-white border border-gray-200 text-gray-500 shadow-md hover:bg-red-50 hover:text-red-500 hover:border-red-200 active:scale-90 transition disabled:opacity-40 flex items-center justify-center"
             >
-              ✕
+              <X size={30} strokeWidth={2} />
             </button>
+            {/* INTÉRESSÉ — filled FAB : fond plein marque (#0B3D5C), icône blanche */}
             <button
               onClick={() => doSwipe("RIGHT")}
               disabled={swiping}
               aria-label="Intéressé"
-              className="w-16 h-16 rounded-full bg-white border-2 border-emerald-200 text-emerald-500 text-3xl shadow-lg hover:bg-emerald-50 hover:border-emerald-400 active:scale-95 transition disabled:opacity-40 flex items-center justify-center"
+              className="shrink-0 w-16 h-16 rounded-full bg-[#0B3D5C] text-white shadow-lg hover:bg-[#0e4d73] active:scale-90 transition disabled:opacity-40 flex items-center justify-center"
             >
-              ♥
+              <Heart size={28} strokeWidth={2} fill="currentColor" />
             </button>
           </div>
         )}

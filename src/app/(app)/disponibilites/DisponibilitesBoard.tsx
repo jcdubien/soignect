@@ -260,6 +260,13 @@ function SlotEditModal({ slot, onClose, onSaved }: {
             <input type="date" value={end} min={start || undefined} onChange={e => setEnd(e.target.value)}
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
           </div>
+          {/* Section 7 — voir les mises en relation rattachées à cette disponibilité */}
+          <Link
+            href={`/annonces?disponibiliteId=${encodeURIComponent(slot.id)}`}
+            className="w-full py-2.5 border border-kine-200 text-kine-700 rounded-xl text-sm font-semibold text-center hover:bg-kine-50 transition"
+          >
+            Voir mes mises en relation →
+          </Link>
           <div className="flex gap-2 pt-1">
             <button onClick={remove} disabled={busy}
               className="px-3 py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition disabled:opacity-40">

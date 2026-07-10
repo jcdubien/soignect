@@ -63,9 +63,11 @@ enum Region {
 }
 
 enum PostType {
+  TITULAIRE
+  ASSOCIE
   ASSISTANT
   COLLABORATION
-  REMPLACEMENT_REGULIER
+  REMPLACEMENT_REGULIER  // legacy — retiré du formulaire (section 5), conservé pour données existantes
 }
 
 enum BriqueStatus {
@@ -225,6 +227,12 @@ model Mission {
   briqueStatus    BriqueStatus @default(RECHERCHE)
   statusUpdatedAt DateTime?
   statusNote      String?      @db.VarChar(200)
+
+  // Nom du remplaçant/successeur matché — affiché sur le segment RECRUTEMENT/CONFIRME (section 1c / 6)
+  matchedName     String?      @db.VarChar(120)
+
+  // Date de départ prévue — déclencheur silencieux Confirmé → Recrutement/Non couvert (section 6)
+  departureDate   DateTime?
 
   // Planning Board section 43 — déclaration de vacance titulaire
   isSelfPresence Boolean @default(false)
@@ -409,4 +417,12 @@ model TraceEvent {
 
   @@index([eventType, commune, occurredAt])
   @@index([commune, profession, occurredAt])
+}
+
+// Configuration plateforme (singleton) — mode lancement gratuit (section 2).
+// Tant que freeAccessMode = true, tous les comptes ont accès au Premium.
+model PlatformConfig {
+  id             String   @id @default(cuid())
+  freeAccessMode Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
 }

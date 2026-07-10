@@ -5,14 +5,17 @@ import { SwipeDirection } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/tray — swipes RIGHT triés par affinityScore desc (meilleur match en premier)
-export async function GET() {
+// GET /api/tray — swipes RIGHT triés par affinityScore desc (meilleur match en premier).
+// Filtre optionnel ?disponibiliteId= (section 7) : ne garde que les mises en relation
+// rattachées à CETTE disponibilité du remplaçant.
+export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.profileId) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
   const swiperId = session.user.profileId as string;
+  const disponibiliteId = new URL(req.url).searchParams.get("disponibiliteId");
 
   const swipes = await prisma.swipe.findMany({
     where: { swiperId, direction: SwipeDirection.RIGHT },
@@ -38,13 +41,18 @@ export async function GET() {
       ],
     },
     select: {
-      id: true, missionAId: true, missionBId: true, aiScore: true, createdAt: true, status: true,
+      id: true, profileAId: true, profileBId: true,
+      missionAId: true, missionBId: true, aiScore: true, createdAt: true, status: true,
       missionA: { select: { briqueStatus: true } },
       missionB: { select: { briqueStatus: true } },
     },
   });
 
-  const result = swipes.map((s) => {
+  // Mission propre du remplaçant dans un match donné (= sa disponibilité)
+  const ownMissionId = (m: { profileAId: string; missionAId: string | null; missionBId: string | null }) =>
+    m.profileAId === swiperId ? m.missionAId : m.missionBId;
+
+  const resultAll = swipes.map((s) => {
     const mId  = s.swipedMissionId;
     const match = matches.find((m) => m.missionAId === mId || m.missionBId === mId);
     // "Contrat confirmé" dérivé du briqueStatus des missions associées (pas de champ dédié)
@@ -62,6 +70,15 @@ export async function GET() {
       contratConfirmed: contratConfirmed ?? false,
     };
   });
+
+  // Filtre disponibilité (section 7) : uniquement les mises en relation de cette dispo
+  const result = disponibiliteId
+    ? resultAll.filter((item) => {
+        if (!item.matchId) return false;
+        const m = matches.find((mm) => mm.id === item.matchId);
+        return m ? ownMissionId(m) === disponibiliteId : false;
+      })
+    : resultAll;
 
   return NextResponse.json(result);
 }

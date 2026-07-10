@@ -1,13 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
+// N'autorise qu'un chemin interne relatif comme cible de retour (section 3)
+function safeReturnTo(v: string | null): string | null {
+  return v && v.startsWith("/") && !v.startsWith("//") ? v : null;
+}
+
 export default function LoginPage() {
+  // Suspense requis car LoginForm lit useSearchParams (section 3)
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const returnTo = safeReturnTo(useSearchParams().get("return_to"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -24,9 +39,12 @@ export default function LoginPage() {
     } else {
       const session = await fetch("/api/auth/session").then(r => r.json()).catch(() => null);
       const su = session?.user;
-      // Profil incomplet → onboarding (parcours d'inscription)
+      // Profil incomplet → onboarding (en conservant la cible de retour)
       if (!su?.profileId) {
-        router.push("/register");
+        router.push(returnTo ? `/register?return_to=${encodeURIComponent(returnTo)}` : "/register");
+      } else if (returnTo) {
+        // Retour vers l'annonce d'origine (section 3)
+        router.push(returnTo);
       } else if (su.profileType === "TITULAIRE") {
         router.push("/planning");
       } else {
