@@ -46,6 +46,8 @@ export default function CreateDisponibilitePage() {
 
   // Accroche 280 signes OBLIGATOIRE — min 40 caractères (section 71 / 88)
   const bioValid = form.bioTinder.trim().length >= 40;
+  const [bioFocused, setBioFocused] = useState(false);
+  const bioRemaining = Math.max(0, 40 - form.bioTinder.trim().length);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -131,19 +133,28 @@ export default function CreateDisponibilitePage() {
               if (e.target.value.length <= 280)
                 setForm({ ...form, bioTinder: e.target.value });
             }}
+            onFocus={() => setBioFocused(true)}
+            onBlur={() => setBioFocused(false)}
             rows={2}
-            className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm bg-white"
+            className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm bg-white text-gray-800 not-italic placeholder:text-gray-400 placeholder:italic"
             placeholder={
               isAssistant
                 ? "J'aspire à intégrer un cabinet dynamique en Guadeloupe…"
                 : "Je suis un kiné passionné, disponible pour remplacements courts en Guadeloupe…"
             }
           />
-          <div className="flex justify-between items-center mt-0.5">
+          <div className="flex justify-end items-center mt-0.5 min-h-[16px]">
             {!bioValid ? (
-              <span className="text-xs text-amber-600">Encore {Math.max(0, 40 - form.bioTinder.trim().length)} caractère(s)</span>
-            ) : <span />}
-            <span className="text-xs text-gray-300">{form.bioTinder.length}/280</span>
+              // Message MINIMUM (40 requis) — masqué tant que le champ est vide et non focus
+              (bioFocused || form.bioTinder.length > 0) && (
+                <span className="text-xs text-amber-600 mr-auto">
+                  40 caractères minimum requis ({bioRemaining} restant{bioRemaining > 1 ? "s" : ""})
+                </span>
+              )
+            ) : (
+              // Une fois le minimum atteint : compteur de maximum classique
+              <span className="text-xs text-gray-300">{form.bioTinder.length}/280</span>
+            )}
           </div>
         </div>
 

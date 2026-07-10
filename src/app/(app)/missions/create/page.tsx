@@ -167,6 +167,8 @@ export default function CreateMissionPage() {
   // Accroche 280 signes OBLIGATOIRE — min 40 caractères (section 71 / 88)
   const pitchCombined = `${form.pitchStarter ? form.pitchStarter + " " : ""}${form.pitchText.trim()}`.trim();
   const pitchValid = pitchCombined.length >= 40;
+  const [pitchFocused, setPitchFocused] = useState(false);
+  const pitchRemaining = Math.max(0, 40 - pitchCombined.length);
 
   const showDates =
     profileType === "REMPLACANT" ||
@@ -332,16 +334,24 @@ export default function CreateMissionPage() {
                     if (e.target.value.length <= maxPitchText)
                       setForm({ ...form, pitchText: e.target.value });
                   }}
+                  onFocus={() => setPitchFocused(true)}
+                  onBlur={() => setPitchFocused(false)}
                   rows={3}
-                  className="w-full pt-7 pb-2 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm bg-white"
+                  className="w-full pt-7 pb-2 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm bg-white text-gray-800 not-italic placeholder:text-gray-400 placeholder:italic"
                   placeholder="…complétez en quelques mots"
                 />
               </div>
-              <div className="flex justify-between items-center mt-0.5">
+              <div className="flex justify-end items-center mt-0.5 min-h-[16px]">
                 {!pitchValid ? (
-                  <span className="text-xs text-amber-600">Encore {Math.max(0, 40 - pitchCombined.length)} caractère(s)</span>
-                ) : <span />}
-                <span className="text-xs text-gray-300">{form.pitchStarter.length + 1 + form.pitchText.length}/280</span>
+                  // Message MINIMUM (40 requis) — masqué tant qu'aucune interaction
+                  (pitchFocused || form.pitchText.length > 0) && (
+                    <span className="text-xs text-amber-600 mr-auto">
+                      40 caractères minimum requis ({pitchRemaining} restant{pitchRemaining > 1 ? "s" : ""})
+                    </span>
+                  )
+                ) : (
+                  <span className="text-xs text-gray-300">{form.pitchStarter.length + 1 + form.pitchText.length}/280</span>
+                )}
               </div>
             </div>
           )}
