@@ -38,20 +38,17 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-kine-900 via-kine-700 to-kine-500">
-      {/* Hero — logo visuel réel (section 68) sur tuile blanche pour le contraste
-          (le symbole bleu/teal ressortirait mal directement sur le dégradé bleu). */}
-      <div className="flex flex-col items-center justify-center pt-14 pb-8 px-4 text-center">
-        <div className="bg-white p-2 rounded-[20px] shadow-lg mb-3">
-          <Image
-            src="/icon-512.png"
-            alt="Soignect"
-            width={72}
-            height={72}
-            priority
-            className="rounded-2xl block"
-          />
-        </div>
-        <span className="text-4xl font-black text-white tracking-tight mb-2">Soignect</span>
+      {/* Hero — logo de marque réel (section 68). Le logo complet (carte claire)
+          ressort bien sur le dégradé bleu foncé. */}
+      <div className="flex flex-col items-center justify-center pt-12 pb-8 px-4 text-center">
+        <Image
+          src="/logo-soignect-web.png"
+          alt="Soignect"
+          width={200}
+          height={200}
+          priority
+          className="rounded-3xl shadow-2xl mb-4"
+        />
         <p className="text-kine-100 text-sm font-medium tracking-wide">
           Trouvez. Remplacez. Collaborez.
         </p>

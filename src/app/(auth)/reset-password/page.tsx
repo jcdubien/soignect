@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -122,10 +123,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-kine-900 via-kine-700 to-kine-500">
       <div className="flex flex-col items-center justify-center pt-14 pb-8 px-4 text-center">
-        <div className="flex items-baseline gap-1 mb-2">
-          <span className="text-4xl font-black text-white tracking-tight">Soig</span>
-          <span className="text-4xl font-black text-kine-100 tracking-tight">nect</span>
-        </div>
+        <Image src="/logo-soignect-web.png" alt="Soignect" width={140} height={140} priority className="rounded-2xl shadow-xl mb-2" />
         <p className="text-kine-100 text-sm font-medium tracking-wide">
           Nouveau mot de passe
         </p>

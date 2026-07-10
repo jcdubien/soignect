@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { prisma } from "@/lib/prisma";
 
@@ -62,8 +63,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* ── Header top ── */}
       <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-40 shadow-sm">
         <Link href={homeHref} className="flex items-center gap-1.5 flex-shrink-0">
-          <span className="text-xl font-black text-kine-600 tracking-tight">Soig</span>
-          <span className="text-xl font-black text-gray-800 tracking-tight">nect</span>
+          <Image src="/logo-soignect-symbol.png" alt="" width={26} height={26} className="shrink-0" priority />
+          <span className="text-xl font-black text-gray-800 tracking-tight">Soignect</span>
         </Link>
 
         {/* Badge de statut (section 62) — rôle libéral, teinte bleu marine */}

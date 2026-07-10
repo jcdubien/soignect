@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
+import Image from "next/image";
 import { COMMUNES_GUADELOUPE } from "@/lib/communes";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
@@ -157,9 +158,8 @@ export default function RegisterPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-kine-900 via-kine-700 to-kine-500">
       {/* Logo */}
       <div className="flex flex-col items-center justify-center pt-10 pb-6 px-4 text-center">
-        <Link href="/login" className="flex items-baseline gap-1 mb-1">
-          <span className="text-3xl font-black text-white tracking-tight">Soig</span>
-          <span className="text-3xl font-black text-kine-100 tracking-tight">nect</span>
+        <Link href="/login" className="mb-2">
+          <Image src="/logo-soignect-web.png" alt="Soignect" width={132} height={132} priority className="rounded-2xl shadow-xl" />
         </Link>
         <p className="text-kine-100 text-xs font-medium tracking-wide">
           {step === 1 ? "Bienvenue !" : step === 2 ? "Votre identité" : "Votre présentation"}
