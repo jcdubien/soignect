@@ -32,6 +32,23 @@ function getEffectiveDesirability(profile: {
   return Math.min(profile.desirabilityScore + cptsBoost, 10);
 }
 
+// DELETE /api/swipe?missionId=… — annule un swipe (section 98) : la mission
+// redevient visible dans le feed (le feed exclut les missions déjà swipées).
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.profileId) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
+  const { searchParams } = new URL(req.url);
+  const missionId = searchParams.get("missionId");
+  if (!missionId) {
+    return NextResponse.json({ error: "missionId requis" }, { status: 400 });
+  }
+  const swiperId = session.user.profileId as string;
+  await prisma.swipe.deleteMany({ where: { swiperId, swipedMissionId: missionId } });
+  return NextResponse.json({ ok: true });
+}
+
 // POST /api/swipe — swipe avec calcul affinityScore (0-100) stocké sur la ligne Swipe
 export async function POST(req: NextRequest) {
   const session = await auth();

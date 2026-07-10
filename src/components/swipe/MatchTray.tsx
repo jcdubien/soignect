@@ -39,11 +39,12 @@ interface MatchTrayProps {
 
 // ── Fiche complète de l'annonce ───────────────────────────────────────────────
 function MissionSheet({
-  item, onClose, onCancelled, titulaireMissions = [], onReassigned, myProfileType, myProfileId, isPremium,
+  item, onClose, onCancelled, onRemoved, titulaireMissions = [], onReassigned, myProfileType, myProfileId, isPremium,
 }: {
   item: TrayItem;
   onClose: () => void;
   onCancelled: (matchId: string) => void;
+  onRemoved: (missionId: string) => void;
   titulaireMissions?: TitulaireMission[];
   onReassigned?: () => void;
   myProfileType?: string;
@@ -56,9 +57,30 @@ function MissionSheet({
 
   const [confirming, setConfirming] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [removing, setRemoving]     = useState(false);
   const [error, setError]           = useState<string | null>(null);
   const [reassigning, setReassigning] = useState(false);
   const [chatOpen, setChatOpen]     = useState(false);
+
+  // Section 98 — "Vos choix" (swipe RIGHT non réciproque) : pouvoir se désengager.
+  // Supprime le Swipe → la mission redevient visible dans le feed swipe.
+  async function handleRemoveChoice() {
+    if (removing) return;
+    setRemoving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/swipe?missionId=${encodeURIComponent(mission.id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        setError("Le retrait a échoué. Réessayez.");
+        setRemoving(false);
+        return;
+      }
+      onRemoved(mission.id);
+    } catch {
+      setError("Erreur réseau. Réessayez.");
+      setRemoving(false);
+    }
+  }
 
   // "Envoyer un contrat" visible uniquement côté recruteur (titulaire/assistant)
   const canSendContract = myProfileType === "TITULAIRE" || myProfileType === "ASSISTANT";
@@ -291,6 +313,26 @@ function MissionSheet({
             </Button>
           </div>
         )}
+
+        {/* Footer "Vos choix" (swipe non réciproque, section 98) — se désengager */}
+        {!item.matchId && (
+          <div className="shrink-0 sticky bottom-0 border-t border-gray-100 p-3 flex flex-col gap-1.5 bg-white">
+            {error && (
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            )}
+            <Button
+              variant="text"
+              onClick={handleRemoveChoice}
+              disabled={removing}
+              className="w-full !py-2.5 !text-sm !text-red-600 hover:!bg-red-50"
+            >
+              {removing ? "Retrait…" : "Retirer ce choix"}
+            </Button>
+            <p className="text-[11px] text-gray-400 text-center leading-snug px-2">
+              L&apos;annonce redeviendra visible dans votre feed.
+            </p>
+          </div>
+        )}
     </BottomSheet>
 
       {/* Chat inline (section 61) */}
@@ -509,6 +551,11 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
           isPremium={isPremium}
           onReassigned={() => { fetchTray(); setSelected(null); }}
           onClose={() => setSelected(null)}
+          onRemoved={(missionId) => {
+            // Section 98 — retrait local immédiat de "Vos choix", sans reload
+            setItems(prev => prev.filter(i => i.mission.id !== missionId));
+            setSelected(null);
+          }}
           onCancelled={(matchId) => {
             // Retrait local immédiat, sans reload
             setItems(prev => prev.filter(i => i.matchId !== matchId));

@@ -7768,3 +7768,122 @@ refonte à traiter en session dédiée après stabilisation des
 bugs actuels et retour des premiers bêta testeurs. Rien à 
 coder maintenant — c'est une intention stratégique à intégrer 
 lors de la conception de cette refonte.
+
+---
+
+## 97. Correction section 77 — nuance sur le référencement type "annuaire" vs création de compte
+
+### Ce que la vérification a confirmé
+
+Doctolib distingue effectivement, dans sa propre politique 
+de confidentialité publique, deux catégories :
+- Les "Abonnés/Utilisateurs" avec compte Doctolib Pro actif
+- Les "Acteurs de santé référencés sur l'annuaire" — SANS 
+  compte, juste une fiche basée sur des données publiques
+
+Cette pratique existe réellement et n'est pas illégale en soi.
+
+### Mais trois réserves sérieuses avant d'envisager de répliquer
+
+```
+1. Fiche vitrine passive ≠ compte actif avec mot de passe
+   Ce qui était proposé initialement (section 77 : créer 
+   un compte avec mot de passe généré) reste À PROSCRIRE — 
+   c'est différent d'une fiche de référencement passive.
+
+2. Doctolib fait l'objet de contentieux juridiques répétés 
+   sur ces pratiques (Conseil d'État, CNIL, contestations 
+   sur l'usage de MR-004) — même une entreprise avec des 
+   moyens juridiques importants n'est pas à l'abri de 
+   remise en cause. Une petite structure comme Soignect 
+   est plus vulnérable à ce type de risque.
+
+3. L'intérêt légitime invoqué diffère : Doctolib référence 
+   des médecins pour l'accès aux soins des PATIENTS (intérêt 
+   public fort). Soignect référencerait des professionnels 
+   pour faciliter leur RECRUTEMENT par des cabinets (intérêt 
+   plus commercial, argumentaire RGPD probablement plus faible).
+```
+
+### Ce qui pourrait être envisageable, avec prudence — fiche 
+minimale non connectée
+
+```
+Un référencement TRÈS minimal, à base de données publiques 
+RPPS (nom, profession, commune d'exercice — déjà des données 
+publiques via l'Annuaire Santé, section 30), sans email, 
+sans mot de passe, sans compte actif :
+
+"X professionnels de santé sont potentiellement disponibles 
+dans votre zone" — une fiche AGRÉGÉE et anonymisée, pas 
+nominative, plutôt qu'un profil individuel identifiable.
+
+Ceci reste à valider avec un avis juridique avant toute 
+implémentation — ce n'est pas un feu vert, juste une piste 
+moins risquée que le référencement nominatif.
+```
+
+### Recommandation maintenue
+
+Avant d'aller sur ce terrain, même sous cette forme atténuée, 
+consulter un professionnel du droit RGPD/santé — le sujet 
+est sensible et évolue vite (jurisprudence 2026 en cours 
+sur des sujets connexes). Ce n'est pas un blocage total 
+de l'idée, mais elle mérite un vrai avis professionnel avant 
+tout développement, contrairement aux autres corrections 
+de ce document qui peuvent être codées directement.
+
+### Priorité
+
+Ne pas coder cette section maintenant. Sujet à traiter 
+uniquement après consultation juridique, si Jean-Charles 
+souhaite creuser cette voie sérieusement.
+
+---
+
+## 98. BUG — fiche "Vos choix" sans action possible (cul-de-sac)
+
+### Problème
+
+Depuis la restructuration du tray (section 75, point C), les 
+éléments de "Vos choix" (swipes unilatéraux, pas encore 
+réciproques) ouvrent une fiche de détail (score d'affinité, 
+bio, dates) mais SANS AUCUNE ACTION disponible — juste un 
+bouton de fermeture (X). L'utilisateur voit l'information 
+mais ne peut rien en faire.
+
+### Comportement attendu
+
+Sur la fiche de détail d'un élément "Vos choix" (pas encore 
+réciproque), ajouter au minimum :
+
+```
+[Retirer ce choix]
+  → Annule le swipe RIGHT initial (DELETE ou update du Swipe)
+  → Le profil/l'annonce redevient visible dans le feed 
+    swipe normal (pas définitivement exclu)
+  → Retire l'élément de la liste "Vos choix"
+```
+
+C'est l'action minimale nécessaire pour que cet écran ne soit 
+plus un cul-de-sac — l'utilisateur doit pouvoir se désengager 
+d'un choix qu'il a fait, pas seulement le consulter passivement.
+
+### Action secondaire à envisager
+
+```
+[Relancer/Prioriser ce choix] — optionnel, à évaluer
+Si l'autre partie n'a pas encore répondu depuis un moment, 
+une action symbolique de "remise en avant" pourrait exister 
+— mais son utilité réelle est à valider (le swipe RIGHT est 
+déjà en base, il n'y a pas grand chose à "relancer" tant que 
+l'autre partie n'a pas swipé à son tour). À ne pas sur-
+concevoir : le bouton "Retirer ce choix" seul répond déjà 
+au problème principal (absence totale d'action).
+```
+
+### Ordre d'implémentation
+
+Sprint léger — ajouter un bouton "Retirer ce choix" sur la 
+fiche de détail des éléments non-réciproques du tray, avec 
+la route de suppression/désactivation du Swipe correspondant.
