@@ -8033,7 +8033,7 @@ de conversion Boost observé et ajuster le palier si nécessaire.
 
 ---
 
-## 100. Mode lancement gratuit — feature flag admin ✅ IMPLÉMENTÉ (commit 5b36edc)
+## 100. Mode lancement gratuit — feature flag admin ✅ IMPLÉMENTÉ (commit 5b36edc) — Bascule individuelle ✅ IMPLÉMENTÉE (commit 9bd690b)
 
 ### Principe (mis à jour — risque de désabonnement identifié)
 
@@ -8086,6 +8086,37 @@ Modification schéma à prévoir (additive) :
   les logs de connexion/activité existants (TraceEvent ou 
   équivalent) — pas de nouvelle table de tracking séparée si 
   l'info est déjà collectable depuis l'existant
+```
+
+### Statut post-implémentation (commit 9bd690b)
+
+```
+✅ Migration additive appliquée (Profile.billingTriggeredAt, 
+   TraceEvent.profileId)
+✅ Critère 1 (contrat signé) : synchrone à la signature, 0 cabinet 
+   basculé rétroactivement (aucun match CONFIRME en base au 
+   moment du sprint — rien à arbitrer)
+✅ Critère 2 (usage soutenu) : PLANNING_ACTIVE loggé, fonction 
+   scanSustainedUsage(), constantes BILLING_USAGE_WINDOW_WEEKS=6 
+   / MIN_WEEKS=3. Déclenchement MANUEL uniquement via 
+   POST /api/admin/billing/scan (dry-run par défaut, ?apply=1 
+   pour appliquer) — pas de cron automatique, conformément au 
+   garde-fou "ne bascule personne de force"
+✅ hasPremiumAccess() mis à jour, grâce de 14 jours
+✅ Notification email (Resend) + bandeau interface cabinet
+✅ Prix affichés à jour : Premium 9€, Boost 29€
+
+✅ ACTIONS MANUELLES CONFIRMÉES FAITES (11/07) :
+- Price IDs Stripe créés (9€ et 29€) et reportés dans Vercel — 
+  confirmé par Jean-Charles. Reste à tester un checkout réel pour 
+  valider le montant facturé effectif.
+- Structures privées : PAS de metered billing câblé (décision 
+  assumée — segment pas encore actif commercialement). Statut 
+  actuel : "Nous contacter" + facturation manuelle. À revoir 
+  quand un premier prospect structure privée est concret.
+- Critère 2 : aucun cabinet ne sera détecté avant ~3 semaines de 
+  données PLANNING_ACTIVE réelles ET un lancement manuel du scan 
+  avec ?apply=1
 ```
 
 ### Modifications base de données (additive)
@@ -8177,6 +8208,100 @@ déclenché à l'arrivée sur la page publique via ce canal, pour
 mesurer la conversion du canal Facebook jusqu'à l'inscription 
 et la candidature.
 ```
+
+### Bouton de partage — émission du lien (côté cabinet)
+
+```
+MANQUANT à ce stade : rien ne permettait au cabinet de récupérer 
+facilement le lien de son annonce pour le poster sur Facebook — 
+seul un copier-coller manuel de l'URL était possible.
+
+CONTRAINTE TECHNIQUE IMPORTANTE (vérifiée) : Meta a définitivement 
+supprimé l'API Facebook Groups (dépréciation officielle depuis 
+avril 2024). Aucune publication automatique dans un groupe 
+Facebook n'est possible via une intégration légitime — les outils 
+qui le prétendent simulent des clics humains, violent les 
+conditions Meta, et exposent le compte à des restrictions.
+
+SOLUTION RETENUE — bouton "Partager sur Facebook" (conforme) :
+- Sur chaque fiche annonce (côté cabinet), un bouton qui ouvre la 
+  boîte de dialogue de partage native Facebook 
+  (facebook.com/sharer/sharer.php?u={url de l'annonce}), 
+  pré-remplie avec le lien public de l'annonce
+- Facebook affiche ensuite sa propre interface où le cabinet 
+  choisit lui-même la destination (son mur, un groupe dont il est 
+  membre/admin, etc.) — le geste de publication finale reste 
+  manuel et volontaire, ce qui est conforme aux règles Meta
+- Reste un geste répété à chaque annonce (pas d'automatisation en 
+  tâche de fond) — assumé comme limite du canal
+```
+
+### Statut d'usage — canal temporaire de démarrage
+
+```
+Le partage Facebook (et le canal listes professionnelles ci-dessous) 
+sont des leviers d'ACQUISITION INITIALE uniquement — pour construire 
+la base utilisateur de départ. Pas une stratégie d'acquisition 
+permanente à maintenir indéfiniment.
+```
+
+### Canal complémentaire — listes de soignants (réseau institutionnel)
+
+```
+En plus du groupe Facebook (~11 000 abonnés), Jean-Charles a accès 
+à des listes de soignants via son réseau institutionnel (casquette 
+SNMKR Guadeloupe, CPTS Nord Basse-Terre), sollicitables directement 
+pour la base utilisateur de départ.
+
+Action business (hors développement produit) — sollicitation 
+directe de professionnels déjà identifiés via ce réseau, en 
+complément du canal Facebook.
+```
+
+### Positionnement produit — différenciation face aux concurrents formulaires
+
+```
+CONSTAT STRATÉGIQUE : les concurrents directs (Rempleo, App'Ines) 
+fonctionnent sur un modèle de formulaire à cases à cocher — 
+succession de critères cochés, pas de texte libre valorisé.
+
+DIFFÉRENCIATEUR SOIGNECT : le produit confronte du TEXTE à du 
+TEXTE (bioTinder + matching sémantique DeepSeek, section B de 
+l'addendum v1.1), pas des cases cochées — "on compare un texte à 
+un autre, et des circonstances à d'autres, via une intelligence 
+artificielle, pour faire émerger un vrai match".
+
+IMPLICATION : ce message doit être porté par la communication du 
+produit, pas seulement exister techniquement en arrière-plan. À 
+intégrer dans :
+- La page publique d'annonce (section 101) — copy à retravailler 
+  pour mettre en avant ce positionnement
+- L'onboarding (écran BioTinder, section 24) — expliciter que ce 
+  texte alimente un vrai matching IA, pas un simple champ 
+  descriptif
+- Toute landing page ou support de présentation externe (CPTS, 
+  bêta-testeurs)
+
+Statut : chantier de copywriting/positionnement, pas de 
+développement technique — à traiter en parallèle du recettage, 
+peut être fait par Jean-Charles directement ou via un prompt 
+Claude Code ciblé sur les textes des pages concernées.
+```
+
+### Idée différée (v1.1+) — pré-remplissage IA du texte d'annonce
+
+```
+Piste évoquée, explicitement non prioritaire pour l'instant : un 
+LLM pourrait pré-rédiger/suggérer le texte du champ bioTinder à 
+partir d'un texte libre fourni par l'utilisateur (par exemple le 
+même texte qu'il utiliserait pour une annonce Facebook), plutôt 
+que de partir d'un champ vide avec placeholder.
+
+Statut : idée notée, pas de développement avant que le 
+positionnement texte-vs-formulaire (ci-dessus) soit d'abord 
+valorisé tel quel.
+```
+
 
 ---
 
@@ -8476,4 +8601,204 @@ non concerné par ce sprint.
    publication → bascule Recrutement (section 102)
 2. Insertion réelle de FACEBOOK_GROUP_CLICK en base (section 101) 
    — à confirmer avant le lancement de la campagne Facebook
+```
+
+---
+
+## 111. Vision stratégique — Expansion multi-professions et branding différencié (profession + région)
+
+### Statut
+
+```
+CHANTIER SÉPARÉ, HORS SPRINT V1/V1.1. Aucun développement ne 
+démarre avant que la dépendance bloquante (validation juridique) 
+soit levée. Documenté ici pour cadrage, pas pour exécution 
+immédiate.
+```
+
+### Principe
+
+```
+Faire percevoir Soignect comme une application dédiée à chaque 
+champ professionnel plutôt que comme une plateforme généraliste, 
+via une différenciation de branding (slogan, charte graphique 
+légère, page d'accueil) selon deux axes combinés :
+1. La profession déclarée de la personne qui se connecte 
+   (kinésithérapeute, sage-femme, dentiste, pneumologue, médecin 
+   généraliste, médecin du sport, etc.)
+2. Une déclinaison régionale
+
+Le cœur applicatif (Soignect) reste unique et unifié — seules la 
+présentation, la page d'accueil et quelques subtilités graphiques 
+varient selon ces deux axes. Hypothèse : l'adhésion est plus forte 
+face à un outil qui semble répondre spécifiquement à son métier 
+plutôt que face à une plateforme généraliste, même si elle l'est 
+en réalité.
+```
+
+### Feuille de route en 3 phases (précisée)
+
+```
+PHASE 0 — MAINTENANT : Kinésithérapeutes uniquement
+Produit fonctionnel sur cette seule profession, pour prouver que 
+le modèle marche avant tout élargissement. C'est la priorité 
+absolue, aucune dilution d'attention avant que ce soit acquis.
+
+PHASE 1 — SPRINT SUIVANT (réflexion/cadrage, pas développement 
+massif) : 1-2 professions pilotes proches du paramédical (ex: 
+sage-femme, infirmier), qui rejoignent le MONDE A ci-dessous.
+
+PHASE 2 — VISION LONG TERME (le vrai moteur de valeur) : 
+médecins spécialistes et médecins généralistes en zones de 
+tension territoriale. C'est la cible la plus "demandée" par les 
+administrations et structures (CPTS/ARS/CGSS), et celle qui a le 
+plus d'impact potentiel — mais aussi celle qui demande le plus de 
+travail (légitimité à construire, cadre juridique propre à 
+l'Ordre des Médecins, mécanisme de mise en relation probablement 
+différent du swipe grand public).
+```
+
+### Modèle à deux mondes (vision confirmée)
+
+```
+MONDE A — Cabinets privés (abonnement individuel)
+Kinésithérapeutes, infirmiers, professions paramédicales proches. 
+Modèle déjà en place et chiffré (section 99) : Gratuit / Premium 
+9€ / Boost 29€. Logique d'acquisition individuelle, swipe, mise 
+en relation directe cabinet-remplaçant.
+
+MONDE B — Institutionnel / tension territoriale (le moteur de 
+valeur à terme)
+Médecins spécialistes et généralistes en zones sous-dotées, 
+professions paramédicales en tension dans une moindre mesure. 
+Ne relève PAS du modèle d'abonnement individuel Cabinet — se 
+rattache au segment institutionnel déjà documenté section 85 
+(CPTS/MSP via "Soignect Territoire", ARS/CGSS via "Soignect 
+Observatoire"). L'argument de vente "désert médical" / pénurie de 
+spécialistes est précisément ce que ce segment institutionnel 
+cherche à résoudre — c'est plus proche du vrai problème des CPTS/
+ARS qu'un simple remplacement de kiné.
+
+Dépendance forte avec le TensionScore territorial (sections 82-84, 
+non commencé) et le dashboard Observatoire (section 86/108) : sans 
+donnée de tension par spécialité et par territoire, impossible de 
+cibler et démontrer la valeur pour les médecins spécialistes en 
+zone tendue.
+```
+
+### Périmètre retenu pour démarrer (Phase 1)
+
+```
+1-2 professions pilotes en plus des kinésithérapeutes, dans le 
+Monde A (paramédical, proche du modèle actuel). Piste évoquée : 
+sage-femme, cohérent avec l'appartenance aux CPTS (structures 
+multi-professionnelles, légitimité institutionnelle déjà 
+partiellement transférable via la casquette CPTS de Jean-Charles).
+
+Profession exacte du 2e pilote non figée — à confirmer.
+
+Le Monde B (médecins spécialistes/généralistes) N'EST PAS dans le 
+périmètre de développement immédiat — c'est un objectif stratégique 
+qui dépend de prérequis non encore réunis (TensionScore, données 
+Observatoire, cadre juridique Ordre des Médecins, mécanisme de 
+mise en relation probablement différent du produit actuel).
+```
+
+### Dépendance bloquante — validation juridique des contrats
+
+```
+Le générateur de contrats actuel produit des documents conformes 
+au cadre CNOMK (Conseil National de l'Ordre des Masseurs-
+Kinésithérapeutes), spécifique à la profession de kinésithérapeute.
+
+Chaque profession dépend de son propre Ordre professionnel, avec 
+ses propres règles de remplacement/collaboration/contrat (Ordre 
+des Sages-Femmes, Ordre des Chirurgiens-Dentistes, Conseil de 
+l'Ordre des Médecins, etc.) — ce n'est pas un template à dupliquer 
+et adapter superficiellement, c'est une recherche juridique 
+distincte par profession.
+
+RÈGLE : aucun développement (branding, UI, ou logique métier) 
+concernant une profession autre que kinésithérapeute ne démarre 
+avant que le cadre juridique de contrat de cette profession soit 
+validé (avis juridique professionnel requis, cohérent avec la 
+prudence déjà appliquée section 97 — pré-population RPPS — sur 
+les sujets RGPD/droit de la santé).
+```
+
+### Questions ouvertes
+
+```
+- Quelle est la 2e profession pilote exacte (sage-femme pressenti, 
+  non confirmé) ?
+- Processus de validation juridique par profession : qui 
+  contacter, quel délai, quel coût ?
+- La légitimité institutionnelle CPTS (multi-professionnelle) 
+  suffit-elle à amorcer la confiance pour une profession hors 
+  kiné, ou faut-il un ancrage propre à chaque profession (ordre 
+  départemental, syndicat) ?
+- Mécanique technique de différenciation (profession + région) : 
+  non spécifiée à ce stade — à concevoir une fois le périmètre 
+  juridique validé, pas avant.
+```
+
+---
+
+## 112. FEATURE — Email de rappel sur conversation sans réponse
+
+### Contexte
+
+```
+Aucun système de notification n'existe actuellement pour relancer 
+une conversation (chat) restée sans réponse entre un cabinet et un 
+remplaçant/assistant. Risque de perte d'opportunités par simple 
+oubli, sans mécanisme de rattrapage.
+```
+
+### Comportement retenu
+
+```
+Déclenchement : email de rappel envoyé après 24h sans réponse de 
+la personne qui a la balle dans son camp (dernier message reçu 
+sans réponse envoyée depuis 24h).
+
+Destinataire : UNIQUEMENT la personne qui n'a pas répondu — pas 
+l'expéditeur du dernier message (qui sait déjà qu'il attend).
+
+Canal : email via Resend (déjà intégré, RESEND_API_KEY).
+
+Contenu de l'email :
+- Rappel du contexte (avec qui, quelle annonce/mission concernée)
+- Extrait ou résumé du dernier message reçu
+- Lien direct vers la conversation dans l'app
+
+Fréquence : un seul rappel par seuil de 24h atteint (pas de 
+relance répétée en boucle) — à préciser : si la personne ne répond 
+toujours pas après le premier rappel, faut-il un 2e rappel à 48h 
+ou 72h ? Non tranché à ce stade, à décider si le premier rappel 
+s'avère insuffisant en usage réel.
+```
+
+### Lien avec la règle des 10 messages
+
+```
+Ce rappel email est un signal intermédiaire, complémentaire à la 
+règle déjà actée : limite de 10 messages de chat avant forçage 
+d'une décision (contrat ou annulation), qui évite la stagnation 
+relationnelle. Le rappel 24h agit en amont (éviter l'oubli simple), 
+la limite de 10 messages agit en aval (forcer une décision si la 
+conversation traîne malgré tout).
+```
+
+### Implémentation attendue
+
+```
+- Job périodique (cron, ex: toutes les heures) qui scanne les 
+  conversations avec un dernier message non répondu depuis plus 
+  de 24h et sans rappel déjà envoyé pour ce seuil
+- Champ à prévoir (additif) pour éviter les doublons de rappel, 
+  ex: sur le modèle Message ou une table de suivi dédiée : 
+  reminderSentAt (DateTime?)
+- Template email Resend dédié, cohérent avec le ton déjà utilisé 
+  pour les autres notifications (déclenchement billing, etc.)
 ```

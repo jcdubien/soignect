@@ -98,6 +98,32 @@ export async function sendContratEmail(
   await sendEmail(to, "Un contrat vous attend sur Soignect", html);
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ── f) Rappel conversation sans réponse depuis 24h (section 9/112) ─────────────
+export async function sendConversationReminderEmail(
+  to: string,
+  opts: { partnerName: string | null; missionTitle: string | null; excerpt: string; matchId: string; optIn: boolean }
+): Promise<void> {
+  if (!opts.optIn) return;
+  const who = opts.partnerName ?? "Un professionnel";
+  const about = opts.missionTitle ? ` au sujet de « ${escapeHtml(opts.missionTitle)} »` : "";
+  const excerpt = escapeHtml(opts.excerpt.slice(0, 140));
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       ${escapeHtml(who)} attend votre réponse${about}.
+     </p>
+     <p style="font-size:14px;line-height:1.5;margin:0;color:#4b5563;border-left:3px solid #e5e7eb;padding-left:10px">
+       « ${excerpt} »
+     </p>`,
+    { label: "Répondre", path: `/matches?matchId=${opts.matchId}` }
+  );
+  await sendEmail(to, "Un message attend votre réponse sur Soignect", html);
+}
+
 // ── e) Bascule vers le payant déclenchée (section 100) ─────────────────────────
 // Notice de compte importante : envoyée quel que soit l'opt-in marketing.
 export async function sendBillingTriggeredEmail(

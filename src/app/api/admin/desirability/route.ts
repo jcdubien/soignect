@@ -23,7 +23,7 @@ function computeScore(opts: {
     const expired = opts.expiry && opts.expiry <= new Date();
     if (!expired) return opts.override;
   }
-  return ({ FREE: 0, PREMIUM: 5, BOOST: 8 } as Record<SubscriptionPlan, number>)[opts.plan] ?? 0;
+  return ({ FREE: 0, PREMIUM: 5, BOOST: 8, STRUCTURE: 8 } as Record<SubscriptionPlan, number>)[opts.plan] ?? 0;
 }
 
 export async function PATCH(req: NextRequest) {

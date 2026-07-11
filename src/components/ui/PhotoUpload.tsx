@@ -38,6 +38,8 @@ export interface PhotoUploadProps {
   profileType?: "TITULAIRE" | "REMPLACANT" | "ASSISTANT";
   onUploaded?: (url: string) => void;
   onBlobReady?: (blob: Blob) => void;
+  /** Emplacement d'upload (section 3) : "main" (défaut), "secondary1", "secondary2" */
+  slot?: "main" | "secondary1" | "secondary2";
 }
 
 export function getInitials(name: string | null | undefined): string {
@@ -97,6 +99,7 @@ export default function PhotoUpload({
   profileType,
   onUploaded,
   onBlobReady,
+  slot = "main",
 }: PhotoUploadProps) {
   const isCabinet = profileType === "TITULAIRE";
   const wording = isCabinet
@@ -171,6 +174,7 @@ export default function PhotoUpload({
       // Le serveur stocke dans le bucket "avatars" ET met à jour Profile.photoUrl.
       const fd = new FormData();
       fd.append("file", blob, `${profileId}.jpg`);
+      fd.append("slot", slot);
       const res = await fetch(`/api/profiles/${profileId}/photo`, {
         method: "POST",
         body: fd,

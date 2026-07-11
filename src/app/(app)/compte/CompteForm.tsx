@@ -21,7 +21,8 @@ const PROFESSION_LABELS: Record<Profession, string> = {
 };
 
 const PLAN_LABELS: Record<SubscriptionPlan, string> = {
-  FREE: "Gratuit", PREMIUM: "Premium — 39€/mois", BOOST: "Boost — 79€/mois",
+  FREE: "Gratuit", PREMIUM: "Premium — 9€/mois", BOOST: "Boost — 29€/mois",
+  STRUCTURE: "Structure — 89€/mois + 20€/contrat",
 };
 
 interface ProfileData {
@@ -36,6 +37,8 @@ interface ProfileData {
   isFounding: boolean;
   type: ProfileType;
   photoUrl: string | null;
+  secondaryPhotoUrl1: string | null;
+  secondaryPhotoUrl2: string | null;
   isEmployeur: boolean;
   user?: { phone: string | null; phoneCountry: string | null; emailOptIn: boolean } | null;
 }
@@ -135,6 +138,27 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
           name={profile.name}
           profileType={profile.type}
         />
+
+        {/* Photos secondaires optionnelles (section 3) — jusqu'à 2 */}
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mt-6 mb-3">
+          Photos secondaires <span className="text-gray-400 font-normal normal-case">(optionnelles)</span>
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <PhotoUpload
+            profileId={profile.id}
+            initialPhotoUrl={profile.secondaryPhotoUrl1}
+            name={profile.name}
+            profileType={profile.type}
+            slot="secondary1"
+          />
+          <PhotoUpload
+            profileId={profile.id}
+            initialPhotoUrl={profile.secondaryPhotoUrl2}
+            name={profile.name}
+            profileType={profile.type}
+            slot="secondary2"
+          />
+        </div>
       </section>
 
       <div>

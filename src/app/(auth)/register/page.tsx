@@ -107,6 +107,12 @@ function RegisterForm() {
   const bioFull = starter && bioText.trim() ? `${starter} ${bioText.trim()}` : bioText.trim();
 
   async function handleFinalSubmit() {
+    // Photo principale obligatoire pour finaliser le profil (régression corrigée)
+    if (!pendingPhotoBlob) {
+      setStep(2);
+      setError("Une photo de profil est obligatoire pour finaliser votre inscription.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -351,17 +357,20 @@ function RegisterForm() {
                   <span className="text-sm text-gray-600">Recevoir les notifications par email</span>
                 </label>
 
-                {/* Photo optionnelle — uploadée après création du compte */}
+                {/* Photo de profil OBLIGATOIRE (régression corrigée) */}
                 <div className="pt-2 border-t border-gray-100">
                   <p className="text-xs font-medium text-gray-500 mb-3">
                     Photo de profil
-                    <span className="text-gray-400 font-normal ml-1">(optionnelle — peut être ajoutée depuis /compte)</span>
+                    <span className="text-red-400 font-normal ml-1">(obligatoire)</span>
                   </p>
                   <PhotoUpload
                     name={name || (profileType === "TITULAIRE" ? "Cabinet" : "Remplaçant")}
                     profileType={profileType || undefined}
                     onBlobReady={setPendingPhotoBlob}
                   />
+                  {!pendingPhotoBlob && (
+                    <p className="text-xs text-amber-600 mt-2">Ajoutez une photo pour continuer.</p>
+                  )}
                 </div>
 
                 <div className="flex gap-3 pt-1">
@@ -374,7 +383,7 @@ function RegisterForm() {
                   </button>
                   <button
                     type="submit"
-                    disabled={!email || !password || !name || emailAvailable === false}
+                    disabled={!email || !password || !name || emailAvailable === false || !pendingPhotoBlob}
                     className="md3-ripple flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
                   >
                     Continuer →

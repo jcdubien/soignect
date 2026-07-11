@@ -6,16 +6,28 @@ import { SubscriptionPlan } from "@prisma/client";
 export const dynamic = "force-dynamic";
 
 function planScore(plan: SubscriptionPlan): number {
-  return ({ FREE: 0, PREMIUM: 5, BOOST: 8 } as Record<SubscriptionPlan, number>)[plan] ?? 0;
+  return ({ FREE: 0, PREMIUM: 5, BOOST: 8, STRUCTURE: 8 } as Record<SubscriptionPlan, number>)[plan] ?? 0;
 }
 
 function planFromPriceId(priceId: string): SubscriptionPlan {
   if (priceId === process.env.STRIPE_PRICE_PREMIUM) return "PREMIUM";
   if (priceId === process.env.STRIPE_PRICE_BOOST) return "BOOST";
+  if (priceId === process.env.STRIPE_PRICE_STRUCTURE_BASE) return "STRUCTURE";
   return "FREE";
 }
 
-async function applySubscription(profileId: string, plan: SubscriptionPlan) {
+// Plan à partir de l'ensemble des prix d'un abonnement (structure = base + usage metered)
+function planFromSubscription(sub: Stripe.Subscription): SubscriptionPlan {
+  const priceIds = sub.items.data.map((i) => i.price?.id).filter(Boolean) as string[];
+  if (process.env.STRIPE_PRICE_STRUCTURE_BASE && priceIds.includes(process.env.STRIPE_PRICE_STRUCTURE_BASE)) return "STRUCTURE";
+  return priceIds[0] ? planFromPriceId(priceIds[0]) : "FREE";
+}
+
+async function applySubscription(
+  profileId: string,
+  plan: SubscriptionPlan,
+  stripeIds?: { customerId?: string | null; subscriptionId?: string | null }
+) {
   const profile = await prisma.profile.findUnique({ where: { id: profileId } });
   if (!profile) return;
 
@@ -23,7 +35,13 @@ async function applySubscription(profileId: string, plan: SubscriptionPlan) {
 
   await prisma.profile.update({
     where: { id: profileId },
-    data: { subscriptionPlan: plan, isPaid: plan !== "FREE", desirabilityScore: newScore },
+    data: {
+      subscriptionPlan: plan,
+      isPaid: plan !== "FREE",
+      desirabilityScore: newScore,
+      ...(stripeIds?.customerId !== undefined ? { stripeCustomerId: stripeIds.customerId } : {}),
+      ...(stripeIds?.subscriptionId !== undefined ? { stripeSubscriptionId: stripeIds.subscriptionId } : {}),
+    },
   });
 }
 
@@ -50,10 +68,12 @@ export async function POST(req: NextRequest) {
       const sub = event.data.object as Stripe.Subscription;
       const profileId = sub.metadata?.profileId;
       if (!profileId) break;
-      const priceId = sub.items.data[0]?.price?.id;
-      const plan = priceId ? planFromPriceId(priceId) : "FREE";
+      const plan = planFromSubscription(sub);
       if (sub.status === "active" || sub.status === "trialing") {
-        await applySubscription(profileId, plan);
+        await applySubscription(profileId, plan, {
+          customerId: typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null,
+          subscriptionId: sub.id,
+        });
       }
       break;
     }
@@ -61,7 +81,7 @@ export async function POST(req: NextRequest) {
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
       const profileId = sub.metadata?.profileId;
-      if (profileId) await applySubscription(profileId, "FREE");
+      if (profileId) await applySubscription(profileId, "FREE", { subscriptionId: null });
       break;
     }
 
@@ -70,7 +90,10 @@ export async function POST(req: NextRequest) {
       const profileId = session.metadata?.profileId;
       const plan = (session.metadata?.plan ?? "FREE") as SubscriptionPlan;
       if (profileId && session.mode === "subscription") {
-        await applySubscription(profileId, plan);
+        await applySubscription(profileId, plan, {
+          customerId: typeof session.customer === "string" ? session.customer : session.customer?.id ?? null,
+          subscriptionId: typeof session.subscription === "string" ? session.subscription : session.subscription?.id ?? null,
+        });
       }
       break;
     }

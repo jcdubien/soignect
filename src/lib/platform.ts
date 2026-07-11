@@ -22,7 +22,7 @@ export async function hasPremiumAccess(input?: {
   billingTriggeredAt?: Date | null;
 }): Promise<boolean> {
   const plan = input?.subscriptionPlan;
-  if (plan === "PREMIUM" || plan === "BOOST") return true;
+  if (plan === "PREMIUM" || plan === "BOOST" || plan === "STRUCTURE") return true;
   if (!(await isFreeAccessMode())) return false;
   if (!input?.billingTriggeredAt) return true;
   const end = graceEndsAt(input.billingTriggeredAt);

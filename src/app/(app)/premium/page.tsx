@@ -86,7 +86,7 @@ export default function PremiumPage() {
     );
   }
 
-  async function subscribe(plan: "PREMIUM" | "BOOST") {
+  async function subscribe(plan: "PREMIUM" | "BOOST" | "STRUCTURE") {
     setLoading(plan);
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -179,7 +179,7 @@ export default function PremiumPage() {
         ))}
       </div>
 
-      {/* Offre structures privées (EHPAD, cliniques, SSR) — modèle hybride (section 99) */}
+      {/* Offre structures privées (EHPAD, cliniques, SSR) — modèle hybride (section 99/7) */}
       <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
@@ -189,13 +189,18 @@ export default function PremiumPage() {
               cher qu&apos;une agence d&apos;intérim.
             </p>
           </div>
-          <a
-            href="mailto:contact@soignect.fr?subject=Offre%20structures%20priv%C3%A9es"
-            className="shrink-0 px-4 py-2 bg-[#0B3D5C] text-white rounded-xl text-xs font-bold hover:opacity-90 transition"
+          <button
+            type="button"
+            onClick={() => subscribe("STRUCTURE")}
+            disabled={loading === "STRUCTURE"}
+            className="shrink-0 px-4 py-2 bg-[#0B3D5C] text-white rounded-xl text-xs font-bold hover:opacity-90 transition disabled:opacity-40"
           >
-            Nous contacter
-          </a>
+            {loading === "STRUCTURE" ? "Redirection…" : "S'abonner (Structure)"}
+          </button>
         </div>
+        <p className="text-[11px] text-gray-400 mt-2">
+          Réservé aux comptes établissement. Le montant à l&apos;usage (20€) est facturé automatiquement à chaque contrat signé.
+        </p>
       </div>
 
       <p className="text-center text-xs text-gray-400 mt-8">

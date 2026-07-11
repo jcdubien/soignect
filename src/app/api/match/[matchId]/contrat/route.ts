@@ -8,6 +8,7 @@ import { buildAssisanatPdf } from "@/lib/contrats/template-assistanat";
 import { buildCollaborationPdf } from "@/lib/contrats/template-collaboration";
 import type { ContractParty } from "@/lib/contrats/types";
 import { sendContratEmail } from "@/lib/email";
+import { hasPremiumAccess } from "@/lib/platform";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
@@ -74,10 +75,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  // Vérifier le plan d'abonnement (PREMIUM/BOOST) — ou partenaire CPTS (Premium gratuit, item 25)
+  // Accès Premium — via le helper unifié (mode gratuit global + grâce billing, section 100),
+  // ou partenaire CPTS (Premium gratuit, item 25). Cohérent avec /annonces et /match/[id].
   const myProfile = match.profileAId === profileId ? match.profileA : match.profileB;
-  const mp = myProfile as typeof myProfile & { subscriptionPlan: SubscriptionPlan; institutionalPartner?: boolean };
-  if (mp.subscriptionPlan === SubscriptionPlan.FREE && !mp.institutionalPartner) {
+  const mp = myProfile as typeof myProfile & { subscriptionPlan: SubscriptionPlan; billingTriggeredAt?: Date | null; institutionalPartner?: boolean };
+  const allowed = mp.institutionalPartner || await hasPremiumAccess({ subscriptionPlan: mp.subscriptionPlan, billingTriggeredAt: mp.billingTriggeredAt });
+  if (!allowed) {
     return NextResponse.json({ error: "Fonctionnalité réservée aux abonnés Premium" }, { status: 403 });
   }
 

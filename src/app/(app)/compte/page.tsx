@@ -34,6 +34,8 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
       isFounding: true,
       type: true,
       photoUrl: true,
+      secondaryPhotoUrl1: true,
+      secondaryPhotoUrl2: true,
       isEmployeur: true,
       user: { select: { phone: true, phoneCountry: true, emailOptIn: true } },
     },

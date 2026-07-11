@@ -6,7 +6,7 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 
 const schema = z.object({
-  plan: z.enum(["PREMIUM", "BOOST"]),
+  plan: z.enum(["PREMIUM", "BOOST", "STRUCTURE"]),
 });
 
 export async function POST(req: NextRequest) {
@@ -34,13 +34,26 @@ export async function POST(req: NextRequest) {
 
   const { plan } = parsed.data;
 
-  const priceId =
-    plan === "PREMIUM"
-      ? process.env.STRIPE_PRICE_PREMIUM
-      : process.env.STRIPE_PRICE_BOOST;
-
-  if (!priceId) {
-    return NextResponse.json({ error: `Prix Stripe manquant pour le plan ${plan}` }, { status: 503 });
+  // Structure privée = abonnement de base 89€ + prix à l'usage 20€/contrat (metered, section 7).
+  // Distinction Cabinet/Structure : proxy isEmployeur (aucun champ dédié — signalé à l'utilisateur).
+  let lineItems: { price: string; quantity?: number }[];
+  if (plan === "STRUCTURE") {
+    if (!profile.isEmployeur) {
+      return NextResponse.json({ error: "Réservé aux structures privées" }, { status: 403 });
+    }
+    const base = process.env.STRIPE_PRICE_STRUCTURE_BASE;
+    const usage = process.env.STRIPE_PRICE_STRUCTURE_USAGE;
+    if (!base || !usage) {
+      return NextResponse.json({ error: "Prix Stripe Structure manquants (base/usage)" }, { status: 503 });
+    }
+    // Le prix metered ne prend PAS de quantity dans les line_items
+    lineItems = [{ price: base, quantity: 1 }, { price: usage }];
+  } else {
+    const priceId = plan === "PREMIUM" ? process.env.STRIPE_PRICE_PREMIUM : process.env.STRIPE_PRICE_BOOST;
+    if (!priceId) {
+      return NextResponse.json({ error: `Prix Stripe manquant pour le plan ${plan}` }, { status: 503 });
+    }
+    lineItems = [{ price: priceId, quantity: 1 }];
   }
 
   const Stripe = (await import("stripe")).default;
@@ -52,7 +65,7 @@ export async function POST(req: NextRequest) {
     mode: "subscription",
     payment_method_types: ["card"],
     customer_email: profile.user.email,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: lineItems,
     metadata: { profileId: profile.id, plan },
     subscription_data: {
       metadata: { profileId: profile.id, plan },

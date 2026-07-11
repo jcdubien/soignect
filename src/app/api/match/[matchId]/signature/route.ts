@@ -6,6 +6,7 @@ import { BriqueStatus, MatchStatus } from "@prisma/client";
 import { logTraceEvent } from "@/lib/trace";
 import { triggerBillingIfNeeded } from "@/lib/billing";
 import { sendBillingTriggeredEmail } from "@/lib/email";
+import { reportStructureContractUsage } from "@/lib/stripe-usage";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -125,6 +126,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
     // Bascule individuelle vers le payant — critère 1 (contrat signé), section 100.
     // Le cabinet = partie TITULAIRE du match. Détection synchrone.
     const titulaireId = match.profileA.type === "TITULAIRE" ? match.profileAId : match.profileBId;
+    // Metered billing structure privée (section 7) — 1 contrat = 1 unité, idempotent
+    reportStructureContractUsage(titulaireId, `structure_usage_${matchId}`);
     try {
       const newlyTriggered = await triggerBillingIfNeeded(titulaireId);
       if (newlyTriggered) {

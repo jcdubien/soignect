@@ -26,8 +26,9 @@ enum SwipeDirection {
 
 enum SubscriptionPlan {
   FREE
-  PREMIUM  // 39-49€/mois — boost +5, accès scores remplaçants
-  BOOST    // 79€/mois — boost +8, badge prioritaire, stats avancées
+  PREMIUM    // 9€/mois — boost +5, accès scores remplaçants
+  BOOST      // 29€/mois — boost +8, badge prioritaire, stats avancées
+  STRUCTURE  // Structures privées — 89€/mois + 20€/contrat (metered, section 7)
 }
 
 enum MissionType {
@@ -125,6 +126,9 @@ model Profile {
   type     ProfileType
   name     String?     // Nom du cabinet ou du professionnel
   photoUrl String?
+  // Photos secondaires optionnelles (section 3) — jusqu'à 2
+  secondaryPhotoUrl1 String?
+  secondaryPhotoUrl2 String?
   bio      String?     @db.VarChar(300)
   bioTinder String?    @db.VarChar(280)  // "Je suis / Je cherche / J'aspire à"
 
@@ -145,6 +149,10 @@ model Profile {
   desirabilityExpiry   DateTime?                        // Expiration du boost manuel
   subscriptionPlan     SubscriptionPlan @default(FREE)
   isFounding           Boolean          @default(false) // Cabinet fondateur = score 10 permanent
+
+  // Stripe — pour le metered billing des structures (section 7)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
 
   // Bascule individuelle vers le payant (section 99/100) — date d'atteinte d'un des 2
   // critères (contrat signé OU usage soutenu). Renseigné = plus couvert par le mode gratuit
@@ -306,6 +314,8 @@ model Message {
   sender    Profile  @relation(fields: [senderId], references: [id])
   content   String   @db.VarChar(1000)
   createdAt DateTime @default(now())
+  // Rappel 24h envoyé pour ce message resté sans réponse (section 9) — évite les doublons
+  reminderSentAt DateTime?
 
   @@index([matchId, createdAt])
 }
