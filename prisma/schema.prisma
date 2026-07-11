@@ -146,6 +146,11 @@ model Profile {
   subscriptionPlan     SubscriptionPlan @default(FREE)
   isFounding           Boolean          @default(false) // Cabinet fondateur = score 10 permanent
 
+  // Bascule individuelle vers le payant (section 99/100) — date d'atteinte d'un des 2
+  // critères (contrat signé OU usage soutenu). Renseigné = plus couvert par le mode gratuit
+  // global (après période de grâce). Null = couvert par freeAccessMode tant qu'actif.
+  billingTriggeredAt   DateTime?
+
   // Notation agrégée (mise à jour à chaque Rating)
   ratingAvg   Float?
   ratingCount Int    @default(0)
@@ -406,9 +411,10 @@ model CabinetPost {
 // Alimentée par de simples inserts fire-and-forget dans les routes existantes.
 model TraceEvent {
   id          String   @id @default(cuid())
-  eventType   String   // "MISSION_PUBLISHED", "SWIPE_RIGHT", "MATCH_CREATED", "CONTRACT_SIGNED", ...
+  eventType   String   // "MISSION_PUBLISHED", "SWIPE_RIGHT", "MATCH_CREATED", "CONTRACT_SIGNED", "PLANNING_ACTIVE", ...
   missionId   String?
   matchId     String?
+  profileId   String?  // acteur (ex: cabinet actif sur le Planning Board — section 100 critère 2)
   commune     String?  // dénormalisé pour agrégation géographique sans jointures
   profession  String?
   missionType String?
@@ -417,6 +423,7 @@ model TraceEvent {
 
   @@index([eventType, commune, occurredAt])
   @@index([commune, profession, occurredAt])
+  @@index([profileId, eventType, occurredAt])
 }
 
 // Configuration plateforme (singleton) — mode lancement gratuit (section 2).

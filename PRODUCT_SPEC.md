@@ -7944,29 +7944,98 @@ qui est quasi gratuit sur son cœur de fonctionnalité pour les
 cabinets.
 ```
 
-### Statut — à trancher avant intégration Stripe
+### Chiffrage retenu (validé définitif) — benchmark à l'appui
 
 ```
-Piste retenue à ce stade : baisser sensiblement le tarif Cabinet 
-(ordre de grandeur à discuter, ex: 9-25€ plutôt que 39€), la 
-vraie valeur commerciale étant portée par le matching IA, le 
-score d'affinité, et les segments institutionnels/structures 
-privées plutôt que par l'abonnement Cabinet de base.
+Benchmark réalisé :
+- App'Ines (concurrent direct cabinet/kiné) : diffusion 
+  d'annonces gratuite et illimitée, payant seulement en 
+  périphérie
+- Rempleo : pas d'abonnement, paiement à l'acte (contact/
+  signature)
+- Doctolib Pro : 139-240€/mois — PAS un comparable direct 
+  (logiciel de gestion complet, pas un outil de recrutement)
+- Hublo (référence EHPAD/cliniques) : app gratuite pour les 
+  soignants, abonnement "Core" sur devis pour l'établissement, 
+  module "Pool" (vivier externe) facturé à l'usage : 30€ HT/jour 
+  aide-soignante, 40€ HT/jour infirmière. Argument de vente : 
+  nettement moins cher qu'une agence d'intérim (coefficient 
+  1,8-2,5x le salaire).
 
-Chiffrage définitif non figé — voir aussi section 100 (mode 
-lancement gratuit), qui repousse la question de prix final : 
-Stripe doit être fonctionnel et testable, mais les gates 
-Premium/Boost restent désactivées jusqu'à la masse critique 
-définie section 100. Le nouveau prix Cabinet et le tarif 
-Structures privées doivent être tranchés avant la désactivation 
-du mode gratuit, pas avant le lancement lui-même.
+CABINET (titulaire libéral) — grille finale :
+  Gratuit  : 0€/mois — 1 annonce active (inchangé)
+  Premium  : 9€/mois — annonces illimitées, boost +5, accès 
+             scores remplaçants
+  Boost    : 29€/mois — tout Premium + badge prioritaire + 
+             stats avancées
+
+  Choix assumé : prix Premium très accessible (9€) pour 
+  maximiser l'acquisition en phase de lancement, au prix d'un 
+  seuil de rentabilité (palier 1) plus élevé — voir calcul 
+  ci-dessous.
+
+STRUCTURES PRIVÉES (EHPAD, cliniques, SSR) — modèle hybride, 
+inspiré du modèle Hublo (abonnement + usage), distinct du Cabinet :
+  Abonnement de base : 89€/mois
+  Frais par mise en relation aboutie : 20€ par contrat signé
+  Argument de vente : nettement moins cher qu'une agence 
+  d'intérim classique même en cumulant abonnement + frais par 
+  mission.
+
+Ces tarifs sont figés dans le code (Stripe) mais restent SANS 
+EFFET tant que le mode lancement gratuit (section 100) est actif 
+— voir masse critique définie section 100 avant désactivation.
+```
+
+### Objectif revenu palier 1 — calcul de validation (final, hypothèse basse)
+
+```
+Objectif : ~500€/mois de revenu récurrent au palier 1.
+
+Hypothèse de conversion vers Boost retenue : 10% (hypothèse 
+basse, prudente) — un taux de montée en gamme de 30% dès le 
+lancement a été jugé trop optimiste pour un premier palier ; la 
+plupart des lancements SaaS B2B observent plutôt 10-20% de 
+conversion vers l'offre supérieure avant que sa valeur soit 
+prouvée par l'usage réel.
+
+Avec le chiffrage 9€/29€ et un mix 90% Premium / 10% Boost :
+  Revenu moyen par cabinet = 0,9 × 9€ + 0,1 × 29€ = 11€/cabinet
+
+PALIER 1 FINAL : ~46 cabinets actifs
+  46 × 11€ = 506€/mois — atteint l'objectif avec la marge de 
+  sécurité la plus prudente des scénarios envisagés
+
+Tableau de sensibilité (pour référence, si le mix réel diverge) :
+
+| Taux Boost réel | Revenu moyen/cabinet | Revenu à 46 cabinets |
+|---|---|---|
+| 10% (hypothèse retenue) | 11€ | 506€/mois |
+| 15% | 12€ | 552€/mois |
+| 20% | 13€ | 598€/mois |
+| 30% | 15€ | 690€/mois |
+
+Le palier basé sur l'hypothèse basse garantit que l'objectif est 
+atteint même dans le scénario le moins favorable ; si la 
+conversion Boost réelle dépasse 10%, l'objectif est dépassé plus 
+tôt que prévu (bonne surprise plutôt que déception).
+
+Total utilisateurs du palier 1 recalculé proportionnellement : 
+si le ratio ~25 cabinets pour 80 utilisateurs totaux tous types 
+se maintient, ~46 cabinets correspondent à environ 145-150 
+utilisateurs totaux (cabinets + structures + remplaçants/
+assistants gratuits).
+
+Point de vigilance à conserver : ce calcul reste une hypothèse. 
+Dès les 10-15 premiers cabinets payants réels, vérifier le taux 
+de conversion Boost observé et ajuster le palier si nécessaire.
 ```
 
 ---
 
-## 100. Mode lancement gratuit — feature flag admin
+## 100. Mode lancement gratuit — feature flag admin ✅ IMPLÉMENTÉ (commit 5b36edc)
 
-### Principe
+### Principe (mis à jour — risque de désabonnement identifié)
 
 ```
 Le produit est livré en usage gratuit et complet dès le 
@@ -7975,6 +8044,48 @@ lancement, le temps d'atteindre une masse critique d'utilisateurs
 (section 99). Stripe doit être fonctionnel et testable en 
 parallèle (checkout, webhook), mais sans effet bloquant tant 
 que le mode gratuit est actif.
+
+RISQUE IDENTIFIÉ : une bascule collective brutale (tout le monde 
+paie le même jour au seuil de 46 cabinets) expose à un pic de 
+désabonnement — les cabinets habitués au gratuit n'ont pas 
+forcément perçu de valeur suffisante pour accepter de payer du 
+jour au lendemain.
+
+CORRECTIF RETENU : la bascule individuelle vers le payant est 
+ANCRÉE DANS LA VALEUR DÉJÀ OBTENUE par chaque cabinet, pas 
+seulement déclenchée par le seuil global. Le flag freeAccessMode 
+global reste un filet de sécurité (bascule générale possible si 
+besoin), mais la logique principale de transition devient 
+individuelle et progressive.
+```
+
+### Critère de bascule individuelle (nouveau)
+
+```
+Un cabinet bascule en facturable dès qu'il atteint LE PREMIER des 
+deux critères suivants (logique OR) :
+
+1. Au moins 1 contrat signé (remplacement/assistanat/collaboration) 
+   via la plateforme
+2. Usage actif soutenu du Planning Board — connexions régulières 
+   sur plusieurs semaines (seuil exact à définir techniquement, 
+   ex: connexion sur au moins X semaines distinctes sur une 
+   fenêtre de Y semaines)
+
+Un cabinet qui a déjà obtenu un résultat concret (contrat signé) 
+ou qui a intégré l'outil à son usage quotidien (planning actif) a 
+un coût de changement élevé s'il doit repartir de zéro ailleurs — 
+il paie parce qu'il a déjà gagné de la valeur, pas parce qu'on lui 
+coupe un accès gratuit sans contrepartie perçue.
+
+Modification schéma à prévoir (additive) :
+- Champ sur Profile (cabinet) : billingTriggeredAt (DateTime?, 
+  nullable) — date à laquelle le cabinet a atteint un des deux 
+  critères, déclenchant sa facturation individuelle
+- Le calcul du critère 2 (usage soutenu) nécessite une requête sur 
+  les logs de connexion/activité existants (TraceEvent ou 
+  équivalent) — pas de nouvelle table de tracking séparée si 
+  l'info est déjà collectable depuis l'existant
 ```
 
 ### Modifications base de données (additive)
@@ -8014,7 +8125,7 @@ indépendant du chiffrage final des prix (section 99).
 
 ---
 
-## 101. Acquisition via lien direct annonce (canal Facebook)
+## 101. Acquisition via lien direct annonce (canal Facebook) ✅ IMPLÉMENTÉ (commit 5b36edc)
 
 ### Principe
 
@@ -8069,7 +8180,7 @@ et la candidature.
 
 ---
 
-## 102. BUG — Synchronisation bidirectionnelle Timeline ↔ Annonce
+## 102. BUG — Synchronisation bidirectionnelle Timeline ↔ Annonce ✅ CORRIGÉ (commit 5b36edc)
 
 ### Problème
 
@@ -8105,7 +8216,7 @@ entrées vers le même état — bidirectionnel :
 
 ---
 
-## 103. BUG — Type de poste incorrect dans "Ajouter un poste"
+## 103. BUG — Type de poste incorrect dans "Ajouter un poste" ✅ CORRIGÉ (commit 5b36edc)
 
 ### Problème
 
@@ -8132,7 +8243,7 @@ poste", il se déclenche uniquement via le flux annonce/timeline
 
 ---
 
-## 104. FIX — Simplification du préavis et réduction des statuts timeline
+## 104. FIX — Simplification du préavis et réduction des statuts timeline ✅ CORRIGÉ (commit 5b36edc)
 
 ### Simplification du formulaire "Poser un préavis"
 
@@ -8172,7 +8283,7 @@ indication visuelle de préavis en cours sur la timeline.
 
 ---
 
-## 105. FEATURE — Raccourci "Voir mes mises en relation" depuis une disponibilité (côté remplaçant)
+## 105. FEATURE — Raccourci "Voir mes mises en relation" depuis une disponibilité (côté remplaçant) ✅ IMPLÉMENTÉ (commit 5b36edc)
 
 ### Problème
 
@@ -8202,7 +8313,7 @@ cette disponibilité.
 
 ---
 
-## 106. STYLE — Restylage des boutons swipe (Pass / Intérêt)
+## 106. STYLE — Restylage des boutons swipe (Pass / Intérêt) ✅ IMPLÉMENTÉ (commit 5b36edc)
 
 ### Problème
 
@@ -8327,3 +8438,42 @@ les tables.
 ### Priorité
 
 v1.1 — après le lancement, non bloquant.
+
+---
+
+## 110. Suivi post-sprint cumulatif (commit 5b36edc)
+
+### Points ouverts signalés par Claude Code
+
+```
+- Route /api/missions/[id]/preavis devenue inutilisée (le modal 
+  PATCH directement departureDate) — laissée en place, inoffensive. 
+  À supprimer une fois S6 validé en recette sans besoin de 
+  référence à l'ancien flux.
+- S4 (section 102) repose sur l'architecture existante (annonce = 
+  Mission liée au poste), sans nouveau modèle de "déclaration de 
+  période" séparé — aucun état orphelin possible par construction, 
+  mais à confirmer en recette que le clic direct sur la timeline 
+  propose bien immédiatement le flux de création d'annonce.
+```
+
+### Statut des sections 99 et 109
+
+```
+Section 99 (segmentation clients et grille tarifaire) : décision 
+business non tranchée, non concernée par ce sprint technique. 
+Prix Cabinet et tarif Structures privées restent à chiffrer avant 
+désactivation du mode gratuit (section 100).
+
+Section 109 (éditeur admin ciblé) : confirmé v1.1, non bloquant, 
+non concerné par ce sprint.
+```
+
+### À vérifier en recette (priorité immédiate)
+
+```
+1. Flux complet clic timeline vide → annonce pré-remplie → 
+   publication → bascule Recrutement (section 102)
+2. Insertion réelle de FACEBOOK_GROUP_CLICK en base (section 101) 
+   — à confirmer avant le lancement de la campagne Facebook
+```

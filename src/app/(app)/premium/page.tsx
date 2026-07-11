@@ -30,7 +30,7 @@ const PLANS = [
   {
     id: "PREMIUM",
     name: "Premium",
-    price: "39€",
+    price: "9€",
     period: "/mois",
     color: "border-kine-400 ring-2 ring-kine-200",
     badge: "Populaire",
@@ -47,7 +47,7 @@ const PLANS = [
   {
     id: "BOOST",
     name: "Boost",
-    price: "79€",
+    price: "29€",
     period: "/mois",
     color: "border-orange-300 ring-2 ring-orange-100",
     badge: "Maximum",
@@ -177,6 +177,25 @@ export default function PremiumPage() {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Offre structures privées (EHPAD, cliniques, SSR) — modèle hybride (section 99) */}
+      <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-sm font-bold text-gray-900">Structures privées (EHPAD, cliniques, SSR)</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Abonnement <strong>89€/mois</strong> + <strong>20€ par contrat signé</strong> — nettement moins
+              cher qu&apos;une agence d&apos;intérim.
+            </p>
+          </div>
+          <a
+            href="mailto:contact@soignect.fr?subject=Offre%20structures%20priv%C3%A9es"
+            className="shrink-0 px-4 py-2 bg-[#0B3D5C] text-white rounded-xl text-xs font-bold hover:opacity-90 transition"
+          >
+            Nous contacter
+          </a>
+        </div>
       </div>
 
       <p className="text-center text-xs text-gray-400 mt-8">

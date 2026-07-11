@@ -98,6 +98,30 @@ export async function sendContratEmail(
   await sendEmail(to, "Un contrat vous attend sur Soignect", html);
 }
 
+// ── e) Bascule vers le payant déclenchée (section 100) ─────────────────────────
+// Notice de compte importante : envoyée quel que soit l'opt-in marketing.
+export async function sendBillingTriggeredEmail(
+  to: string,
+  opts: { reason: "contrat" | "usage"; optIn?: boolean }
+): Promise<void> {
+  const motif = opts.reason === "contrat"
+    ? "vous avez signé un contrat via Soignect"
+    : "vous utilisez régulièrement le Planning Board";
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       Félicitations — ${motif} 🎉. Vous avez tiré une vraie valeur de Soignect.
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0">
+       Pour continuer à profiter des fonctionnalités Premium/Boost, choisissez un plan
+       dans les 14 jours. Sans action de votre part, l'accès Premium sera suspendu à la fin
+       de ce délai (votre compte et vos données restent bien sûr conservés).
+     </p>`,
+    { label: "Choisir mon plan", path: "/premium" }
+  );
+  await sendEmail(to, "Votre accès Premium Soignect — action requise sous 14 jours", html);
+}
+
 // ── d) Mise en relation annulée ────────────────────────────────────────────────
 export async function sendRelationCancelledEmail(
   to: string,

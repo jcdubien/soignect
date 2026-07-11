@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import PlanningBoard from "./PlanningBoard";
+import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,10 @@ export default async function PlanningPage() {
   if (profileType !== "TITULAIRE") redirect("/annonces");
 
   const profileId = session.user.profileId as string;
+
+  // Usage soutenu du Planning Board (section 100 critère 2) — trace fire-and-forget,
+  // servira à compter les semaines d'activité distinctes.
+  logTraceEvent({ eventType: "PLANNING_ACTIVE", profileId });
 
   const profile = await prisma.profile.findUnique({
     where: { id: profileId },

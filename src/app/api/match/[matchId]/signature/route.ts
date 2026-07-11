@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { BriqueStatus, MatchStatus } from "@prisma/client";
 import { logTraceEvent } from "@/lib/trace";
+import { triggerBillingIfNeeded } from "@/lib/billing";
+import { sendBillingTriggeredEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -119,6 +121,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
     }
     const missionIds = [updated.missionAId, updated.missionBId].filter((x): x is string => !!x);
     await prisma.match.update({ where: { id: matchId }, data: { status: MatchStatus.CONFIRME } });
+
+    // Bascule individuelle vers le payant — critère 1 (contrat signé), section 100.
+    // Le cabinet = partie TITULAIRE du match. Détection synchrone.
+    const titulaireId = match.profileA.type === "TITULAIRE" ? match.profileAId : match.profileBId;
+    try {
+      const newlyTriggered = await triggerBillingIfNeeded(titulaireId);
+      if (newlyTriggered) {
+        const cab = await prisma.profile.findUnique({
+          where: { id: titulaireId },
+          select: { name: true, user: { select: { email: true, emailOptIn: true } } },
+        });
+        if (cab?.user?.email) {
+          // Notification (fire-and-forget) — grâce avant coupure (section 4)
+          sendBillingTriggeredEmail(cab.user.email, { reason: "contrat", optIn: cab.user.emailOptIn });
+        }
+      }
+    } catch (e) {
+      console.error("[billing] trigger critère 1 échoué (ignoré):", e);
+    }
 
     // Traçabilité (section 86) — contrat signé par les deux parties.
     // Fire-and-forget : on enrichit avec la commune sans bloquer la réponse.

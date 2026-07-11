@@ -8,6 +8,7 @@ export function logTraceEvent(input: {
   eventType: string;
   missionId?: string | null;
   matchId?: string | null;
+  profileId?: string | null;
   commune?: string | null;
   profession?: string | null;
   missionType?: string | null;
@@ -19,6 +20,7 @@ export function logTraceEvent(input: {
         eventType: input.eventType,
         missionId: input.missionId ?? null,
         matchId: input.matchId ?? null,
+        profileId: input.profileId ?? null,
         commune: input.commune ?? null,
         profession: input.profession ?? null,
         missionType: input.missionType ?? null,

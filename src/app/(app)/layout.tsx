@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { prisma } from "@/lib/prisma";
+import { BILLING_GRACE_DAYS } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     select: {
       name: true,
       region: true,
+      subscriptionPlan: true,
+      billingTriggeredAt: true,
       _count: { select: { missions: { where: { isActive: true } } } },
       missions: {
         where: { isActive: true },
@@ -31,6 +34,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       },
     },
   });
+
+  // Bandeau bascule payant (section 100) — cabinet déclenché, sans plan payant
+  const isPaid = profile?.subscriptionPlan === "PREMIUM" || profile?.subscriptionPlan === "BOOST";
+  const billingBanner = (() => {
+    if (profileType !== "TITULAIRE" || !profile?.billingTriggeredAt || isPaid) return null;
+    const graceEnd = new Date(profile.billingTriggeredAt);
+    graceEnd.setDate(graceEnd.getDate() + BILLING_GRACE_DAYS);
+    const daysLeft = Math.ceil((graceEnd.getTime() - Date.now()) / 86400000);
+    return { daysLeft };
+  })();
 
   const createHref = profileType === "TITULAIRE" ? "/missions/create" : "/disponibilites/create";
   // Lien du logo adapté au profil (item 6) — accueil = booking
@@ -127,6 +140,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <SignOutButton />
         </div>
       </header>
+
+      {/* ── Bandeau bascule payant (section 100) ── */}
+      {billingBanner && (
+        <div className="flex-shrink-0 bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between gap-3">
+          <p className="text-xs sm:text-sm text-amber-800 min-w-0">
+            {billingBanner.daysLeft > 0 ? (
+              <>Vous profitez pleinement de Soignect 🎉 — souscrivez un plan sous <strong>{billingBanner.daysLeft} jour{billingBanner.daysLeft > 1 ? "s" : ""}</strong> pour garder l&apos;accès Premium.</>
+            ) : (
+              <>Votre accès Premium est suspendu. Souscrivez un plan pour le réactiver.</>
+            )}
+          </p>
+          <Link href="/premium" className="shrink-0 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 transition">
+            Choisir un plan
+          </Link>
+        </div>
+      )}
 
       {/* ── Contenu ── */}
       <main className="flex-1 flex flex-col pb-16 sm:pb-0">{children}</main>

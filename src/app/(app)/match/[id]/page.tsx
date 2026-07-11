@@ -65,9 +65,10 @@ export default async function MatchPage({ params }: Props) {
     : null;
   const affinityScore = mySwipe?.affinityScore ?? null; // 0-100, déjà la bonne échelle
 
-  const isPremium = await hasPremiumAccess(
-    (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan
-  );
+  const isPremium = await hasPremiumAccess({
+    subscriptionPlan: (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan,
+    billingTriggeredAt: (myProfile as typeof myProfile & { billingTriggeredAt?: Date | null }).billingTriggeredAt,
+  });
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8 flex flex-col gap-6">

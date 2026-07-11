@@ -18,9 +18,9 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
   if (profileId) {
     const me = await prisma.profile.findUnique({
       where: { id: profileId },
-      select: { subscriptionPlan: true },
+      select: { subscriptionPlan: true, billingTriggeredAt: true },
     });
-    isPremium = await hasPremiumAccess(me?.subscriptionPlan);
+    isPremium = await hasPremiumAccess({ subscriptionPlan: me?.subscriptionPlan, billingTriggeredAt: me?.billingTriggeredAt });
   }
 
   let titulaireMissions: TitulaireMission[] = [];
