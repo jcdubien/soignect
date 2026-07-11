@@ -35,10 +35,10 @@ export async function POST(req: NextRequest) {
   const { plan } = parsed.data;
 
   // Structure privée = abonnement de base 89€ + prix à l'usage 20€/contrat (metered, section 7).
-  // Distinction Cabinet/Structure : proxy isEmployeur (aucun champ dédié — signalé à l'utilisateur).
+  // Distinction Cabinet/Structure : champ dédié titulaireKind.
   let lineItems: { price: string; quantity?: number }[];
   if (plan === "STRUCTURE") {
-    if (!profile.isEmployeur) {
+    if (profile.titulaireKind !== "STRUCTURE") {
       return NextResponse.json({ error: "Réservé aux structures privées" }, { status: 403 });
     }
     const base = process.env.STRIPE_PRICE_STRUCTURE_BASE;

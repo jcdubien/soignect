@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { Profession, Region } from "@prisma/client";
+import { Profession, Region, TitulaireKind } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +16,7 @@ const updateSchema = z.object({
   profession: z.nativeEnum(Profession).optional(),
   isVerified: z.boolean().optional(),
   isEmployeur: z.boolean().optional(),
+  titulaireKind: z.nativeEnum(TitulaireKind).optional(),
   // Champs notifications (portés par User, section 50-51)
   phone: z.string().max(20).nullable().optional(),
   phoneCountry: z.string().max(4).optional(),
@@ -58,9 +59,18 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { phone, phoneCountry, emailOptIn, ...profileData } = parsed.data;
+  const { phone, phoneCountry, emailOptIn, titulaireKind, ...profileData } = parsed.data;
 
-  const updated = await prisma.profile.update({ where: { id }, data: profileData });
+  const updated = await prisma.profile.update({
+    where: { id },
+    data: {
+      ...profileData,
+      // titulaireKind est la source de vérité ; isEmployeur (libellés) en est dérivé
+      ...(titulaireKind !== undefined
+        ? { titulaireKind, isEmployeur: titulaireKind === "STRUCTURE" }
+        : {}),
+    },
+  });
 
   // Champs notifications → portés par le User lié
   if (phone !== undefined || phoneCountry !== undefined || emailOptIn !== undefined) {

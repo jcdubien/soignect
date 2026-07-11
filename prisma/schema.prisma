@@ -71,6 +71,13 @@ enum PostType {
   REMPLACEMENT_REGULIER  // legacy — retiré du formulaire (section 5), conservé pour données existantes
 }
 
+// Nature d'un titulaire — distinction explicite Cabinet libéral vs Structure privée
+// (EHPAD, clinique, SSR). Remplace le proxy isEmployeur pour la segmentation/billing.
+enum TitulaireKind {
+  CABINET
+  STRUCTURE
+}
+
 enum BriqueStatus {
   // Titulaire (poste 1 auto)
   PRESENT
@@ -171,6 +178,8 @@ model Profile {
 
   // Établissement employeur : terminologie CDI/CDD/Vacation (section 37)
   isEmployeur Boolean @default(false)
+  // Distinction explicite Cabinet/Structure (segmentation & billing, section 7/99)
+  titulaireKind TitulaireKind @default(CABINET)
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

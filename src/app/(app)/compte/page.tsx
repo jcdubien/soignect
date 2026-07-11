@@ -37,6 +37,7 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
       secondaryPhotoUrl1: true,
       secondaryPhotoUrl2: true,
       isEmployeur: true,
+      titulaireKind: true,
       user: { select: { phone: true, phoneCountry: true, emailOptIn: true } },
     },
   });

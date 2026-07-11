@@ -67,10 +67,21 @@ export default function PremiumPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+  const [kind, setKind] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
+
+  // Récupère la nature du titulaire (Cabinet/Structure) pour l'offre dédiée
+  useEffect(() => {
+    const pid = (session?.user as { profileId?: string })?.profileId;
+    if (!pid) return;
+    fetch(`/api/profiles/${pid}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => setKind(p?.titulaireKind ?? null))
+      .catch(() => {});
+  }, [session]);
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.profileType !== "TITULAIRE") {
@@ -189,17 +200,28 @@ export default function PremiumPage() {
               cher qu&apos;une agence d&apos;intérim.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => subscribe("STRUCTURE")}
-            disabled={loading === "STRUCTURE"}
-            className="shrink-0 px-4 py-2 bg-[#0B3D5C] text-white rounded-xl text-xs font-bold hover:opacity-90 transition disabled:opacity-40"
-          >
-            {loading === "STRUCTURE" ? "Redirection…" : "S'abonner (Structure)"}
-          </button>
+          {kind === "STRUCTURE" ? (
+            <button
+              type="button"
+              onClick={() => subscribe("STRUCTURE")}
+              disabled={loading === "STRUCTURE"}
+              className="shrink-0 px-4 py-2 bg-[#0B3D5C] text-white rounded-xl text-xs font-bold hover:opacity-90 transition disabled:opacity-40"
+            >
+              {loading === "STRUCTURE" ? "Redirection…" : "S'abonner (Structure)"}
+            </button>
+          ) : (
+            <a
+              href="/compte"
+              className="shrink-0 px-4 py-2 border border-gray-300 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-100 transition"
+            >
+              Passer en compte établissement
+            </a>
+          )}
         </div>
         <p className="text-[11px] text-gray-400 mt-2">
-          Réservé aux comptes établissement. Le montant à l&apos;usage (20€) est facturé automatiquement à chaque contrat signé.
+          {kind === "STRUCTURE"
+            ? "Le montant à l'usage (20€) est facturé automatiquement à chaque contrat signé."
+            : "Réservé aux comptes établissement — définissez « Structure privée » dans votre compte."}
         </p>
       </div>
 

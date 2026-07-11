@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
-import { Profession, Region, SubscriptionPlan, ProfileType } from "@prisma/client";
+import { Profession, Region, SubscriptionPlan, ProfileType, TitulaireKind } from "@prisma/client";
 import CompteTimeline from "./CompteTimeline";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164, splitE164 } from "@/lib/phone";
@@ -40,6 +40,7 @@ interface ProfileData {
   secondaryPhotoUrl1: string | null;
   secondaryPhotoUrl2: string | null;
   isEmployeur: boolean;
+  titulaireKind: TitulaireKind;
   user?: { phone: string | null; phoneCountry: string | null; emailOptIn: boolean } | null;
 }
 
@@ -60,7 +61,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   const [region, setRegion]       = useState<Region>(profile.region);
   const [profession, setProfession] = useState<Profession>(profile.profession);
   const [rpps, setRpps]           = useState("");
-  const [isEmployeur, setIsEmployeur] = useState(profile.isEmployeur);
+  const [kind, setKind] = useState<TitulaireKind>(profile.titulaireKind);
 
   // Notifications (section 50-51)
   const initPhone = splitE164(profile.user?.phone, profile.user?.phoneCountry);
@@ -89,7 +90,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
       body: JSON.stringify({
         name: name.trim() || undefined,
         bioTinder: bioTinder.trim() || undefined,
-        region, profession, isEmployeur,
+        region, profession, titulaireKind: kind,
         phone: toE164(phoneCountry, phone) || null,
         phoneCountry,
         emailOptIn,
@@ -254,33 +255,35 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         </div>
       </section>
 
-      {/* ── Contexte employeur (TITULAIRE uniquement) — section 37.B ── */}
+      {/* ── Nature du titulaire (TITULAIRE uniquement) — Cabinet vs Structure ── */}
       {profile.type === "TITULAIRE" && (
         <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Type de structure</h2>
-          <label className="flex items-center justify-between cursor-pointer group">
-            <div>
-              <p className="text-sm font-semibold text-gray-800">Établissement employeur</p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {isEmployeur
-                  ? "Terminologie salarié : Vacation / CDD / CDI"
-                  : "Terminologie libérale : Remplacement / Assistanat / Collaboration"}
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isEmployeur}
-              onClick={() => setIsEmployeur(v => !v)}
-              className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ml-4 ${
-                isEmployeur ? "bg-[#1B3A5C]" : "bg-[#E0E0E0]"
-              }`}
-            >
-              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
-                isEmployeur ? "translate-x-6" : "translate-x-1"
-              }`} />
-            </button>
-          </label>
+          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Type de compte</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {([
+              { value: "CABINET" as TitulaireKind, title: "Cabinet libéral", sub: "Remplacement / Assistanat / Collaboration" },
+              { value: "STRUCTURE" as TitulaireKind, title: "Structure privée", sub: "EHPAD, clinique, SSR · Vacation / CDD / CDI" },
+            ]).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setKind(opt.value)}
+                className={`text-left px-3.5 py-3 rounded-xl border-2 transition ${
+                  kind === opt.value
+                    ? "border-[#1B3A5C] bg-[#1B3A5C]/5"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <p className="text-sm font-bold text-gray-800">{opt.title}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">{opt.sub}</p>
+              </button>
+            ))}
+          </div>
+          {kind === "STRUCTURE" && (
+            <p className="text-[11px] text-gray-400 mt-2">
+              Les structures privées relèvent d&apos;une offre dédiée (89€/mois + 20€/contrat) — voir la page Premium.
+            </p>
+          )}
         </section>
       )}
 
