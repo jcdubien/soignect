@@ -110,6 +110,10 @@ export default function CreateMissionPage() {
   // survivre à l'aller-retour vers /compte (photo obligatoire, item 15).
   const [cabinetPostId, setCabinetPostId] = useState<string | null>(searchParams.get("cabinetPostId"));
 
+  // Mode édition d'une annonce existante (menu CRUD Planning Board) — ?editId=…
+  const editId = searchParams.get("editId");
+  const isEdit = !!editId;
+
   // Item 8 — photo obligatoire avant publication
   const profileId = (session?.user as { profileId?: string })?.profileId;
   const [hasPhoto, setHasPhoto] = useState<boolean | null>(null); // null = en cours de chargement
@@ -157,6 +161,43 @@ export default function CreateMissionPage() {
     router.push("/compte?returnTo=/missions/create");
   }
 
+  // Préremplissage en mode édition (section CRUD annonce)
+  useEffect(() => {
+    if (!editId) return;
+    fetch(`/api/missions/${editId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => {
+        if (!m) return;
+        const nt: NeedType =
+          m.missionType === "ASSISTANAT" ? "assistant" :
+          m.missionType === "COLLABORATION" ? "collaboration" : "remplacement";
+        setNeedType(nt);
+        if (m.cabinetPostId) setCabinetPostId(m.cabinetPostId);
+        // Sépare l'accroche stockée "starter texte" en starter + texte (best-effort)
+        const allStarters = Object.values(CONFIG).flatMap((c) => [...c.pitchStarters]);
+        let ps = "";
+        let pt = (m.pitch ?? "") as string;
+        for (const s of allStarters) {
+          if (pt.startsWith(s)) { ps = s; pt = pt.slice(s.length).trimStart(); break; }
+        }
+        if (!ps && pt) ps = cfg.pitchStarters[0]; // fallback : rend l'accroche éditable
+        setForm((prev) => ({
+          ...prev,
+          title: m.title ?? "",
+          location: m.location ?? "",
+          specialties: m.specialties ?? [],
+          startDate: m.startDate ? String(m.startDate).slice(0, 10) : "",
+          endDate: m.endDate ? String(m.endDate).slice(0, 10) : "",
+          minMonths: m.minMonths ? String(m.minMonths) : "",
+          pitchStarter: ps,
+          pitchText: pt,
+          dateFlexibility: m.dateFlexibility ?? 0,
+        }));
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
+
   // Validation 90 jours pour ASSISTANAT/CDD (front-end)
   const missionDays = form.startDate && form.endDate
     ? Math.floor((new Date(form.endDate).getTime() - new Date(form.startDate).getTime()) / 86400000)
@@ -194,30 +235,33 @@ export default function CreateMissionPage() {
       collaboration: "COLLABORATION",
     };
 
-    const res = await fetch("/api/missions", {
-      method: "POST",
+    const payload = {
+      title: form.title,
+      location: form.location,
+      specialties: form.specialties,
+      startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
+      endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
+      minMonths: form.minMonths ? parseInt(form.minMonths) : null,
+      pitch: pitchFull,
+      missionType: missionTypeMap[needType] ?? "REMPLACEMENT",
+      dateFlexibility: form.dateFlexibility,
+      ...(isEdit ? {} : { cabinetPostId: cabinetPostId ?? undefined }),
+    };
+
+    const res = await fetch(isEdit ? `/api/missions/${editId}` : "/api/missions", {
+      method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: form.title,
-        location: form.location,
-        specialties: form.specialties,
-        startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
-        endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
-        minMonths: form.minMonths ? parseInt(form.minMonths) : null,
-        pitch: pitchFull,
-        missionType: missionTypeMap[needType] ?? "REMPLACEMENT",
-        dateFlexibility: form.dateFlexibility,
-        cabinetPostId: cabinetPostId ?? undefined,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error?.fieldErrors?.title?.[0] ?? "Erreur lors de la création");
+      setError(data.error?.fieldErrors?.title?.[0] ?? (isEdit ? "Erreur lors de l'enregistrement" : "Erreur lors de la création"));
       setLoading(false);
       return;
     }
-    router.push("/annonces");
+    // Édition : retour au planning (resync timeline). Création : liste des annonces.
+    router.push(isEdit ? "/planning" : "/annonces");
   }
 
   const maxPitchText = form.pitchStarter ? 280 - form.pitchStarter.length - 1 : 260;
@@ -230,9 +274,9 @@ export default function CreateMissionPage() {
           {profileType === "TITULAIRE" && <span className="text-xl">🏥</span>}
           {profileType === "REMPLACANT" && <span className="text-xl">🩺</span>}
           {profileType === "ASSISTANT" && <span className="text-xl">👩‍⚕️</span>}
-          <h1 className="text-2xl font-bold text-gray-800">{cfg.pageTitle}</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{isEdit ? "Modifier l'annonce" : cfg.pageTitle}</h1>
         </div>
-        <p className="text-gray-400 text-sm">{cfg.pageSubtitle}</p>
+        <p className="text-gray-400 text-sm">{isEdit ? "Édition complète — dates, texte, tout champ de l'annonce" : cfg.pageSubtitle}</p>
       </div>
 
       {/* Bandeau de retour après ajout de photo (item 15) */}
@@ -465,8 +509,8 @@ export default function CreateMissionPage() {
           </div>
         )}
 
-        {/* ── Photo obligatoire (item 8) — préserve le brouillon (item 15) ── */}
-        {hasPhoto === false && (
+        {/* ── Photo obligatoire (item 8) — non requise en édition ── */}
+        {!isEdit && hasPhoto === false && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-center justify-between gap-3">
             <span>📷 Ajoutez une photo avant de publier une annonce</span>
             <button
@@ -485,17 +529,17 @@ export default function CreateMissionPage() {
 
         <div className="flex gap-3 pt-1">
           <Link
-            href="/annonces"
+            href={isEdit ? "/planning" : "/annonces"}
             className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-500 text-center text-sm hover:bg-gray-50 transition"
           >
-            Plus tard
+            {isEdit ? "Annuler" : "Plus tard"}
           </Link>
           <button
             type="submit"
-            disabled={loading || !form.title || !form.location || !pitchValid || !!under90Days || hasPhoto === false}
+            disabled={loading || !form.title || !form.location || !pitchValid || !!under90Days || (!isEdit && hasPhoto === false)}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
-            {loading ? "Publication…" : cfg.submitLabel}
+            {loading ? (isEdit ? "Enregistrement…" : "Publication…") : isEdit ? "Enregistrer les modifications" : cfg.submitLabel}
           </button>
         </div>
       </form>

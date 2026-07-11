@@ -350,6 +350,8 @@ function PostMenu({
   onDetail,
   onRetirer,
   onDone,
+  onSeeRelations,
+  onEditAnnonce,
 }: {
   dropdown: DropdownState;
   onClose: () => void;
@@ -357,10 +359,27 @@ function PostMenu({
   onDetail: () => void;
   onRetirer: () => void;
   onDone: () => void; // fermer + rafraîchir après création
+  onSeeRelations: () => void; // Cas 2 READ — tray filtré sur l'annonce
+  onEditAnnonce: () => void;  // Cas 2 UPDATE — formulaire de création en mode édition
 }) {
   const { mission, post } = dropdown;
-  const [step, setStep] = useState<"menu" | "presence" | "preavis" | "modifier" | "renommer">("menu");
+  const [step, setStep] = useState<"menu" | "presence" | "preavis" | "modifier" | "renommer" | "annuler_annonce">("menu");
   const [busy, setBusy] = useState(false);
+
+  // Cas 2 (section CRUD annonce) — une annonce est active sur la période cliquée :
+  // annonce publiée (briqueStatus stocké RECHERCHE), pas encore confirmée par contrat.
+  // On se base sur le statut STOCKÉ (pas l'effectif) pour capturer aussi les annonces
+  // ayant déjà des mises en relation en attente (rendues en vert par getEffectiveStatus).
+  const isAnnonceActive = !!mission && mission.isActive && mission.briqueStatus === "RECHERCHE";
+  const relationCount = (mission?.matchesA?.length ?? 0) + (mission?.matchesB?.length ?? 0);
+
+  // DELETE — "Annuler l'annonce" : supprime l'annonce (pas le poste). Timeline resync.
+  async function submitAnnulerAnnonce() {
+    if (!mission || busy) return;
+    setBusy(true);
+    await fetch(`/api/missions/${mission.id}`, { method: "DELETE" });
+    onDone();
+  }
 
   // [✎] Renommer ce poste (item 6 / section 65) — PATCH CabinetPost.label
   const [newLabel, setNewLabel] = useState(post.label);
@@ -488,8 +507,8 @@ function PostMenu({
           </p>
         </div>
 
-        {/* ── Étape menu universel (section 64) — options adaptées au contexte ── */}
-        {step === "menu" && (
+        {/* ── Cas 1 (section 64) — aucune annonce active : menu inchangé ── */}
+        {step === "menu" && !isAnnonceActive && (
           <div className="flex flex-col gap-2.5">
             {/* [1] Poser une annonce */}
             <Button onClick={onPoserAnnonce} className="w-full">Poser une annonce →</Button>
@@ -537,6 +556,63 @@ function PostMenu({
               Retirer ce poste
             </Button>
             <Button variant="text" onClick={onClose} className="w-full !py-2 !text-gray-400 hover:!bg-gray-50">Annuler</Button>
+          </div>
+        )}
+
+        {/* ── Cas 2 — annonce active (Recrutement) : CRUD dédié sur l'annonce ── */}
+        {step === "menu" && isAnnonceActive && (
+          <div className="flex flex-col gap-2.5">
+            <span className="inline-block self-start px-2 py-0.5 bg-[var(--ambre)]/20 text-[#8a5a00] rounded-full text-[10px] font-bold mb-1">
+              Annonce en recrutement
+            </span>
+            {/* READ — voir les mises en relation liées à cette annonce (section 105) */}
+            <Button variant="filled" onClick={onSeeRelations} className="w-full">
+              Voir les mises en relation →
+            </Button>
+            {/* UPDATE — édition complète de l'annonce (dates, texte, photo…) */}
+            <Button variant="outlined" onClick={onEditAnnonce} className="w-full !py-2.5">
+              Modifier l&apos;annonce
+            </Button>
+            {/* Actions du POSTE, séparées visuellement */}
+            <div className="border-t border-gray-100 my-1" />
+            <Button variant="outlined" onClick={() => setStep("presence")} className="w-full !py-2.5">
+              Occupation externe (hors Soignect)
+            </Button>
+            <Button variant="outlined" onClick={submitFermer} disabled={busy} className="w-full !py-2.5">
+              {isFerme ? "Rouvrir cette période" : "Fermer temporairement"}
+            </Button>
+            {/* DELETE — annuler l'annonce (jamais le poste) */}
+            <Button
+              variant="outlined"
+              onClick={() => setStep("annuler_annonce")}
+              className="w-full !py-2.5 !border-red-200 !text-red-600 hover:!bg-red-50"
+            >
+              Annuler l&apos;annonce
+            </Button>
+            <Button variant="text" onClick={onClose} className="w-full !py-2 !text-gray-400 hover:!bg-gray-50">Fermer</Button>
+          </div>
+        )}
+
+        {/* ── Étape confirmation d'annulation de l'annonce (DELETE) ── */}
+        {step === "annuler_annonce" && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-gray-700 font-semibold">Annuler cette annonce ?</p>
+            <p className="text-sm text-gray-500">
+              {relationCount > 0
+                ? `Cette annonce a ${relationCount} mise${relationCount > 1 ? "s" : ""} en relation en cours. `
+                : ""}
+              L&apos;annonce sera retirée ; le poste et sa période reviennent en « Confirmé ». Le poste n&apos;est pas supprimé.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outlined" onClick={() => setStep("menu")} className="flex-1 !py-2.5">Retour</Button>
+              <Button
+                onClick={submitAnnulerAnnonce}
+                disabled={busy}
+                className="flex-1 !py-2.5 !bg-red-600 hover:!bg-red-700"
+              >
+                {busy ? "…" : "Confirmer l'annulation"}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -1762,6 +1838,18 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
           }}
           onRetirer={() => requestRemovePost(dropdown.post)}
           onDone={() => { setDropdown(null); router.refresh(); }}
+          onSeeRelations={() => {
+            const m = dropdown.mission;
+            setDropdown(null);
+            // Cas 2 READ — tray filtré sur cette annonce (réutilise le filtre section 105)
+            if (m) router.push(`/annonces?disponibiliteId=${encodeURIComponent(m.id)}`);
+          }}
+          onEditAnnonce={() => {
+            const m = dropdown.mission;
+            setDropdown(null);
+            // Cas 2 UPDATE — formulaire de création en mode édition
+            if (m) router.push(`/missions/create?editId=${encodeURIComponent(m.id)}`);
+          }}
         />
       )}
 
