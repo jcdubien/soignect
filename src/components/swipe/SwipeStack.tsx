@@ -229,13 +229,11 @@ function Card({
   activeMission,
   otherMissions,
   onSwitchMission,
-  onOpenDetail,
 }: {
   mission: MissionWithProfile;
   activeMission?: ActiveMissionData | null;
   otherMissions?: ActiveMissionData[];
   onSwitchMission?: (id: string) => void;
-  onOpenDetail?: (mission: MissionWithProfile) => void;
 }) {
   const p = mission.profile;
   const tc = TYPE_CONFIG[p.type as keyof typeof TYPE_CONFIG]
@@ -274,21 +272,11 @@ function Card({
 
   return (
     <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-white flex">
-      {/* Déclencheur "i" — ouvre la fiche détaillée (bottom sheet, section 4).
-          Pastille sombre translucide : visible aussi bien sur la photo que sur la
-          colonne info blanche (bug : white-on-white la rendait invisible).
-          stopPropagation sur pointerdown pour ne pas déclencher le drag de swipe. */}
-      {onOpenDetail && (
-        <button
-          type="button"
-          aria-label="Voir la fiche détaillée"
-          onPointerDownCapture={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onOpenDetail(mission); }}
-          className="absolute top-2.5 right-2.5 z-30 w-8 h-8 rounded-full bg-[#0B3D5C] text-white shadow-lg ring-2 ring-white/70 flex items-center justify-center hover:bg-[#0e4d73] active:scale-95 transition"
-        >
-          <span className="text-sm font-black italic leading-none">i</span>
-        </button>
-      )}
+      {/* Toute la carte est cliquable (tap → fiche détaillée) — voir le motion.div parent.
+          Indice visuel discret que la carte ouvre une fiche : */}
+      <span className="absolute top-2.5 right-2.5 z-30 w-7 h-7 rounded-full bg-black/35 text-white flex items-center justify-center pointer-events-none">
+        <span className="text-xs font-black italic leading-none">i</span>
+      </span>
       {/* ── Colonne gauche : Photo 40% ── */}
       <div className="relative shrink-0 bg-gradient-to-br from-kine-200 via-kine-500 to-kine-900" style={{ width: "40%" }}>
         {p.photoUrl ? (
@@ -441,6 +429,11 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   );
   // Skip the mission-switch effect on initial mount — initial fetch is handled by the [fetchFeed] effect
   const missionSwitchMounted = useRef(false);
+
+  // Détection tap vs drag sur la carte (section correctif) — ouvre le bottom sheet si
+  // le déplacement horizontal reste sous le seuil (tap), sinon laisse le swipe s'exécuter.
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const TAP_THRESHOLD = 10;
 
   const x        = useMotionValue(0);
   const rotate   = useTransform(x, [-200, 200], [-15, 15]);
@@ -747,10 +740,10 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             );
           })}
 
-          {/* Carte du dessus — draggable */}
+          {/* Carte du dessus — draggable + tap pour ouvrir la fiche détaillée */}
           <motion.div
             key={stack[0].id}
-            className="absolute inset-0 cursor-grab active:cursor-grabbing"
+            className="absolute inset-0 cursor-pointer"
             style={{ x, rotate, zIndex: 30 }}
             animate={controls}
             drag={swiping ? false : "x"}
@@ -758,13 +751,25 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             dragElastic={0.7}
             onDragEnd={handleDragEnd}
             whileTap={{ scale: 1.01 }}
+            onPointerDown={(e) => { pointerStart.current = { x: e.clientX, y: e.clientY }; }}
+            onPointerUp={(e) => {
+              const s = pointerStart.current;
+              pointerStart.current = null;
+              if (!s || swiping) return;
+              const dx = Math.abs(e.clientX - s.x);
+              const dy = Math.abs(e.clientY - s.y);
+              // Tap = déplacement sous le seuil ET pas sur un élément interactif interne
+              const onInteractive = (e.target as HTMLElement).closest("button, a");
+              if (dx < TAP_THRESHOLD && dy < TAP_THRESHOLD && !onInteractive) {
+                setDetailMission(stack[0]);
+              }
+            }}
           >
             <Card
               mission={stack[0]}
               activeMission={activeMissionData}
               otherMissions={otherMissionsData}
               onSwitchMission={isTitulaire ? (id) => setActiveMissionId(id) : undefined}
-              onOpenDetail={setDetailMission}
             />
 
             {/* Overlay OUI */}
