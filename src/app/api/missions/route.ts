@@ -96,6 +96,23 @@ export async function POST(req: NextRequest) {
 
   const { title, description, location, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, briqueStatus, cabinetPostId } = parsed.data;
 
+  // Photo de profil obligatoire pour publier une annonce/disponibilité (ferme la brèche
+  // rétroactive : un profil créé avant l'onboarding-photo pouvait publier sans photo).
+  // On n'exige rien pour les "dates bloquées" (INDISPONIBLE), qui ne sont pas des annonces.
+  const effectiveBrique = briqueStatus ?? BriqueStatus.RECHERCHE;
+  if (effectiveBrique !== BriqueStatus.INDISPONIBLE) {
+    const me = await prisma.profile.findUnique({
+      where: { id: session.user.profileId },
+      select: { photoUrl: true },
+    });
+    if (!me?.photoUrl) {
+      return NextResponse.json(
+        { error: "Ajoutez une photo de profil avant de publier une annonce.", needsPhoto: true },
+        { status: 422 }
+      );
+    }
+  }
+
   // Validation 90 jours minimum pour les postes longs (section 37.E)
   const effectiveMissionType = missionType ?? MissionType.REMPLACEMENT;
   if (effectiveMissionType === MissionType.ASSISTANAT && startDate && endDate) {

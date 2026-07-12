@@ -24,6 +24,17 @@ export default function CreateDisponibilitePage() {
     }
   }, [status, profileType, router]);
 
+  // Photo de profil obligatoire pour publier (ferme la brèche — cohérent avec le serveur)
+  const profileId = (session?.user as { profileId?: string })?.profileId;
+  const [hasPhoto, setHasPhoto] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!profileId) return;
+    fetch(`/api/profiles/${profileId}`)
+      .then((r) => r.json())
+      .then((p) => setHasPhoto(Boolean(p?.photoUrl)))
+      .catch(() => setHasPhoto(true));
+  }, [profileId]);
+
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -73,7 +84,12 @@ export default function CreateDisponibilitePage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error?.fieldErrors?.title?.[0] ?? "Erreur lors de la publication");
+      if (data?.needsPhoto) setHasPhoto(false);
+      setError(
+        data?.needsPhoto
+          ? "Ajoutez une photo de profil avant de publier."
+          : (data.error?.fieldErrors?.title?.[0] ?? (typeof data.error === "string" ? data.error : "Erreur lors de la publication"))
+      );
       setLoading(false);
       return;
     }
@@ -284,6 +300,16 @@ export default function CreateDisponibilitePage() {
           </div>
         )}
 
+        {/* Photo de profil obligatoire pour publier */}
+        {hasPhoto === false && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-center justify-between gap-3">
+            <span>📷 Ajoutez une photo de profil avant de publier</span>
+            <Link href="/compte" className="shrink-0 font-semibold text-amber-900 underline hover:text-amber-950">
+              Ajouter →
+            </Link>
+          </div>
+        )}
+
         {error && (
           <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{error}</p>
         )}
@@ -297,7 +323,7 @@ export default function CreateDisponibilitePage() {
           </Link>
           <button
             type="submit"
-            disabled={loading || !form.title || !form.location || !bioValid || !!under90Days}
+            disabled={loading || !form.title || !form.location || !bioValid || !!under90Days || hasPhoto === false}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
             {loading ? "Publication…" : "Publier mes disponibilités →"}

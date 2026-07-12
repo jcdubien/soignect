@@ -256,7 +256,12 @@ export default function CreateMissionPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error?.fieldErrors?.title?.[0] ?? (isEdit ? "Erreur lors de l'enregistrement" : "Erreur lors de la création"));
+      if (data?.needsPhoto) setHasPhoto(false);
+      setError(
+        data?.needsPhoto
+          ? "Ajoutez une photo de profil avant de publier."
+          : (data.error?.fieldErrors?.title?.[0] ?? (typeof data.error === "string" ? data.error : (isEdit ? "Erreur lors de l'enregistrement" : "Erreur lors de la création")))
+      );
       setLoading(false);
       return;
     }
