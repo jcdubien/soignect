@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import SwipeStack from "@/components/swipe/SwipeStack";
 import MatchTray from "@/components/swipe/MatchTray";
 import RecentMissionsTray, { RecentMission } from "@/components/swipe/RecentMissionsTray";
+import MissionDetailSheet, { DetailMission, MissionRelation } from "@/components/swipe/MissionDetailSheet";
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
 
 interface Props {
@@ -16,12 +17,40 @@ interface Props {
 }
 
 export default function AnnoncesClient({ profileType, profileId, isPremium, titulaireMissions, initialMissionId, disponibiliteId }: Props) {
-  const [trayKey,      setTrayKey]      = useState(0);
-  const [sheetMission, setSheetMission] = useState<RecentMission | null>(null);
+  const [trayKey, setTrayKey] = useState(0);
+  const [detail, setDetail] = useState<{ mission: DetailMission; relation: MissionRelation } | null>(null);
 
-  const handleSelectRecent = useCallback((mission: RecentMission) => {
-    setSheetMission(mission);
+  // Clic sur une annonce récente → même fiche détaillée (bottom sheet) que l'icône "i",
+  // enrichie du statut réel de l'utilisateur (swipe / mise en relation).
+  const handleSelectRecent = useCallback(async (rm: RecentMission) => {
+    try {
+      const r = await fetch(`/api/missions/${rm.id}/card`);
+      if (!r.ok) return;
+      const d = await r.json();
+      setDetail({ mission: d.mission, relation: d.relation });
+    } catch { /* silencieux */ }
   }, []);
+
+  // Swipe depuis le bottom sheet (annonce jamais traitée) — enregistrement normal.
+  const handleSheetSwipe = useCallback(async (direction: "LEFT" | "RIGHT") => {
+    const current = detail;
+    if (!current) return;
+    try {
+      const res = await fetch("/api/swipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ swipedMissionId: current.mission.id, direction }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setDetail((cur) =>
+        cur
+          ? { ...cur, relation: { swipeDirection: direction, matchId: data?.match?.id ?? cur.relation.matchId ?? null } }
+          : cur
+      );
+      if (direction === "RIGHT") setTrayKey((k) => k + 1); // rafraîchit le tray "Vos mises en relation"
+    } catch { /* silencieux */ }
+  }, [detail]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -38,48 +67,14 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, titu
 
       <MatchTray refreshKey={trayKey} titulaireMissions={titulaireMissions} myProfileType={profileType} myProfileId={profileId} isPremium={isPremium} disponibiliteId={disponibiliteId} />
 
-      {sheetMission && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4 bg-black/50"
-          onClick={() => setSheetMission(null)}
-        >
-          <div
-            className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl max-h-[80vh] overflow-y-auto shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
-            <div className="px-6 py-5">
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">{sheetMission.title}</h2>
-                  <p className="text-sm text-gray-400">📍 {sheetMission.location}</p>
-                </div>
-                <button
-                  onClick={() => setSheetMission(null)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 text-xl"
-                >
-                  ✕
-                </button>
-              </div>
-              {sheetMission.description && (
-                <p className="text-gray-600 text-sm mb-3">{sheetMission.description}</p>
-              )}
-              {sheetMission.startDate && (
-                <p className="text-sm text-gray-500 mb-2">
-                  📅 {new Date(sheetMission.startDate).toLocaleDateString("fr-FR")}
-                  {sheetMission.endDate && ` → ${new Date(sheetMission.endDate).toLocaleDateString("fr-FR")}`}
-                </p>
-              )}
-              {(sheetMission.specialties?.length ?? 0) > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {sheetMission.specialties!.map(s => (
-                    <span key={s} className="px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600">{s}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Fiche détaillée hors carrousel — même composant que l'icône "i", avec statut + actions */}
+      {detail && (
+        <MissionDetailSheet
+          mission={detail.mission}
+          relation={detail.relation}
+          onSwipe={handleSheetSwipe}
+          onClose={() => setDetail(null)}
+        />
       )}
     </div>
   );

@@ -15,7 +15,7 @@ import { Mission, MissionType, Profile } from "@prisma/client";
 import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
 import MissionSelector, { TitulaireMission } from "./MissionSelector";
-import BottomSheet from "@/components/ui/md3/BottomSheet";
+import MissionDetailSheet from "./MissionDetailSheet";
 
 type MissionWithProfile = Mission & { profile: Profile };
 type MissionFilter = "ALL" | "REMPLACEMENT" | "ASSISTANAT" | "COLLABORATION";
@@ -420,90 +420,6 @@ function Card({
         )}
       </div>
     </div>
-  );
-}
-
-// ── Fiche détaillée (bottom sheet, section 4) ──────────────────────────────────
-function MissionDetailSheet({ mission, onClose }: { mission: MissionWithProfile; onClose: () => void }) {
-  const p = mission.profile;
-  const photos = [p.photoUrl, p.secondaryPhotoUrl1, p.secondaryPhotoUrl2].filter(Boolean) as string[];
-  const bioText =
-    (mission as MissionWithProfile & { bioTinder?: string | null }).bioTinder ??
-    (p as Profile & { bioTinder?: string | null }).bioTinder ?? null;
-  const dateRange =
-    mission.startDate && mission.endDate ? `${fmt(mission.startDate)} → ${fmt(mission.endDate)}`
-    : mission.startDate ? `Dès le ${fmt(mission.startDate)}`
-    : mission.minMonths ? `${mission.minMonths} mois min.` : null;
-  const tc = TYPE_CONFIG[p.type as keyof typeof TYPE_CONFIG] ?? { label: p.type, color: "bg-gray-500", emoji: "👤" };
-
-  const [summary, setSummary] = useState<{ extract: string; url?: string | null } | null>(null);
-  const [loadingSummary, setLoadingSummary] = useState(true);
-  useEffect(() => {
-    let cancelled = false;
-    const region = (p as Profile & { region?: string }).region ?? "GUADELOUPE";
-    fetch(`/api/commune-summary?commune=${encodeURIComponent(mission.location)}&region=${encodeURIComponent(region)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled) setSummary(d?.summary ?? null); })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoadingSummary(false); });
-    return () => { cancelled = true; };
-  }, [mission.location, p]);
-
-  return (
-    <BottomSheet open onClose={onClose} zClass="z-[70]">
-      <div className="px-5 py-4 overflow-y-auto">
-        {photos.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
-            {photos.map((src, i) => (
-              <div key={i} className="relative shrink-0 w-40 h-52 rounded-2xl overflow-hidden bg-gray-100">
-                <Image src={src} alt="" fill className="object-cover" sizes="160px" unoptimized />
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-4">
-          {p.name && <p className="text-base font-black text-gray-900 leading-tight">{p.name}</p>}
-          <h3 className="text-sm font-semibold text-gray-600 mt-0.5">{mission.title}</h3>
-          <p className="text-xs text-gray-400 mt-1">
-            📍 {mission.location} · {tc.label}{dateRange ? ` · ${dateRange}` : ""}
-          </p>
-        </div>
-
-        {bioText && (
-          <p className="mt-3 text-sm text-kine-700 italic border-l-2 border-kine-400 pl-3 bg-kine-50 rounded-r-xl py-2 pr-2">
-            {bioText}
-          </p>
-        )}
-
-        <div className="mt-4">
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">
-            À propos de {mission.location}
-          </p>
-          {loadingSummary ? (
-            <p className="text-xs text-gray-400">Chargement…</p>
-          ) : summary ? (
-            <>
-              <p className="text-sm text-gray-600 leading-relaxed">{summary.extract}</p>
-              {summary.url && (
-                <a href={summary.url} target="_blank" rel="noopener noreferrer" className="text-xs text-kine-600 underline mt-1 inline-block">
-                  Source : Wikipédia
-                </a>
-              )}
-            </>
-          ) : (
-            <p className="text-xs text-gray-400">Aucune description disponible pour cette commune.</p>
-          )}
-        </div>
-
-        <button
-          onClick={onClose}
-          className="w-full mt-5 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition"
-        >
-          Fermer
-        </button>
-      </div>
-    </BottomSheet>
   );
 }
 
