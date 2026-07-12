@@ -274,7 +274,9 @@ function Card({
 
   return (
     <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-white flex">
-      {/* Déclencheur discret "i" — ouvre la fiche détaillée (bottom sheet, section 4).
+      {/* Déclencheur "i" — ouvre la fiche détaillée (bottom sheet, section 4).
+          Pastille sombre translucide : visible aussi bien sur la photo que sur la
+          colonne info blanche (bug : white-on-white la rendait invisible).
           stopPropagation sur pointerdown pour ne pas déclencher le drag de swipe. */}
       {onOpenDetail && (
         <button
@@ -282,9 +284,9 @@ function Card({
           aria-label="Voir la fiche détaillée"
           onPointerDownCapture={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onOpenDetail(mission); }}
-          className="absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-full bg-white/85 backdrop-blur text-gray-600 shadow flex items-center justify-center hover:bg-white transition"
+          className="absolute top-2.5 right-2.5 z-30 w-8 h-8 rounded-full bg-[#0B3D5C] text-white shadow-lg ring-2 ring-white/70 flex items-center justify-center hover:bg-[#0e4d73] active:scale-95 transition"
         >
-          <span className="text-sm font-bold italic leading-none">i</span>
+          <span className="text-sm font-black italic leading-none">i</span>
         </button>
       )}
       {/* ── Colonne gauche : Photo 40% ── */}
@@ -294,7 +296,7 @@ function Card({
             src={p.photoUrl}
             alt="Photo"
             fill
-            className="object-cover"
+            className="object-cover object-center"
             sizes="(max-width: 480px) 40vw, 192px"
             unoptimized
           />
