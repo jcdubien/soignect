@@ -447,6 +447,19 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
     return null;
   }
 
+  function selectItem(item: TrayItem) {
+    setSelected(item);
+    if (item.matchId) {
+      setUnreadIds(prev => {
+        const next = new Set(prev);
+        next.delete(item.matchId as string);
+        return next;
+      });
+      setSeenIds(prev => new Set(Array.from(prev).concat([item.matchId as string])));
+    }
+  }
+
+  // Rendu compact (bande horizontale mobile)
   function renderItem(item: TrayItem) {
     const p         = item.mission.profile;
     const initials  = getInitials(p.name);
@@ -459,17 +472,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
     return (
       <button
         key={item.mission.id}
-        onClick={() => {
-          setSelected(item);
-          if (item.matchId) {
-            setUnreadIds(prev => {
-              const next = new Set(prev);
-              next.delete(item.matchId as string);
-              return next;
-            });
-            setSeenIds(prev => new Set(Array.from(prev).concat([item.matchId as string])));
-          }
-        }}
+        onClick={() => selectItem(item)}
         className="relative shrink-0 flex flex-col items-center gap-0.5 group"
       >
         <div className={`relative w-11 h-11 rounded-2xl overflow-hidden border-2 transition group-hover:scale-105 ${
@@ -520,9 +523,46 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
     );
   }
 
+  // Rendu en ligne (liste verticale, panneau latéral desktop)
+  function renderItemRow(item: TrayItem) {
+    const p         = item.mission.profile;
+    const initials  = getInitials(p.name);
+    const initColor = getInitialsColor(p.name);
+    const isUnread  = item.matchId ? unreadIds.has(item.matchId) : false;
+    const name = p.name ?? ({ TITULAIRE: "Cabinet", REMPLACANT: "Remplaçant", ASSISTANT: "Assistant" } as Record<string, string>)[p.type] ?? "Profil";
+    return (
+      <button
+        key={item.mission.id}
+        onClick={() => selectItem(item)}
+        className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-gray-50 transition text-left"
+      >
+        <div className={`relative w-10 h-10 shrink-0 rounded-xl overflow-hidden border-2 ${item.matchId ? "border-emerald-400" : "border-kine-200"}`}>
+          {p.photoUrl ? (
+            <Image src={p.photoUrl} alt="" fill className="object-cover" sizes="40px" unoptimized />
+          ) : (
+            <div className={`w-full h-full ${initColor} flex items-center justify-center`}>
+              <span className="text-xs font-black text-white">{initials}</span>
+            </div>
+          )}
+          {isUnread && <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-800 truncate">{name}</p>
+          <p className="text-[11px] text-gray-400 truncate">{item.matchId ? "Mise en relation" : "En attente de réponse"}</p>
+        </div>
+        {item.affinityScore !== null && (
+          <span className="shrink-0 text-[10px] font-bold text-kine-600 bg-kine-50 rounded-full px-2 py-0.5">
+            {Math.round(item.affinityScore)}
+          </span>
+        )}
+      </button>
+    );
+  }
+
   return (
     <>
-      <div className="shrink-0 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)] max-h-[210px] overflow-y-auto">
+      {/* ── Bande horizontale — mobile uniquement (inchangé) ── */}
+      <div className="lg:hidden shrink-0 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)] max-h-[210px] overflow-y-auto">
         <div className="px-3 pt-2 pb-3 space-y-2.5">
 
           {/* ── Vos mises en relation (réciproques confirmées, mises en avant) ── */}
@@ -557,6 +597,32 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Panneau latéral droit — desktop uniquement (liste verticale) ── */}
+      <div className="hidden lg:flex lg:flex-col lg:h-full lg:w-80 lg:shrink-0 lg:border-l lg:border-gray-100 lg:bg-white lg:overflow-y-auto">
+        {matchedItems.length > 0 && (
+          <div className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Vos mises en relation</p>
+              {totalUnread > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse">
+                  {totalUnread}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">{matchedItems.map(renderItemRow)}</div>
+          </div>
+        )}
+        {likedItems.length > 0 && (
+          <div className={`p-3 ${matchedItems.length > 0 ? "border-t border-gray-100" : ""}`}>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
+              Vos choix
+              <span className="ml-1 text-gray-300 normal-case tracking-normal font-normal">· en attente</span>
+            </p>
+            <div className="flex flex-col gap-1">{likedItems.map(renderItemRow)}</div>
+          </div>
+        )}
       </div>
 
       {selected && (

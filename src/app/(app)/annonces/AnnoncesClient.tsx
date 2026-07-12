@@ -56,16 +56,19 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, titu
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <RecentMissionsTray onSelectMission={handleSelectRecent} />
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <SwipeStack
-          onSwipeRight={() => setTrayKey(k => k + 1)}
-          profileType={profileType}
-          titulaireMissions={titulaireMissions}
-          initialMissionId={initialMissionId}
-        />
-      </div>
+      {/* Mobile : colonne (swipe + tray en bande bas). Desktop : deux colonnes (swipe centré + panneau latéral droit). */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0">
+          <SwipeStack
+            onSwipeRight={() => setTrayKey(k => k + 1)}
+            profileType={profileType}
+            titulaireMissions={titulaireMissions}
+            initialMissionId={initialMissionId}
+          />
+        </div>
 
-      <MatchTray refreshKey={trayKey} titulaireMissions={titulaireMissions} myProfileType={profileType} myProfileId={profileId} isPremium={isPremium} disponibiliteId={disponibiliteId} />
+        <MatchTray refreshKey={trayKey} titulaireMissions={titulaireMissions} myProfileType={profileType} myProfileId={profileId} isPremium={isPremium} disponibiliteId={disponibiliteId} />
+      </div>
 
       {/* Fiche détaillée hors carrousel — même composant que l'icône "i", avec statut + actions */}
       {detail && (
