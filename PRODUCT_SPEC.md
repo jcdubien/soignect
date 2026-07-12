@@ -8802,3 +8802,81 @@ conversation traîne malgré tout).
 - Template email Resend dédié, cohérent avec le ton déjà utilisé 
   pour les autres notifications (déclenchement billing, etc.)
 ```
+
+---
+
+## 113. Suivi post-sprint après-midi (commit fce5be5, puis d25075a)
+
+### Statut des 9 points du sprint après-midi
+
+```
+✅ 1. Gate contrat PDF → hasPremiumAccess() — BUG CONFIRMÉ ET CORRIGÉ 
+   (testait subscriptionPlan === FREE en dur, bloquait un cabinet 
+   FREE même en freeAccessMode)
+✅ 2. Photo onboarding obligatoire — bloque désormais l'étape 2 et 
+   le submit final. 14/15 profils sans photo en base = comptes de 
+   test, pas de risque réel. Non rétroactif (bloque les futures 
+   publications).
+✅ 3. Photos secondaires — secondaryPhotoUrl1/2 + route upload/
+   delete + UI dans /compte
+✅ 4. Bottom sheet fiche détaillée — déclencheur "i" sur la carte
+✅ 5. Descriptif commune Wikipédia — désambiguïsation par territoire, 
+   cache 30j, fallback silencieux
+✅ 6. CRUD annonce — déjà livré précédemment (commit d14ed48), 
+   vérifié dans ce sprint
+✅ 7. Metered billing Structures privées — checkout à 2 composantes, 
+   webhook, reportStructureContractUsage() idempotent, bouton réel 
+   sur /premium
+✅ 8. Partager sur Facebook — bouton sharer.php dans le menu CRUD 
+   annonce
+✅ 9. Rappel 24h — Message.reminderSentAt + cron horaire protégé 
+   CRON_SECRET, email au destinataire uniquement
+```
+
+### Distinction Cabinet/Structure — rendue explicite (commit d25075a)
+
+```
+Suite à la demande de rendre la distinction explicite plutôt que 
+de dépendre du proxy isEmployeur, un champ dédié a été ajouté :
+
+Schéma (migration 20260711030000_titulaire_kind, additive) :
+  enum TitulaireKind { CABINET, STRUCTURE }
+  Profile.titulaireKind TitulaireKind @default(CABINET)
+  Backfill : titulaireKind = STRUCTURE là où isEmployeur = true 
+  (0 ligne concernée en pratique — aucun titulaire n'était encore 
+  marqué employeur)
+
+titulaireKind est désormais la SOURCE DE VÉRITÉ pour la 
+segmentation et le billing (checkout Stripe gaté dessus). 
+isEmployeur reste un champ dérivé/miroir, conservé pour ne pas 
+casser la terminologie déjà câblée ailleurs (Vacation/CDD/CDI 
+dans missions/create, Planning Board).
+
+UI /compte : le toggle "Établissement employeur" devient un 
+sélecteur explicite à 2 choix — "Cabinet libéral" / "Structure 
+privée (EHPAD, clinique, SSR)".
+
+UI /premium : bouton "S'abonner (Structure)" visible uniquement 
+si titulaireKind === STRUCTURE, sinon lien "Passer en compte 
+établissement".
+
+Choix assumé (à valider si besoin) : isEmployeur n'a pas été 
+supprimé pour éviter un chantier invasif sur l'auth et les 
+libellés déjà câblés partout — possible de le retirer 
+complètement plus tard si souhaité.
+```
+
+### ✅ Actions manuelles confirmées faites (11/07)
+
+```
+- Stripe : Price IDs Structures privées créés (base 89€/mois + 
+  usage 20€ metered) et reportés dans Vercel — checkout Structure 
+  opérationnel
+- CRON_SECRET défini dans Vercel — cron horaire des rappels 24h 
+  opérationnel
+
+Reste à faire, non bloquant : un test réel de bout en bout 
+(souscription Structure + vérification qu'un rappel 24h part bien) 
+dès qu'un cas d'usage réel se présente — pas de vérification 
+synthétique nécessaire dans l'immédiat.
+```

@@ -70,12 +70,6 @@ function LoginForm() {
         <p className="text-kine-100 text-sm font-medium tracking-wide">
           Trouvez. Remplacez. Collaborez.
         </p>
-        {/* Vague décorative */}
-        <div className="mt-6 flex gap-2 opacity-40">
-          {["🌊","🌴","🌊"].map((e, i) => (
-            <span key={i} className="text-2xl">{e}</span>
-          ))}
-        </div>
       </div>
 
       {/* Card formulaire */}
