@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { z } from "zod";
-import { ProfileType } from "@prisma/client";
+import { ProfileType, TitulaireKind } from "@prisma/client";
 import { sendWelcomeEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +11,9 @@ const createProfileSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   type: z.nativeEnum(ProfileType),
+  // Nature du titulaire (Cabinet libéral vs Structure privée) posée dès l'inscription
+  // pour l'entrée « Établissement ». Ignoré pour les remplaçants (défaut CABINET).
+  titulaireKind: z.nativeEnum(TitulaireKind).optional(),
   name: z.string().max(100).optional(),
   bio: z.string().max(300).optional(),
   bioTinder: z.string().max(280).optional(),
@@ -28,7 +31,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email, password, type, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn } = parsed.data;
+  const { email, password, type, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn } = parsed.data;
+  // Ne persiste la nature que pour un titulaire ; sinon on laisse le défaut (CABINET).
+  const kind = type === "TITULAIRE" ? titulaireKind : undefined;
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) {
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest) {
       phoneCountry: phoneCountry ?? "GP",
       emailOptIn: optIn,
       profile: {
-        create: { type, name, bio, bioTinder, photoUrl },
+        create: { type, name, bio, bioTinder, photoUrl, ...(kind ? { titulaireKind: kind } : {}) },
       },
     },
     include: { profile: true },

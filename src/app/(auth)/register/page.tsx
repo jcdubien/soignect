@@ -72,6 +72,9 @@ function RegisterForm() {
 
   // Step 1
   const [profileType, setProfileType] = useState<ProfileTypeChoice | "">("");
+  // Titulaire de type Structure privée (EHPAD / clinique / SSR) — entrée « Établissement ».
+  // Détermine titulaireKind = STRUCTURE dès l'inscription (sinon CABINET par défaut).
+  const [structure, setStructure] = useState(false);
 
   // Step 2
   const [email, setEmail] = useState("");
@@ -122,6 +125,7 @@ function RegisterForm() {
         email: email.toLowerCase().trim(),
         password,
         type: profileType,
+        titulaireKind: profileType === "TITULAIRE" && structure ? "STRUCTURE" : undefined,
         name: name.trim() || undefined,
         bioTinder: bioFull || undefined,
         phone: toE164(phoneCountry, phone) || undefined,
@@ -196,7 +200,7 @@ function RegisterForm() {
 
               <div className="space-y-3">
                 <button
-                  onClick={() => { setProfileType("TITULAIRE"); setStep(2); }}
+                  onClick={() => { setProfileType("TITULAIRE"); setStructure(false); setStep(2); }}
                   className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 text-left transition group"
                 >
                   <span className="text-3xl">🏥</span>
@@ -208,7 +212,19 @@ function RegisterForm() {
                 </button>
 
                 <button
-                  onClick={() => { setProfileType("REMPLACANT"); setStep(2); }}
+                  onClick={() => { setProfileType("TITULAIRE"); setStructure(true); setStep(2); }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-[#0B3D5C] hover:bg-slate-50 text-left transition group"
+                >
+                  <span className="text-3xl">🏨</span>
+                  <div>
+                    <p className="font-bold text-gray-800 text-base">Établissement</p>
+                    <p className="text-sm text-gray-400">EHPAD, clinique, SSR — vacations, CDD, CDI</p>
+                  </div>
+                  <span className="ml-auto text-gray-300 group-hover:text-[#0B3D5C] text-xl">→</span>
+                </button>
+
+                <button
+                  onClick={() => { setProfileType("REMPLACANT"); setStructure(false); setStep(2); }}
                   className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-kine-400 hover:bg-kine-50 text-left transition group"
                 >
                   <span className="text-3xl">🩺</span>
@@ -234,7 +250,7 @@ function RegisterForm() {
             <>
               <StepIndicator current={1} total={2} />
               <h2 className="text-lg font-bold text-gray-800 mb-5">
-                {profileType === "TITULAIRE" ? "Votre cabinet" : "Votre identité"}
+                {profileType === "TITULAIRE" ? (structure ? "Votre établissement" : "Votre cabinet") : "Votre identité"}
               </h2>
 
               <form
@@ -279,14 +295,14 @@ function RegisterForm() {
 
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">
-                    {profileType === "TITULAIRE" ? "Nom du cabinet" : "Votre nom"}
+                    {profileType === "TITULAIRE" ? (structure ? "Nom de l'établissement" : "Nom du cabinet") : "Votre nom"}
                   </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-                    placeholder={profileType === "TITULAIRE" ? "Cabinet Dupont" : "Marie Dupont"}
+                    placeholder={profileType === "TITULAIRE" ? (structure ? "Clinique des Alizés" : "Cabinet Dupont") : "Marie Dupont"}
                     required
                   />
                 </div>

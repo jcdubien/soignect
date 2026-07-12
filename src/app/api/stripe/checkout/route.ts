@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     subscription_data: {
       metadata: { profileId: profile.id, plan },
     },
-    success_url: `${baseUrl}/dashboard/billing?success=1`,
+    success_url: `${baseUrl}/compte?upgraded=1`,
     cancel_url: `${baseUrl}/premium?cancelled=1`,
   });
 

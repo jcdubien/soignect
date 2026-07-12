@@ -68,6 +68,7 @@ export default function PremiumPage() {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [kind, setKind] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -84,7 +85,11 @@ export default function PremiumPage() {
   }, [session]);
 
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.profileType !== "TITULAIRE") {
+    // Ne rediriger que lorsque le profileType est connu ET différent de TITULAIRE.
+    // Tant qu'il est indéterminé (session en cours d'hydratation), on reste sur la page
+    // pour éviter d'éjecter un titulaire légitime au chargement à froid.
+    const pt = session?.user?.profileType;
+    if (status === "authenticated" && pt && pt !== "TITULAIRE") {
       router.replace("/annonces");
     }
   }, [status, session, router]);
@@ -99,6 +104,7 @@ export default function PremiumPage() {
 
   async function subscribe(plan: "PREMIUM" | "BOOST" | "STRUCTURE") {
     setLoading(plan);
+    setError(null);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -108,10 +114,25 @@ export default function PremiumPage() {
       if (res.ok) {
         const { url } = await res.json();
         if (url) window.location.href = url;
+        else setError("Réponse inattendue du paiement. Réessayez dans un instant.");
       } else {
-        const err = await res.json();
-        alert(err.error ?? "Erreur lors de la création de la session Stripe");
+        const err = await res.json().catch(() => ({}));
+        // 503 = paiement en ligne pas encore activé (Stripe non configuré côté serveur)
+        if (res.status === 503) {
+          setError(
+            "Le paiement en ligne n'est pas encore activé sur cette version. " +
+              "Écrivez-nous et nous activerons votre accès manuellement.",
+          );
+        } else {
+          setError(
+            typeof err.error === "string"
+              ? err.error
+              : "Impossible de démarrer le paiement. Réessayez dans un instant.",
+          );
+        }
       }
+    } catch {
+      setError("Problème de connexion. Vérifiez votre réseau et réessayez.");
     } finally {
       setLoading(null);
     }
@@ -125,6 +146,15 @@ export default function PremiumPage() {
           Augmentez votre visibilité auprès des kinésithérapeutes, accédez aux scores et recrutez plus vite.
         </p>
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="max-w-lg mx-auto mb-8 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {PLANS.map(plan => (

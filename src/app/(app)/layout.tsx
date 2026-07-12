@@ -131,6 +131,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               📅 Disponibilités
             </Link>
           )}
+          {/* Découvrabilité Premium (F1) — CTA persistant pour les titulaires.
+              Jusqu'ici l'offre n'était atteignable qu'en bas de /compte. ✨ seul sur
+              mobile, label complet sur desktop. */}
+          {profileType === "TITULAIRE" && (
+            <Link
+              href="/premium"
+              className="text-xs px-2.5 sm:px-3 py-1.5 bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 transition inline-flex items-center gap-1"
+            >
+              <span>✨</span>
+              <span className="hidden sm:inline">Premium</span>
+            </Link>
+          )}
           <Link
             href="/compte"
             className="text-xs px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg font-semibold hover:bg-gray-50 transition hidden sm:inline-flex items-center"
