@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import SwipeStack from "@/components/swipe/SwipeStack";
 import MatchTray from "@/components/swipe/MatchTray";
 import RecentMissionsTray, { RecentMission } from "@/components/swipe/RecentMissionsTray";
+import LaunchOfferBanner from "@/components/ui/LaunchOfferBanner";
 import MissionDetailSheet, { DetailMission, MissionRelation } from "@/components/swipe/MissionDetailSheet";
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
 
@@ -54,6 +55,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, titu
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <LaunchOfferBanner profileType={profileType} profileId={profileId} />
       <RecentMissionsTray onSelectMission={handleSelectRecent} />
 
       {/* Mobile : colonne (swipe + tray en bande bas). Desktop : deux colonnes (swipe centré + panneau latéral droit). */}

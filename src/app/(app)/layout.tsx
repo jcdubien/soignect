@@ -131,16 +131,33 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               📅 Disponibilités
             </Link>
           )}
-          {/* Découvrabilité Premium (F1) — CTA persistant pour les titulaires.
-              Jusqu'ici l'offre n'était atteignable qu'en bas de /compte. ✨ seul sur
-              mobile, label complet sur desktop. */}
+          {/* Pastille d'état de plan (F1) — dit clairement le plan courant et invite à
+              Premium. Gratuit = ambre (incite) ; payé = vert (rassure). ✨/Gratuit compact
+              sur mobile, libellé complet sur desktop. */}
           {profileType === "TITULAIRE" && (
             <Link
               href="/premium"
-              className="text-xs px-2.5 sm:px-3 py-1.5 bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 transition inline-flex items-center gap-1"
+              title={isPaid ? "Votre abonnement" : "Vous êtes en plan Gratuit — découvrir Premium"}
+              className={`text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold transition inline-flex items-center gap-1 ${
+                isPaid
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                  : "bg-amber-500 text-white hover:bg-amber-600"
+              }`}
             >
-              <span>✨</span>
-              <span className="hidden sm:inline">Premium</span>
+              {isPaid ? (
+                <>
+                  <span>✓</span>
+                  <span className="hidden sm:inline">
+                    {profile?.subscriptionPlan === "BOOST" ? "Boost" : profile?.subscriptionPlan === "STRUCTURE" ? "Établissement" : "Premium"}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="font-bold">Gratuit</span>
+                  <span className="hidden sm:inline font-normal opacity-90">· Premium</span>
+                  <span>✨</span>
+                </>
+              )}
             </Link>
           )}
           <Link
