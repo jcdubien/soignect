@@ -6,23 +6,26 @@ import Link from "next/link";
 const DISMISS_KEY = "soignect_launch_banner_dismissed_v1";
 
 /**
- * Bandeau « offre de lancement » (mode accès libre).
- * Objectif : rendre évident que l'utilisateur est en plan Gratuit et qu'il pourra
- * passer Premium — sans mentir sur une limite qui n'existe pas encore (freeAccessMode).
- * Affiché uniquement aux titulaires non abonnés ; refermable (persisté en localStorage) ;
- * message adapté Cabinet vs Établissement.
+ * Bandeau de découverte Premium — affiché aux titulaires non abonnés.
+ * IMPORTANT : masqué tant que le mode gratuit global (freeAccessMode) est actif, pour
+ * ne JAMAIS laisser entendre que le gratuit mènera au payant pendant le lancement.
+ * N'apparaît donc que lorsque le paywall est réellement en vigueur ; message factuel
+ * (ce que Premium débloque), refermable (localStorage), adapté Cabinet vs Établissement.
  */
 export default function LaunchOfferBanner({
   profileType,
   profileId,
+  freeAccessMode = false,
 }: {
   profileType: string;
   profileId: string;
+  freeAccessMode?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
   const [isStructure, setIsStructure] = useState(false);
 
   useEffect(() => {
+    if (freeAccessMode) return; // mode lancement : aucune mention gratuit → payant
     if (profileType !== "TITULAIRE" || !profileId) return;
     if (typeof window !== "undefined" && localStorage.getItem(DISMISS_KEY)) return;
 
@@ -41,7 +44,7 @@ export default function LaunchOfferBanner({
     return () => {
       alive = false;
     };
-  }, [profileType, profileId]);
+  }, [profileType, profileId, freeAccessMode]);
 
   if (!visible) return null;
 
@@ -60,11 +63,11 @@ export default function LaunchOfferBanner({
         ✨
       </span>
       <p className="text-xs sm:text-[13px] text-amber-900 min-w-0 flex-1 leading-snug">
-        Vous êtes en <strong>plan Gratuit</strong> — accès complet offert pendant le lancement.{" "}
+        Vous êtes en <strong>plan Gratuit</strong>.{" "}
         <span className="text-amber-700">
           {isStructure
-            ? "L'offre Établissement (89 €/mois + 20 €/contrat) permettra de garder les vacations illimitées et l'accès aux profils."
-            : "Premium (dès 9 €/mois) permettra de garder les annonces illimitées et l'accès aux scores des remplaçants."}
+            ? "L'offre Établissement (89 €/mois + 20 €/contrat) débloque les vacations illimitées et l'accès aux profils."
+            : "Premium (dès 9 €/mois) débloque les annonces illimitées et l'accès aux scores des remplaçants."}
         </span>
       </p>
       <Link

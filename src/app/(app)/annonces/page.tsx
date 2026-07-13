@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { hasPremiumAccess } from "@/lib/platform";
+import { hasPremiumAccess, isFreeAccessMode } from "@/lib/platform";
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
 import AnnoncesClient from "./AnnoncesClient";
 
@@ -22,6 +22,9 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
     });
     isPremium = await hasPremiumAccess({ subscriptionPlan: me?.subscriptionPlan, billingTriggeredAt: me?.billingTriggeredAt });
   }
+
+  // Mode lancement gratuit : masque toute communication « gratuit → payant » (section 2).
+  const freeAccessMode = await isFreeAccessMode();
 
   let titulaireMissions: TitulaireMission[] = [];
 
@@ -55,6 +58,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
       profileType={profileType}
       profileId={profileId ?? ""}
       isPremium={isPremium}
+      freeAccessMode={freeAccessMode}
       titulaireMissions={titulaireMissions}
       initialMissionId={initialMissionId}
       disponibiliteId={disponibiliteId}

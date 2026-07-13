@@ -12,12 +12,13 @@ interface Props {
   profileType: string;
   profileId: string;
   isPremium?: boolean;
+  freeAccessMode?: boolean;
   titulaireMissions: TitulaireMission[];
   initialMissionId?: string;
   disponibiliteId?: string;
 }
 
-export default function AnnoncesClient({ profileType, profileId, isPremium, titulaireMissions, initialMissionId, disponibiliteId }: Props) {
+export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId }: Props) {
   const [trayKey, setTrayKey] = useState(0);
   const [detail, setDetail] = useState<{ mission: DetailMission; relation: MissionRelation } | null>(null);
 
@@ -55,7 +56,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, titu
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <LaunchOfferBanner profileType={profileType} profileId={profileId} />
+      <LaunchOfferBanner profileType={profileType} profileId={profileId} freeAccessMode={freeAccessMode} />
       <RecentMissionsTray onSelectMission={handleSelectRecent} />
 
       {/* Mobile : colonne (swipe + tray en bande bas). Desktop : deux colonnes (swipe centré + panneau latéral droit). */}

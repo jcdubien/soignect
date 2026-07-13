@@ -5,6 +5,7 @@ import Image from "next/image";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { prisma } from "@/lib/prisma";
 import { BILLING_GRACE_DAYS } from "@/lib/billing";
+import { isFreeAccessMode } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const daysLeft = Math.ceil((graceEnd.getTime() - Date.now()) / 86400000);
     return { daysLeft };
   })();
+
+  // Mode lancement gratuit : on ne montre AUCUNE communication laissant entendre que
+  // le gratuit mènera au payant (bandeau de grâce inclus) tant que ce mode est actif.
+  const freeAccess = await isFreeAccessMode();
 
   const createHref = profileType === "TITULAIRE" ? "/missions/create" : "/disponibilites/create";
   // Lien du logo adapté au profil (item 6) — accueil = booking
@@ -170,8 +175,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      {/* ── Bandeau bascule payant (section 100) ── */}
-      {billingBanner && (
+      {/* ── Bandeau bascule payant (section 100) — masqué en mode lancement gratuit ── */}
+      {billingBanner && !freeAccess && (
         <div className="flex-shrink-0 bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between gap-3">
           <p className="text-xs sm:text-sm text-amber-800 min-w-0">
             {billingBanner.daysLeft > 0 ? (
