@@ -563,11 +563,13 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
     <>
       {/* ── Bande horizontale — mobile uniquement (inchangé) ── */}
       <div className="lg:hidden shrink-0 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)] max-h-[210px] overflow-y-auto">
-        <div className="px-3 pt-2 pb-3 space-y-2.5">
+        {/* Colonnes côte à côte, à la même hauteur (items-stretch) — chacune défile
+            horizontalement de son côté. flex-1 : une seule section présente = pleine largeur. */}
+        <div className="px-3 pt-2 pb-3 flex items-stretch gap-2.5">
 
           {/* ── Vos mises en relation (réciproques confirmées, mises en avant) ── */}
           {matchedItems.length > 0 && (
-            <div className="rounded-2xl bg-emerald-50/60 border border-emerald-100 px-2.5 py-2">
+            <div className="flex-1 min-w-0 rounded-2xl bg-emerald-50/60 border border-emerald-100 px-2.5 py-2">
               <div className="flex items-center gap-2 mb-1.5">
                 <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">
                   Vos mises en relation
@@ -586,10 +588,10 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
 
           {/* ── Vos choix (swipes à droite en attente de réciprocité) ── */}
           {likedItems.length > 0 && (
-            <div className="px-0.5">
+            <div className="flex-1 min-w-0 rounded-2xl bg-gray-50 border border-gray-100 px-2.5 py-2">
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
                 Vos choix
-                <span className="ml-1 text-gray-300 normal-case tracking-normal font-normal">· en attente de réponse</span>
+                <span className="ml-1 text-gray-300 normal-case tracking-normal font-normal">· en attente</span>
               </p>
               <div className="flex gap-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
                 {likedItems.map(renderItem)}
