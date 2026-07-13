@@ -61,18 +61,26 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    payment_method_types: ["card"],
-    customer_email: profile.user.email,
-    line_items: lineItems,
-    metadata: { profileId: profile.id, plan },
-    subscription_data: {
+  try {
+    const checkoutSession = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      payment_method_types: ["card"],
+      customer_email: profile.user.email,
+      line_items: lineItems,
       metadata: { profileId: profile.id, plan },
-    },
-    success_url: `${baseUrl}/compte?upgraded=1`,
-    cancel_url: `${baseUrl}/premium?cancelled=1`,
-  });
+      subscription_data: {
+        metadata: { profileId: profile.id, plan },
+      },
+      success_url: `${baseUrl}/compte?upgraded=1`,
+      cancel_url: `${baseUrl}/premium?cancelled=1`,
+    });
 
-  return NextResponse.json({ url: checkoutSession.url });
+    return NextResponse.json({ url: checkoutSession.url });
+  } catch (e) {
+    // Ne jamais renvoyer un 500 brut sur un paiement : remonter le message Stripe
+    // (ex. « No such price », prix test/live mêlés, metered mal configuré).
+    const msg = e instanceof Error ? e.message : "Erreur Stripe inconnue";
+    console.error(`[stripe/checkout] échec création session (plan=${plan})`, msg);
+    return NextResponse.json({ error: `Stripe : ${msg}` }, { status: 502 });
+  }
 }
