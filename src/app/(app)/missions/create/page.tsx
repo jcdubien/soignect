@@ -76,7 +76,12 @@ export default function CreateMissionPage() {
   const [error, setError] = useState("");
 
   const rawProfileType = (session?.user as { profileType?: string })?.profileType ?? "TITULAIRE";
-  const isEmployeur = (session?.user as { isEmployeur?: boolean })?.isEmployeur ?? false;
+  // isEmployeur de la session est posé au login (flag legacy). On le complète par le
+  // vrai titulaireKind du profil (fetch ci-dessous) pour qu'un établissement déjà
+  // connecté obtienne la config salariée sans avoir à se reconnecter.
+  const sessionEmployeur = (session?.user as { isEmployeur?: boolean })?.isEmployeur ?? false;
+  const [kindEmployeur, setKindEmployeur] = useState(false);
+  const isEmployeur = sessionEmployeur || kindEmployeur;
   const profileType = rawProfileType as ProfileTypeKey;
 
   // Remplaçants et assistants publient leurs disponibilités, pas des missions
@@ -121,7 +126,11 @@ export default function CreateMissionPage() {
     if (!profileId) return;
     fetch(`/api/profiles/${profileId}`)
       .then((r) => r.json())
-      .then((p) => setHasPhoto(Boolean(p?.photoUrl)))
+      .then((p) => {
+        setHasPhoto(Boolean(p?.photoUrl));
+        // Structure privée (EHPAD/clinique/SSR) = employeur → parcours salarié
+        setKindEmployeur(p?.titulaireKind === "STRUCTURE" || Boolean(p?.isEmployeur));
+      })
       .catch(() => setHasPhoto(true)); // en cas d'échec réseau, ne pas bloquer inutilement
   }, [profileId]);
 
