@@ -33,7 +33,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           profileId: user.profile?.id ?? null,
           profileType: user.profile?.type ?? null,
-          isEmployeur: user.profile?.isEmployeur ?? false,
+          // Une Structure privée (EHPAD/clinique/SSR) est un employeur : on dérive le
+          // flag legacy isEmployeur de titulaireKind pour que le parcours salarié
+          // (libellés « établissement », placeholders « Vacation/CDD/CDI ») s'applique.
+          isEmployeur: (user.profile?.isEmployeur ?? false) || user.profile?.titulaireKind === "STRUCTURE",
         };
       },
     }),
