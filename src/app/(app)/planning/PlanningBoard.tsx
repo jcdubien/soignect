@@ -1366,16 +1366,19 @@ function DeclareAbsenceForm({ suggestedStart, suggestedEnd, onClose, onCreated }
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">Date de fin</label>
         <input
-          type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required
+          type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)} required
           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
         />
+        {startDate && endDate && endDate < startDate && (
+          <p className="text-[11px] text-red-500 mt-1">La date de fin doit être après la date de début.</p>
+        )}
       </div>
       {error && <p className="text-xs text-red-500 bg-red-50 rounded-lg p-2">{error}</p>}
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500">
           Annuler
         </button>
-        <button type="submit" disabled={loading} className="md3-ripple flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
+        <button type="submit" disabled={loading || (!!startDate && !!endDate && endDate < startDate)} className="md3-ripple flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
           {loading ? "…" : "Valider"}
         </button>
       </div>
