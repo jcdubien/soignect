@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { X, Heart } from "lucide-react";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
+import { fmtDay } from "@/lib/dates";
 
 // Type souple, compatible avec MissionWithProfile (carrousel) ET la réponse /card.
 export interface DetailMission {
@@ -39,7 +40,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 function fmt(d?: Date | string | null): string | null {
   if (!d) return null;
-  return new Date(d as string).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  return fmtDay(d);
 }
 
 export default function MissionDetailSheet({

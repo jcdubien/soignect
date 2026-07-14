@@ -6,6 +6,7 @@ import { SignOutButton } from "@/components/ui/SignOutButton";
 import { prisma } from "@/lib/prisma";
 import { BILLING_GRACE_DAYS } from "@/lib/billing";
 import { isFreeAccessMode } from "@/lib/platform";
+import { fmtDay } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const loc = firstMission?.location ?? (profile?.region ?? "Guadeloupe");
     contextLine = `${loc} · ${activeMissionCount} poste${activeMissionCount !== 1 ? "s" : ""} actif${activeMissionCount !== 1 ? "s" : ""}`;
   } else if (firstMission?.startDate && firstMission?.endDate) {
-    const fmt = (d: Date) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+    const fmt = (d: Date) => fmtDay(d) ?? "";
     contextLine = `Disponible ${fmt(firstMission.startDate)} – ${fmt(firstMission.endDate)}`;
   } else {
     const regionLabel: Record<string, string> = {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/md3/Button";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
+import { notPast } from "@/lib/dates";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -303,7 +304,9 @@ function buildCreateHref(opts: { postType: string; postId: string; postLabel?: s
     opts.postType === "ASSISTANT" ? "assistant" :
     opts.postType === "COLLABORATION" ? "collaboration" : "remplacement";
   const params = new URLSearchParams();
-  if (opts.start) params.set("startDate", opts.start);
+  // #2 — ne jamais proposer une date de début passée pour une nouvelle annonce
+  // (ex. « successeur » démarrant à la fin d'un poste déjà terminé). Saisie manuelle libre.
+  if (opts.start) params.set("startDate", notPast(opts.start));
   // Pas d'endDate pour assistant/collaboration (durée = minMonths ; un endDate court
   // ferait échouer la validation 90 jours côté serveur).
   if (opts.end && needType === "remplacement") params.set("endDate", opts.end);

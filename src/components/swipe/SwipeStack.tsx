@@ -14,6 +14,7 @@ import { X, Heart } from "lucide-react";
 import { Mission, MissionType, Profile } from "@prisma/client";
 import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
+import { fmtDay } from "@/lib/dates";
 import MissionSelector, { TitulaireMission } from "./MissionSelector";
 import MissionDetailSheet from "./MissionDetailSheet";
 
@@ -56,8 +57,7 @@ const FILTER_LABELS: Record<MissionFilter, string> = {
 };
 
 function fmt(d: Date | string | null): string | null {
-  if (!d) return null;
-  return new Date(d as string).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  return fmtDay(d);
 }
 
 function toDate(v: string | Date | null | undefined): Date | null {

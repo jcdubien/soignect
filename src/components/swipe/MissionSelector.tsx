@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtRange } from "@/lib/dates";
+
 export interface TitulaireMission {
   id: string;
   title: string;
@@ -17,12 +19,10 @@ const TYPE_LABELS: Record<string, string> = {
 
 function chipDateLabel(startDate: string | null, endDate: string | null, missionType: string): string {
   if (!startDate) return "";
-  const start = new Date(startDate);
   if (missionType === "REMPLACEMENT" && endDate) {
-    const end = new Date(endDate);
-    return `${start.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`;
+    return fmtRange(startDate, endDate) ?? "";
   }
-  return `Dès ${start.toLocaleDateString("fr-FR", { month: "short" })}`;
+  return `Dès ${new Date(startDate).toLocaleDateString("fr-FR", { month: "short" })}`;
 }
 
 interface Props {

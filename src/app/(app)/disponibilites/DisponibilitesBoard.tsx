@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { fmtDayYear } from "@/lib/dates";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -141,7 +142,7 @@ function FreeZoneChoiceModal({
         <div className="bg-gray-50 rounded-xl p-3 mb-4 text-sm text-gray-600">
           <p className="font-medium">
             Disponible à partir du{" "}
-            {new Date(modal.suggestedStart).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+            {fmtDayYear(modal.suggestedStart)}
           </p>
         </div>
 

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Mission, Profile } from "@prisma/client";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
+import { fmtDay } from "@/lib/dates";
 import type { TitulaireMission } from "@/components/swipe/MissionSelector";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import Button from "@/components/ui/md3/Button";
@@ -239,8 +240,8 @@ function MissionSheet({
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <span>📅</span>
                   <span>
-                    {new Date(mission.startDate).toLocaleDateString("fr-FR")}
-                    {mission.endDate && ` → ${new Date(mission.endDate).toLocaleDateString("fr-FR")}`}
+                    {fmtDay(mission.startDate)}
+                    {mission.endDate && ` → ${fmtDay(mission.endDate)}`}
                   </span>
                 </div>
               )}
