@@ -21,6 +21,10 @@ interface Props {
 export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId }: Props) {
   const [trayKey, setTrayKey] = useState(0);
   const [detail, setDetail] = useState<{ mission: DetailMission; relation: MissionRelation } | null>(null);
+  // Vrai quand SwipeStack n'affiche aucune carte (vide/chargement/erreur). Sur mobile on
+  // n'étire alors plus la zone de swipe : les trays remontent juste sous le message
+  // (fini le grand vide). Sur desktop (lg) la colonne garde flex-1 (panneau latéral).
+  const [swipeEmpty, setSwipeEmpty] = useState(true);
 
   // Clic sur une annonce récente → même fiche détaillée (bottom sheet) que l'icône "i",
   // enrichie du statut réel de l'utilisateur (swipe / mise en relation).
@@ -61,9 +65,10 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
 
       {/* Mobile : colonne (swipe + tray en bande bas). Desktop : deux colonnes (swipe centré + panneau latéral droit). */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className={`${swipeEmpty ? "flex-none lg:flex-1" : "flex-1"} flex flex-col min-h-0`}>
           <SwipeStack
             onSwipeRight={() => setTrayKey(k => k + 1)}
+            onEmptyChange={setSwipeEmpty}
             profileType={profileType}
             titulaireMissions={titulaireMissions}
             initialMissionId={initialMissionId}

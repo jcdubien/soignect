@@ -41,6 +41,9 @@ interface SwipeStackProps {
   profileType?: string;
   titulaireMissions?: TitulaireMission[];
   initialMissionId?: string;
+  /** Notifie le parent quand aucune carte n'est affichée (vide/chargement/erreur) —
+   *  permet de ne pas étirer verticalement la zone et de coller les trays au contenu. */
+  onEmptyChange?: (empty: boolean) => void;
 }
 
 const TYPE_CONFIG = {
@@ -414,7 +417,7 @@ function Card({
 }
 
 // ── SwipeStack principal ───────────────────────────────────────────────────────
-export default function SwipeStack({ onSwipeRight, profileType, titulaireMissions, initialMissionId }: SwipeStackProps) {
+export default function SwipeStack({ onSwipeRight, profileType, titulaireMissions, initialMissionId, onEmptyChange }: SwipeStackProps) {
   const isTitulaire = profileType === "TITULAIRE";
 
   const [detailMission,    setDetailMission]    = useState<MissionWithProfile | null>(null);
@@ -463,6 +466,13 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       .filter(m => m.id !== activeMissionId)
       .map(m => ({ id: m.id, title: m.title, startDate: m.startDate, endDate: m.endDate }));
   }, [isTitulaire, activeMissionId, titulaireMissions]);
+
+  // Aucune carte affichée (vide / chargement / erreur / titulaire sans mission) → signale
+  // le parent pour compacter la mise en page (éviter le grand vide avant les trays).
+  const noCards =
+    (isTitulaire && !!titulaireMissions && titulaireMissions.length === 0) ||
+    loading || feedError || displayMissions.length === 0;
+  useEffect(() => { onEmptyChange?.(noCards); }, [noCards, onEmptyChange]);
 
   // ── Fetch feed ──────────────────────────────────────────────────────────────
   const fetchFeed = useCallback(async (currentMissionId?: string | null) => {
@@ -605,7 +615,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // ── Cas TITULAIRE sans missions actives ─────────────────────────────────────
   if (isTitulaire && titulaireMissions && titulaireMissions.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-10">
         <span className="text-6xl">📋</span>
         <p className="text-gray-500 font-semibold">Aucune mission active</p>
         <p className="text-gray-400 text-sm">Créez une annonce pour commencer à recevoir des candidatures</p>
@@ -633,7 +643,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
 
   if (feedError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-10">
         <span className="text-5xl">⚠️</span>
         <p className="text-gray-500 font-semibold">Impossible de charger les annonces</p>
         <p className="text-gray-400 text-sm">Vérifiez votre connexion ou réessayez</p>
@@ -649,7 +659,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
 
   if (displayMissions.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-10">
         <span className="text-6xl">🌊</span>
         <p className="text-gray-500 font-semibold">
           {filter === "ALL"
