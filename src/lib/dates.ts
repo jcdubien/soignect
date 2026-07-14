@@ -55,3 +55,15 @@ export function notPast(iso: string | null | undefined): string {
   if (!iso) return "";
   return iso < todayISO() ? todayISO() : iso;
 }
+
+/**
+ * Lendemain d'une date `yyyy-mm-dd`. Sert à enchaîner une nouvelle période juste après
+ * la fin d'une précédente, sans chevauchement d'un jour (ex. annonce « successeur »).
+ */
+export function nextDay(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/md3/Button";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
-import { notPast } from "@/lib/dates";
+import { notPast, nextDay } from "@/lib/dates";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -1176,8 +1176,9 @@ function SidePanel({
             postType: post.postType,
             postId: post.id,
             postLabel: post.label,
-            // Successeur : démarre à la fin du poste précédent si connue (section 92)
-            start: toDate(latestMission?.endDate)?.toISOString().slice(0, 10) ?? "",
+            // Successeur : démarre le LENDEMAIN de la fin du poste précédent (pas de
+            // chevauchement d'1 jour), sans jamais proposer une date passée (section 92)
+            start: nextDay(toDate(latestMission?.endDate)?.toISOString().slice(0, 10)),
             end: "",
           })}
           className="w-full py-3 border border-kine-200 text-kine-700 rounded-xl text-sm font-semibold text-center hover:bg-kine-50 transition"
