@@ -6,6 +6,7 @@ import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
 import Image from "next/image";
 import { COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { bioLimitFor } from "@/lib/bio";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
 
@@ -106,7 +107,9 @@ function RegisterForm() {
   const [starter, setStarter] = useState<string>("");
   const [bioText, setBioText] = useState("");
 
-  const maxBioText = starter ? 280 - starter.length - 1 : 280;
+  // Limite BioTinder différenciée (section 123) : cabinet 700, remplaçant 280.
+  const bioLimit = bioLimitFor(profileType || undefined);
+  const maxBioText = starter ? bioLimit - starter.length - 1 : bioLimit;
   const bioFull = starter && bioText.trim() ? `${starter} ${bioText.trim()}` : bioText.trim();
 
   async function handleFinalSubmit() {
@@ -457,7 +460,7 @@ function RegisterForm() {
                 />
               </div>
               <p className="text-right text-xs text-gray-300 mb-4">
-                {(starter ? starter.length + 1 : 0) + bioText.length}/280
+                {(starter ? starter.length + 1 : 0) + bioText.length}/{bioLimit}
               </p>
 
               {error && (

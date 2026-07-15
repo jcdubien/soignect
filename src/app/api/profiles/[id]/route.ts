@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const updateSchema = z.object({
   name: z.string().max(100).optional(),
   bio: z.string().max(300).optional(),
-  bioTinder: z.string().max(280).optional(),
+  bioTinder: z.string().max(700).optional(),
   photoUrl: z.string().url().optional(),
   isActive: z.boolean().optional(),
   region: z.nativeEnum(Region).optional(),

@@ -7961,6 +7961,29 @@ Benchmark réalisé :
   aide-soignante, 40€ HT/jour infirmière. Argument de vente : 
   nettement moins cher qu'une agence d'intérim (coefficient 
   1,8-2,5x le salaire).
+- Physiorama (référence historique kiné, section 115) : modèle 
+  différent — pas d'abonnement mensuel, paiement à l'annonce 
+  boostée, structuré en 4 paliers (grille exacte vérifiée) :
+    Basic   : gratuit — 30j en ligne, 200 car., 0 photo
+    Silver  : 11,90€ — 60j en ligne, 500 car., 0 photo
+    Gold    : 35,70€ — 75j en ligne, 1000 car., 3 photos
+    Platinum: 95,20€ — 90j en ligne, 2000 car., 6 photos, tête de 
+              liste à l'activation, 38 jours d'avance au classement
+  Option "urgent" en supplément (Premium uniquement) : logo dédié, 
+  +2 jours d'avance au classement, email aux comptes ayant mémorisé 
+  une recherche correspondante.
+  Paiement possible à l'unité (CB) ou via packs de crédits 
+  (fidélité, moins cher à l'usage répété).
+  
+  Positionne Physiorama comme un comparable du modèle "boost 
+  ponctuel à paliers" plutôt que de l'abonnement mensuel — et 
+  confirme que le marché kiné accepte de payer significativement 
+  plus cher pour une visibilité ponctuelle forte (jusqu'à 95€) que 
+  pour un abonnement récurrent bas. Structure à paliers (Silver/
+  Gold/Platinum) potentiellement inspirante pour l'idée de boost 
+  ponctuel déjà notée (section 116) — plutôt qu'un forfait boost 
+  unique, envisager une déclinaison à paliers si le besoin se 
+  confirme en usage réel.
 
 CABINET (titulaire libéral) — grille finale :
   Gratuit  : 0€/mois — 1 annonce active (inchangé)
@@ -8243,6 +8266,47 @@ Le partage Facebook (et le canal listes professionnelles ci-dessous)
 sont des leviers d'ACQUISITION INITIALE uniquement — pour construire 
 la base utilisateur de départ. Pas une stratégie d'acquisition 
 permanente à maintenir indéfiniment.
+```
+
+### Canal complémentaire — leads directs Physiorama (Guadeloupe)
+
+```
+Physiorama (section 115) contient des annonces réelles et actives 
+de cabinets/remplaçants en Guadeloupe (constaté juillet 2026), 
+avec un besoin non pourvu au moment de la consultation — cible 
+directe pour l'acquisition des tout premiers utilisateurs Soignect.
+
+Exemples observés (juillet 2026) : recherches actives sur Marie-
+Galante, Le Gosier, Saint-Martin, avec dates de mission qui 
+recoupent directement la période de lancement Soignect.
+
+Action possible (manuelle, hors développement) : repérer les 
+annonces Guadeloupe actives sur Physiorama et solliciter 
+directement les auteurs (cabinets en recherche, remplaçants 
+disponibles) pour leur présenter Soignect comme alternative — 
+ce sont des utilisateurs avec un besoin déjà actif, pas à 
+convaincre de l'intérêt du remplacement lui-même.
+
+Preuve complémentaire côté positionnement (section 111) : le 
+style d'écriture des annonces Physiorama confirme l'hypothèse 
+bioTinder — les kinés décrivent déjà spontanément leurs besoins 
+en texte libre naturel plutôt qu'en critères cochés, validant le 
+choix produit du champ bioTinder plutôt qu'un formulaire structuré.
+```
+
+### Structure de catégories Physiorama — comparaison utile
+
+```
+Physiorama distingue Offres Remplacement / Offres Assistanat / 
+Offres Salariat / Cadres de Santé / Demandes Remplacement / 
+Demandes Assistanat / Demandes Salariat / Cabinets-Patientèle / 
+Matériel-Divers — une distinction "j'offre" vs "je demande" côté 
+CABINET ET côté REMPLAÇANT, plus fine que la distinction actuelle 
+de Soignect (qui distingue surtout par profil : Cabinet vs 
+Remplaçant, avec Remplacement/Assistanat/Collaboration comme type 
+de poste). Pas d'action immédiate — juste un point de comparaison 
+structurel à garder en tête si une refonte de la taxonomie 
+d'annonces est envisagée plus tard.
 ```
 
 ### Canal complémentaire — listes de soignants (réseau institutionnel)
@@ -8879,4 +8943,1261 @@ Reste à faire, non bloquant : un test réel de bout en bout
 (souscription Structure + vérification qu'un rappel 24h part bien) 
 dès qu'un cas d'usage réel se présente — pas de vérification 
 synthétique nécessaire dans l'immédiat.
+```
+
+---
+
+## 114. Passation session recette 13/07 — corrections et déblocage déploiement
+
+### Statut prod
+
+```
+✅ Tout main déployé, auto-déploiements fonctionnels de nouveau
+✅ 3 tunnels Stripe opérationnels (cs_live) : Premium 9€, Boost 29€, 
+   Structure 89€+20€/contrat
+✅ Découvrabilité premium en place (pastille header + bandeau)
+✅ Formulaire de publication adapté cabinet vs établissement salarié
+```
+
+### Cause racine du blocage déploiement (2 jours) — RÉSOLU
+
+```
+vercel.json avait un cron horaire (0 * * * *) — le plan Hobby 
+n'autorise que des crons quotidiens → Vercel rejetait silencieusement 
+chaque nouveau build. Les "Redeploy" manuels (build en cache) 
+masquaient le problème en semblant fonctionner.
+
+FIX : cron passé en quotidien (0 9 * * *).
+
+LEÇON À RETENIR : sur plan Hobby, aucun cron sous-journalier — 
+toute tentative bloque silencieusement TOUS les déploiements 
+suivants, pas seulement le job concerné.
+```
+
+### Bugs corrigés cette session
+
+```
+1. Paiement premium : échec via alert() bloquant → erreur inline
+2. success_url Stripe pointait vers /dashboard/billing (404) → 
+   corrigé vers /compte?upgraded=1
+3. Garde /premium éjectait un titulaire au chargement à froid 
+   (race condition) → attend le profil avant de trancher
+4. Carte de swipe mobile coupée (débordait de 32px) → corrigé
+5. Checkout Stripe renvoyait un 500 brut → try/catch qui remonte 
+   le vrai message Stripe
+```
+
+### Améliorations livrées
+
+```
+- Pastille d'état de plan dans le header (Gratuit · Premium ✨ / 
+  ✓ Premium si abonné), desktop + mobile
+- Bandeau "offre de lancement" sur /annonces (refermable), adapté 
+  cabinet vs établissement
+- Entrée "Établissement" à l'inscription (🏨 EHPAD/clinique/SSR) 
+  → pose titulaireKind = STRUCTURE directement
+- Parcours salarié complet : titre "Ouvrir un poste", "Commune de 
+  l'établissement", placeholder adapté (ex: "Vacation kiné sport")
+- Mobile : "Vos mises en relation" et "Vos choix" côte à côte 
+  (au lieu d'empilés) — amélioration partielle du problème de 
+  layout desktop déjà signalé, à vérifier si le fix desktop 
+  (panneau latéral) reste nécessaire séparément
+```
+
+### ✅ DÉCISION PRISE — Mode Stripe Live pour la bêta
+
+```
+DÉCISION FINALE (tranchée) : rester en mode LIVE pendant toute la 
+bêta, pas de passage en Test.
+
+Justification : freeAccessMode étant actif, aucun testeur n'a 
+techniquement besoin de s'abonner (tout est déjà débloqué 
+gratuitement) — le risque de débit accidentel est plus faible 
+qu'initialement estimé, d'autant que le public de bêta est connu 
+(réseau SNMKR), pas anonyme. Le passage en Test aurait nécessité 
+de recréer clés/webhook/Price IDs, jugé disproportionné vu le 
+risque réel.
+
+Plan de validation retenu :
+1. Jean-Charles teste lui-même le tunnel de paiement avec un vrai 
+   paiement de 9€ (validation end-to-end en conditions réelles)
+2. Remboursement via dashboard Stripe après validation du bon 
+   fonctionnement
+3. Surveillance manuelle quotidienne du dashboard Stripe pendant 
+   la durée de la bêta — remboursement immédiat en cas de clic 
+   accidentel d'un testeur
+
+Repassage en Live "définitif" (sans surveillance renforcée) prévu 
+naturellement quand freeAccessMode sera désactivé pour de vrai 
+(palier 1, ~46 cabinets actifs, section 99/100).
+```
+
+### Modèle Gratuit → Premium (rappel de fonctionnement, confirmé en session)
+
+```
+- freeAccessMode (global) : interrupteur manuel /admin/config, 
+  actuellement ON → tous les comptes ont les fonctions premium. 
+  Ne se coupe jamais automatiquement — bascule nette décidée 
+  manuellement.
+- Bascule individuelle (billingTriggeredAt + 14j de grâce, 
+  section 100) : se déclenche à la signature d'un contrat, ou via 
+  scan d'usage admin manuel (≥3 semaines actives/6, pas de cron 
+  auto — volontaire). Après 14j, le compte doit payer même si le 
+  global reste ON.
+
+RECOMMANDATION BÊTA : laisser freeAccessMode ON, NE PAS lancer le 
+scan d'usage manuel → aucun testeur facturé, sauf s'il signe un 
+vrai contrat (auquel cas c'est cohérent : de la vraie valeur a 
+été produite).
+```
+
+### Accès admin
+
+```
+Compte principal (Jean-Charles DUBIEN / jcdubien@gmail.com) passé 
+rôle ADMIN en base. Menu Admin visible → /admin/config (toggle 
+mode gratuit), + Statistiques, Utilisateurs, Profils, Annonces.
+```
+
+### Points en attente / à décider
+
+```
+- Mode Stripe Live vs Test pour la bêta (voir ci-dessus, décision 
+  requise avant ouverture)
+- Badges teaser "✨ Premium" sur les fonctions premium (scores 
+  remplaçants, etc.) — 3e volet de la découvrabilité premium, non 
+  fait. En mode lancement, rien n'est réellement bloqué → à faire 
+  en badges informatifs ("inclus pendant le lancement"), pas en 
+  verrous
+- Photo obligatoire dès l'inscription remplaçant : risque 
+  d'abandon identifié sur mobile. Piste : différer la demande 
+  après le premier browse plutôt qu'à l'inscription immédiate — 
+  non tranché, à décider
+- Feed lent/instable observé en dev (~4s, timeouts "Impossible de 
+  charger les annonces") — à surveiller activement en prod pendant 
+  les premiers jours de bêta
+```
+
+### Comptes de test observés (prod)
+
+```
+- Remplaçant : "Julien Morisot"
+- Cabinet libéral (titulaire, admin) : "Jean-Charles DUBIEN"
+- Établissement (Structure) : "Hopital beauperthuy"
+```
+
+### Prochaine action recommandée
+
+```
+1. Trancher Live vs Test Stripe (voir décision ci-dessus)
+2. Lancer la bêta (freeAccessMode ON, scan d'usage désactivé)
+Le socle produit est en ligne et vérifié — prêt pour la bêta une 
+fois le point Stripe tranché.
+```
+
+---
+
+## 115. Inspiration produit — Physiorama (ajout aux références Tinder/Booking)
+
+### Ce que Physiorama apporte comme leçon
+
+```
+Référence identifiée : physiorama.com — forum PHP historique dédié 
+aux kinésithérapeutes (annonces, forum, boutique), ~80 000 pages 
+consultées/jour, 300-400 nouvelles annonces publiées quotidiennement.
+
+LEÇON CLÉ : son succès ne repose PAS sur la sophistication 
+technique (c'est un forum daté, sans matching intelligent, sans 
+UI moderne) mais sur la CONFIANCE et la COMMUNAUTÉ installées dans 
+la durée. Les kinés y reviennent par habitude et par confiance, 
+pas parce que l'interface est belle.
+
+Un article externe le décrit explicitement : face à des concurrents 
+"à l'interface dernier cri" (dont Rempleo, cité avec des 
+"algorithmes plus affûtés"), Physiorama "tient bon" grâce à sa 
+réputation et sa simplicité.
+```
+
+### Implication pour Soignect
+
+```
+Complète les inspirations déjà actées (Tinder pour la mécanique 
+swipe, Booking pour la structure/planning) : Physiorama rappelle 
+que la sophistication technique (matching IA, score d'affinité) 
+ne suffit pas seule — il faut aussi construire la confiance et 
+l'habitude, ce qui prend du temps et ne se code pas directement.
+
+Nuance utile face à la tentation de sur-designer l'interface 
+(cohérent avec le retour de recette du 10/07 : "il ne faut pas que 
+la personne aille se poser de questions" — la simplicité perçue 
+compte plus que la modernité visuelle).
+
+Le triptyque de référence produit devient : Tinder (mécanique) + 
+Booking (structure) + Physiorama (confiance/simplicité, 
+anti-modèle de sur-sophistication).
+```
+
+---
+
+## 116. Idée différée — Boost ponctuel payant (à la carte, hors abonnement)
+
+### Principe
+
+```
+Inspiré du modèle Physiorama (annonce "Platinum" à 110€ l'unité, 
+section 115/99) : compléter l'offre Cabinet avec une option de 
+mise en avant PONCTUELLE et payante à l'acte, indépendante de 
+l'abonnement mensuel (Gratuit/Premium/Boost).
+
+Cas d'usage : un cabinet en compte Gratuit (ou même Premium) a un 
+besoin urgent ponctuel — poste difficile à pourvoir, échéance 
+courte — et veut une visibilité renforcée sur CETTE annonce 
+précise, sans s'engager sur un abonnement mensuel qu'il n'utilisera 
+peut-être pas après.
+
+Évite de forcer un choix binaire abonnement/rien : donne une 
+option intermédiaire pour un besoin ponctuel fort.
+```
+
+### Statut
+
+```
+Idée non chiffrée, non spécifiée techniquement. À creuser plus 
+tard (probablement en v1.1, une fois l'abonnement de base stabilisé 
+et son usage réel observé). Ne pas développer avant d'avoir des 
+retours concrets sur le comportement des premiers cabinets payants 
+— voir si le besoin ponctuel se manifeste réellement en usage 
+avant de complexifier l'offre tarifaire.
+
+Piste de tarification à explorer le moment venu, en s'inspirant de 
+l'ordre de grandeur Physiorama (110€), mais sans le copier 
+aveuglément — le contexte concurrentiel et le positionnement prix 
+déjà plus bas de Soignect méritent réflexion propre.
+```
+
+---
+
+## 117. Vision différée — Cession de patientèle / cession de cabinet
+
+### Statut
+
+```
+CHANTIER SÉPARÉ, NON DÉVELOPPÉ. Enjeux financiers et juridiques 
+sans commune mesure avec le reste du produit (remplacement/
+assistanat = commissions de quelques dizaines d'euros ; cession 
+de patientèle/cabinet = dizaines à centaines de milliers d'euros). 
+Nécessite un avis juridique avant toute conception de fonctionnalité, 
+pas seulement avant le développement.
+```
+
+### Constat — catégorie absente de Soignect, présente chez le concurrent historique
+
+```
+Physiorama (section 115) propose une rubrique "Cabinets / 
+Patientèle" — absente de la structure actuelle de Soignect (qui 
+couvre Remplacement/Assistanat/Collaboration/Titulaire/Associé, 
+mais pas la transmission/cession).
+
+Actuellement, ces transactions se déroulent de façon informelle 
+(échanges via plateforme ou email) puis se formalisent via un 
+cabinet juridique ou un expert-comptable — Soignect n'intervient 
+à aucun moment de ce parcours.
+```
+
+### Terminologie — point de vigilance juridique impératif
+
+```
+NE JAMAIS utiliser "vente de patientèle" ou "vente de patients" — 
+les patients ne sont pas une marchandise, ce serait contraire à 
+la déontologie médicale/paramédicale.
+
+Terme correct : "CESSION DE PATIENTÈLE" ou "CESSION DE CABINET" — 
+mécanisme juridique reconnu de transmission d'une clientèle/d'un 
+achalandage dans le cadre d'une reprise de cabinet, distinct de la 
+notion de propriété sur des patients.
+
+Toute fonctionnalité future sur ce sujet doit être relue par un 
+professionnel du droit avant toute mise en ligne, y compris pour 
+la terminologie employée dans l'interface elle-même.
+```
+
+### Lien avec l'architecture APL déjà existante (sections 22, 23, 29, 30)
+
+```
+Mécanisme économique identifié : dans les zones non prioritaires 
+(déjà bien dotées selon les données APL), l'accès à un nouveau 
+conventionnement est restreint pour les professionnels de santé. 
+Cette rareté artificielle donne de la valeur à une place déjà 
+installée (cabinet existant, patientèle constituée) — d'où des 
+montants de cession élevés (dizaines à centaines de milliers 
+d'euros).
+
+Ce mécanisme s'appuie directement sur les mêmes données déjà 
+présentes dans le spec pour l'APL et le zonage (sections 22-23, 
+architecture RPPS section 29-30) — la donnée de rareté territoriale 
+qui alimente déjà le TensionScore (sections 82-84, vision Monde B 
+section 111) pourrait aussi documenter/valoriser une cession de 
+cabinet en zone tendue.
+
+Ce lien renforce l'intérêt stratégique du TensionScore : il ne 
+sert pas qu'à l'argumentaire institutionnel CPTS/ARS (section 111, 
+Monde B), il pourrait aussi devenir un outil d'aide à l'évaluation 
+pour ce nouveau segment cession — mais cette extension reste à ce 
+stade une hypothèse, pas une décision.
+```
+
+### Confirmation terrain (échantillon réel Physiorama, juillet 2026)
+
+```
+Analyse d'un échantillon réel d'annonces "Cabinets/Patientèle" — 
+confirme et affine le modèle à TROIS sous-marchés distincts, pas 
+un seul :
+
+1. CESSION DE PATIENTÈLE/CLIENTÈLE (le fonds de commerce)
+   Fourchette observée : de gratuit ("cède gracieusement" en fin 
+   de carrière, Firminy) à 200 000€ (Landes, 2 conventionnements 
+   en zone non prioritaire). Exemples intermédiaires : 45 000€ 
+   (EHPAD Livry), 30 000€ (clientèle+matériel, Ozoir).
+
+2. CESSION/RACHAT DE CONVENTIONNEMENT (la carte CPS elle-même)
+   Peut être cédé "libre de toute attache" — sans patientèle ni 
+   cabinet associé, juste le droit d'exercer en zone saturée. 
+   C'est l'objet de rareté artificielle pur, distinct du fonds de 
+   commerce. Ex: "Cède conventionnement Saint-Raphaël, zone sur 
+   dotée, libre de toute attache".
+
+3. LOCATION/VENTE DE MURS ET MATÉRIEL (immobilier + équipement)
+   Montants très variables et sans lien avec la rareté 
+   territoriale : de 350€/mois (petite salle) à 220 000€ (local 
+   commercial). Marché immobilier classique, pas de mécanisme de 
+   rareté conventionnement.
+
+CONFIRMATION DU LIEN AVEC LE ZONAGE APL : le vocabulaire de zone 
+est utilisé SPONTANÉMENT par les kinés eux-mêmes dans leurs 
+annonces ("zone non prioritaire", "zone très sous-dotée", "zone 
+franche") — exactement le zonage déjà présent dans le spec 
+(sections 22-23). Une zone très sous-dotée déclenche une aide à 
+l'installation CPAM pouvant atteindre ~49 000€ sur 5 ans pour un 
+repreneur — donnée chiffrée précise à retenir si Soignect 
+développe un jour un outil d'aide à la décision sur ce segment.
+
+MARCHÉ À DEUX FACES CONFIRMÉ : de nombreuses annonces "recherche" 
+existent aussi (pas seulement des vendeurs) — "Rachat 
+conventionnement Fonsorbes/Colomiers/Blagnac", "Recherche 
+convention Saint-Pierre/Saint-Leu", "Cherche activité bassin de 
+Castelnau" — cohérent avec le modèle offre/demande déjà en place 
+sur le reste de Soignect (remplacement/assistanat).
+```
+
+### Question ouverte — confidentialité/anonymisation des annonces de cession
+
+```
+Constat factuel (analyse des annonces réelles Physiorama) : la 
+majorité des vendeurs NE s'anonymisent PAS — ville précise, 
+contact direct visible dès l'annonce publique. Ce n'est donc pas 
+la pratique dominante sur les plateformes d'annonces classiques.
+
+Hypothèses sur le faible risque perçu (à vérifier avec un 
+professionnel, non confirmées avec certitude) :
+- Ouvrir un cabinet concurrent prend du temps (bail, matériel, 
+  patientèle à construire) — pas de menace instantanée
+- En zone non prioritaire (précisément la zone qui rend la 
+  patientèle chère), un nouvel arrivant a souvent du mal à obtenir 
+  un conventionnement CPAM dans la même zone si elle est saturée — 
+  la rareté qui fait la valeur de la cession protège aussi 
+  partiellement contre la concurrence facile
+
+Pratique alternative identifiée (source : article Milo Kiné citant 
+des partenaires comme "Horizon Compta Expert") : des cabinets 
+d'expertise comptable spécialisés existent pour rendre une cession 
+"plus lisible, plus sécurisée et plus crédible" — cohérent avec la 
+pratique standard en cession de PME/fonds de commerce : un dossier 
+"teaser" anonymisé (secteur approximatif, chiffres clés, sans 
+identité) circule auprès d'acquéreurs qualifiés, l'identité précise 
+n'étant révélée qu'après signature d'un accord de confidentialité 
+(NDA). Pratique standard en M&A de petites entreprises en général — 
+non confirmée avec certitude comme systématique en kinésithérapie 
+spécifiquement, mais plausible via ces cabinets spécialisés, 
+simplement moins visible publiquement qu'un forum ouvert.
+```
+
+### Idée — partenariat avec structure juridique pour cession anonymisée
+
+```
+Piste envisagée par Jean-Charles (intérêt personnel également, en 
+tant que vendeur potentiel de sa propre activité) : un partenariat 
+avec un cabinet juridique/comptable qui gérerait un processus de 
+cession "en aveugle" via Soignect :
+
+1. Annonce publiée avec zone approximative et informations 
+   financières clés, SANS identité ni localisation précise
+2. L'acquéreur potentiel intéressé signe un accord de confidentialité 
+   et/ou de non-concurrence
+3. Seulement après signature, l'identité et la localisation précise 
+   du cédant sont révélées
+
+C'est un modèle déjà répandu dans la cession de petites entreprises 
+en général (courtiers M&A, plateformes de cession de fonds de 
+commerce) — transposable à la patientèle/cabinet médical, à 
+condition d'un partenariat solide avec une structure juridique qui 
+porte la responsabilité de la conformité légale du processus 
+(le cadre réglementaire de la patientèle, section 117 ci-dessus, 
+étant plus contraint qu'un fonds de commerce classique).
+
+STATUT : idée à explorer, nécessite un partenaire juridique 
+identifié avant toute conception produit. Cohérent avec la logique 
+déjà actée section 117 (avis juridique obligatoire avant toute 
+fonctionnalité sur ce segment).
+```
+
+### Découverte majeure — le continuum remplacement/assistanat → cession
+
+```
+Analyse d'un échantillon élargi (60+ annonces cession) : une part 
+significative des cédants propose EXPLICITEMENT une période d'essai 
+en remplacement ou assistanat avant la reprise définitive — "3 mois 
+d'assistanat avec rétrocession plafonnée avant de s'engager", 
+"organiser un remplacement en amont afin de découvrir le cabinet, 
+l'équipe et les patients avant la reprise officielle".
+
+IMPLICATION PRODUIT MAJEURE : le job board (remplacement/assistanat) 
+et la cession de patientèle ne sont PAS deux univers séparés — 
+c'est un même continuum de carrière (remplacement → assistanat → 
+association/reprise). Un cédant utilise le remplacement/assistanat 
+comme outil de sélection informelle de son successeur.
+
+Cohérent avec le pattern déjà noté section 118 (parcours progressif 
+remplacement → assistanat côté Guadeloupe). S'étend ici jusqu'à la 
+cession complète — le continuum est plus long que prévu 
+initialement.
+
+PISTE À CREUSER (non conçue) : si ce chantier cession est repris, 
+envisager de le concevoir comme un PROLONGEMENT du parcours 
+existant plutôt qu'un module complètement étanche — par exemple, 
+un cabinet publiant une annonce de cession pourrait explicitement 
+proposer "essai en assistanat avant reprise", en s'appuyant sur le 
+système de matching déjà existant plutôt que de recréer un système 
+parallèle.
+```
+
+### Champs structurés récurrents (utile si formulaire dédié conçu)
+
+```
+Presque systématiquement présents dans le texte libre des annonces, 
+candidats à devenir des champs structurés :
+- Prix (ou "gratuit", ou "à débattre") — parfois décomposé en deux 
+  prix distincts (ex: fonds de commerce séparé des murs)
+- CA annuel (souvent moyenne sur 3 ans)
+- Type de cession : patientèle seule / patientèle+matériel / 
+  patientèle+matériel+murs / parts SCM / parts SCI / 
+  conventionnement seul / location de bail
+- Surface (m²), nombre de salles/box
+- Zone APL (non prioritaire/surdotée/sous-dotée/très sous-dotée/
+  ZRR/ZFRR/ZFU) — déjà dans l'architecture Soignect (sections 22-23)
+- Financement : location-vente/LOA parfois proposée comme option
+- Motif de cession (retraite/déménagement/réorientation) et date 
+  de disponibilité
+```
+
+### Dispositifs d'aide officiels — vérifiés et précisés (recherche complémentaire)
+
+```
+Trois dispositifs officiels de l'Assurance Maladie (avenant 7, 
+gérés via l'outil Rezone Kiné — voir analyse de faisabilité 
+ci-dessous), confirmés et précisés par recherche :
+
+- CAIMK (Contrat d'Aide à l'Installation des Masseurs-
+  Kinésithérapeutes) : jusqu'à 34 000€, durée 5 ans non 
+  renouvelable — installation dans un cabinet déjà existant en 
+  zone très sous-dotée
+- CAMMK (Contrat d'Aide au Maintien d'activité des Masseurs-
+  Kinésithérapeutes) : 4 000€/an pendant 3 ans (renouvelable 
+  tacitement) + 300€/mois en cas d'accueil de stagiaire — maintien 
+  d'activité en zone très sous-dotée
+- CACCMK (Contrat d'Aide à la Création/reprise de Cabinet de 
+  Masseurs-Kinésithérapeutes) : jusqu'à 49 000€, durée 5 ans
+
+Ces montants confirment et précisent la donnée déjà notée section 
+118 (aide CPAM ~49 000€ sur 5 ans en zone très sous-dotée). Utile 
+si Soignect affiche un jour ces informations sur une fiche de 
+cession en zone concernée.
+```
+
+### Analyse de faisabilité — branchement Rezone Kiné (Ameli)
+
+```
+QUESTION POSÉE : peut-on brancher Soignect sur Rezone Kiné 
+(rezonekine.ameli.fr), l'outil officiel Assurance Maladie de 
+zonage/aides à l'installation ?
+
+VERDICT : faisabilité FAIBLE et PROBABLEMENT INUTILE.
+
+- Rezone Kiné est un outil web grand public (carte interactive) 
+  sans API publique documentée trouvée. Un branchement direct 
+  impliquerait du scraping — fragile, contraire aux conditions 
+  d'utilisation, à éviter.
+- Rezone repose vraisemblablement sur la MÊME méthodologie APL que 
+  les données DREES déjà planifiées dans l'architecture Soignect 
+  (sections 22, 29, 30 — données ouvertes DREES + API FHIR Annuaire 
+  Santé). C'est probablement une couche de présentation grand 
+  public au-dessus des mêmes données sources, sans information 
+  supplémentaire que Soignect n'aurait pas déjà prévu de capter 
+  autrement.
+
+RECOMMANDATION : ne pas chercher à brancher Rezone directement. 
+Poursuivre l'exécution de l'architecture déjà spécifiée (sections 
+22, 29, 30 — TensionScore, sections 82-84) qui couvre le même 
+besoin par une voie plus robuste (données ouvertes officielles, 
+pas de dépendance à un outil tiers non documenté pour API).
+
+Utiliser en revanche le CONTENU FACTUEL de Rezone (noms et montants 
+exacts des 3 contrats CAIMK/CAMMK/CACCMK ci-dessus) comme référence 
+éditoriale si Soignect affiche un jour ces informations — ce sont 
+des données publiques réutilisables, distinctes de la question 
+d'intégration technique.
+```
+
+### Prochaines étapes si ce chantier est repris un jour
+
+```
+1. Avis juridique sur le cadre légal de la mise en relation pour 
+   cession de patientèle/cabinet (responsabilité de Soignect en 
+   tant qu'intermédiaire, terminologie, obligations déontologiques 
+   par profession/Ordre)
+2. Étude du modèle économique Physiorama sur cette rubrique 
+   spécifique (tarification, volume) pour comparaison
+3. Décision sur le positionnement : simple espace d'annonces 
+   (comme Physiorama) vs accompagnement plus poussé (mise en 
+   relation avec experts-comptables/avocats partenaires) — chantier 
+   de plus grande ampleur si cette 2e option est retenue
+```
+
+---
+
+## 118. Base empirique — Confrontation offre/demande réelle (Guadeloupe, kinés, phase 1)
+
+### Méthode
+
+```
+Analyse de terrain menée en confrontant les annonces réelles 
+Physiorama (section 115) — offre (cabinets) vs demande (kinés en 
+recherche) — filtrée sur la Guadeloupe et le statut Assistanat, 
+pour faire émerger les patterns humains réels du marché ciblé par 
+le Palier 0/Phase 0 (kinés, Guadeloupe uniquement, section 111).
+
+Principe : cette base sert à AFFINER et CORRIGER la vision produit 
+initiale, pas à la confirmer aveuglément. Objectif explicite : 
+comprendre le fonctionnement humain réel avant d'élargir en 
+profession et en zone géographique (Phase 1/2, section 111).
+```
+
+### ASSISTANAT — Patterns Guadeloupe confirmés
+
+```
+1. ACCOMPAGNEMENT LOGISTIQUE SYSTÉMATIQUE (pas anecdotique)
+   "Accompagnement pour recherche de logement et démarches pour 
+   l'assistanat", "On s'occupe de la paperasse" — présent dans 
+   plusieurs annonces guadeloupéennes, absent des annonces 
+   métropolitaines consultées. Spécificité territoriale forte.
+
+2. WHATSAPP COMME CANAL DE CONTACT PRÉFÉRÉ, EXPLICITE
+   Au moins une annonce précise "par WhatsApp de préférence" — 
+   questionne la place du chat interne Soignect face à une 
+   habitude déjà ancrée localement. Point de vigilance produit : 
+   le chat Soignect doit être au moins aussi pratique que 
+   WhatsApp, ou un pont/notification vers WhatsApp pourrait être 
+   à envisager (non tranché, à investiguer).
+
+3. ARGUMENT LIFESTYLE/TROPICAL ASSUMÉ COMME LEVIER DE RECRUTEMENT
+   "Rejoignez-nous et vivez aux Caraïbes 🌴☀️" — le cadre de vie 
+   est un argument de recrutement explicite en Guadeloupe, alors 
+   que les annonces métropolitaines vendent plutôt cadre de 
+   travail/patientèle/équipement. Positionnement marketing à 
+   possiblement intégrer dans le ton des annonces suggérées ou 
+   du copywriting Soignect pour ce territoire.
+
+4. TURNOVER STRUCTUREL ÉLEVÉ / RECRUTEMENT GROUPÉ
+   Plusieurs cabinets recherchent 2-3 assistants simultanément 
+   pour "renouveler le poste de collègues sur le départ" — 
+   suggère un flux de renouvellement plus cyclique/saisonnier 
+   qu'en métropole, cohérent avec le pattern de migration 
+   saisonnière déjà identifié (offres explicitement position­nées 
+   sur l'hiver métropolitain, ex: "4 copines kinés" troquant 
+   l'hiver contre le soleil).
+
+5. PARCOURS PROGRESSIF REMPLACEMENT → ASSISTANAT ASSUMÉ
+   Au moins une annonce propose explicitement de commencer par un 
+   remplacement (ex: août) puis basculer en assistanat (ex: 
+   septembre) selon la volonté du candidat — un statut d'essai 
+   avant engagement plus long. Rejoint la logique de bascule 
+   progressive déjà pensée pour le billing (section 100), mais 
+   appliquée ici au statut professionnel lui-même — piste à 
+   explorer : faciliter ce parcours progressif dans le flux 
+   Soignect (annonce qui peut évoluer de remplacement à assistanat 
+   sans tout recréer).
+
+6. LOGISTIQUE INTER-ÎLES SPÉCIFIQUE
+   "AR bateau fourni" (Marie-Galante) — contrainte de transport 
+   propre à la dispersion géographique interne (Grande-Terre/
+   Basse-Terre/Marie-Galante/Saint-Martin/Saint-Barth), sans 
+   équivalent métropolitain.
+
+7. LOGEMENT PROPOSÉ BEAUCOUP PLUS SOUVENT QU'EN MÉTROPOLE
+   Argument récurrent et mis en avant, alors qu'il n'apparaît que 
+   rarement dans les annonces métropolitaines consultées.
+```
+
+### Différentiel offre/demande — malentendus identifiés (échantillon toutes zones)
+
+```
+1. RÉTROCESSION : omniprésente côté offre (toujours affichée en 
+   premier), quasi absente côté demande (les candidats ne la 
+   mentionnent presque jamais comme critère prioritaire dans leur 
+   texte) — décalage de priorité entre ce que les cabinets pensent 
+   important et ce que les candidats expriment spontanément.
+
+2. STABILITÉ/DURÉE : plusieurs candidats demandent explicitement 
+   "longue durée", "stabilité" — mais AUCUNE offre consultée 
+   n'affiche d'engagement de durée en toutes lettres. Le vrai 
+   besoin exprimé côté demande n'est pas satisfait dans le texte 
+   des offres actuelles, malgré l'argument "sécurisant" que les 
+   cabinets pensent déjà transmettre implicitement (patientèle 
+   assurée, agenda plein).
+
+3. LONGUEUR/RICHESSE DE CONTENU : offres 200-2000+ caractères 
+   (détails matériel/patientèle) vs demandes 2-4 lignes 
+   (localisation, dispo, parfois spécialité) — implication produit : 
+   le champ bioTinder côté remplaçant pourrait bénéficier d'un 
+   guidage plus structuré (spécialité, contrainte planning, durée 
+   recherchée) pour équilibrer le matching sémantique, faute de 
+   quoi le score DeepSeek travaille avec un texte cabinet riche 
+   contre un texte remplaçant pauvre.
+
+4. LOCALISATION : contrainte dure pour une partie significative 
+   des candidats (déménagement personnel déjà décidé, ex: "je 
+   m'installe à Rognac en septembre") — pas une préférence 
+   négociable pour ce profil. Piste : le poids de la composante 
+   Géo dans le score d'affinité (actuellement 25 pts, section B 
+   addendum) pourrait mériter un ajustement différencié selon le 
+   type de poste (remplacement ponctuel = flexibilité plus 
+   grande ; assistanat = zone souvent déjà fixée par le candidat) 
+   — hypothèse à creuser, pas encore décidée.
+
+5. "PATIENTÈLE ASSURÉE" : argument n°1 mis en avant côté offre, 
+   mais quasi jamais demandé explicitement côté candidat — soit 
+   implicite pour eux, soit moins déterminant dans leur décision 
+   que les cabinets ne le pensent.
+```
+
+### Statut
+
+```
+Analyse en cours — attente du même exercice pour les annonces de 
+REMPLACEMENT (offre vs demande, Guadeloupe) pour compléter la base 
+empirique avant conclusions produit définitives. Rien n'est encore 
+implémenté à partir de ces constats — phase d'observation, pas 
+encore de développement.
+```
+
+---
+
+## 119. Idée différée — Assistant de rédaction d'annonce (DeepSeek, une seule suggestion)
+
+### Principe
+
+```
+Réutiliser l'API DeepSeek (déjà intégrée pour le matching, section 
+B addendum) en amont de la publication : après rédaction du texte 
+d'annonce par le titulaire, envoyer le texte à DeepSeek avec un 
+prompt s'appuyant sur les patterns réels identifiés (section 118 
+et suivantes — différentiel offre/demande Guadeloupe).
+
+RÈGLE DE SIMPLICITÉ IMPÉRATIVE : UNE SEULE suggestion d'amélioration 
+affichée, pas une liste. Le principe directeur du produit ("le 
+moins de choix possible", déjà acté section 107/vision) s'applique 
+ici — l'assistant ne doit jamais noyer l'utilisateur sous des 
+corrections, juste lui signaler LE point le plus probable d'oubli 
+par rapport aux patterns observés (ex: "Tu n'as pas mentionné si 
+tu as une secrétaire" ou "Les candidats en Guadeloupe demandent 
+souvent la stabilité — précise si le poste est long terme").
+
+Objectif : aider le texte à mieux "matcher" les besoins réels 
+exprimés côté demande, sans transformer la rédaction en formulaire 
+déguisé (ce qui contredirait le positionnement texte-vs-formulaire 
+déjà acté, section 111).
+```
+
+### Question ouverte — limite de caractères
+
+```
+Actuellement 280 caractères (bioTinder, section A addendum). 
+Jean-Charles envisage d'augmenter cette limite pour permettre plus 
+de détail, mais reste incertain — non tranché. À évaluer : est-ce 
+que la contrainte de 280 caractères force une meilleure 
+qualité de rédaction (analogie Twitter/X) ou est-ce qu'elle 
+handicape la richesse d'info nécessaire au matching (le 
+différentiel section 118 montre déjà que les annonces cabinet 
+sont bien plus riches que les annonces remplaçant — augmenter la 
+limite pourrait accentuer cet écart plutôt que le réduire, à 
+étudier avant de trancher).
+```
+
+### Statut
+
+```
+Idée notée, non développée. Base empirique désormais complète 
+(assistanat 118, remplacement 118bis, salariat 118quater).
+
+DÉCISION : fonctionnalité PREMIUM (pas disponible en compte 
+Gratuit) — cohérent avec le positionnement déjà acté (une 
+suggestion d'amélioration de rédaction basée sur l'IA et les 
+patterns de marché est une vraie valeur ajoutée différenciante, 
+à réserver aux abonnés payants).
+
+Ne pas construire avant un sprint dédié — pas prioritaire pour la 
+bêta v0.
+```
+
+---
+
+## 118bis. REMPLACEMENT — Patterns (échantillon majoritairement national, 1 cas Guadeloupe)
+
+### Limite méthodologique
+
+```
+Ce lot d'annonces "Demandes Remplacement" n'était pas filtré 
+Guadeloupe — échantillon majoritairement métropolitain, avec une 
+seule annonce directement liée à la Guadeloupe. Sert de base de 
+comparaison nationale plutôt que de source locale pure — à 
+compléter avec un échantillon filtré Guadeloupe si une analyse 
+plus précise est nécessaire plus tard.
+```
+
+### Pattern Guadeloupe inédit — "remplacement touriste"
+
+```
+Une kiné installée en Alsace part en vacances au Gosier et cherche 
+une mission de remplacement d'UNE SEMAINE calée sur son séjour, 
+pour financer/enrichir son voyage — pas une démarche professionnelle 
+de fond, une opportunité opportuniste liée à un voyage personnel 
+déjà prévu.
+
+IMPLICATION ACQUISITION : piste inédite, distincte de la migration 
+saisonnière longue déjà identifiée (ex: "4 copines kinés" troquant 
+l'hiver contre 2 mois de soleil). Cibler des kinés métropolitains 
+qui PRÉVOIENT DÉJÀ un voyage en Guadeloupe (pas seulement ceux 
+cherchant activement à y travailler) pourrait être un angle 
+d'acquisition complémentaire — non exploré, à évaluer.
+```
+
+### Patterns nationaux du remplacement (comparaison avec assistanat, section 118)
+
+```
+1. PRÉCISION DATE/ZONE NETTEMENT PLUS FORTE QU'EN ASSISTANAT
+   Quasi toutes les demandes donnent des dates exactes et un rayon 
+   de mobilité précis ("+/-20min", "45min/1h de trajet possible") 
+   — contrairement à l'assistanat où le texte restait plus flou 
+   (ville + mois). Confirme l'hypothèse déjà notée section 118 : 
+   la géo est structurellement plus précise/négociable en 
+   remplacement qu'en assistanat.
+
+2. ARBITRAGE EXPLICITE RÉTRO ↔ LOGEMENT
+   Plusieurs candidats acceptent une rétro plus basse contre un 
+   logement fourni ("hébergée à 10% retro ou fixe", "si bon plans 
+   logement associé gros plus"). Un vrai arbitrage à deux variables 
+   couplées, absent du discours côté assistanat (où la rétro était 
+   quasi jamais mentionnée par les candidats).
+
+3. ANCIENNETÉ PROFESSIONNELLE SYSTÉMATIQUEMENT AFFICHÉE
+   "diplômée depuis 3 ans", "kiné depuis 2008" — signal de 
+   crédibilité mis en avant spontanément, contrairement à 
+   l'assistanat où la formation/spécialité dominait plutôt que 
+   l'ancienneté brute.
+
+4. PRÉFÉRENCE DE CADRE PARFOIS EXCLUSIVE
+   "en structure uniquement (SSR, EHPAD)" — certains candidats 
+   excluent complètement cabinet/domicile, un critère de filtre 
+   dur plutôt qu'une préférence souple.
+
+5. LOGEMENT — SIGNAL FORT DES DEUX CÔTÉS
+   Contrairement à l'assistanat où le logement n'apparaissait que 
+   côté offre, le remplacement montre un signal fort DES DEUX 
+   CÔTÉS (côté offre: "logement disponible à 2 minutes du 
+   cabinet" ; côté demande: "hebergée", "logée et véhiculée") — 
+   critère de matching à part entière, potentiellement sous-exploité 
+   dans le score d'affinité actuel.
+```
+
+### Conclusion structurante — deux logiques de matching différentes
+
+```
+REMPLACEMENT se négocie sur : TEMPS PRÉCIS + GÉO PRÉCISE + LOGEMENT
+ASSISTANAT se négocie sur : STABILITÉ/DURÉE + SPÉCIALITÉ + PATIENTÈLE
+
+Confirme et affine l'hypothèse déjà notée section 118 : un même 
+poids de score d'affinité (Dates 35 / Bio 30 / Géo 25 / 
+Visibilité 10, section B addendum) appliqué identiquement aux 
+deux types de poste ne reflète probablement pas la réalité de ce 
+qui compte pour chacun. Piste de différenciation du score par 
+type de poste à creuser sérieusement — pas encore décidée, 
+nécessite une réflexion dédiée avant toute implémentation.
+
+Piste complémentaire : le LOGEMENT n'est actuellement pas un champ 
+structuré dans le modèle Mission/Profile (probablement noyé dans 
+le texte bioTinder) — vu son poids dans le matching réel observé 
+ici, il pourrait mériter de devenir un champ explicite (booléen 
+"logement proposé" côté annonce, "recherche logement" côté 
+disponibilité) plutôt qu'un simple mot dans le texte libre.
+```
+
+---
+
+## 118ter. Conclusion de la démarche empirique — Physiorama et le vivier candidat Guadeloupe
+
+### Constat confirmé (double vérification : assistanat ET remplacement)
+
+```
+"Demandes Assistanat" filtré Guadeloupe → 0 résultat
+"Demandes Remplacement" filtré Guadeloupe → 0 résultat
+
+Confirmation robuste (pas un cas isolé) : côté DEMANDE (kinés qui 
+cherchent un poste), le vivier de candidats intéressés par la 
+Guadeloupe n'utilise PAS Physiorama, quel que soit le type de 
+poste recherché. Seul le côté OFFRE (cabinets guadeloupéens qui 
+publient) est actif sur cette plateforme.
+```
+
+### Implication stratégique majeure pour Soignect
+
+```
+Physiorama n'est PAS un concurrent direct sur l'acquisition de 
+candidats en Guadeloupe — c'est un outil que les cabinets locaux 
+utilisent pour publier, mais qui ne capte pas le vivier de 
+candidats potentiels (remplaçants/assistants intéressés par le 
+territoire).
+
+Renforce fortement la priorité déjà actée sur le canal Facebook 
+(section 101, ~11 000 abonnés) et le réseau institutionnel 
+(SNMKR/CPTS) comme véritables points de contact avec ce vivier — 
+cohérent avec le retour direct des jeunes collègues de Jean-Charles 
+(Léa, Mathéo, Léo) sur l'orientation Facebook des jeunes kinés.
+
+OPPORTUNITÉ CONCURRENTIELLE : Soignect n'est quasiment pas en 
+concurrence avec Physiorama côté captation de candidats pour la 
+Guadeloupe — le champ est largement ouvert de ce côté. La 
+concurrence potentielle se situerait plutôt côté cabinets 
+(convaincre les cabinets de publier sur Soignect plutôt que/en plus 
+de Physiorama), pas côté candidats.
+```
+
+### Statut de la démarche empirique (sections 117-119)
+
+```
+Base empirique constituée : cession de patientèle (117), 
+assistanat Guadeloupe (118), remplacement national + 1 cas 
+Guadeloupe (118bis), conclusion sur le vivier candidat (118ter). 
+Alimente les idées différées déjà notées (valorisation assistanat, 
+assistant de rédaction DeepSeek section 119, pondération du score 
+d'affinité par type de poste) — aucune de ces pistes n'est encore 
+implémentée, toutes restent à trancher/concevoir avant tout 
+développement.
+```
+
+---
+
+## 118quater. SALARIAT — Patterns (échantillon offre uniquement, pas de Guadeloupe)
+
+### Limite du lot
+
+```
+Échantillon "Offres Salariat" reçu sans confrontation demande, et 
+sans annonce Guadeloupe (une seule entrée hors métropole : La 
+Réunion). Pas de vraie confrontation offre/demande possible sur ce 
+segment pour l'instant — sert de cartographie du segment, pas 
+d'analyse de différentiel comme pour l'assistanat/remplacement.
+```
+
+### Différences structurelles avec le libéral (remplacement/assistanat)
+
+```
+1. RÉMUNÉRATION : toujours en salaire net/brut explicite, jamais 
+   en pourcentage de rétrocession — modèle mental complètement 
+   différent du libéral.
+
+2. LOGEMENT : encore plus systématique qu'en remplacement libéral 
+   — présent dans la majorité des annonces, parfois même 
+   "logement de fonction" avec bail au nom de l'employeur.
+
+3. GRILLES CONVENTIONNELLES COMPLEXES : références récurrentes à 
+   FEHAP CCN51, CCN 15 mars 1966, Convention Collective FHP, grille 
+   FPH (Fonction Publique Hospitalière) — couche réglementaire 
+   totalement absente du libéral.
+
+4. STATUTS HYBRIDES ÉVOQUÉS : plusieurs hôpitaux mentionnent la 
+   "possibilité de cumul temps salarié hospitalier et temps 
+   libéral" (ex: répartition 10/90, 20/80) — un modèle hybride que 
+   Soignect ne modélise pas actuellement (types de poste limités à 
+   Remplacement/Assistanat/Collaboration/Titulaire/Associé, 
+   section 103).
+```
+
+### Découverte majeure — rôle des agences d'intérim médical (Appel Médical)
+
+```
+Une part significative des annonces provient d'agences d'intérim 
+médical (ex: Appel Médical), qui publient des dizaines d'offres 
+pour le compte de multiples établissements (SMR, hôpitaux, EHPAD) 
+à travers toute la France.
+
+LIEN DIRECT AVEC LE POSITIONNEMENT DÉJÀ ACTÉ (section 99/115) : 
+c'est exactement le modèle que la référence Hublo critique 
+explicitement — les agences d'intérim prennent une marge 
+substantielle (coefficient 1,8-2,5x le salaire) entre 
+l'établissement et le professionnel.
+
+CONFIRME ET RENFORCE l'argument de vente déjà documenté pour le 
+segment Structures privées de Soignect (section 99, 89€/mois + 
+20€/contrat) : couper cet intermédiaire coûteux est un vrai 
+argument différenciant, avec une preuve concrète de son existence 
+et de son ampleur sur ce segment.
+```
+
+### Positionnement du segment Salariat dans l'architecture produit
+
+```
+Ce segment colle structurellement au segment "Structures privées" 
+déjà chiffré (section 99) — les employeurs sont des cliniques/SMR/
+EHPAD privés ou des hôpitaux publics, PAS des CPTS/ARS. Distinct 
+du Monde B institutionnel (section 111, médecins spécialistes/
+généralistes en zones tendues) qui reste un chantier séparé et 
+plus lointain.
+
+Statut : cartographie faite, pas de développement engagé. 
+Confirme la pertinence du modèle Structures privées déjà chiffré, 
+sans le modifier à ce stade.
+```
+
+### Confrontation avec la demande — déséquilibre structurel confirmé
+
+```
+Échantillon "Demandes Salariat" national : seulement 5 annonces 
+(contre ~30 offres denses dans le même lot chronologique), aucune 
+en Guadeloupe. Déséquilibre massif confirmé, pas un artefact 
+d'échantillonnage.
+
+CAUSE RACINE (hypothèse Jean-Charles, cohérente avec les chiffres 
+observés) : le delta de revenu libéral/salarié est le facteur 
+dominant pour la profession kiné spécifiquement. Un libéral capte 
+75-90% de sa production via rétrocession (potentiellement 8 000-
+12 000€/mois de CA observés dans les offres assistanat, section 
+118), un salarié touche un fixe indépendant du volume (2400-4500€ 
+net observés ici) — le libéral reste structurellement plus 
+rentable pour un professionnel actif.
+
+La majoration de 40% en fonction publique Outre-mer NE COMBLE PAS 
+cet écart structurel (confirmé par le très faible volume de 
+demandes, y compris pour des postes DOM/TOM) — un facteur 
+insuffisant à lui seul pour rediriger l'appétence vers le salariat.
+
+CONSÉQUENCE POUR SOIGNECT — renforce le segment Structures 
+privées : les employeurs de ce segment (EHPAD, cliniques, SMR, 
+hôpitaux) sont structurellement en sous-effectif chronique, faute 
+de candidats naturellement attirés par le statut salarié. Un 
+employeur en pénurie permanente a une valeur perçue plus forte à 
+payer pour un outil de recrutement efficace que le cabinet libéral 
+(qui reçoit plus facilement des candidatures spontanées, cf. 
+volume d'annonces assistanat/remplacement). Argument de fond 
+supplémentaire pour justifier le tarif Structures privées déjà 
+chiffré (section 99, 89€/mois + 20€/contrat) — ces employeurs ont 
+structurellement plus besoin de Soignect que les cabinets 
+libéraux.
+```
+
+---
+
+## 120. DÉCISION — Score d'affinité différencié par type de poste + champ logement structuré
+
+### Contexte
+
+```
+Décision prise pour intégration au Sprint 2, à partir de la base 
+empirique (sections 118, 118bis, 118quater) : le remplacement se 
+négocie sur temps précis + géo + logement, l'assistanat se négocie 
+sur stabilité/durée + spécialité + patientèle (contenu qualitatif 
+du texte). Un poids de score uniforme (Dates 35/Bio 30/Géo 25/
+Désirabilité 10 actuel) ne reflète pas cette différence.
+```
+
+### Nouveau champ structurel — Logement
+
+```prisma
+// Sur Mission (annonce) — ajouter :
+logementPropose   Boolean   @default(false)
+
+// Sur Profile ET/OU Disponibilite (remplaçant) — ajouter :
+rechercheLogement Boolean   @default(false)
+```
+Match binaire : si logementPropose = true ET rechercheLogement = 
+true → bonus logement plein ; sinon 0. Remplace le signal 
+actuellement noyé dans le texte libre bioTinder par un champ 
+structuré et fiable pour le score.
+
+### Deux profils de pondération (total 100 pts dans les deux cas)
+
+```
+REMPLACEMENT / COLLABORATION :
+  Dates          : 35 pts
+  Géo            : 25 pts
+  Bio (DeepSeek) : 20 pts
+  Logement       : 10 pts
+  Désirabilité   : 10 pts
+
+ASSISTANAT :
+  Dates          : 15 pts
+  Géo            : 20 pts
+  Bio (DeepSeek) : 40 pts
+  Logement       : 10 pts
+  Désirabilité   : 15 pts
+```
+
+### Logique de sélection du profil
+
+```
+Le profil de pondération à appliquer est déterminé par le type de 
+poste de la Mission concernée (enum déjà existant : Remplacement 
+ponctuel / Assistanat / Collaboration libérale, section 5/103 — 
+Remplacement et Collaboration partagent le même profil, Assistanat 
+a son profil propre).
+```
+
+### Statut
+
+```
+✅ DÉCIDÉ — à intégrer au Sprint 2 (voir prompt ci-joint).
+```
+
+---
+
+## 121. INDEX MAÎTRE — Chronologie complète des sprints et statut de chaque chantier
+
+### But de cette section
+
+```
+Vue d'ensemble unique pour ne rien perdre parmi tout ce qui a été 
+spécifié (sections 99 à 120). Organisé par statut réel, pas par 
+ordre chronologique de conversation. À relire et élaguer 
+régulièrement — certains points listés ici pourront être retirés 
+s'ils s'éloignent du besoin produit réel au fil de l'usage. Principe 
+directeur rappelé : complexité côté moteur, simplicité absolue côté 
+apparence (section 107).
+```
+
+### ✅ FAIT — Palier 0 (lancement kinés Guadeloupe, en prod)
+
+```
+- Sprint cumulatif matin (5b36edc) : mode gratuit, acquisition FB, 
+  sync timeline/annonce, fix type poste, simplification préavis/
+  statuts, raccourci disponibilité, style boutons swipe
+- Distinction Cabinet/Structure explicite, titulaireKind (d25075a)
+- Bascule billing individuelle + chiffrage Stripe 9€/29€ (9bd690b)
+- Sprint après-midi (fce5be5) : gate contrat PDF, photo obligatoire 
+  onboarding, photos secondaires, bottom sheet, Wikipédia commune, 
+  CRUD annonce, metered billing structures, partage Facebook, 
+  rappel 24h
+- Fix cron Hobby (quotidien au lieu d'horaire) — déblocage déploiement
+- Configuration Stripe complète (clé secrète, webhook, Price IDs 
+  Cabinet ET Structures) — confirmée opérationnelle 13/07
+- Mode Stripe : décision Live vs Test pour la bêta — À TRANCHER 
+  (section 114, non tranché à ce jour)
+```
+
+### 🟡 PRÊT À ENVOYER — Sprint 2 (avant ouverture bêta aux ~30 testeurs SNMKR)
+
+```
+1. Retrait icônes décoratives page connexion
+2. Fix photo obligatoire non-bloquante à la publication d'annonce 
+   (brèche rétroactive)
+3. Fix bouton "Supprimer" admin inopérant
+4. Fix espace vide excessif mobile (état vide annonces)
+5. Fix espacement carte swipe / boutons Pass-Intéressé
+6. Fix "Dernières annonces consultées" → bottom sheet avec état réel
+7. Fix carte illisible (texte dupliqué, photo floue, composant 
+   carte non unifié)
+8. Feature étendre déclencheur bottom sheet à toute la carte 
+   (tap vs drag)
+9. Fix layout desktop, panneau latéral pour les trays
+10. Score d'affinité différencié par type de poste + champ 
+    logement structuré (section 120)
+
+STATUT : prompt complet rédigé, prêt à copier dans Claude Code.
+```
+
+### 🔵 DÉCIDÉ MAIS NON PROMPTÉ — à inclure dans un sprint proche
+
+```
+- Assistant de rédaction DeepSeek (section 119) — fonctionnalité 
+  PREMIUM, dépend d'un sprint dédié après la bêta
+- Boutons "Retirer ce poste" restriction zone présence uniquement 
+  — déjà inclus dans le CRUD annonce livré (d14ed48), à vérifier 
+  en recette que c'est bien le cas
+```
+
+### 🟠 À TRANCHER AVANT DE POUVOIR PROMPTER
+
+```
+- Mode Stripe Live vs Test pour la bêta (section 114)
+- Définition exacte de "cabinet actif" pour le compteur palier 1 
+  (section 100) — actuellement définition simple (compte créé), 
+  à affiner ou garder tel quel
+- 2e profession pilote Phase 1 (sage-femme pressenti, non confirmé, 
+  section 111)
+```
+
+### ⚪ DIFFÉRÉ — chantiers de fond, hors sprint bêta
+
+```
+- Notation post-mission (section 79 addendum, v1.1)
+- Multi-communes remplaçant (section 67/91.2)
+- Éditeur admin CRUD ciblé (section 109)
+- TensionScore territorial (sections 82-84) — bloque le Monde B
+- Dashboard Observatoire commercial (sections 86/108)
+- Vision "portfolio dans la poche" interface remplaçant (section 107)
+- Boost ponctuel payant à la carte (section 116)
+- Cession de patientèle/cabinet (section 117) — bloqué avis 
+  juridique. Reconception importante acquise : ce n'est pas un 
+  module isolé mais le prolongement naturel du parcours 
+  remplacement→assistanat déjà couvert par Soignect (continuum 
+  de carrière confirmé empiriquement)
+- Expansion multi-professions Phase 1 (section 111) — bloqué avis 
+  juridique par profession
+- Expansion Monde B, médecins spécialistes (section 111) — bloqué 
+  par TensionScore
+- Éditeur admin structures privées metered billing avancé — déjà 
+  fait en réalité, RAS
+```
+
+### 🟢 MÉTHODE À CODIFIER — réutilisation de la démarche empirique
+
+```
+La méthode de confrontation offre/demande (sections 117-118quater, 
+via Physiorama) doit être réutilisée pour chaque nouvelle 
+profession/territoire lors des Phases 1 et 2 d'expansion (section 
+111) — infirmiers, sages-femmes, ophtalmologues, etc.
+
+Idée d'automatisation évoquée (non spécifiée) : possibilité 
+d'automatiser tout ou partie de cette collecte/analyse plus tard, 
+plutôt que de la refaire manuellement à chaque nouvelle profession. 
+Non conçu techniquement à ce stade — noté comme axe à explorer 
+quand la Phase 1 (section 111) sera engagée, pas avant.
+
+Statut : méthode validée par l'usage (kinés/Guadeloupe), à formaliser 
+en procédure répétable le moment venu — pas de développement 
+associé pour l'instant, c'est une pratique de travail, pas une 
+fonctionnalité produit.
+```
+
+---
+
+## 122. Confirmation — Automatisation du rafraîchissement des données APL (DREES)
+
+### Question posée
+
+```
+Le calcul APL est republié tous les 1-2 ans par la DREES — 
+faut-il le retraiter à la main à chaque cycle, ou peut-on 
+automatiser la récupération depuis la DREES ou data.ameli ?
+```
+
+### Réponse — automatisation confirmée possible
+
+```
+data.drees.solidarites-sante.gouv.fr expose une API REST 
+documentée (Explore API v2.1, plateforme OpenDataSoft), avec le 
+jeu de données APL identifié et interrogeable 
+(530_l-accessibilite-potentielle-localisee-apl). Licence Ouverte 
+2.0 — réutilisation libre, mention de la source obligatoire.
+
+Rythme de mise à jour observé : cycle annuel à bisannuel (fichiers 
+mis à jour à des dates espacées de plusieurs mois à plus d'un an) 
+— pas de flux temps réel, donc pas besoin d'un rafraîchissement 
+fréquent.
+
+RECOMMANDATION : mettre en place un job planifié (cron, ex: annuel 
+ou déclenché manuellement après vérification qu'une nouvelle 
+version est publiée) qui interroge cette API DREES et met à jour 
+la base APL de Soignect automatiquement, plutôt qu'un retraitement 
+manuel des fichiers à chaque cycle.
+
+Ne concerne QUE l'indicateur APL brut (données DREES). Rappel 
+(section 117/122bis) : Rezone Kiné (Ameli), qui présente le 
+zonage officiel construit à partir de cette même donnée, n'a pas 
+d'API publique documentée — rester sur la source DREES pour toute 
+automatisation, pas sur Rezone.
+```
+
+### Lien avec l'architecture existante
+
+```
+Vient compléter et confirmer la faisabilité technique des sections 
+22, 29 et 30 (déjà spécifiées, "à faire après le MVP — Sprint 10+"). 
+Pas de nouveau chantier créé — cette confirmation valide que 
+l'automatisation complète (pas seulement l'import initial) est 
+réalisable avec les outils publics existants, à intégrer dans la 
+conception de ce sprint quand il sera engagé.
+```
+
+---
+
+## 123. DÉCISION — BioTinder à taille différenciée par profil + report du niveau 3 (favoritisme géographique)
+
+### Contexte
+
+```
+Analyse chiffrée des données Physiorama (sections 118-118quater) : 
+demandes (remplaçant/assistant) ~150-200 caractères en moyenne, 
+~400 max observé. Offres (cabinet) ~600-900 caractères en moyenne, 
+1500-2500+ observé. Asymétrie confirmant que la limite actuelle 
+de 280 caractères (section A addendum) colle au comportement 
+naturel des candidats mais bride fortement les cabinets.
+```
+
+### Décision — taille BioTinder différenciée
+
+```
+✅ VALIDÉ :
+- Remplaçant/Assistant : 280 caractères (INCHANGÉ, colle au 
+  comportement naturel observé)
+- Cabinet/Titulaire : 600-700 caractères (NOUVEAU — remplace la 
+  limite uniforme de 280)
+
+Modification schéma (additive, ajustement de contrainte) :
+- Profile.bioTinder : la limite de validation doit désormais 
+  dépendre du type de profil (TITULAIRE vs REMPLAÇANT/ASSISTANT) 
+  plutôt que d'être une constante unique
+- Mission.bioTinder (bio spécifique à une annonce, section A 
+  addendum) : suit la même règle que le profil qui la publie 
+  (cabinet = 600-700, remplaçant/dispo = 280)
+- Ajuster le compteur de caractères en temps réel dans l'UI pour 
+  refléter la bonne limite selon le contexte
+```
+
+### Décision — niveau 3 DeepSeek (favoritisme géographique zones sous-dotées)
+
+```
+⚪ REPORTÉ à la Phase 3 (TensionScore complet, sections 82-84).
+Pas de version simplifiée anticipée — attendre l'architecture 
+TensionScore complète plutôt que de bricoler un bonus partiel 
+maintenant.
+```
+
+### Récapitulatif des 3 niveaux d'usage DeepSeek (confirmé)
+
+```
+1. BioTinder — suggestion de rédaction unique (section 119, 
+   fonctionnalité Premium, différée)
+2. Matching — score à 100 points différencié par type de poste 
+   (section 120, à intégrer Sprint 2)
+3. Pertinence géographique publique — favoriser les zones moins 
+   dotées via les données APL (section 22-23, 29-30, 122) — 
+   REPORTÉ à la Phase 3, dépend du TensionScore complet
 ```

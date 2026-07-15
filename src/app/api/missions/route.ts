@@ -5,6 +5,7 @@ import { z } from "zod";
 import { BriqueStatus, MissionType, ProfileType } from "@prisma/client";
 import { getCommuneZonage } from "@/lib/communes";
 import { logTraceEvent } from "@/lib/trace";
+import { bioLimitFor } from "@/lib/bio";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,8 @@ const createMissionSchema = z.object({
   startDate: z.preprocess((v) => (v ? new Date(v as string) : null), z.date().optional().nullable()),
   endDate: z.preprocess((v) => (v ? new Date(v as string) : null), z.date().optional().nullable()),
   minMonths: z.number().int().min(1).max(24).optional().nullable(),
-  pitch: z.string().max(280).optional().nullable(),
-  bioTinder: z.string().max(280).optional().nullable(),
+  pitch: z.string().max(700).optional().nullable(),
+  bioTinder: z.string().max(700).optional().nullable(),
   retrocessionRate: z.number().int().min(0).max(100).optional().nullable(),
   missionType: z.nativeEnum(MissionType).optional(),
   dateFlexibility: z.number().int().min(0).max(4).optional(),
@@ -103,11 +104,19 @@ export async function POST(req: NextRequest) {
   if (effectiveBrique !== BriqueStatus.INDISPONIBLE) {
     const me = await prisma.profile.findUnique({
       where: { id: session.user.profileId },
-      select: { photoUrl: true },
+      select: { photoUrl: true, type: true },
     });
     if (!me?.photoUrl) {
       return NextResponse.json(
         { error: "Ajoutez une photo de profil avant de publier une annonce.", needsPhoto: true },
+        { status: 422 }
+      );
+    }
+    // Limite BioTinder différenciée (section 123) : cabinet 700, remplaçant/assistant 280.
+    const bioMax = bioLimitFor(me.type);
+    if (bioTinder && bioTinder.length > bioMax) {
+      return NextResponse.json(
+        { error: `Accroche trop longue (${bioTinder.length}/${bioMax} caractères).` },
         { status: 422 }
       );
     }

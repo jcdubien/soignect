@@ -16,7 +16,7 @@ const createProfileSchema = z.object({
   titulaireKind: z.nativeEnum(TitulaireKind).optional(),
   name: z.string().max(100).optional(),
   bio: z.string().max(300).optional(),
-  bioTinder: z.string().max(280).optional(),
+  bioTinder: z.string().max(700).optional(),
   photoUrl: z.string().url().optional(),
   phone: z.string().max(20).optional(),
   phoneCountry: z.string().max(4).optional(),

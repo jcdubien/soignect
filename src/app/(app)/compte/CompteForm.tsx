@@ -8,6 +8,7 @@ import { Profession, Region, SubscriptionPlan, ProfileType, TitulaireKind } from
 import CompteTimeline from "./CompteTimeline";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164, splitE164 } from "@/lib/phone";
+import { bioLimitFor } from "@/lib/bio";
 
 const REGION_LABELS: Record<Region, string> = {
   GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
@@ -294,7 +295,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         <div className="relative">
           <textarea
             value={bioTinder}
-            onChange={e => { if (e.target.value.length <= 280) setBioTinder(e.target.value); }}
+            onChange={e => { if (e.target.value.length <= bioLimitFor(profile.type)) setBioTinder(e.target.value); }}
             rows={4}
             className="w-full px-3 py-2.5 border border-kine-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none"
             placeholder={
@@ -304,7 +305,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             }
           />
         </div>
-        <p className="text-right text-xs text-gray-300">{bioTinder.length}/280</p>
+        <p className="text-right text-xs text-gray-300">{bioTinder.length}/{bioLimitFor(profile.type)}</p>
       </section>
 
       {/* ── Timeline remplaçant ── */}

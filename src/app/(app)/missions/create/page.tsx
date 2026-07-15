@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { bioLimitFor } from "@/lib/bio";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -278,7 +279,9 @@ export default function CreateMissionPage() {
     router.push(isEdit ? "/planning" : "/annonces");
   }
 
-  const maxPitchText = form.pitchStarter ? 280 - form.pitchStarter.length - 1 : 260;
+  // Limite BioTinder différenciée (section 123) : cabinet 700, remplaçant 280.
+  const bioLimit = bioLimitFor(profileType);
+  const maxPitchText = form.pitchStarter ? bioLimit - form.pitchStarter.length - 1 : bioLimit;
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8 animate-fade-up">
@@ -353,7 +356,7 @@ export default function CreateMissionPage() {
         <div className="bg-kine-50 rounded-2xl p-4 space-y-3 border border-kine-100">
           <label className="block text-sm font-semibold text-kine-700">
             {cfg.pitchTitle}
-            <span className="text-kine-400 font-normal ml-1">(280 signes · obligatoire)</span>
+            <span className="text-kine-400 font-normal ml-1">({bioLimit} signes · obligatoire)</span>
           </label>
           <p className="text-xs text-kine-600/70">
             C&apos;est ce texte qui alimente le matching intelligent — décrivez ce que vous recherchez en quelques mots (40 caractères minimum).
@@ -408,7 +411,7 @@ export default function CreateMissionPage() {
                     </span>
                   )
                 ) : (
-                  <span className="text-xs text-gray-300">{form.pitchStarter.length + 1 + form.pitchText.length}/280</span>
+                  <span className="text-xs text-gray-300">{form.pitchStarter.length + 1 + form.pitchText.length}/{bioLimit}</span>
                 )}
               </div>
             </div>

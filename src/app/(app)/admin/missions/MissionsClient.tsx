@@ -33,6 +33,7 @@ function fmtDate(d: string | null) {
 export default function MissionsClient({ initialMissions }: { initialMissions: Mission[] }) {
   const [missions, setMissions] = useState<Mission[]>(initialMissions);
   const [loading, setLoading] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   async function toggleActive(m: Mission) {
     setLoading(m.id);
@@ -50,11 +51,28 @@ export default function MissionsClient({ initialMissions }: { initialMissions: M
   }
 
   async function deleteMission(m: Mission) {
-    if (!confirm(`Supprimer définitivement "${m.title}" ?`)) return;
+    if (!confirm(
+      `Supprimer définitivement "${m.title}" ?\n\n` +
+      `⚠️ Les swipes et les mises en relation liés à cette annonce seront aussi supprimés (irréversible).`
+    )) return;
     setLoading(m.id);
-    const r = await fetch(`/api/admin/missions/${m.id}`, { method: "DELETE" });
-    if (r.ok) {
-      setMissions((prev) => prev.filter((x) => x.id !== m.id));
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/admin/missions/${m.id}`, { method: "DELETE" });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        setMissions((prev) => prev.filter((x) => x.id !== m.id));
+        setMsg({
+          type: "ok",
+          text: d.deletedMatches > 0
+            ? `« ${m.title} » supprimée — ${d.deletedMatches} mise(s) en relation également retirée(s).`
+            : `« ${m.title} » supprimée.`,
+        });
+      } else {
+        setMsg({ type: "err", text: d.error ?? "La suppression a échoué." });
+      }
+    } catch {
+      setMsg({ type: "err", text: "Erreur réseau — réessayez." });
     }
     setLoading(null);
   }
@@ -65,6 +83,19 @@ export default function MissionsClient({ initialMissions }: { initialMissions: M
         Annonces{" "}
         <span className="text-sm font-normal text-gray-400">({missions.length})</span>
       </h1>
+
+      {msg && (
+        <div
+          role="status"
+          className={`rounded-xl px-4 py-2.5 text-sm border ${
+            msg.type === "ok"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-red-50 border-red-200 text-red-700"
+          }`}
+        >
+          {msg.text}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
         <table className="w-full text-sm min-w-[800px]">
