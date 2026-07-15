@@ -15,21 +15,30 @@ const swipeSchema = z.object({
   targetMissionId: z.string().optional(), // TITULAIRE's active chip mission
 });
 
-function getEffectiveDesirability(profile: {
+// Désirabilité en POURCENTAGE 0-100 (section 126). Appliquée ensuite proportionnellement
+// au créneau Désirabilité du profil de pondération (10 pts Remplacement/Collab, 15 Assistanat).
+function getDesirabilityPercent(profile: {
   isFounding: boolean;
   desirabilityOverride: number | null;
   desirabilityExpiry: Date | null;
   desirabilityScore: number;
+  subscriptionPlan?: string;
   institutionalPartner?: boolean;
 }): number {
-  if (profile.isFounding) return 10;
-  // Boost +2 automatique pour les partenaires CPTS/institutionnels (section 23, item 24)
-  const cptsBoost = profile.institutionalPartner ? 2 : 0;
+  // Cabinet fondateur (JCD) = 100 % fixe.
+  if (profile.isFounding) return 100;
+  // Override admin = priorité absolue (0-100 %), tant que non expiré.
   if (profile.desirabilityOverride !== null) {
     const expired = profile.desirabilityExpiry && profile.desirabilityExpiry <= new Date();
-    if (!expired) return Math.min(profile.desirabilityOverride + cptsBoost, 10);
+    if (!expired) return Math.min(Math.max(profile.desirabilityOverride, 0), 100);
   }
-  return Math.min(profile.desirabilityScore + cptsBoost, 10);
+  // Sinon dérivé du plan (automatique) : Premium 50, Boost 80, Structure 50, Gratuit 0.
+  // Un desirabilityScore stocké (boost admin ponctuel) prime s'il est supérieur.
+  const byPlan =
+    profile.subscriptionPlan === "BOOST" ? 80 :
+    (profile.subscriptionPlan === "PREMIUM" || profile.subscriptionPlan === "STRUCTURE") ? 50 : 0;
+  const cpts = profile.institutionalPartner ? 20 : 0; // partenaire CPTS (section 23) — +20 %
+  return Math.min(Math.max(byPlan, profile.desirabilityScore ?? 0) + cpts, 100);
 }
 
 // DELETE /api/swipe?missionId=… — annule un swipe (section 98) : la mission
@@ -108,7 +117,7 @@ export async function POST(req: NextRequest) {
         endDate: swipedMission.endDate,
         minMonths: swipedMission.minMonths,
         location: swipedMission.location,
-        desirabilityScore: getEffectiveDesirability(missionProfile),
+        desirabilityScore: getDesirabilityPercent(missionProfile),
         dateFlexibility: swipedMission.dateFlexibility,
         missionType: swipedMission.missionType,     // section 120 — profil de pondération
         logementPropose: swipedMission.logementPropose, // section 120 — bonus logement

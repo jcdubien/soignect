@@ -17,10 +17,11 @@ type MissionWithProfile = Mission & { profile: Profile };
 
 // Barèmes du détail de score selon le profil de pondération utilisé (section 120).
 const SCORE_WEIGHTS: Record<string, { dates: number; geo: number; bio: number; logement: number; desirability: number }> = {
-  REMPLACEMENT: { dates: 35, geo: 25, bio: 20, logement: 10, desirability: 10 },
-  ASSISTANAT:   { dates: 15, geo: 20, bio: 40, logement: 10, desirability: 15 },
+  REMPLACEMENT:  { dates: 35, geo: 25, bio: 20, logement: 10, desirability: 10 },
+  COLLABORATION: { dates: 35, geo: 25, bio: 30, logement: 0,  desirability: 10 },
+  ASSISTANAT:    { dates: 15, geo: 20, bio: 50, logement: 0,  desirability: 15 },
 };
-const SCORE_PROFILE_LABEL: Record<string, string> = { REMPLACEMENT: "Remplacement", ASSISTANAT: "Assistanat" };
+const SCORE_PROFILE_LABEL: Record<string, string> = { REMPLACEMENT: "Remplacement", COLLABORATION: "Collaboration", ASSISTANAT: "Assistanat" };
 
 interface TrayItem {
   mission: MissionWithProfile;
@@ -169,18 +170,20 @@ function MissionSheet({
               {/* Détail des composantes (section 64 — Spécialités retiré) */}
               {item.scoreDetails && (() => {
                 // Profil de pondération utilisé (section 120) — détermine les barèmes affichés.
-                const prof = item.scoreDetails?.profile === "ASSISTANAT" ? "ASSISTANAT" : "REMPLACEMENT";
+                const profKey = item.scoreDetails?.profile;
+                const prof = (profKey === "ASSISTANAT" || profKey === "COLLABORATION") ? profKey : "REMPLACEMENT";
                 const max = SCORE_WEIGHTS[prof];
                 const rows = [
                   { key: "dates",        label: "Dates",      max: max.dates },
                   { key: "bio",          label: "Affinité",   max: max.bio },
                   { key: "geo",          label: "Proximité",  max: max.geo },
-                  { key: "logement",     label: "Logement",   max: max.logement },
+                  // Logement uniquement quand il compte (Remplacement) — section 120/126
+                  ...(max.logement > 0 ? [{ key: "logement", label: "Logement", max: max.logement }] : []),
                   { key: "desirability", label: "Visibilité", max: max.desirability },
                 ];
                 return (
                   <>
-                    <div className="grid grid-cols-5 gap-1 mt-2">
+                    <div className={`grid gap-1 mt-2 ${rows.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
                       {rows.map(({ key, label, max }) => {
                         const val = Number(item.scoreDetails?.[key] ?? 0);
                         return (

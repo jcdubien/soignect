@@ -31,13 +31,15 @@ export interface AffinityResult {
 // Deux profils de pondération (total 100), sélectionnés par Mission.type (section 120).
 // Remplacement et Collaboration partagent le même profil ; Assistanat a le sien.
 type WeightProfile = { dates: number; geo: number; bio: number; logement: number; desirability: number };
-const WEIGHTS_REMPLACEMENT: WeightProfile = { dates: 35, geo: 25, bio: 20, logement: 10, desirability: 10 };
-const WEIGHTS_ASSISTANAT:  WeightProfile = { dates: 15, geo: 20, bio: 40, logement: 10, desirability: 15 };
+// 3 profils (section 120 corrigé + 126). Logement UNIQUEMENT en Remplacement (0 ailleurs).
+const WEIGHTS_REMPLACEMENT:  WeightProfile = { dates: 35, geo: 25, bio: 20, logement: 10, desirability: 10 };
+const WEIGHTS_COLLABORATION: WeightProfile = { dates: 35, geo: 25, bio: 30, logement: 0,  desirability: 10 };
+const WEIGHTS_ASSISTANAT:    WeightProfile = { dates: 15, geo: 20, bio: 50, logement: 0,  desirability: 15 };
 
 function weightsFor(missionType?: string): { w: WeightProfile; label: string } {
-  return missionType === "ASSISTANAT"
-    ? { w: WEIGHTS_ASSISTANAT, label: "ASSISTANAT" }
-    : { w: WEIGHTS_REMPLACEMENT, label: "REMPLACEMENT" };
+  if (missionType === "ASSISTANAT")    return { w: WEIGHTS_ASSISTANAT,    label: "ASSISTANAT" };
+  if (missionType === "COLLABORATION") return { w: WEIGHTS_COLLABORATION, label: "COLLABORATION" };
+  return { w: WEIGHTS_REMPLACEMENT, label: "REMPLACEMENT" };
 }
 
 function toDate(v?: Date | string | null): Date | null {
@@ -135,13 +137,15 @@ export async function computeAffinityScore(
   const datesRaw = scoreDates(mission, swiper);                             // 0-35
   const geoRaw   = scoreGeo(swiper, mission);                              // 0-25
   const bioRaw   = await scoreBio(swiper, mission);                        // 0-30
-  const desirRaw = Math.min(Math.max(mission.desirabilityScore ?? 0, 0), 10); // 0-10
+  // desirabilityScore est un POURCENTAGE 0-100 (section 126), appliqué au créneau du profil.
+  const desirPercent = Math.min(Math.max(mission.desirabilityScore ?? 0, 0), 100);
 
   const dates        = Math.round((datesRaw / 35) * w.dates);
   const geo          = Math.round((geoRaw   / 25) * w.geo);
   const bio          = Math.round((bioRaw   / 30) * w.bio);
-  const desirability = Math.round((desirRaw / 10) * w.desirability);
-  // Bonus logement binaire : plein si l'annonce propose un logement ET le remplaçant en cherche.
+  const desirability = Math.round((desirPercent / 100) * w.desirability);
+  // Bonus logement binaire, UNIQUEMENT en Remplacement (w.logement=0 pour Collab/Assistanat) :
+  // plein si l'annonce propose un logement ET le remplaçant en cherche.
   const logement = (mission.logementPropose && swiper.rechercheLogement) ? w.logement : 0;
 
   return {
