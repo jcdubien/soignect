@@ -9648,11 +9648,12 @@ limite pourrait accentuer cet écart plutôt que le réduire, à
 Idée notée, non développée. Base empirique désormais complète 
 (assistanat 118, remplacement 118bis, salariat 118quater).
 
-DÉCISION : fonctionnalité PREMIUM (pas disponible en compte 
-Gratuit) — cohérent avec le positionnement déjà acté (une 
-suggestion d'amélioration de rédaction basée sur l'IA et les 
-patterns de marché est une vraie valeur ajoutée différenciante, 
-à réserver aux abonnés payants).
+DÉCISION (précisée) : fonctionnalité réservée au plan BOOST 
+UNIQUEMENT (29€/mois) — PAS disponible en Premium (9€) ni Gratuit. 
+Renforce la différenciation Premium/Boost (l'écart de seulement 
+10€ entre les deux plans avait été identifié comme un point de 
+vigilance, section 99 — cette fonctionnalité devient un argument 
+concret pour justifier la montée en gamme vers Boost).
 
 Ne pas construire avant un sprint dédié — pas prioritaire pour la 
 bêta v0.
@@ -9942,21 +9943,34 @@ true → bonus logement plein ; sinon 0. Remplace le signal
 actuellement noyé dans le texte libre bioTinder par un champ 
 structuré et fiable pour le score.
 
-### Deux profils de pondération (total 100 pts dans les deux cas)
+### Trois profils de pondération (total 100 pts, CORRIGÉ)
 
 ```
-REMPLACEMENT / COLLABORATION :
+CORRECTIF : le logement n'est un critère pertinent QUE pour le 
+remplacement (mission courte, besoin d'hébergement réel). 
+L'assistanat et la collaboration sont des engagements longs où le 
+candidat s'installe durablement — logement non pertinent comme 
+critère de matching. Trois profils distincts désormais, la 
+composante logement de Remplacement étant redistribuée vers Bio 
+pour les deux autres.
+
+REMPLACEMENT :
   Dates          : 35 pts
   Géo            : 25 pts
   Bio (DeepSeek) : 20 pts
   Logement       : 10 pts
   Désirabilité   : 10 pts
 
+COLLABORATION :
+  Dates          : 35 pts
+  Géo            : 25 pts
+  Bio (DeepSeek) : 30 pts
+  Désirabilité   : 10 pts
+
 ASSISTANAT :
   Dates          : 15 pts
   Géo            : 20 pts
-  Bio (DeepSeek) : 40 pts
-  Logement       : 10 pts
+  Bio (DeepSeek) : 50 pts
   Désirabilité   : 15 pts
 ```
 
@@ -9965,9 +9979,9 @@ ASSISTANAT :
 ```
 Le profil de pondération à appliquer est déterminé par le type de 
 poste de la Mission concernée (enum déjà existant : Remplacement 
-ponctuel / Assistanat / Collaboration libérale, section 5/103 — 
-Remplacement et Collaboration partagent le même profil, Assistanat 
-a son profil propre).
+ponctuel / Assistanat / Collaboration libérale, section 5/103) — 
+CHACUN des 3 types a désormais son propre profil de pondération, 
+Remplacement étant seul à intégrer la composante Logement.
 ```
 
 ### Statut
@@ -10200,4 +10214,188 @@ maintenant.
 3. Pertinence géographique publique — favoriser les zones moins 
    dotées via les données APL (section 22-23, 29-30, 122) — 
    REPORTÉ à la Phase 3, dépend du TensionScore complet
+```
+
+---
+
+## 124. DÉCISION — Deux nouvelles fonctionnalités exclusives Boost
+
+### Contexte
+
+```
+Renforcement de la différenciation Premium (9€)/Boost (29€), suite 
+au point de vigilance déjà noté (section 99 — écart de seulement 
+10€ jugé potentiellement insuffisant pour justifier la montée en 
+gamme).
+```
+
+### 1. Notification prioritaire "premier arrivé"
+
+```
+Les cabinets Boost sont alertés (email, cohérent avec le système 
+déjà en place section 112) IMMÉDIATEMENT dès qu'un nouveau 
+remplaçant/assistant compatible avec leurs critères (poste actif, 
+zone, spécialité) s'inscrit ou publie une disponibilité — avant 
+que cette disponibilité n'apparaisse dans le feed général des 
+autres cabinets (Premium/Gratuit).
+
+Miroir côté cabinet du "boost visibilité +8" déjà existant côté 
+candidat : être notifié en premier, pas seulement être vu en 
+premier.
+
+Implémentation : étendre le système de notification déjà codé 
+(section 112, Message.reminderSentAt + cron) à un nouveau 
+déclencheur — détection d'une nouvelle disponibilité/profil 
+correspondant aux critères actifs des annonces Boost du cabinet, 
+avec un délai d'avance à définir avant diffusion générale (ex: 
+1h-24h d'avance, à trancher lors de la conception).
+```
+
+### 2. Export CSV du carnet de contacts / mises en relation
+
+```
+Les cabinets Boost peuvent exporter en CSV l'historique de leurs 
+mises en relation (nom, contact si autorisé, statut, dates) — 
+utile pour un usage professionnel sérieux, notamment les cabinets 
+à fort volume et le segment Structures privées.
+
+Implémentation : route d'export dédiée, restreinte aux comptes 
+Boost (vérification subscriptionPlan ou hasPremiumAccess() étendu), 
+génération CSV à la demande (pas de stockage de fichier permanent 
+nécessaire).
+```
+
+### Statut
+
+```
+✅ DÉCIDÉ, deux fonctionnalités retenues. Non incluses dans le 
+Sprint 2 actuel (pas bloquant pour la bêta) — candidates pour un 
+sprint proche (Sprint 3 ou suivant), à prioriser selon les retours 
+de la bêta v0.
+```
+
+---
+
+## 125. DÉCISION — Deux fonctionnalités Gratuit→Payant (Premium ET Boost)
+
+### Contexte
+
+```
+Renforcement de l'écart Gratuit/Premium (le seul levier existant 
+étant la limite à 1 annonce active). Ces deux fonctionnalités 
+sont accordées aux DEUX plans payants (Premium ET Boost), en plus 
+des 3 fonctionnalités exclusives Boost déjà décidées (section 124).
+```
+
+### 1. Limite de mises en relation actives simultanées (Gratuit uniquement)
+
+```
+Compte Gratuit : maximum 3 mises en relation actives simultanées 
+(au-delà, blocage de nouvelles mises en relation tant que le 
+cabinet n'en clôture pas — via contrat signé ou annulation).
+Premium ET Boost : illimité.
+
+Crée une pression de conversion au moment où la valeur de Soignect 
+est la plus évidente pour le cabinet (plusieurs candidats 
+intéressés en parallèle), pas seulement à la publication d'annonce.
+```
+
+### 2. Favoris (Premium ET Boost uniquement)
+
+```
+Possibilité de mettre de côté un profil/annonce sans swiper 
+immédiatement à droite — liste de favoris consultable séparément 
+du tray "Vos choix"/"Vos mises en relation".
+
+Inspiré du mécanisme Physiorama observé (compteur "X personnes ont 
+cette annonce en favoris", jusqu'à 22 observé sur les annonces les 
+plus attractives, sections 118/118bis) — signal d'engagement 
+prouvé, peu coûteux à construire (juste une table de liaison 
+profil↔favori).
+
+Gratuit : PAS d'accès aux favoris (swipe uniquement, décision 
+immédiate).
+```
+
+### Modification schéma (additive, pour les favoris)
+
+```prisma
+model Favori {
+  id         String   @id @default(cuid())
+  profileId  String   // qui a mis en favori
+  missionId  String   // ou l'équivalent profil/annonce mis en favori
+  createdAt  DateTime @default(now())
+}
+```
+
+### Statut
+
+```
+✅ DÉCIDÉ. Non incluses dans le Sprint 2 actuel — candidates pour 
+un sprint proche (Sprint 3 ou suivant), à prioriser selon les 
+retours de la bêta v0.
+```
+
+
+---
+
+## 126. DÉCISION — Score de désirabilité en pourcentage (proportionnel aux 3 profils)
+
+### Problème identifié
+
+```
+Le score de désirabilité (section C addendum) était conçu comme 
+des points fixes (Gratuit 0 / Premium +5 / Boost +8 / Fondateur 
+10) dans un système à créneau unique (10 pts). Avec les 3 profils 
+de pondération désormais différenciés (section 120 corrigé — 
+créneau Désirabilité de 10 pts en Remplacement/Collaboration, 
+15 pts en Assistanat), garder des valeurs fixes sous-exploiterait 
+l'avantage fondateur/Boost précisément dans le segment le plus 
+précieux (Assistanat, "produit gold").
+```
+
+### Solution — conversion en pourcentage, appliqué proportionnellement
+
+```
+Le champ desirabilityScore devient un POURCENTAGE (0-100) au lieu 
+d'un nombre de points fixe :
+
+  Gratuit          → 0%
+  Premium          → 50% (automatique)
+  Boost            → 80% (automatique)
+  Cabinet fondateur (JCD) → 100% (fixe, non modifiable par erreur)
+  Override admin   → valeur du curseur (0-100%, priorité absolue)
+
+Points appliqués au score final = (desirabilityScore% / 100) × 
+taille du créneau Désirabilité du profil de la Mission concernée :
+
+| Profil | Créneau max | Gratuit | Premium | Boost | Fondateur |
+|---|---|---|---|---|---|
+| Remplacement | 10 pts | 0 | 5 | 8 | 10 |
+| Collaboration | 10 pts | 0 | 5 | 8 | 10 |
+| Assistanat | 15 pts | 0 | 7,5 | 12 | 15 |
+
+Effet : l'avantage fondateur/Boost est désormais PLUS fort 
+spécifiquement sur l'Assistanat — cohérent avec le positionnement 
+"produit gold" déjà acté. L'écart Premium/Boost devient aussi plus 
+visible et significatif sur ce segment (7,5 vs 12 pts, contre 5 vs 
+8 pts avant).
+```
+
+### Modification schéma
+
+```prisma
+// Sur Profile — ajuster (déjà existant, juste réinterprété) :
+desirabilityScore     Float    @default(0)    // 0 à 100 (pourcentage, plus 0 à 10)
+```
+Migration nécessaire : convertir les valeurs existantes si déjà en 
+prod (multiplier par 10 les valeurs actuelles 0-10 pour passer à 
+l'échelle 0-100) — à vérifier avec Claude Code si des données 
+réelles existent déjà en base avant de migrer.
+
+### Statut
+
+```
+✅ DÉCIDÉ — à intégrer au Sprint 2 (extension du point 10, section 
+120) ou à un sprint proche selon la charge du Sprint 2 actuel.
 ```

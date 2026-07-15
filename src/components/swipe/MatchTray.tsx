@@ -15,10 +15,17 @@ const ChatModal = dynamic(() => import("@/components/chat/ChatModal"), { ssr: fa
 
 type MissionWithProfile = Mission & { profile: Profile };
 
+// Barèmes du détail de score selon le profil de pondération utilisé (section 120).
+const SCORE_WEIGHTS: Record<string, { dates: number; geo: number; bio: number; logement: number; desirability: number }> = {
+  REMPLACEMENT: { dates: 35, geo: 25, bio: 20, logement: 10, desirability: 10 },
+  ASSISTANAT:   { dates: 15, geo: 20, bio: 40, logement: 10, desirability: 15 },
+};
+const SCORE_PROFILE_LABEL: Record<string, string> = { REMPLACEMENT: "Remplacement", ASSISTANAT: "Assistanat" };
+
 interface TrayItem {
   mission: MissionWithProfile;
   affinityScore:    number | null;
-  scoreDetails:     Record<string, number> | null;
+  scoreDetails:     Record<string, number | string> | null;
   matchId:          string | null;
   aiScore:          number | null;
   matchCreatedAt:   string | null;
@@ -160,30 +167,37 @@ function MissionSheet({
                 />
               </div>
               {/* Détail des composantes (section 64 — Spécialités retiré) */}
-              {item.scoreDetails && (
-                <>
-                  <div className="grid grid-cols-4 gap-1.5 mt-2">
-                    {[
-                      { key: "dates",        label: "Dates",      max: 35 },
-                      { key: "bio",          label: "Affinité",   max: 30 },
-                      { key: "geo",          label: "Proximité",  max: 25 },
-                      { key: "desirability", label: "Visibilité", max: 10 },
-                    ].map(({ key, label, max }) => {
-                      const val = item.scoreDetails?.[key] ?? 0;
-                      return (
-                        <div key={key} className="flex flex-col items-center bg-white rounded-xl p-1.5">
-                          <span className="text-[9px] text-gray-400 uppercase tracking-wide">{label}</span>
-                          <span className="text-sm font-bold text-kine-600">{val}<span className="text-[9px] text-gray-300">/{max}</span></span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Explication du critère Visibilité (item 12) */}
-                  <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
-                    <span className="font-semibold text-gray-500">Visibilité</span> : mise en avant du profil selon son abonnement et sa localisation.
-                  </p>
-                </>
-              )}
+              {item.scoreDetails && (() => {
+                // Profil de pondération utilisé (section 120) — détermine les barèmes affichés.
+                const prof = item.scoreDetails?.profile === "ASSISTANAT" ? "ASSISTANAT" : "REMPLACEMENT";
+                const max = SCORE_WEIGHTS[prof];
+                const rows = [
+                  { key: "dates",        label: "Dates",      max: max.dates },
+                  { key: "bio",          label: "Affinité",   max: max.bio },
+                  { key: "geo",          label: "Proximité",  max: max.geo },
+                  { key: "logement",     label: "Logement",   max: max.logement },
+                  { key: "desirability", label: "Visibilité", max: max.desirability },
+                ];
+                return (
+                  <>
+                    <div className="grid grid-cols-5 gap-1 mt-2">
+                      {rows.map(({ key, label, max }) => {
+                        const val = Number(item.scoreDetails?.[key] ?? 0);
+                        return (
+                          <div key={key} className="flex flex-col items-center bg-white rounded-xl p-1.5">
+                            <span className="text-[9px] text-gray-400 uppercase tracking-wide">{label}</span>
+                            <span className="text-sm font-bold text-kine-600">{val}<span className="text-[9px] text-gray-300">/{max}</span></span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
+                      Pondération <span className="font-semibold text-gray-500">{SCORE_PROFILE_LABEL[prof]}</span> ·{" "}
+                      <span className="font-semibold text-gray-500">Visibilité</span> = mise en avant selon abonnement et localisation.
+                    </p>
+                  </>
+                );
+              })()}
             </div>
           )}
 
