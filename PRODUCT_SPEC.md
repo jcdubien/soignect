@@ -10399,3 +10399,270 @@ réelles existent déjà en base avant de migrer.
 ✅ DÉCIDÉ — à intégrer au Sprint 2 (extension du point 10, section 
 120) ou à un sprint proche selon la charge du Sprint 2 actuel.
 ```
+
+---
+
+## 127. Contexte réglementaire — Avenant 7, obligation 2 ans zone sous-dotée (vérifié, nuancé)
+
+### Constat vérifié (source Légifrance, arrêté du 21/08/2023)
+
+```
+Pour s'installer en exercice libéral SOUS CONVENTION, un MK doit 
+remplir l'une de ces conditions :
+- 2 ans d'expérience en établissement sanitaire/médico-social, OU
+- s'engager à exercer ses 2 premières années de conventionnement 
+  en zone très sous-dotée ou sous-dotée
+
+Concerne les étudiants ayant débuté leur cursus en 2023 — diplômés 
+autour de 2027 (sources secondaires divergentes entre 2027 et 2028, 
+incertitude à lever si besoin en consultant le texte exact de 
+l'avenant/arrêté). Certains diplômés étrangers à cursus plus court 
+(ex: Allemagne) pourraient être concernés plus tôt — point signalé 
+par Jean-Charles, non vérifié indépendamment.
+```
+
+### Correction importante par rapport à la lecture initiale
+
+```
+CE N'EST PAS une interdiction générale de travailler en libéral, 
+ni une interdiction de zone surdotée en tant que telle — c'est une 
+condition préalable à l'INSTALLATION PERSONNELLE sous convention 
+(devenir titulaire de son propre numéro).
+
+HYPOTHÈSE FAVORABLE À SOIGNECT (à vérifier, non confirmée avec 
+certitude) : le REMPLACEMENT n'est probablement PAS concerné par 
+cette règle — un remplaçant exerce sous le numéro du titulaire 
+remplacé, pas une "installation" au sens du texte. Si confirmé, 
+cette réforme pourrait AUGMENTER le volume de remplacement chez 
+les jeunes diplômés (contraints de ne pas s'installer librement 
+pendant 2 ans) plutôt que de faire perdre cette population à 
+Soignect — favorable au produit plutôt que défavorable.
+
+✅ CONFIRMÉ (précisions obtenues, section 129) : le remplacement 
+N'EST PAS concerné par l'obligation d'installation — un 
+remplaçant n'est pas conventionné à titre personnel, il exerce 
+sous le numéro du titulaire remplacé et n'occupe pas de place de 
+conventionnement dans le zonage.
+
+L'ASSISTANAT et la COLLABORATION, en revanche, SONT concernés — 
+traités comme des formes d'installation nécessitant de remplir la 
+condition des 2 ans. Le segment assistanat ("produit gold", 
+section 118) sera donc bien impacté pour la cohorte 2027+ en 
+Guadeloupe (voir section 129 pour le détail complet).
+```
+
+### Implication produit si confirmé favorablement
+
+```
+Si le remplacement reste bien hors du champ de cette obligation : 
+argument de vente supplémentaire pour Soignect auprès des jeunes 
+diplômés 2027+ — "en attendant de pouvoir vous installer où vous 
+voulez, le remplacement reste votre option la plus libre". 
+Cohérent avec le calendrier de lancement (bêta 2026, montée en 
+charge alors que cette cohorte arrive sur le marché du travail).
+```
+
+---
+
+## 128. Données démographiques réelles — Kinésithérapeutes Guadeloupe (2008-2026)
+
+### Source
+
+```
+Tableaux fournis par Jean-Charles (probablement issus de l'Ordre 
+des Masseurs-Kinésithérapeutes ou du SNMKR Guadeloupe), extraction 
+de données d'inscription/radiation.
+```
+
+### Croissance démographique confirmée
+
+```
+Effectifs total : 536 (2017) → 966 (2026), soit +80,2%
+Densité pour 100k habitants : 137 → 259, soit +88,3%
+Le marché guadeloupéen a quasiment doublé en 9 ans.
+```
+
+### Anomalie résolue — écart méthodologique, pas un signal de déclin
+
+```
+Effectifs total : 991 (2025) → 966 (2026) = -25 apparent, alors 
+que le solde net inscriptions/radiations 2026 est positif (+125). 
+
+RÉSOLUTION (explication de Jean-Charles) : 2026 est une année 
+partielle (extraction mi-année, ~juillet). Les deux tableaux ont 
+probablement été capturés à des moments différents de l'année — 
+le tableau "Effectifs Total" reflète un instantané antérieur à la 
+prise en compte complète des dernières inscriptions dans la base 
+administrative. PAS un signal de déclin réel du marché ni un effet 
+précoce de l'Avenant 7 — simple décalage de capture de données 
+dans une année en cours.
+
+Le marché reste en croissance continue, cohérent avec la tendance 
+2017-2025 (+80,2% effectifs).
+```
+
+### Profil démographique — validation forte du produit
+
+```
+Sur l'historique complet (2008-2026, 1417 inscriptions) :
+  20-24 ans : 28,1%
+  25-29 ans : 41,6%
+  → 69,7% des inscriptions ont MOINS DE 30 ANS
+
+Confirmation chiffrée forte : la cible naturelle de Soignect 
+(jeunes professionnels mobiles, remplaçants/assistants) correspond 
+exactement à la réalité démographique majoritaire du département. 
+Cohérent avec toute la base empirique déjà constituée (sections 
+118-118quater).
+```
+
+### Accélération récente des inscriptions
+
+```
+2021 : 73 · 2022 : 99 · 2023 : 112 · 2024 : 156 · 2025 : 174 · 
+2026 (partiel, ~mi-année) : 139 déjà atteints
+
+Rythme annualisé 2026 largement supérieur aux années précédentes 
+si la tendance se maintient sur le reste de l'année — marché en 
+expansion continue, pas de signe de ralentissement de l'afflux de 
+nouveaux professionnels.
+```
+
+### Taux de radiation (départs) — stable historiquement
+
+```
+2021 : 19,2% · 2022 : 23,2% · 2023 : 25,9% · 2024 : 10,9% · 
+2025 : 16,7% · 2026 (partiel) : 10,1%
+Solde net toujours positif sur la période observée (hors anomalie 
+2026 signalée ci-dessus) — total solde net 2021-2026 : +627.
+```
+
+### Prorata 2026 et impact Avenant 7 en 2025 — analyse
+
+```
+PRORATA 2026 : 139 inscriptions sur ~6,5 mois (janvier-mi juillet) 
+→ rythme annualisé ≈ 257 inscriptions sur l'année complète, 
+au-dessus de 2025 (174) — accélération confirmée, pas de 
+ralentissement.
+
+IMPACT AVENANT 7 EN 2025 : AUCUN visible. 2025 affiche 174 
+inscriptions, le plus haut niveau de toute la série 2008-2026.
+
+Cohérent avec le calendrier réglementaire (section 127) : la 
+mesure concerne les étudiants ayant débuté leur cursus en 2023, 
+diplômés vers 2027 — cette cohorte n'est pas encore sur le marché 
+du travail en 2025, donc aucun effet ne pouvait logiquement être 
+visible dans les chiffres d'inscription avant leur sortie d'école.
+
+IMPLICATION POUR SOIGNECT : l'impact de l'Avenant 7 sur les flux 
+de kinésithérapeutes en Guadeloupe, positif ou négatif selon le 
+statut réel du remplacement/assistanat (section 127, point encore 
+à vérifier), reste À VENIR — probablement visible dans les données 
+d'inscription à partir de 2027-2028, pas avant. Repère temporel 
+utile : fenêtre de 1 à 2 ans avant que cet effet potentiel ne se 
+manifeste réellement.
+```
+
+---
+
+## 129. CONFIRMATION — Guadeloupe sans zone sous-dotée/très sous-dotée (impact Avenant 7 majeur)
+
+### Source vérifiée
+
+```
+Portail d'Accompagnement des Professionnels de Santé Guadeloupe 
+(paps.sante.fr) : "L'arrêté de zonage pour la profession de 
+Masseur Kinésithérapeute a été signé le 31 décembre 2024. Le 
+zonage actuel n'ouvre pas droit aux aides conventionnelles."
+
+Seules les zones très sous-dotées (et dans une moindre mesure 
+sous-dotées) ouvrent droit aux aides conventionnelles (CAIMK/
+CAMMK/CACCMK, section 117/122). L'absence totale d'éligibilité 
+confirme que la Guadeloupe n'a très probablement AUCUNE zone 
+classée sous-dotée ou très sous-dotée — cohérent avec la 
+croissance démographique massive documentée (section 128, densité 
++88,3% en 9 ans, 259 ETP/100k habitants).
+```
+
+### Conséquence directe sur l'Avenant 7 (confirme l'hypothèse de Jean-Charles)
+
+```
+Les jeunes diplômés 2027+ soumis à l'obligation Avenant 7 (section 
+127 — 2 ans en zone sous-dotée/très sous-dotée OU en établissement 
+sanitaire/médico-social) NE PEUVENT PAS remplir la condition 
+"zone" en restant en Guadeloupe — cette voie n'existe pas 
+localement. Seule reste la voie "établissement salarié", et le 
+volume de postes salariés en Guadeloupe est limité (signalé par 
+Jean-Charles, cohérent avec le faible nombre d'annonces salariat 
+DOM observées dans la base empirique, section 118quater).
+```
+
+### ✅ CONFIRMÉ — statut du remplacement vs assistanat/collaboration
+
+```
+MÉTHODE : synthèse produite via NotebookLM, ancrée sur les 
+documents officiels fournis (Charte zones non prioritaires, 
+Avenant 7, documents de zonage ARS Guadeloupe) — méthode fiable 
+(réponses citées et ancrées dans les sources, pas de génération 
+libre), cohérente avec la vérification indépendante déjà faite 
+via recherche web (texte Légifrance). Réserve raisonnable : pour 
+un usage public (pitch CPTS/ARS, communication), une confirmation 
+humaine finale via le réseau SNMKR reste recommandée avant 
+publication — les textes réglementaires ont parfois des 
+dérogations ou cas particuliers qu'une lecture croisée humaine 
+attrape mieux qu'une synthèse automatique.
+
+DISTINCTION CONFIRMÉE :
+- Le remplaçant N'EST PAS conventionné à titre personnel — il 
+  utilise sa CPS mais est identifié comme exécutant des soins 
+  facturés sous le numéro d'assurance maladie du titulaire 
+  remplacé. Il n'occupe PAS de place de conventionnement dans le 
+  zonage. → Le remplacement N'EST DONC PAS soumis à l'obligation 
+  des 2 ans ni aux quotas de zonage.
+- L'ASSISTANAT et la COLLABORATION SONT traités comme des formes 
+  d'installation — SOUMIS à l'obligation.
+
+SITUATION CONCRÈTE pour un jeune diplômé (cursus démarré 2023) 
+arrivant en Guadeloupe fin 2027 :
+✅ Peut effectuer des remplacements immédiatement, sans condition 
+   de zonage ni d'expérience préalable
+❌ Ne peut PAS s'installer durablement (titulaire, assistant, ou 
+   collaborateur) tant qu'il n'a pas rempli les 2 ans d'expérience 
+   — et ne peut pas les remplir EN Guadeloupe faute de zone 
+   sous-dotée locale (section 129 ci-dessus). Doit les remplir soit 
+   en salariat (rare localement, signalé par le SNMKR Guadeloupe), 
+   soit en zone sous-dotée métropolitaine.
+
+IMPLICATION CONFIRMÉE POUR SOIGNECT :
+- TRÈS FAVORABLE au remplacement : devient structurellement LA 
+  porte d'entrée professionnelle locale pour toute la cohorte 
+  2027+ en Guadeloupe — ils ne peuvent pas faire autrement s'ils 
+  veulent une expérience professionnelle sur le territoire avant 
+  d'y être pleinement installés.
+- DÉFAVORABLE à l'assistanat pour cette cohorte spécifique 
+  (diplômés 2027+) en Guadeloupe — le "produit gold" perd une 
+  partie de son vivier de candidats les plus jeunes sur ce 
+  territoire précis, jusqu'à ce qu'ils aient rempli leurs 2 ans 
+  ailleurs.
+```
+
+### Point nouveau — risque de perte de conventionnement pour les cabinets
+
+```
+Si un assistant quitte un cabinet pour devenir "remplaçant 
+exclusif", le cabinet PERD le conventionnement attaché à ce poste 
+(cohérent avec la règle "1 pour 1" déjà documentée dans la Charte 
+zones non prioritaires, fournie en tout début de conversation). Le 
+titulaire doit alors désigner un nouveau successeur (déjà 
+conventionné ou remplissant les conditions d'installation) pour 
+maintenir l'effectif du cabinet.
+
+IMPLICATION PRODUIT : un cabinet cherchant à pourvoir un poste 
+d'ASSISTANAT ne peut pas se permettre de le laisser occupé par un 
+"remplaçant exclusif" trop longtemps sans risquer de perdre le 
+conventionnement associé — argument supplémentaire pour valoriser 
+la distinction claire entre annonces Remplacement et Assistanat 
+déjà en place dans Soignect (section 103), et pour la feature de 
+valorisation de l'assistanat déjà identifiée comme prioritaire 
+(section 118, "produit gold").
+```

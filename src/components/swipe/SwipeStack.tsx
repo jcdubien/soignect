@@ -725,11 +725,13 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           ))}
         </div>
 
-        {/* ── Pile de cartes ── (desktop >=1024px : largeur limitée à 66%, centrée — section 63)
-            NB : pas de `w-full` ici — combiné à `mx-4` il produisait un débordement de 32px
-            à droite sur mobile (carte coupée). En flex-col l'item s'étire déjà en tenant compte
-            des marges. */}
-        <div className="relative flex-1 mx-4 mt-2 mb-4 min-h-0 lg:max-w-[480px] lg:mx-auto">
+        {/* ── Pile de cartes ── (desktop >=1024px : largeur fixe 480px, centrée — section 63)
+            Mobile : pas de `w-full` (il causait un débordement de 32px avec `mx-4`), l'item
+            s'étire via le flex en tenant compte des marges.
+            Desktop : `lg:w-[480px]` (largeur DÉFINIE) et non `lg:max-w-[480px]` — car `lg:mx-auto`
+            désactive le stretch flex, et les cartes étant en `absolute inset-0` (0 largeur en flux),
+            un simple max-width laissait le conteneur s'effondrer à 0 → carrousel desktop vide. */}
+        <div className="relative flex-1 mx-4 mt-2 mb-4 min-h-0 lg:w-[480px] lg:mx-auto">
           {/* Cartes du fond */}
           {stack.slice(1).reverse().map((mission, ri) => {
             const idx    = stack.length - 1 - ri;
