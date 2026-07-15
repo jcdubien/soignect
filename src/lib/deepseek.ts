@@ -10,16 +10,34 @@ export interface AffinityInput {
   location?: string | null;
   desirabilityScore?: number;
   dateFlexibility?: number; // 0=exact, 1=±3j, 2=±1sem, 3=±2sem, 4=±1mois
+  // Section 120 — pondération différenciée par type de poste + logement structuré
+  missionType?: string;        // porté par la Mission (REMPLACEMENT | ASSISTANAT | COLLABORATION)
+  logementPropose?: boolean;   // Mission (annonce cabinet) : logement proposé
+  rechercheLogement?: boolean; // Profil remplaçant : recherche un logement
 }
 
 export interface AffinityResult {
   total: number;
+  weightProfile: string; // profil de pondération appliqué (REMPLACEMENT | ASSISTANAT)
   details: {
-    dates: number;        // 0-35
-    geo: number;          // 0-25
-    bio: number;          // 0-30
-    desirability: number; // 0-10
+    dates: number;
+    geo: number;
+    bio: number;
+    logement: number;
+    desirability: number;
   };
+}
+
+// Deux profils de pondération (total 100), sélectionnés par Mission.type (section 120).
+// Remplacement et Collaboration partagent le même profil ; Assistanat a le sien.
+type WeightProfile = { dates: number; geo: number; bio: number; logement: number; desirability: number };
+const WEIGHTS_REMPLACEMENT: WeightProfile = { dates: 35, geo: 25, bio: 20, logement: 10, desirability: 10 };
+const WEIGHTS_ASSISTANAT:  WeightProfile = { dates: 15, geo: 20, bio: 40, logement: 10, desirability: 15 };
+
+function weightsFor(missionType?: string): { w: WeightProfile; label: string } {
+  return missionType === "ASSISTANAT"
+    ? { w: WEIGHTS_ASSISTANAT, label: "ASSISTANAT" }
+    : { w: WEIGHTS_REMPLACEMENT, label: "REMPLACEMENT" };
 }
 
 function toDate(v?: Date | string | null): Date | null {
@@ -104,16 +122,33 @@ Profil B : "${bioB}"`;
   }
 }
 
-// Pondération section 64 : dates=35, bio=30, geo=25, desirability=10 (Spécialités retiré)
+// Pondération différenciée par type de poste (section 120). Chaque composante est
+// calculée sur son barème brut historique (dates/35, geo/25, bio/30, desirability/10)
+// puis normalisée et re-pondérée selon le profil du poste. Le calcul DeepSeek de la
+// Bio n'est PAS modifié — seul son poids relatif change.
 export async function computeAffinityScore(
   swiper: AffinityInput,
   mission: AffinityInput
 ): Promise<AffinityResult> {
-  const dates        = scoreDates(mission, swiper);
-  const geo          = scoreGeo(swiper, mission);
-  const bio          = await scoreBio(swiper, mission);
-  const desirability = Math.min(Math.max(mission.desirabilityScore ?? 0, 0), 10);
-  return { total: dates + geo + bio + desirability, details: { dates, geo, bio, desirability } };
+  const { w, label } = weightsFor(mission.missionType);
+
+  const datesRaw = scoreDates(mission, swiper);                             // 0-35
+  const geoRaw   = scoreGeo(swiper, mission);                              // 0-25
+  const bioRaw   = await scoreBio(swiper, mission);                        // 0-30
+  const desirRaw = Math.min(Math.max(mission.desirabilityScore ?? 0, 0), 10); // 0-10
+
+  const dates        = Math.round((datesRaw / 35) * w.dates);
+  const geo          = Math.round((geoRaw   / 25) * w.geo);
+  const bio          = Math.round((bioRaw   / 30) * w.bio);
+  const desirability = Math.round((desirRaw / 10) * w.desirability);
+  // Bonus logement binaire : plein si l'annonce propose un logement ET le remplaçant en cherche.
+  const logement = (mission.logementPropose && swiper.rechercheLogement) ? w.logement : 0;
+
+  return {
+    total: dates + geo + bio + logement + desirability,
+    weightProfile: label,
+    details: { dates, geo, bio, logement, desirability },
+  };
 }
 
 // ── Ancien système de scoring 0-1 (conservé pour compatibilité) ───────────────

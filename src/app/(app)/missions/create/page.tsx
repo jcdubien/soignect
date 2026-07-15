@@ -144,6 +144,7 @@ export default function CreateMissionPage() {
     pitchStarter: "" as string,
     pitchText: "",
     dateFlexibility: 0,
+    logementPropose: false,
   });
 
   // Item 15 — préserver le formulaire lors de la redirection photo obligatoire.
@@ -202,6 +203,7 @@ export default function CreateMissionPage() {
           pitchStarter: ps,
           pitchText: pt,
           dateFlexibility: m.dateFlexibility ?? 0,
+          logementPropose: m.logementPropose ?? false,
         }));
       })
       .catch(() => {});
@@ -255,6 +257,7 @@ export default function CreateMissionPage() {
       pitch: pitchFull,
       missionType: missionTypeMap[needType] ?? "REMPLACEMENT",
       dateFlexibility: form.dateFlexibility,
+      logementPropose: form.logementPropose,
       ...(isEdit ? {} : { cabinetPostId: cabinetPostId ?? undefined }),
     };
 
@@ -525,6 +528,17 @@ export default function CreateMissionPage() {
             </select>
           </div>
         )}
+
+        {/* ── Logement proposé (section 120) — alimente le bonus logement du score ── */}
+        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.logementPropose}
+            onChange={(e) => setForm({ ...form, logementPropose: e.target.checked })}
+            className="w-4 h-4 rounded accent-kine-600"
+          />
+          <span className="text-sm text-gray-700">🏠 Logement proposé avec le poste</span>
+        </label>
 
         {/* ── Photo obligatoire (item 8) — non requise en édition ── */}
         {!isEdit && hasPhoto === false && (

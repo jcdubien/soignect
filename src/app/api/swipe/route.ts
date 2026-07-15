@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
         minMonths: swiperMission?.minMonths,
         location: swiperMission?.location ?? swipedMission.location,
         dateFlexibility: swiperProfile.dateFlexibility,
+        rechercheLogement: swiperProfile.rechercheLogement, // section 120
       };
       const missionInput = {
         bioTinder: swipedMission.bioTinder,
@@ -109,11 +110,14 @@ export async function POST(req: NextRequest) {
         location: swipedMission.location,
         desirabilityScore: getEffectiveDesirability(missionProfile),
         dateFlexibility: swipedMission.dateFlexibility,
+        missionType: swipedMission.missionType,     // section 120 — profil de pondération
+        logementPropose: swipedMission.logementPropose, // section 120 — bonus logement
       };
       try {
         const result = await computeAffinityScore(swiperInput, missionInput);
         affinityScore = result.total;
-        scoreDetails  = result.details;
+        // scoreDetails inclut désormais le détail logement + le profil de pondération utilisé (section 120)
+        scoreDetails  = { ...result.details, profile: result.weightProfile };
       } catch (err) {
         console.error("[AffinityScore] Erreur:", err);
       }

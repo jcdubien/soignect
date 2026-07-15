@@ -45,6 +45,7 @@ export default function CreateDisponibilitePage() {
     endDate: searchParams.get("endDate") ?? "",
     minMonths: "",
     dateFlexibility: 0,
+    rechercheLogement: false,
   });
 
   const isAssistant = profileType === "ASSISTANT";
@@ -79,6 +80,7 @@ export default function CreateDisponibilitePage() {
         minMonths: form.minMonths ? parseInt(form.minMonths) : null,
         missionType: isAssistant ? "ASSISTANAT" : "REMPLACEMENT",
         dateFlexibility: form.dateFlexibility,
+        rechercheLogement: form.rechercheLogement,
       }),
     });
 
@@ -290,6 +292,17 @@ export default function CreateDisponibilitePage() {
             </div>
           </div>
         )}
+
+        {/* ── Recherche de logement (section 120) — alimente le bonus logement du score ── */}
+        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.rechercheLogement}
+            onChange={(e) => setForm({ ...form, rechercheLogement: e.target.checked })}
+            className="w-4 h-4 rounded accent-kine-600"
+          />
+          <span className="text-sm text-gray-700">🏠 Je recherche un logement</span>
+        </label>
 
         {/* Taux de rétrocession retiré (section 88) — se négocie dans la discussion/le contrat */}
 

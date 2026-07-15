@@ -173,6 +173,10 @@ model Profile {
   // Flexibilité sur les dates (0=exact, 1=±3j, 2=±1sem, 3=±2sem, 4=±1mois)
   dateFlexibility Int @default(0)
 
+  // Recherche de logement (section 120) — signal structuré du remplaçant pour le
+  // bonus logement du score d'affinité (match binaire avec Mission.logementPropose).
+  rechercheLogement Boolean @default(false)
+
   // Vérification RPPS via API ANS (section 30)
   isVerified  Boolean @default(false)
 
@@ -238,6 +242,10 @@ model Mission {
 
   // Flexibilité sur les dates (0=exact, 1=±3j, 2=±1sem, 3=±2sem, 4=±1mois)
   dateFlexibility Int @default(0)
+
+  // Logement proposé avec l'annonce (section 120) — bonus logement du score d'affinité
+  // (match binaire avec Profile.rechercheLogement du remplaçant).
+  logementPropose Boolean @default(false)
 
   // Lien Planning Board (section 28)
   cabinetPostId String?
