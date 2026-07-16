@@ -64,7 +64,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let contextLine: string | null = null;
   if (profileType === "TITULAIRE") {
     const loc = firstMission?.location ?? (profile?.region ?? "Guadeloupe");
-    contextLine = `${loc} · ${activeMissionCount} poste${activeMissionCount !== 1 ? "s" : ""} actif${activeMissionCount !== 1 ? "s" : ""}`;
+    // « annonce active » (et non « poste actif ») : ce compteur = nombre de Missions/annonces
+    // actives publiées, distinct des « postes » du Planning (CabinetPost = postes de l'équipe).
+    // Même mot « poste » pour deux concepts → collision trompeuse, d'où ce libellé explicite.
+    contextLine = `${loc} · ${activeMissionCount} annonce${activeMissionCount !== 1 ? "s" : ""} active${activeMissionCount !== 1 ? "s" : ""}`;
   } else if (firstMission?.startDate && firstMission?.endDate) {
     const fmt = (d: Date) => fmtDay(d) ?? "";
     contextLine = `Disponible ${fmt(firstMission.startDate)} – ${fmt(firstMission.endDate)}`;
