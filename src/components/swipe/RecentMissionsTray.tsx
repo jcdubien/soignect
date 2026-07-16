@@ -29,6 +29,17 @@ export function trackRecentMission(mission: RecentMission) {
   } catch { /* silencieux */ }
 }
 
+// Retire une annonce de l'historique (ex. annonce supprimée → /card 404). Dispatche un
+// event storage pour rafraîchir la bande dans l'onglet courant.
+export function removeRecentMission(id: string) {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    const list: RecentMission[] = raw ? JSON.parse(raw) : [];
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list.filter((m) => m.id !== id)));
+    window.dispatchEvent(new StorageEvent("storage", { key: RECENT_KEY }));
+  } catch { /* silencieux */ }
+}
+
 interface Props {
   onSelectMission: (mission: RecentMission) => void;
 }

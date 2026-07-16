@@ -30,6 +30,7 @@ export interface DetailMission {
 export interface MissionRelation {
   swipeDirection: "LEFT" | "RIGHT" | null;
   matchId: string | null;
+  isOwn?: boolean; // sa propre annonce → pas de boutons de décision
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -68,6 +69,7 @@ export default function MissionDetailSheet({
   const [summary, setSummary] = useState<{ extract: string; url?: string | null } | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [swiping, setSwiping] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,8 +85,12 @@ export default function MissionDetailSheet({
   async function handleSwipe(direction: "LEFT" | "RIGHT") {
     if (swiping || !onSwipe) return;
     setSwiping(true);
+    setActionError(null);
     try {
       await onSwipe(direction);
+    } catch (e) {
+      // Ne plus avaler l'erreur en silence — feedback clair à l'utilisateur.
+      setActionError(e instanceof Error ? e.message : "L'action n'a pas pu être enregistrée. Réessayez.");
     } finally {
       setSwiping(false);
     }
@@ -93,6 +99,14 @@ export default function MissionDetailSheet({
   // Bloc de statut / actions (uniquement en mode hors carrousel)
   function renderActions() {
     if (relation === undefined) return null; // mode carrousel : rien
+    if (relation?.isOwn) {
+      return (
+        <div className="mt-4 rounded-2xl bg-gray-100 border border-gray-200 p-3.5 text-center">
+          <p className="text-gray-600 font-semibold text-sm">Votre annonce</p>
+          <p className="text-gray-400 text-xs mt-0.5">Vous ne pouvez pas swiper votre propre annonce.</p>
+        </div>
+      );
+    }
     if (relation?.matchId) {
       return (
         <div className="mt-4 rounded-2xl bg-emerald-50 border border-emerald-200 p-3.5 flex items-center justify-between gap-3">
@@ -149,6 +163,9 @@ export default function MissionDetailSheet({
             <Heart size={24} strokeWidth={2} fill="currentColor" />
           </button>
         </div>
+        {actionError && (
+          <p className="mt-3 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 text-center">{actionError}</p>
+        )}
       </div>
     );
   }

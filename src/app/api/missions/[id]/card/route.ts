@@ -16,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     where: { id },
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
-      minMonths: true, missionType: true, bioTinder: true,
+      minMonths: true, missionType: true, bioTinder: true, profileId: true,
       profile: {
         select: {
           name: true, type: true, photoUrl: true,
@@ -49,6 +49,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     relation: {
       swipeDirection: swipe?.direction ?? null,
       matchId: match?.id ?? null,
+      // Sa propre annonce : on ne peut pas la swiper → l'UI masque les boutons de décision.
+      isOwn: mission.profileId === swiperId,
     },
   });
 }

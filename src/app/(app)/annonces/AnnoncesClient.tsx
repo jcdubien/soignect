@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import SwipeStack from "@/components/swipe/SwipeStack";
 import MatchTray from "@/components/swipe/MatchTray";
-import RecentMissionsTray, { RecentMission } from "@/components/swipe/RecentMissionsTray";
+import RecentMissionsTray, { RecentMission, removeRecentMission } from "@/components/swipe/RecentMissionsTray";
 import LaunchOfferBanner from "@/components/ui/LaunchOfferBanner";
 import MissionDetailSheet, { DetailMission, MissionRelation } from "@/components/swipe/MissionDetailSheet";
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
@@ -31,7 +31,11 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
   const handleSelectRecent = useCallback(async (rm: RecentMission) => {
     try {
       const r = await fetch(`/api/missions/${rm.id}/card`);
-      if (!r.ok) return;
+      if (!r.ok) {
+        // Annonce supprimée/introuvable → on la retire de l'historique pour ne plus la proposer.
+        if (r.status === 404) removeRecentMission(rm.id);
+        return;
+      }
       const d = await r.json();
       setDetail({ mission: d.mission, relation: d.relation });
     } catch { /* silencieux */ }
@@ -41,21 +45,24 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
   const handleSheetSwipe = useCallback(async (direction: "LEFT" | "RIGHT") => {
     const current = detail;
     if (!current) return;
-    try {
-      const res = await fetch("/api/swipe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ swipedMissionId: current.mission.id, direction }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setDetail((cur) =>
-        cur
-          ? { ...cur, relation: { swipeDirection: direction, matchId: data?.match?.id ?? cur.relation.matchId ?? null } }
-          : cur
-      );
-      if (direction === "RIGHT") setTrayKey((k) => k + 1); // rafraîchit le tray "Vos mises en relation"
-    } catch { /* silencieux */ }
+    // On NE capture PAS l'erreur ici : elle remonte au bottom sheet (MissionDetailSheet.handleSwipe)
+    // qui l'affiche à l'utilisateur (fini l'échec silencieux).
+    const res = await fetch("/api/swipe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ swipedMissionId: current.mission.id, direction }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(typeof d?.error === "string" ? d.error : "Le swipe n'a pas pu être enregistré. Réessayez.");
+    }
+    const data = await res.json();
+    setDetail((cur) =>
+      cur
+        ? { ...cur, relation: { ...cur.relation, swipeDirection: direction, matchId: data?.match?.id ?? cur.relation.matchId ?? null } }
+        : cur
+    );
+    if (direction === "RIGHT") setTrayKey((k) => k + 1); // rafraîchit le tray "Vos mises en relation"
   }, [detail]);
 
   return (
