@@ -138,12 +138,20 @@ export default function PremiumPage() {
     }
   }
 
+  // Parcours dissociés (pas une variante de bouton) : un compte Structure ne voit QUE
+  // l'offre établissement ; un compte Cabinet ne voit QUE Gratuit/Premium/Boost.
+  const isStructure = kind === "STRUCTURE";
+
   return (
     <div className="max-w-5xl mx-auto w-full px-4 py-10">
       <div className="text-center mb-10">
-        <h1 className="text-3xl font-black text-gray-900 mb-2">Boostez votre cabinet</h1>
+        <h1 className="text-3xl font-black text-gray-900 mb-2">
+          {isStructure ? "Offre établissement" : "Boostez votre cabinet"}
+        </h1>
         <p className="text-gray-500 max-w-lg mx-auto">
-          Augmentez votre visibilité auprès des kinésithérapeutes, accédez aux scores et recrutez plus vite.
+          {isStructure
+            ? "Recrutez des soignants pour votre EHPAD, clinique ou SSR — nettement moins cher qu'une agence d'intérim."
+            : "Augmentez votre visibilité auprès des kinésithérapeutes, accédez aux scores et recrutez plus vite."}
         </p>
       </div>
 
@@ -156,8 +164,40 @@ export default function PremiumPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {PLANS.map(plan => (
+      {kind === null ? (
+        // Type de compte en cours de chargement — on ne montre ni Cabinet ni Structure
+        // pour éviter tout mélange / flash du mauvais parcours.
+        <div className="flex items-center justify-center py-16">
+          <div className="w-8 h-8 border-2 border-kine-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : isStructure ? (
+        // ── Parcours STRUCTURE : UNIQUEMENT l'offre établissement ──
+        <div className="max-w-2xl mx-auto">
+          <div className="rounded-3xl border-2 border-[#0B3D5C]/25 bg-white p-6">
+            <h2 className="text-lg font-bold text-gray-900">Structures privées (EHPAD, cliniques, SSR)</h2>
+            <div className="flex items-baseline gap-1 mt-1 flex-wrap">
+              <span className="text-3xl font-black text-gray-900">89€</span>
+              <span className="text-gray-400 text-sm">/mois</span>
+              <span className="text-gray-500 text-sm ml-2">+ 20€ / contrat signé</span>
+            </div>
+            <p className="text-sm text-gray-500 mt-2">
+              Modèle hybride, nettement moins cher qu&apos;une agence d&apos;intérim. Le montant à
+              l&apos;usage (20€) est facturé automatiquement à chaque contrat signé.
+            </p>
+            <button
+              type="button"
+              onClick={() => subscribe("STRUCTURE")}
+              disabled={loading === "STRUCTURE"}
+              className="mt-5 w-full py-3 bg-[#0B3D5C] text-white rounded-2xl font-bold text-sm hover:opacity-90 transition disabled:opacity-40"
+            >
+              {loading === "STRUCTURE" ? "Redirection…" : "S'abonner →"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        // ── Parcours CABINET : UNIQUEMENT Gratuit / Premium / Boost ──
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {PLANS.map(plan => (
           <div
             key={plan.id}
             className={`relative bg-white rounded-3xl border-2 ${plan.color} p-6 flex flex-col`}
@@ -218,42 +258,8 @@ export default function PremiumPage() {
             )}
           </div>
         ))}
-      </div>
-
-      {/* Offre structures privées (EHPAD, cliniques, SSR) — modèle hybride (section 99/7) */}
-      <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <p className="text-sm font-bold text-gray-900">Structures privées (EHPAD, cliniques, SSR)</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Abonnement <strong>89€/mois</strong> + <strong>20€ par contrat signé</strong> — nettement moins
-              cher qu&apos;une agence d&apos;intérim.
-            </p>
-          </div>
-          {kind === "STRUCTURE" ? (
-            <button
-              type="button"
-              onClick={() => subscribe("STRUCTURE")}
-              disabled={loading === "STRUCTURE"}
-              className="shrink-0 px-4 py-2 bg-[#0B3D5C] text-white rounded-xl text-xs font-bold hover:opacity-90 transition disabled:opacity-40"
-            >
-              {loading === "STRUCTURE" ? "Redirection…" : "S'abonner (Structure)"}
-            </button>
-          ) : (
-            <a
-              href="/compte"
-              className="shrink-0 px-4 py-2 border border-gray-300 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-100 transition"
-            >
-              Passer en compte établissement
-            </a>
-          )}
         </div>
-        <p className="text-[11px] text-gray-400 mt-2">
-          {kind === "STRUCTURE"
-            ? "Le montant à l'usage (20€) est facturé automatiquement à chaque contrat signé."
-            : "Réservé aux comptes établissement — définissez « Structure privée » dans votre compte."}
-        </p>
-      </div>
+      )}
 
       <p className="text-center text-xs text-gray-400 mt-8">
         Paiement sécurisé par Stripe · Résiliation à tout moment · Sans engagement
