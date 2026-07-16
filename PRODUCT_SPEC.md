@@ -10821,3 +10821,105 @@ compteurs, ou vrai bug de calcul/cache).
 carrousel vide + boutons inopérants + cette incohérence, 
 probablement à diagnostiquer dans la même session).
 ```
+
+---
+
+## 134. DÉCISION — Consultation réservée aux besoins actifs (pas de navigation libre)
+
+### Principe confirmé
+
+```
+La consultation des profils/disponibilités (côté cabinet, 
+recherche de remplaçants/assistants) reste RÉSERVÉE aux besoins 
+actifs — un poste en statut Recrutement (annonce publiée). Pas de 
+mode "parcourir librement toutes les annonces du département sans 
+but précis" depuis le Planning ni ailleurs côté cabinet.
+
+Raisons :
+1. Cohérent avec le principe directeur "le moins de choix 
+   possible" (section 107) — éviter une deuxième porte d'entrée 
+   de navigation à maintenir
+2. Cohérence métier : un cabinet sans poste ouvert ne peut de 
+   toute façon pas agir (contacter, matcher, signer) sur ce qu'il 
+   consulterait "juste pour voir" — friction sans déboucher sur 
+   une action possible
+
+Argument écarté (usage de veille marché) : reconnu comme légitime 
+en théorie, mais explicitement mis de côté au profit de la 
+simplicité de navigation.
+```
+
+### Statut
+
+```
+✅ DÉCIDÉ — principe de conception à respecter dans tous les 
+développements futurs touchant à la navigation cabinet. Aucun 
+développement associé pour l'instant (confirme l'architecture 
+déjà en place plutôt que d'exiger un nouveau blocage) — sert de 
+garde-fou pour ne pas ajouter par erreur un mode de navigation 
+libre dans un sprint futur.
+```
+
+---
+
+## 135. FEATURE — Rayon de recherche géographique en temps de trajet (remplaçant)
+
+### Contexte
+
+```
+Le dropdown commune unique actuel force un choix rigide. Les 
+données terrain (section 118bis) montrent que les remplaçants 
+raisonnent naturellement en rayon/temps de trajet, pas en commune 
+isolée.
+```
+
+### Décision technique — CORRIGÉE : calcul à la demande + cache, pas précalcul exhaustif
+
+```
+Rayon mesuré en TEMPS DE TRAJET (minutes), pas en km — décision 
+de Jean-Charles, plus proche du comportement réel observé.
+
+CORRECTIF (pensé pour l'expansion nationale, section 111) : un 
+précalcul exhaustif (toutes les paires de communes) ne scale pas 
+— 32 communes en Guadeloupe = 1024 paires (trivial), mais la 
+France entière = ~35 000 communes = >1,2 milliard de paires 
+(infaisable).
+
+APPROCHE RETENUE — calcul à la demande avec mise en cache :
+1. Filtre gratuit préalable : distance à vol d'oiseau (formule de 
+   Haversine, aucun appel API) pour éliminer d'emblée les communes 
+   trop éloignées avant tout calcul coûteux
+2. Calcul réel du temps de trajet (API de routage externe) 
+   UNIQUEMENT quand une paire de communes est effectivement 
+   recherchée par un utilisateur — jamais de précalcul spéculatif
+3. Résultat mis en cache dans la table TempsTrajet — la fois 
+   suivante, lookup instantané sans nouvel appel API
+
+AVANTAGE STRUCTUREL : même architecture pour la Guadeloupe (32 
+communes) et une expansion nationale (35 000 communes) — le cache 
+grossit naturellement avec l'usage réel, jamais de refonte 
+nécessaire au moment de l'expansion territoriale (section 111, 
+Phase 4/5). Coût API proportionnel à l'usage réel, pas à la 
+taille théorique du territoire couvert.
+```
+
+### Schéma (additif)
+
+```prisma
+model TempsTrajet {
+  id                String @id @default(cuid())
+  communeOrigine    String
+  communeDestination String
+  dureeMinutes      Int
+}
+
+// Sur Disponibilite — ajouter :
+rayonTrajet Int?  // 15/30/45/60 minutes, null = tout le département
+```
+
+### Statut
+
+```
+🟡 Prompt rédigé, prêt à envoyer. Sprint à définir (candidat pour 
+Sprint 3, lié aux ajustements géo du score déjà faits Sprint 2).
+```

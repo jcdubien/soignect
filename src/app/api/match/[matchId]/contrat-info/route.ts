@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { SubscriptionPlan } from "@prisma/client";
+import { hasPremiumAccess } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +18,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
-      profileA: { select: { id: true, name: true, subscriptionPlan: true } },
-      profileB: { select: { id: true, name: true, subscriptionPlan: true } },
+      profileA: { select: { id: true, name: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true } },
+      profileB: { select: { id: true, name: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true } },
       missionA: { select: { missionType: true, retrocessionRate: true } },
       missionB: { select: { missionType: true, retrocessionRate: true } },
     },
@@ -34,8 +34,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const myProfile = isA ? match.profileA : match.profileB;
   const theirProfile = isA ? match.profileB : match.profileA;
 
-  const plan = myProfile.subscriptionPlan as SubscriptionPlan;
-  const hasPremium = plan === SubscriptionPlan.PREMIUM || plan === SubscriptionPlan.BOOST;
+  // Même logique que la route de génération PDF (fce5be5) : partenaire institutionnel OU
+  // accès premium effectif (hasPremiumAccess prend en compte freeAccessMode, fondateur,
+  // abonnement payant et grâce de bascule individuelle). Le check brut plan===PREMIUM/BOOST
+  // ignorait tout ça → verrou « Premium » à tort pendant le mode lancement gratuit.
+  const hasPremium =
+    myProfile.institutionalPartner ||
+    (await hasPremiumAccess({
+      subscriptionPlan: myProfile.subscriptionPlan,
+      billingTriggeredAt: myProfile.billingTriggeredAt,
+    }));
 
   const missionType =
     match.missionA?.missionType ?? match.missionB?.missionType ?? null;
