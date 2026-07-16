@@ -69,6 +69,9 @@ export default function PremiumPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [kind, setKind] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Mode lancement gratuit : tant qu'il est actif, la carte « Gratuit » n'a pas de sens
+  // (tout est débloqué) → on la masque. null = pas encore chargé.
+  const [freeAccessMode, setFreeAccessMode] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -83,6 +86,15 @@ export default function PremiumPage() {
       .then((p) => setKind(p?.titulaireKind ?? null))
       .catch(() => {});
   }, [session]);
+
+  // Mode lancement gratuit (section 100) — masque la carte Gratuit tant qu'il est ON.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/platform")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setFreeAccessMode(Boolean(d?.freeAccessMode)))
+      .catch(() => setFreeAccessMode(false));
+  }, [status]);
 
   useEffect(() => {
     // Ne rediriger que lorsque le profileType est connu ET différent de TITULAIRE.
@@ -141,6 +153,9 @@ export default function PremiumPage() {
   // Parcours dissociés (pas une variante de bouton) : un compte Structure ne voit QUE
   // l'offre établissement ; un compte Cabinet ne voit QUE Gratuit/Premium/Boost.
   const isStructure = kind === "STRUCTURE";
+  // Carte Gratuit masquée pendant le mode lancement gratuit (réapparaît seule dès que
+  // freeAccessMode repasse à false, via /admin/config).
+  const visiblePlans = freeAccessMode ? PLANS.filter((p) => p.id !== "FREE") : PLANS;
 
   return (
     <div className="max-w-5xl mx-auto w-full px-4 py-10">
@@ -164,9 +179,9 @@ export default function PremiumPage() {
         </div>
       )}
 
-      {kind === null ? (
-        // Type de compte en cours de chargement — on ne montre ni Cabinet ni Structure
-        // pour éviter tout mélange / flash du mauvais parcours.
+      {(kind === null || freeAccessMode === null) ? (
+        // Type de compte / mode gratuit en cours de chargement — on ne montre rien pour
+        // éviter tout flash (mauvais parcours ou carte Gratuit qui disparaît).
         <div className="flex items-center justify-center py-16">
           <div className="w-8 h-8 border-2 border-kine-400 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -195,9 +210,9 @@ export default function PremiumPage() {
           </div>
         </div>
       ) : (
-        // ── Parcours CABINET : UNIQUEMENT Gratuit / Premium / Boost ──
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {PLANS.map(plan => (
+        // ── Parcours CABINET : Premium / Boost (+ Gratuit hors mode lancement) ──
+        <div className={`grid grid-cols-1 gap-6 ${visiblePlans.length === 2 ? "md:grid-cols-2 max-w-3xl mx-auto" : "md:grid-cols-3"}`}>
+          {visiblePlans.map(plan => (
           <div
             key={plan.id}
             className={`relative bg-white rounded-3xl border-2 ${plan.color} p-6 flex flex-col`}

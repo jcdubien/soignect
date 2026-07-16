@@ -143,7 +143,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {profileType === "TITULAIRE" && (
             <Link
               href="/premium"
-              title={isPaid ? "Votre abonnement" : "Vous êtes en plan Gratuit — découvrir Premium"}
+              title={isPaid ? "Votre abonnement" : freeAccess ? "Découvrir Premium" : "Vous êtes en plan Gratuit — découvrir Premium"}
               className={`text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold transition inline-flex items-center gap-1 ${
                 isPaid
                   ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
@@ -156,6 +156,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   <span className="hidden sm:inline">
                     {profile?.subscriptionPlan === "BOOST" ? "Boost" : profile?.subscriptionPlan === "STRUCTURE" ? "Établissement" : "Premium"}
                   </span>
+                </>
+              ) : freeAccess ? (
+                // Mode lancement gratuit : tout est débloqué → pas de mention « Gratuit »
+                // (qui induirait en erreur). Simple découverte de Premium.
+                <>
+                  <span>✨</span>
+                  <span className="hidden sm:inline">Premium</span>
                 </>
               ) : (
                 <>
