@@ -41,6 +41,8 @@ interface SwipeStackProps {
   profileType?: string;
   titulaireMissions?: TitulaireMission[];
   initialMissionId?: string;
+  /** Profil courant — pour cloisonner l'historique « annonces consultées » par compte. */
+  profileId?: string;
   /** Notifie le parent quand aucune carte n'est affichée (vide/chargement/erreur) —
    *  permet de ne pas étirer verticalement la zone et de coller les trays au contenu. */
   onEmptyChange?: (empty: boolean) => void;
@@ -417,7 +419,7 @@ function Card({
 }
 
 // ── SwipeStack principal ───────────────────────────────────────────────────────
-export default function SwipeStack({ onSwipeRight, profileType, titulaireMissions, initialMissionId, onEmptyChange }: SwipeStackProps) {
+export default function SwipeStack({ onSwipeRight, profileType, titulaireMissions, initialMissionId, profileId, onEmptyChange }: SwipeStackProps) {
   const isTitulaire = profileType === "TITULAIRE";
 
   const [detailMission,    setDetailMission]    = useState<MissionWithProfile | null>(null);
@@ -538,7 +540,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
         specialties: m.specialties,
         profile: { type: m.profile.type, name: m.profile.name ?? null },
       };
-      trackRecentMission(recent);
+      trackRecentMission(recent, profileId);
     }
   }, [displayMissions[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

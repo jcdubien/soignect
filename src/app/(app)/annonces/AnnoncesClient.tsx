@@ -33,13 +33,13 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
       const r = await fetch(`/api/missions/${rm.id}/card`);
       if (!r.ok) {
         // Annonce supprimée/introuvable → on la retire de l'historique pour ne plus la proposer.
-        if (r.status === 404) removeRecentMission(rm.id);
+        if (r.status === 404) removeRecentMission(rm.id, profileId);
         return;
       }
       const d = await r.json();
       setDetail({ mission: d.mission, relation: d.relation });
     } catch { /* silencieux */ }
-  }, []);
+  }, [profileId]);
 
   // Swipe depuis le bottom sheet (annonce jamais traitée) — enregistrement normal.
   const handleSheetSwipe = useCallback(async (direction: "LEFT" | "RIGHT") => {
@@ -68,7 +68,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <LaunchOfferBanner profileType={profileType} profileId={profileId} freeAccessMode={freeAccessMode} />
-      <RecentMissionsTray onSelectMission={handleSelectRecent} />
+      <RecentMissionsTray onSelectMission={handleSelectRecent} profileId={profileId} />
 
       {/* Mobile : colonne (swipe + tray en bande bas). Desktop : deux colonnes (swipe centré + panneau latéral droit). */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
@@ -77,6 +77,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
             onSwipeRight={() => setTrayKey(k => k + 1)}
             onEmptyChange={setSwipeEmpty}
             profileType={profileType}
+            profileId={profileId}
             titulaireMissions={titulaireMissions}
             initialMissionId={initialMissionId}
           />

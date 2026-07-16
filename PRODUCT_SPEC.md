@@ -10666,3 +10666,158 @@ déjà en place dans Soignect (section 103), et pour la feature de
 valorisation de l'assistanat déjà identifiée comme prioritaire 
 (section 118, "produit gold").
 ```
+
+---
+
+## 130. DÉCOUVERTE — Marge d'adaptation régionale ARS (2,5%), levier institutionnel potentiel
+
+### Mécanisme confirmé (Légifrance, arrêté du 20/03/2024)
+
+```
+Le directeur général de l'ARS peut, dans son arrêté régional de 
+zonage, ajouter aux zones nationalement classées "très sous-dotées" 
+des bassins de vie représentant AU MAXIMUM 2,5% de la population 
+régionale — sur justification de critères socio-économiques/
+géographiques locaux (part de patients en ALD, bénéficiaires 
+complémentaire santé solidaire, etc.) et après concertation avec 
+les représentants de la profession (URPS, commission paritaire 
+régionale).
+
+CE N'EST PAS AUTOMATIQUE : exemple documenté en Hauts-de-France 
+(2019) où les représentants de la profession ont eu cette marge à 
+disposition et ont choisi de NE PAS l'utiliser — nécessite une 
+démarche active des acteurs locaux pour être déclenchée.
+```
+
+### Double implication — Soignect ET action institutionnelle personnelle
+
+```
+POUR SOIGNECT (spec) : si ARS Guadeloupe utilisait cette marge de 
+2,5%, ça changerait la donne posée en section 129 — ouvrirait 
+l'accès aux aides à l'installation localement ET donnerait aux 
+jeunes diplômés 2027+ un moyen de remplir leur obligation Avenant 
+7 sans quitter le territoire. Réduirait la dépendance structurelle 
+au remplacement identifiée section 129 (qui resterait favorable à 
+Soignect, mais de façon moins radicale).
+
+POUR JEAN-CHARLES (casquette SNMKR Guadeloupe) : levier d'action 
+institutionnelle concret et distinct du produit Soignect — vérifier 
+si ARS Guadeloupe a déjà utilisé ou envisagé cette marge de 2,5%, 
+et le cas échéant, porter le sujet via le syndicat. Ce n'est pas 
+un chantier Soignect, c'est une action professionnelle/syndicale 
+séparée, mais qui a un impact indirect sur le marché que Soignect 
+adresse.
+```
+
+### Statut
+
+```
+Information vérifiée (source Légifrance), non exploitée pour 
+l'instant. Aucune action produit associée — noté pour mémoire, 
+pertinent si le sujet ARS Guadeloupe évolue dans les mois/années 
+à venir (à surveiller, pourrait changer la donne de la section 129 
+si le zonage guadeloupéen est un jour révisé en ce sens).
+```
+
+---
+
+## 131. FIX — Séparation complète des parcours Cabinet/Structure sur /premium ✅ CORRIGÉ (commit 87ebe8f)
+
+### Bug identifié en recette
+
+```
+Sur la page /premium, le bloc "Structures privées" s'affichait 
+même pour un compte titulaireKind === CABINET (et inversement, un 
+compte Structure voyait les deux blocs mélangés) — alors que ce 
+sont deux parcours commerciaux totalement dissociés (un cabinet 
+libéral n'a aucune raison de voir une offre pensée pour les 
+établissements salariés, et inversement).
+```
+
+### Fix appliqué
+
+```
+Séparation stricte par condition sur titulaireKind :
+- STRUCTURE : affiche UNIQUEMENT l'offre établissement (89€/mois 
+  + 20€/contrat signé), titre adapté "Offre établissement"
+- CABINET : affiche UNIQUEMENT Gratuit/Premium/Boost, titre 
+  "Boostez votre cabinet"
+- État de chargement (kind === null) : loader neutre, pour éviter 
+  tout flash du mauvais parcours avant que le type de compte soit 
+  connu
+
+Le changement de type de compte (Cabinet ↔ Structure) reste 
+disponible dans /compte, séparé de la page de tarifs elle-même.
+```
+
+### Statut
+
+```
+✅ Vérifié visuellement dans les deux configurations (Structure 
+puis Cabinet) sur le compte de Jean-Charles. Build vert, poussé 
+en production.
+```
+
+---
+
+## 132. FIX — Masquer la carte "Gratuit" pendant la période de lancement gratuit
+
+### Contexte
+
+```
+Pendant que freeAccessMode est actif (section 100), afficher une 
+carte "Gratuit" avec des limitations barrées sur /premium est 
+trompeur — personne n'est réellement limité en ce moment. Décision 
+de Jean-Charles : masquer toute mention visible de "Gratuit" 
+jusqu'à la fin de la période de test/early adopters.
+```
+
+### Comportement attendu
+
+```
+Tant que freeAccessMode === true : la carte Gratuit disparaît 
+entièrement de /premium (et de tout autre endroit comparatif des 
+plans). Seuls Premium et Boost restent visibles (le parcours 
+Structure reste séparé, commit 87ebe8f).
+
+Dès que freeAccessMode passe à false : la carte Gratuit réapparaît 
+automatiquement — condition sur le flag déjà existant, pas de 
+nouveau flag séparé à créer.
+```
+
+### Statut
+
+```
+✅ CORRIGÉ ET VÉRIFIÉ (commit f101759, 15/07) :
+- /premium (cabinet, freeAccessMode ON) : carte Gratuit masquée, 
+  seulement Premium (9€) + Boost (29€) affichés
+- Pastille header : "✨ Premium" au lieu de "Gratuit · Premium"
+- Bascule automatique via endpoint GET /api/platform selon 
+  freeAccessMode, réapparition automatique sans code à modifier 
+  quand le mode gratuit sera désactivé
+- Précision assumée : le libellé "Gratuit" dans /compte → 
+  Abonnement reste (indicateur d'état factuel du compte, 
+  distinct d'une comparaison marketing côte à côte)
+```
+
+---
+
+## 133. BUG — Incohérence compteur "poste actif" header vs "postes" Planning
+
+### Constat
+
+```
+Header affiche "1 poste actif" pour Jean-Charles DUBIEN, alors que 
+"Mon Planning" affiche "3 postes" (Marion, Mathéo, Léa). 
+Incohérence entre deux compteurs sur la même page — cause non 
+identifiée, à diagnostiquer (définition différente des deux 
+compteurs, ou vrai bug de calcul/cache).
+```
+
+### Statut
+
+```
+🟡 Prompt rédigé, en attente d'envoi (regroupé avec Sprint 2.1 — 
+carrousel vide + boutons inopérants + cette incohérence, 
+probablement à diagnostiquer dans la même session).
+```

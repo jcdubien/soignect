@@ -13,56 +13,65 @@ export interface RecentMission {
   profile: { type: string; name: string | null };
 }
 
-export const RECENT_KEY = "soignect_recent_missions";
+// Historique cloisonné PAR COMPTE (profileId). Sans ça, changer de compte dans le même
+// navigateur faisait hériter de l'historique d'un autre compte (ex. voir ses propres
+// annonces, vues sous un compte remplaçant). L'ancienne clé non cloisonnée est nettoyée.
+const LEGACY_KEY = "soignect_recent_missions";
 const MAX_RECENT = 5;
 
-export function trackRecentMission(mission: RecentMission) {
+function recentKey(profileId?: string | null): string {
+  return `soignect_recent_missions_${profileId || "anon"}`;
+}
+
+export function trackRecentMission(mission: RecentMission, profileId?: string | null) {
   try {
-    const raw = localStorage.getItem(RECENT_KEY);
+    const key = recentKey(profileId);
+    const raw = localStorage.getItem(key);
     const existing: RecentMission[] = raw ? JSON.parse(raw) : [];
     // Dédoublonner et mettre en tête
     const updated = [
       mission,
       ...existing.filter(m => m.id !== mission.id),
     ].slice(0, MAX_RECENT);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+    localStorage.setItem(key, JSON.stringify(updated));
   } catch { /* silencieux */ }
 }
 
 // Retire une annonce de l'historique (ex. annonce supprimée → /card 404). Dispatche un
 // event storage pour rafraîchir la bande dans l'onglet courant.
-export function removeRecentMission(id: string) {
+export function removeRecentMission(id: string, profileId?: string | null) {
   try {
-    const raw = localStorage.getItem(RECENT_KEY);
+    const key = recentKey(profileId);
+    const raw = localStorage.getItem(key);
     const list: RecentMission[] = raw ? JSON.parse(raw) : [];
-    localStorage.setItem(RECENT_KEY, JSON.stringify(list.filter((m) => m.id !== id)));
-    window.dispatchEvent(new StorageEvent("storage", { key: RECENT_KEY }));
+    localStorage.setItem(key, JSON.stringify(list.filter((m) => m.id !== id)));
+    window.dispatchEvent(new StorageEvent("storage", { key }));
   } catch { /* silencieux */ }
 }
 
 interface Props {
   onSelectMission: (mission: RecentMission) => void;
+  profileId?: string | null;
 }
 
-export default function RecentMissionsTray({ onSelectMission }: Props) {
+export default function RecentMissionsTray({ onSelectMission, profileId }: Props) {
   const [recent, setRecent] = useState<RecentMission[]>([]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(RECENT_KEY);
-      if (raw) setRecent(JSON.parse(raw));
-    } catch { /* silencieux */ }
+    // Nettoyage unique de l'ancienne clé non cloisonnée (pollution inter-comptes).
+    try { localStorage.removeItem(LEGACY_KEY); } catch { /* silencieux */ }
 
-    // Sync si localStorage change dans un autre onglet
-    const handler = () => {
+    const key = recentKey(profileId);
+    const read = () => {
       try {
-        const raw = localStorage.getItem(RECENT_KEY);
+        const raw = localStorage.getItem(key);
         setRecent(raw ? JSON.parse(raw) : []);
-      } catch { /* silencieux */ }
+      } catch { setRecent([]); }
     };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, []);
+    read();
+    window.addEventListener("storage", read);
+    return () => window.removeEventListener("storage", read);
+  }, [profileId]);
 
   if (recent.length === 0) return null;
 
