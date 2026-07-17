@@ -1,5 +1,7 @@
 // ── Système de scoring affinité 0-100 (Sprint 3) ─────────────────────────────
 
+import { zoneOfCommune, type ZoneGeo } from "@/lib/communes";
+
 export interface AffinityInput {
   bioTinder?: string | null;
   bio?: string | null;
@@ -8,6 +10,7 @@ export interface AffinityInput {
   endDate?: Date | string | null;
   minMonths?: number | null;
   location?: string | null;
+  zones?: string[] | null; // Macro-zones souhaitées/couvertes (section 138)
   desirabilityScore?: number;
   dateFlexibility?: number; // 0=exact, 1=±3j, 2=±1sem, 3=±2sem, 4=±1mois
   // Section 120 — pondération différenciée par type de poste + logement structuré
@@ -81,10 +84,29 @@ function scoreDates(mission: AffinityInput, profile: AffinityInput): number {
   return 17; // neutre si aucune date renseignée
 }
 
-// Proximité géographique : 0-25 pts (section 64 — repondération)
+// Proximité géographique : 0-25 pts (section 64 — repondération, section 138 — zones).
+// a = swiper (celui qui swipe), b = mission (annonce évaluée). Chacun porte une commune
+// précise (location) et une liste de macro-zones souhaitées/couvertes (zones, multi).
+// Match plein si l'un est dans la zone de recherche de l'autre, ou si les zones se
+// chevauchent ; sinon repli sur l'égalité commune / même zone historique.
 function scoreGeo(a: AffinityInput, b: AffinityInput): number {
+  const aZone = zoneOfCommune(a.location);
+  const bZone = zoneOfCommune(b.location);
+  const aZones = (a.zones ?? []) as ZoneGeo[];
+  const bZones = (b.zones ?? []) as ZoneGeo[];
+
+  // 1) La commune de l'annonce (b) tombe dans une zone souhaitée par le swiper (a).
+  if (bZone && aZones.includes(bZone)) return 25;
+  // 2) La commune du swiper (a) tombe dans une zone couverte par l'annonce (b).
+  if (aZone && bZones.includes(aZone)) return 25;
+  // 3) Chevauchement direct des zones sélectionnées de part et d'autre.
+  if (aZones.length && bZones.length && aZones.some((z) => bZones.includes(z))) return 25;
+
+  // 4) Repli historique commune (section 64) enrichi de la notion de zone.
   if (!a.location || !b.location) return 12;
-  return a.location.toLowerCase() === b.location.toLowerCase() ? 25 : 6;
+  if (a.location.toLowerCase() === b.location.toLowerCase()) return 25;
+  if (aZone && bZone && aZone === bZone) return 18; // communes différentes, même macro-zone
+  return 6;
 }
 
 // Bio DeepSeek : 0-30 pts (section 64 — repondération)

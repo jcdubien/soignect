@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { BriqueStatus, MissionType, ProfileType } from "@prisma/client";
+import { BriqueStatus, MissionType, ProfileType, ZoneGeographique } from "@prisma/client";
 import { getCommuneZonage } from "@/lib/communes";
 import { logTraceEvent } from "@/lib/trace";
 import { bioLimitFor } from "@/lib/bio";
@@ -13,6 +13,7 @@ const createMissionSchema = z.object({
   title: z.string().min(3).max(100),
   description: z.string().max(500).optional(),
   location: z.string().min(1),
+  zones: z.array(z.nativeEnum(ZoneGeographique)).optional(), // macro-zones souhaitées (section 138)
   specialties: z.array(z.string()).default([]),
   startDate: z.preprocess((v) => (v ? new Date(v as string) : null), z.date().optional().nullable()),
   endDate: z.preprocess((v) => (v ? new Date(v as string) : null), z.date().optional().nullable()),
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, location, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, briqueStatus, cabinetPostId } = parsed.data;
+  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, briqueStatus, cabinetPostId } = parsed.data;
 
   // Photo de profil obligatoire pour publier une annonce/disponibilité (ferme la brèche
   // rétroactive : un profil créé avant l'onboarding-photo pouvait publier sans photo).
@@ -150,6 +151,7 @@ export async function POST(req: NextRequest) {
       title,
       description,
       location,
+      zones: zones ?? [],
       specialties,
       startDate: startDate ?? null,
       endDate: endDate ?? null,

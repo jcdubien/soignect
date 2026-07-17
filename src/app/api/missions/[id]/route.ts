@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { BriqueStatus, MissionType } from "@prisma/client";
+import { BriqueStatus, MissionType, ZoneGeographique } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const mission = await prisma.mission.findUnique({
     where: { id },
     select: {
-      id: true, profileId: true, title: true, location: true, specialties: true,
+      id: true, profileId: true, title: true, location: true, zones: true, specialties: true,
       startDate: true, endDate: true, minMonths: true, pitch: true,
       missionType: true, dateFlexibility: true, cabinetPostId: true,
     },
@@ -31,6 +31,7 @@ const updateSchema = z.object({
   title: z.string().min(3).max(100).optional(),
   description: z.string().max(500).optional().nullable(),
   location: z.string().optional(),
+  zones: z.array(z.nativeEnum(ZoneGeographique)).optional(),
   specialties: z.array(z.string()).optional(),
   startDate: z.string().datetime().optional().nullable(),
   endDate: z.string().datetime().optional().nullable(),

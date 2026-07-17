@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
         endDate: swiperMission?.endDate,
         minMonths: swiperMission?.minMonths,
         location: swiperMission?.location ?? swipedMission.location,
+        zones: swiperMission?.zones ?? [], // macro-zones souhaitées (section 138)
         dateFlexibility: swiperProfile.dateFlexibility,
         rechercheLogement: swiperProfile.rechercheLogement, // section 120
       };
@@ -117,6 +118,7 @@ export async function POST(req: NextRequest) {
         endDate: swipedMission.endDate,
         minMonths: swipedMission.minMonths,
         location: swipedMission.location,
+        zones: swipedMission.zones, // macro-zones couvertes (section 138)
         desirabilityScore: getDesirabilityPercent(missionProfile),
         dateFlexibility: swipedMission.dateFlexibility,
         missionType: swipedMission.missionType,     // section 120 — profil de pondération

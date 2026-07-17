@@ -238,6 +238,11 @@ model Mission {
   // Zonage ARS (calculé depuis la commune à la création)
   zonage ZonageType?
 
+  // Macro-zones géographiques souhaitées / couvertes (section 138) — multi-sélection.
+  // La commune (location) reste l'ancre précise (contrat PDF, zonage ARS, affichage) ;
+  // ces zones élargissent la zone de recherche pour le score d'affinité géo.
+  zones ZoneGeographique[] @default([])
+
   // Distribution Facebook (section 12)
   facebookPostId   String?
   facebookPostedAt DateTime?
@@ -280,6 +285,30 @@ model Mission {
 
   @@index([profileId, isActive])
   @@index([location, isActive])
+}
+
+// Macro-zones géographiques Guadeloupe (section 138) — palier intermédiaire
+// avant l'architecture temps de trajet national (section 135).
+enum ZoneGeographique {
+  CENTRE_CAP_EXCELLENCE
+  SUD_GRANDE_TERRE
+  NORD_GRANDE_TERRE
+  SUD_BASSE_TERRE
+  NORD_BASSE_TERRE
+  MARIE_GALANTE
+  LES_SAINTES
+  LA_DESIRADE
+  SAINT_MARTIN
+  SAINT_BARTHELEMY
+}
+
+// Table de correspondance commune → zone (mapping figé, section 138).
+// Le mapping applicatif de référence vit dans src/lib/communes.ts (COMMUNE_ZONE) ;
+// cette table le matérialise en base pour d'éventuelles analyses SQL par zone
+// (ex: futur TensionScore par zone, sections 82-84).
+model CommuneZone {
+  commune String           @id
+  zone    ZoneGeographique
 }
 
 // Un profil swipe sur une mission (pas un autre profil)

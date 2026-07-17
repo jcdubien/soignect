@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { COMMUNES_GUADELOUPE, type ZoneGeo } from "@/lib/communes";
+import ZoneSelector from "@/components/ui/ZoneSelector";
 import { bioLimitFor } from "@/lib/bio";
 import Link from "next/link";
 
@@ -137,6 +138,7 @@ export default function CreateMissionPage() {
 
   const [form, setForm] = useState({
     title: searchParams.get("title") ?? "", location: "",
+    zones: [] as ZoneGeo[],
     specialties: [] as string[],
     startDate: searchParams.get("startDate") ?? "",
     endDate: searchParams.get("endDate") ?? "",
@@ -196,6 +198,7 @@ export default function CreateMissionPage() {
           ...prev,
           title: m.title ?? "",
           location: m.location ?? "",
+          zones: (m.zones ?? []) as ZoneGeo[],
           specialties: m.specialties ?? [],
           startDate: m.startDate ? String(m.startDate).slice(0, 10) : "",
           endDate: m.endDate ? String(m.endDate).slice(0, 10) : "",
@@ -250,6 +253,7 @@ export default function CreateMissionPage() {
     const payload = {
       title: form.title,
       location: form.location,
+      zones: form.zones,
       specialties: form.specialties,
       startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
       endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
@@ -436,6 +440,14 @@ export default function CreateMissionPage() {
             {COMMUNES_GUADELOUPE.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
+
+        {/* ── Macro-zones concernées (section 138) — multi-sélection ── */}
+        <ZoneSelector
+          value={form.zones}
+          onChange={(zones) => setForm({ ...form, zones })}
+          label="Zones géographiques concernées"
+          hint="En plus de la commune, indiquez la ou les zones couvertes. Un candidat cherchant dans l'une de ces zones sera mieux mis en correspondance."
+        />
 
         {/* ── Spécialités retirées (section 69) — le matching est géré par
              DeepSeek à partir du texte de l'accroche, plus de cases à cocher. ── */}

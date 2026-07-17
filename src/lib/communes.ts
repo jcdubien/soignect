@@ -43,6 +43,109 @@ export const COMMUNES_GUADELOUPE = [
   "Gustavia (Saint-Barth)",
 ];
 
+// ── Macro-zones géographiques (section 138) ───────────────────────────────────
+// Union locale (pas d'import @prisma/client) pour rester utilisable côté client.
+// Les valeurs correspondent 1:1 à l'enum Prisma ZoneGeographique.
+export type ZoneGeo =
+  | "CENTRE_CAP_EXCELLENCE"
+  | "SUD_GRANDE_TERRE"
+  | "NORD_GRANDE_TERRE"
+  | "SUD_BASSE_TERRE"
+  | "NORD_BASSE_TERRE"
+  | "MARIE_GALANTE"
+  | "LES_SAINTES"
+  | "LA_DESIRADE"
+  | "SAINT_MARTIN"
+  | "SAINT_BARTHELEMY";
+
+// Ordre d'affichage (Centre en tête, îles du Sud/annexes en fin).
+export const ZONE_ORDER: ZoneGeo[] = [
+  "CENTRE_CAP_EXCELLENCE",
+  "SUD_GRANDE_TERRE",
+  "NORD_GRANDE_TERRE",
+  "SUD_BASSE_TERRE",
+  "NORD_BASSE_TERRE",
+  "MARIE_GALANTE",
+  "LES_SAINTES",
+  "LA_DESIRADE",
+  "SAINT_MARTIN",
+  "SAINT_BARTHELEMY",
+];
+
+export const ZONE_LABELS: Record<ZoneGeo, string> = {
+  CENTRE_CAP_EXCELLENCE: "Centre / Cap Excellence",
+  SUD_GRANDE_TERRE:      "Sud Grande-Terre",
+  NORD_GRANDE_TERRE:     "Nord Grande-Terre",
+  SUD_BASSE_TERRE:       "Sud Basse-Terre",
+  NORD_BASSE_TERRE:      "Nord Basse-Terre",
+  MARIE_GALANTE:         "Marie-Galante",
+  LES_SAINTES:           "Les Saintes",
+  LA_DESIRADE:           "La Désirade",
+  SAINT_MARTIN:          "Saint-Martin",
+  SAINT_BARTHELEMY:      "Saint-Barthélemy",
+};
+
+// Mapping figé commune → zone (section 138). Clés = chaînes EXACTES de
+// COMMUNES_GUADELOUPE (suffixes inclus : « (Marie-Galante) », « (Saint-Martin) »…).
+export const COMMUNE_ZONE: Record<string, ZoneGeo> = {
+  // Centre / Cap Excellence
+  "Pointe-à-Pitre":              "CENTRE_CAP_EXCELLENCE",
+  "Les Abymes":                  "CENTRE_CAP_EXCELLENCE",
+  "Baie-Mahault":                "CENTRE_CAP_EXCELLENCE",
+  "Le Gosier":                   "CENTRE_CAP_EXCELLENCE",
+  "Petit-Bourg":                 "CENTRE_CAP_EXCELLENCE",
+  "Goyave":                      "CENTRE_CAP_EXCELLENCE",
+  // Sud Grande-Terre
+  "Sainte-Anne":                 "SUD_GRANDE_TERRE",
+  "Saint-François":              "SUD_GRANDE_TERRE",
+  "Le Moule":                    "SUD_GRANDE_TERRE",
+  "Morne-à-l'Eau":               "SUD_GRANDE_TERRE",
+  // Nord Grande-Terre
+  "Anse-Bertrand":               "NORD_GRANDE_TERRE",
+  "Port-Louis":                  "NORD_GRANDE_TERRE",
+  "Petit-Canal":                 "NORD_GRANDE_TERRE",
+  // Sud Basse-Terre
+  "Basse-Terre":                 "SUD_BASSE_TERRE",
+  "Gourbeyre":                   "SUD_BASSE_TERRE",
+  "Baillif":                     "SUD_BASSE_TERRE",
+  "Saint-Claude":                "SUD_BASSE_TERRE",
+  "Vieux-Fort":                  "SUD_BASSE_TERRE",
+  "Capesterre-Belle-Eau":        "SUD_BASSE_TERRE",
+  "Trois-Rivières":              "SUD_BASSE_TERRE",
+  "Vieux-Habitants":             "SUD_BASSE_TERRE",
+  "Bouillante":                  "SUD_BASSE_TERRE",
+  // Nord Basse-Terre
+  "Pointe-Noire":                "NORD_BASSE_TERRE",
+  "Deshaies":                    "NORD_BASSE_TERRE",
+  "Sainte-Rose":                 "NORD_BASSE_TERRE",
+  "Lamentin":                    "NORD_BASSE_TERRE",
+  // Marie-Galante
+  "Grand-Bourg (Marie-Galante)": "MARIE_GALANTE",
+  "Capesterre-de-Marie-Galante": "MARIE_GALANTE",
+  "Saint-Louis (Marie-Galante)": "MARIE_GALANTE",
+  // La Désirade
+  "La Désirade":                 "LA_DESIRADE",
+  // Les Saintes
+  "Terre-de-Haut (Les Saintes)": "LES_SAINTES",
+  "Terre-de-Bas (Les Saintes)":  "LES_SAINTES",
+  // Saint-Martin
+  "Marigot (Saint-Martin)":      "SAINT_MARTIN",
+  "Grand Case (Saint-Martin)":   "SAINT_MARTIN",
+  // Saint-Barthélemy
+  "Gustavia (Saint-Barth)":      "SAINT_BARTHELEMY",
+};
+
+export function zoneOfCommune(commune?: string | null): ZoneGeo | null {
+  if (!commune) return null;
+  return COMMUNE_ZONE[commune] ?? null;
+}
+
+// Communes regroupées par zone, pour l'affichage groupé des formulaires.
+export const COMMUNES_BY_ZONE: { zone: ZoneGeo; communes: string[] }[] = ZONE_ORDER.map((zone) => ({
+  zone,
+  communes: COMMUNES_GUADELOUPE.filter((c) => COMMUNE_ZONE[c] === zone),
+}));
+
 export const SPECIALTIES_KINE = [
   "Orthopédique",
   "Neurologique",

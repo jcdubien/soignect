@@ -11089,6 +11089,26 @@ Code deviner seul.
 ### Statut
 
 ```
-🟡 Prompt rédigé. Priorité à trancher : bloquant pré-bêta ou 
-améliorable après premiers retours des 30 testeurs SNMKR.
+✅ IMPLÉMENTÉ (17/07) — 10 zones (La Désirade isolée, mapping figé du
+prompt utilisé tel quel, primant sur la version 9 zones ci-dessus).
+
+Modèle retenu : COMMUNE + ZONES (additif, non destructif).
+- Mission.zones ZoneGeographique[] @default([]) — multi-sélection, en
+  PLUS de location (commune, ancre conservée pour contrat PDF + zonage
+  ARS + affichage). Rien de supprimé.
+- enum ZoneGeographique (10) + table CommuneZone (commune→zone, 35
+  lignes seedées). Mapping applicatif de référence : src/lib/communes.ts
+  (COMMUNE_ZONE, ZONE_LABELS, ZONE_ORDER) — clés = chaînes exactes des
+  communes (suffixes « (Marie-Galante) » / « (Saint-Martin) » inclus ;
+  Saint-Martin = Marigot + Grand Case ; Saint-Barth = Gustavia).
+- Formulaires missions/create + disponibilites/create : commune conservée
+  + nouveau <ZoneSelector/> (chips multi). Prefill zones en édition.
+- Score géo (deepseek.scoreGeo, section 120/126) intègre les zones :
+  25 pts si commune d'une annonce ∈ zones de recherche de l'autre, ou
+  chevauchement de zones ; repli 18 pts même macro-zone, 25 même commune,
+  6 sinon. Score Bio/Dates/Logement inchangé.
+- Feed inchangé (aucun filtre géo dur ; le filtre location optionnel reste).
+- NON touché : architecture temps de trajet (section 135).
+- Migration 20260717010000_zones_geographiques, appliquée en prod
+  (colonne + table + seed 35 vérifiés).
 ```

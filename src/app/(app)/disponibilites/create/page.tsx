@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { COMMUNES_GUADELOUPE, type ZoneGeo } from "@/lib/communes";
+import ZoneSelector from "@/components/ui/ZoneSelector";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,7 @@ export default function CreateDisponibilitePage() {
     description: "",
     bioTinder: "",
     location: "",
+    zones: [] as ZoneGeo[],
     specialties: [] as string[],
     startDate: searchParams.get("startDate") ?? "",
     endDate: searchParams.get("endDate") ?? "",
@@ -74,6 +76,7 @@ export default function CreateDisponibilitePage() {
         description: form.description || undefined,
         bioTinder: form.bioTinder || undefined,
         location: form.location,
+        zones: form.zones,
         specialties: form.specialties,
         startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
         endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
@@ -208,6 +211,14 @@ export default function CreateDisponibilitePage() {
             {COMMUNES_GUADELOUPE.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
+
+        {/* Macro-zones souhaitées (section 138) — multi-sélection */}
+        <ZoneSelector
+          value={form.zones}
+          onChange={(zones) => setForm({ ...form, zones })}
+          label="Zones où vous cherchez à travailler"
+          hint="Sélectionnez une ou plusieurs zones (ex: Nord + Sud Basse-Terre). Les annonces situées dans ces zones seront mieux notées."
+        />
 
         {/* Spécialités retirées (section 69) — matching via DeepSeek à partir de l'accroche */}
 
