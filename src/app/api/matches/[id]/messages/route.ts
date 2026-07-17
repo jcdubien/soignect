@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { sendNewMessageEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,27 @@ export async function POST(
     },
     include: { sender: { select: { id: true, type: true } } },
   });
+
+  // Notification immédiate au destinataire — nouveau message (section notifications).
+  // Distincte du rappel 24h sans réponse (cron message-reminders). Fire-and-forget,
+  // soumise au consentement email global (emailOptIn).
+  const recipientId = match.profileAId === session.user.profileId ? match.profileBId : match.profileAId;
+  prisma.profile
+    .findUnique({
+      where: { id: recipientId },
+      select: { user: { select: { email: true, emailOptIn: true } } },
+    })
+    .then((rec) => {
+      if (!rec?.user?.email) return;
+      const senderLabel = message.sender.type === "TITULAIRE" ? "Un cabinet" : "Un remplaçant";
+      return sendNewMessageEmail(rec.user.email, {
+        senderLabel,
+        excerpt: parsed.data.content,
+        matchId: id,
+        optIn: rec.user.emailOptIn,
+      });
+    })
+    .catch(() => {});
 
   return NextResponse.json(message, { status: 201 });
 }

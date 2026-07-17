@@ -149,6 +149,14 @@ export default function ContratPage() {
   const isRemplacement = missionType === "REMPLACEMENT";
   const typeLabel     = TYPE_LABELS[missionType] ?? missionType;
 
+  // États de signature (section signature intermédiaire) :
+  //  - bothSigned : contrat officiel → figé (formulaire non modifiable) + PDF téléchargeable
+  //  - une seule signature : en attente → formulaire toujours modifiable, PDF encore bloqué
+  const theirSigned = sig ? (sig.mySide === "titulaire" ? sig.remplacantSigned : sig.titulaireSigned) : false;
+  const bothSigned  = !!sig?.bothSigned;
+  const locked      = bothSigned; // formulaire verrouillé une fois le contrat officiel
+  const oneSigned   = !!sig && !bothSigned && (sig.mineSigned || theirSigned);
+
   return (
     <div className="max-w-lg mx-auto px-4 py-8 flex flex-col gap-6">
 
@@ -163,8 +171,15 @@ export default function ContratPage() {
         </p>
       </div>
 
+      {/* Bandeau contrat officiel (les 2 ont signé) → formulaire figé */}
+      {locked && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 text-xs text-emerald-700 flex items-center gap-2">
+          🔒 <span><strong>Contrat officiel</strong> — signé par les deux parties. Les termes ne sont plus modifiables.</span>
+        </div>
+      )}
+
       {/* Formulaire */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-5">
+      <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-5 ${locked ? "opacity-60 pointer-events-none" : ""}`}>
 
         {/* Rayon non-concurrence */}
         <div>
@@ -303,6 +318,14 @@ export default function ContratPage() {
           </div>
         )}
 
+        {oneSigned && (
+          <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
+            {sig?.mineSigned
+              ? "⏳ En attente de la signature de l'autre partie"
+              : "✍️ L'autre partie a signé — à votre tour de signer"}
+          </p>
+        )}
+
         {sig?.bothSigned ? (
           <p className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-center">
             ✅ Contrat confirmé — les deux parties ont signé
@@ -335,14 +358,28 @@ export default function ContratPage() {
         <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>
       )}
 
-      {/* Bouton génération */}
-      <button
-        onClick={handleGenerate}
-        disabled={generating}
-        className="w-full py-4 bg-kine-600 text-white rounded-2xl font-bold text-base shadow hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-60"
-      >
-        {generating ? "Génération en cours…" : "Générer le PDF →"}
-      </button>
+      {/* Bouton génération — le PDF officiel n'est téléchargeable qu'une fois les 2 signatures apposées */}
+      {bothSigned ? (
+        <button
+          onClick={handleGenerate}
+          disabled={generating}
+          className="w-full py-4 bg-kine-600 text-white rounded-2xl font-bold text-base shadow hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-60"
+        >
+          {generating ? "Génération en cours…" : "Télécharger le PDF officiel →"}
+        </button>
+      ) : (
+        <div className="flex flex-col items-center gap-2">
+          <button
+            disabled
+            className="w-full py-4 bg-gray-200 text-gray-400 rounded-2xl font-bold text-base cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            🔒 Générer le PDF →
+          </button>
+          <p className="text-xs text-gray-400 text-center">
+            Le PDF officiel sera téléchargeable une fois les deux parties signées.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendConsultationEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,29 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     },
     select: { id: true },
   });
+
+  // Notification recruteur — consultation d'annonce (section notifications).
+  // On notifie le propriétaire uniquement lors d'une VRAIE consultation d'un tiers :
+  // pas sa propre annonce, et avant tout swipe (une fois décidé, plus d'email de consult).
+  // Fire-and-forget : ne bloque pas la réponse. Soumis à l'opt-out notifyConsultation.
+  if (mission.profileId !== swiperId && !swipe) {
+    prisma.profile
+      .findUnique({
+        where: { id: mission.profileId },
+        select: { user: { select: { email: true, notifyConsultation: true } } },
+      })
+      .then((owner) => {
+        if (!owner?.user?.email) return;
+        const viewerType = (session.user as { profileType?: string }).profileType;
+        const viewerLabel = viewerType === "TITULAIRE" ? "Un cabinet" : "Un remplaçant";
+        return sendConsultationEmail(owner.user.email, {
+          viewerLabel,
+          missionTitle: mission.title,
+          optIn: owner.user.notifyConsultation,
+        });
+      })
+      .catch(() => {});
+  }
 
   return NextResponse.json({
     mission,

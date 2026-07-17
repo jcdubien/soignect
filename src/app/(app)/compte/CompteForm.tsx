@@ -42,7 +42,7 @@ interface ProfileData {
   secondaryPhotoUrl2: string | null;
   isEmployeur: boolean;
   titulaireKind: TitulaireKind;
-  user?: { phone: string | null; phoneCountry: string | null; emailOptIn: boolean } | null;
+  user?: { phone: string | null; phoneCountry: string | null; emailOptIn: boolean; notifyConsultation?: boolean } | null;
 }
 
 interface MatchedMission {
@@ -69,6 +69,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   const [phoneCountry, setPhoneCountry] = useState(initPhone.country);
   const [phone, setPhone]               = useState(initPhone.local);
   const [emailOptIn, setEmailOptIn]     = useState(profile.user?.emailOptIn ?? true);
+  const [notifyConsultation, setNotifyConsultation] = useState(profile.user?.notifyConsultation ?? true);
 
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
@@ -95,6 +96,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         phone: toE164(phoneCountry, phone) || null,
         phoneCountry,
         emailOptIn,
+        notifyConsultation,
       }),
     });
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
@@ -351,6 +353,22 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${emailOptIn ? "bg-[#1B3A5C]" : "bg-[#E0E0E0]"}`}
           >
             <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${emailOptIn ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
+        </label>
+
+        <label className="flex items-center justify-between cursor-pointer">
+          <span className="text-sm text-gray-700">
+            M&apos;avertir quand mon annonce est consultée
+            <span className="block text-xs text-gray-400">Fréquent — coupez si trop d&apos;emails</span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={notifyConsultation}
+            onClick={() => setNotifyConsultation(v => !v)}
+            className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${notifyConsultation ? "bg-[#1B3A5C]" : "bg-[#E0E0E0]"}`}
+          >
+            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${notifyConsultation ? "translate-x-6" : "translate-x-1"}`} />
           </button>
         </label>
       </section>

@@ -148,6 +148,67 @@ export async function sendBillingTriggeredEmail(
   await sendEmail(to, "Votre accès Premium Soignect — action requise sous 14 jours", html);
 }
 
+// ── g) Consultation d'annonce par un candidat (notif recruteur) ────────────────
+// Événement fréquent → soumis à l'opt-out dédié notifyConsultation (et non au
+// consentement email global), coupable séparément depuis /compte.
+export async function sendConsultationEmail(
+  to: string,
+  opts: { viewerLabel: string; missionTitle: string | null; optIn: boolean }
+): Promise<void> {
+  if (!opts.optIn) return;
+  const about = opts.missionTitle ? ` « ${escapeHtml(opts.missionTitle)} »` : "";
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0">
+       ${escapeHtml(opts.viewerLabel)} vient de consulter votre annonce${about}.
+     </p>`,
+    { label: "Voir mes annonces", path: "/planning" }
+  );
+  await sendEmail(to, "Votre annonce a été consultée sur Soignect", html);
+}
+
+// ── h) Nouveau message dans une conversation (notif immédiate) ──────────────────
+// Distinct du rappel 24h sans réponse (section 112) : celui-ci part à chaque message.
+export async function sendNewMessageEmail(
+  to: string,
+  opts: { senderLabel: string; excerpt: string; matchId: string; optIn: boolean }
+): Promise<void> {
+  if (!opts.optIn) return;
+  const excerpt = escapeHtml(opts.excerpt.slice(0, 140));
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       ${escapeHtml(opts.senderLabel)} vous a envoyé un message sur Soignect.
+     </p>
+     <p style="font-size:14px;line-height:1.5;margin:0;color:#4b5563;border-left:3px solid #e5e7eb;padding-left:10px">
+       « ${excerpt} »
+     </p>`,
+    { label: "Répondre", path: `/matches?matchId=${opts.matchId}` }
+  );
+  await sendEmail(to, "Nouveau message sur Soignect", html);
+}
+
+// ── i) Signature apposée par l'autre partie sur le contrat ─────────────────────
+export async function sendSignatureAppliedEmail(
+  to: string,
+  opts: { signerLabel: string; bothSigned: boolean; matchId: string; optIn: boolean }
+): Promise<void> {
+  if (!opts.optIn) return;
+  const body = opts.bothSigned
+    ? `<p style="font-size:15px;line-height:1.6;margin:0">
+         ${escapeHtml(opts.signerLabel)} a signé — le contrat est désormais signé par les deux parties.
+         Vous pouvez télécharger le PDF officiel.
+       </p>`
+    : `<p style="font-size:15px;line-height:1.6;margin:0">
+         ${escapeHtml(opts.signerLabel)} a apposé sa signature sur le contrat. Il ne manque plus que la vôtre.
+       </p>`;
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>${body}`,
+    { label: "Voir le contrat", path: `/match/${opts.matchId}/contrat` }
+  );
+  await sendEmail(to, "Signature du contrat sur Soignect", html);
+}
+
 // ── d) Mise en relation annulée ────────────────────────────────────────────────
 export async function sendRelationCancelledEmail(
   to: string,

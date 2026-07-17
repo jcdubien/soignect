@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { BriqueStatus, MatchStatus } from "@prisma/client";
 import { logTraceEvent } from "@/lib/trace";
 import { triggerBillingIfNeeded } from "@/lib/billing";
-import { sendBillingTriggeredEmail } from "@/lib/email";
+import { sendBillingTriggeredEmail, sendSignatureAppliedEmail } from "@/lib/email";
 import { reportStructureContractUsage } from "@/lib/stripe-usage";
 
 export const dynamic = "force-dynamic";
@@ -94,6 +94,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
   });
 
   const bothSigned = !!updated.signatureTitulaireUrl && !!updated.signatureRemplacantUrl;
+
+  // Notification à l'autre partie — une signature vient d'être apposée (section notifications).
+  // Fire-and-forget, soumise au consentement email global (emailOptIn).
+  const otherProfileId = match.profileAId === session.user.profileId ? match.profileBId : match.profileAId;
+  const signerLabel = myProfile.type === "TITULAIRE" ? "Le cabinet" : "Le remplaçant";
+  prisma.profile
+    .findUnique({
+      where: { id: otherProfileId },
+      select: { user: { select: { email: true, emailOptIn: true } } },
+    })
+    .then((other) => {
+      if (!other?.user?.email) return;
+      return sendSignatureAppliedEmail(other.user.email, {
+        signerLabel,
+        bothSigned,
+        matchId,
+        optIn: other.user.emailOptIn,
+      });
+    })
+    .catch(() => {});
 
   // Contrat confirmé quand les DEUX signatures photo sont présentes (section 61) :
   // remplit la timeline (missions liées → CONFIRME) et confirme le match.

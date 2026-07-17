@@ -10923,3 +10923,172 @@ rayonTrajet Int?  // 15/30/45/60 minutes, null = tout le département
 🟡 Prompt rédigé, prêt à envoyer. Sprint à définir (candidat pour 
 Sprint 3, lié aux ajustements géo du score déjà faits Sprint 2).
 ```
+
+---
+
+## 136. BUG — Gate contrat PDF réapparu (16/07) ✅ CORRIGÉ (commit 14e732a)
+
+### Cause identifiée
+
+```
+PAS une régression de facturation — freeAccessMode = true confirmé, 
+billingTriggeredAt = null confirmé (aucune bascule individuelle en 
+jeu).
+
+Vraie cause : le fix du 13/07 (commit fce5be5) avait branché 
+hasPremiumAccess() sur la route de GÉNÉRATION du contrat PDF, mais 
+avait oublié la route GET /api/match/[matchId]/contrat-info — qui 
+pilote l'affichage du verrou côté UI. Cette route utilisait encore 
+un check brut (plan === PREMIUM||BOOST) sans passer par 
+hasPremiumAccess(), ignorant donc freeAccessMode, le statut 
+fondateur, institutionalPartner, et la grâce. Non lié au commit 
+87ebe8f (séparation Cabinet/Structure).
+```
+
+### Fix
+
+```
+Route contrat-info alignée sur la même logique que la génération : 
+institutionalPartner || hasPremiumAccess({ subscriptionPlan, 
+billingTriggeredAt }).
+
+Vérifié en prod : hasPremium passe de false à true, génération de 
+contrat PDF fonctionnelle de bout en bout (contrat-remplacement.pdf 
+téléchargé avec succès). Build OK, poussé.
+```
+
+### Leçon à retenir
+
+```
+Quand une fonctionnalité premium a plusieurs routes associées 
+(génération + info/statut d'affichage), s'assurer que TOUTES 
+passent par hasPremiumAccess() lors d'un fix — pas seulement la 
+route la plus évidente. Vérifier ce pattern sur d'autres 
+fonctionnalités premium existantes si un doute similaire survient.
+```
+
+---
+
+## 137. FEATURE + BUG — État intermédiaire signature contrat, diagnostic champs, notifications recruteur
+
+### 1. État intermédiaire "en attente de l'autre signature"
+
+```
+Dès qu'une signature est apposée : contrat passe en "En attente de 
+l'autre signature" — reste ÉDITABLE, mais téléchargement PDF 
+bloqué. Dès les deux signatures : contrat verrouillé + 
+téléchargement débloqué (sous réserve d'accès Premium/Boost/
+freeAccessMode).
+```
+
+### 2. Diagnostic — champs non remplis non modifiables
+
+```
+Constat de Jean-Charles : champs vides (ex: adresse) non 
+modifiables dans le formulaire contrat. Statut : bug ou usage à 
+diagnostiquer, non tranché.
+```
+
+### 3. Notifications recruteur multi-événements
+
+```
+Un recruteur (tout statut : employeur, titulaire cherchant 
+remplaçant/assistant, collaborateur) doit être notifié sur : 
+consultation de son annonce, match, nouveau message, signature 
+apposée. Distinct du rappel 24h (section 112) et de la notification 
+prioritaire Boost (section 124). Déclenchement synchrone à 
+l'événement, pas de cron nécessaire sauf batching futur si volume 
+élevé. Option de désactivation par type prévue (au moins pour 
+"consultation", potentiellement fréquente).
+```
+
+### Statut
+
+```
+✅ IMPLÉMENTÉ (17/07).
+
+1. État intermédiaire signature :
+   - Verrou serveur (GET /api/match/[id]/contrat) — 409 tant que les
+     deux signatures ne sont pas apposées, indépendant de l'abonnement.
+   - Client contrat/page.tsx : bandeau "En attente de la signature de
+     l'autre partie" (une seule signature), formulaire figé une fois
+     les deux signatures (opacity + pointer-events-none), bouton PDF
+     bloqué → "Télécharger le PDF officiel" débloqué au bothSigned.
+
+2. Diagnostic champs — AUCUN BUG REPRODUCTIBLE. Le formulaire de contrat
+   n'a aucun champ texte/adresse : uniquement des sliders (rayon, durée,
+   taux) + une case période d'essai, tous avec valeur par défaut. Aucune
+   logique de verrou pré-existante. L'adresse du PDF provient de
+   mission.location (commune), éditable via le formulaire d'annonce
+   (missions/create, PATCH /api/missions/[id] — aucun verrou même mission
+   confirmée). Le verrou ajouté en 1 ne concerne que l'état "signé des
+   deux côtés" et ne bloque pas des champs vides.
+
+3. Notifications recruteur (synchrones, Resend) :
+   - Consultation : GET /api/missions/[id]/card, si tiers + avant tout
+     swipe → email au propriétaire (opt-out dédié User.notifyConsultation).
+   - Match : déjà couvert (sendNewRelationEmail dans /api/swipe).
+   - Message : POST /api/matches/[id]/messages → email au destinataire
+     (emailOptIn). Distinct du rappel 24h (section 112).
+   - Signature : POST /api/match/[id]/signature → email à l'autre partie
+     (emailOptIn).
+   - Opt-out consultation exposé dans /compte (toggle dédié).
+   - Nouvelle colonne User.notifyConsultation Boolean @default(true)
+     (migration 20260717000000_notify_consultation, appliquée en prod).
+```
+
+---
+
+## 138. FEATURE — Sélection par zone géographique (8 macro-zones), palier intermédiaire avant scaling national
+
+### Contexte
+
+```
+Solution intermédiaire entre le dropdown commune unique actuel et 
+l'architecture temps de trajet à la demande (section 135, plan long 
+terme national). Découpage fixe du territoire guadeloupéen en 8 
+macro-zones géographiques réelles.
+```
+
+### Zones retenues (9 zones, mise à jour)
+
+```
+Nord Basse-Terre · Sud Basse-Terre · Nord Grande-Terre · 
+Sud Grande-Terre · Marie-Galante · Les Saintes · Saint-Martin · 
+Saint-Barthélemy · CENTRE / CAP EXCELLENCE (nouvelle, 9e zone)
+
+Zone "Centre / Cap Excellence" ajoutée sur demande explicite de 
+Jean-Charles : reprend le nom de l'agglomération réelle (Cap 
+Excellence — Pointe-à-Pitre, Les Abymes, Baie-Mahault, rejointes 
+plus tard par Le Gosier). 
+
+RAISON STRATÉGIQUE (pas seulement géographique) : Jean-Charles 
+signale un comportement observé — de nombreux kinés cherchent 
+UNIQUEMENT dans cette zone centrale (Baie-Mahault, Les Abymes, 
+Petit-Bourg), le comportement de sur-concentration exact que 
+Soignect cherche à atténuer (cohérent avec la vision "favoriser 
+les zones moins dotées", section 123 niveau 3 DeepSeek, différé au 
+TensionScore section 82-84). Isoler cette zone permet de la 
+traiter différemment plus tard (ex: ne pas la booster autant que 
+les zones sous-représentées) une fois le TensionScore opérationnel.
+```
+
+### Point de vigilance
+
+```
+Le mapping exact des 32 communes vers ces 9 zones doit être validé 
+par Jean-Charles avant implémentation (cas limites à la jonction 
+Basse-Terre/Grande-Terre : Baie-Mahault, Lamentin, Petit-Bourg, 
+Goyave notamment ; périmètre exact de "Centre/Cap Excellence" — 
+inclut-il Le Gosier ? Petit-Bourg, mentionné par Jean-Charles dans 
+le comportement observé, en fait-il partie administrativement ou 
+seulement par proximité comportementale ?) — ne pas laisser Claude 
+Code deviner seul.
+```
+
+### Statut
+
+```
+🟡 Prompt rédigé. Priorité à trancher : bloquant pré-bêta ou 
+améliorable après premiers retours des 30 testeurs SNMKR.
+```

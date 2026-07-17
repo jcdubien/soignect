@@ -84,6 +84,17 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Fonctionnalité réservée aux abonnés Premium" }, { status: 403 });
   }
 
+  // Verrou d'état (indépendant de l'abonnement, section signature) : le PDF officiel
+  // n'est téléchargeable qu'une fois les DEUX signatures apposées. Tant qu'il manque
+  // une signature, le contrat reste en préparation (éditable) mais non téléchargeable.
+  const bothSigned = !!match.signatureTitulaireUrl && !!match.signatureRemplacantUrl;
+  if (!bothSigned) {
+    return NextResponse.json(
+      { error: "Le contrat doit être signé par les deux parties avant de télécharger le PDF officiel." },
+      { status: 409 }
+    );
+  }
+
   // Identifier TITULAIRE et l'autre partie
   const profileTitulaire = match.profileA.type === "TITULAIRE" ? match.profileA : match.profileB;
   const profileAutre      = match.profileA.type === "TITULAIRE" ? match.profileB : match.profileA;
