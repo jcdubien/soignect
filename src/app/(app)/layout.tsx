@@ -92,7 +92,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50 overflow-x-clip">
       {/* ── Header top ── */}
       <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-40 shadow-sm">
         <Link href={homeHref} className="flex items-center gap-1.5 flex-shrink-0">
@@ -220,54 +220,56 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* ── Contenu ── */}
       <main className="flex-1 flex flex-col pb-16 sm:pb-0">{children}</main>
 
-      {/* ── Bottom nav mobile ── */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around px-2 py-1.5 z-40 sm:hidden shadow-[0_-1px_6px_rgba(0,0,0,0.06)]">
-        <Link href="/annonces" className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-gray-500 hover:text-kine-600 transition">
+      {/* ── Bottom nav mobile ── (section 149 : items en flex-1 pour tenir dans le viewport
+          quel que soit leur nombre — 5 ou 6 avec Admin. `justify-around` + padding fixe
+          débordait sur mobile étroit → rognage à gauche + scroll horizontal du document.) */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center px-1 py-1.5 z-40 sm:hidden shadow-[0_-1px_6px_rgba(0,0,0,0.06)]">
+        <Link href="/annonces" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-gray-500 hover:text-kine-600 transition">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
           </svg>
-          <span className="text-[10px] font-medium">Annonces</span>
+          <span className="text-[10px] font-medium truncate max-w-full">Annonces</span>
         </Link>
 
-        <Link href={createHref} className="flex flex-col items-center gap-0.5 -mt-4 px-4 py-2.5 bg-kine-600 text-white rounded-2xl shadow-lg hover:bg-kine-700 transition">
+        <Link href={createHref} className="shrink-0 flex flex-col items-center gap-0.5 -mt-4 mx-1 px-4 py-2.5 bg-kine-600 text-white rounded-2xl shadow-lg hover:bg-kine-700 transition">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
           <span className="text-[10px] font-semibold">Annonce</span>
         </Link>
 
-        <Link href="/compte" className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-gray-500 hover:text-kine-600 transition">
+        <Link href="/compte" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-gray-500 hover:text-kine-600 transition">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
           </svg>
-          <span className="text-[10px] font-medium">Compte</span>
+          <span className="text-[10px] font-medium truncate max-w-full">Compte</span>
         </Link>
 
         {/* Planning (titulaire) / Disponibilités (remplaçant) — section 91 :
             accès direct depuis la bottom nav, entre Compte et Relations. */}
         <Link
           href={profileType === "TITULAIRE" ? "/planning" : "/disponibilites"}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-gray-500 hover:text-kine-600 transition"
+          className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-gray-500 hover:text-kine-600 transition"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          <span className="text-[10px] font-medium">{profileType === "TITULAIRE" ? "Planning" : "Dispo"}</span>
+          <span className="text-[10px] font-medium truncate max-w-full">{profileType === "TITULAIRE" ? "Planning" : "Dispo"}</span>
         </Link>
 
-        <Link href="/matches" className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-gray-500 hover:text-kine-600 transition">
+        <Link href="/matches" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-gray-500 hover:text-kine-600 transition">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
-          <span className="text-[10px] font-medium">Relations</span>
+          <span className="text-[10px] font-medium truncate max-w-full">Relations</span>
         </Link>
 
         {isAdmin && (
-          <Link href="/admin" className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-amber-600 hover:text-amber-700 transition">
+          <Link href="/admin" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-amber-600 hover:text-amber-700 transition">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
             </svg>
-            <span className="text-[10px] font-semibold">Admin</span>
+            <span className="text-[10px] font-semibold truncate max-w-full">Admin</span>
           </Link>
         )}
       </nav>

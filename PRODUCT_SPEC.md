@@ -10785,19 +10785,29 @@ automatiquement — condition sur le flag déjà existant, pas de
 nouveau flag séparé à créer.
 ```
 
-### Statut
+### Statut (mis à jour 17/07)
 
 ```
 ✅ CORRIGÉ ET VÉRIFIÉ (commit f101759, 15/07) :
 - /premium (cabinet, freeAccessMode ON) : carte Gratuit masquée, 
   seulement Premium (9€) + Boost (29€) affichés
-- Pastille header : "✨ Premium" au lieu de "Gratuit · Premium"
 - Bascule automatique via endpoint GET /api/platform selon 
   freeAccessMode, réapparition automatique sans code à modifier 
   quand le mode gratuit sera désactivé
 - Précision assumée : le libellé "Gratuit" dans /compte → 
   Abonnement reste (indicateur d'état factuel du compte, 
   distinct d'une comparaison marketing côte à côte)
+
+⚠️ COMPLÉMENT DÉCIDÉ (17/07) : la pastille header affichait encore 
+"✨ Premium" (au lieu de "Gratuit · Premium") pendant freeAccessMode 
+— jugé encore trompeur (impression de statut payant actif). 
+✅ CORRIGÉ (commit aa65857) : pastille gated par !freeAccess — 
+entièrement masquée pendant freeAccessMode (ni "Gratuit" ni 
+"Premium"), réapparition automatique avec le vrai statut dès que 
+le flag repasse à false (recalculé à chaque requête, layout 
+force-dynamic, aucun cache). Branche morte nettoyée au passage.
+
+SECTION 132 ENTIÈREMENT CLOSE.
 ```
 
 ---
@@ -11207,10 +11217,19 @@ extérieur/scroll/resize. Positionnement fixed avec clamp anti-
 débordement. Bouton désactivé si compteur = 0.
 
 ⚠️ Complément décidé (16/07) : point d'entrée mobile manquant 
-(compteur masqué sous sm comme avant). À ajouter — réutiliser 
-ActiveAnnoncesMenu en l'adaptant (bottom sheet plutôt que dropdown), 
-emplacement à définir par Claude Code selon l'espace mobile 
-disponible. Prompt rédigé, en attente d'envoi.
+(compteur masqué sous sm comme avant). 
+✅ CORRIGÉ (commit 412d3c1) : bouton 📢 N sm:hidden dans la barre 
+d'actions du header, à côté de "+ Annonce", visible uniquement sur 
+mobile. Au tap → bottom sheet MD3 (cohérent avec le reste de 
+l'app, pas un dropdown transposé) listant les annonces actives, 
+édition via même flux ?editId=. Refactorisation propre : liste 
+extraite en composant partagé ActiveAnnoncesList.tsx, réutilisé 
+par le dropdown desktop (ActiveAnnoncesMenu) ET le nouveau 
+composant mobile (ActiveAnnoncesMobile) — aucune duplication de 
+logique. Bouton masqué si 0 annonce active (pas de "0" désactivé). 
+Aucune requête supplémentaire (données déjà chargées côté header).
+
+SECTION 141 ENTIÈREMENT CLOSE (desktop + mobile).
 ```
 
 ---
