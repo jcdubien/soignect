@@ -11398,9 +11398,15 @@ le déclenchement billing individuel déjà survenu (section 100) —
 le cabinet a déjà obtenu la valeur au moment de la signature, évite 
 aussi un contournement signer-puis-annuler.
 
-✅ COMPLÉMENT DÉCIDÉ (17/07) : répliquer le même menu adaptatif 
-côté cabinet/Planning, pour la symétrie. Prompt rédigé, en attente 
-d'envoi.
+✅ COMPLÉMENT CORRIGÉ (commit 13d8ed8, 17/07) : menu adaptatif 
+répliqué côté Planning cabinet — "Voir la fiche du match →" 
+(relabel de l'ancien "Recontacter →") + "Supprimer ce match" 
+(même parcours sécurisé 2 temps). Nouveau composant CancelMatchButton, 
+réutilise telle quelle la route DELETE /api/match/[matchId]?force=true 
+déjà construite (commit aac9052) — aucune duplication serveur. 
+Billing non annulé, cohérent des deux côtés.
+
+SECTION 145 ENTIÈREMENT CLOSE (remplaçant + cabinet).
 ```
 
 ---
@@ -11431,7 +11437,67 @@ actée). Lister les profils existants concernés avant activation.
 ### Statut
 
 ```
-🟡 Prompt rédigé, non bloquant pour la bêta mais recommandé avant
-l'usage réel par les 30 testeurs (risque de contrats PDF
-incomplets/inutilisables sinon).
+✅ CORRIGÉ (commit d1a80de, 17/07). Investigation préalable : 
+champs réellement injectés dans le PDF = uniquement name + 
+profession (RPPS/N°Ordre/adresse étaient des placeholders figés, 
+jamais stockés — 0/16 profils avaient ces champs, un blocage dur 
+immédiat aurait bloqué 100% des comptes).
+
+Livré :
+- Schéma : Profile += rpps, numeroOrdre, adresse, siret ; 
+  PlatformConfig += enforceContractProfile (défaut false)
+- Logique centralisée (contractProfile.ts) : champs requis par 
+  rôle (praticien vs structure), calcul des manquants
+- /compte : section identité contractuelle avec champs obligatoires 
+  conditionnels, RPPS désormais stocké (ne l'était pas avant)
+- Injection PDF réelle (avant : placeholders figés)
+- Gating en 2 phases via flag enforceContractProfile :
+  Phase actuelle (flag OFF) : avertissement/bannière, génération 
+  toujours autorisée
+  Phase future (flag ON, activable via /admin/config) : blocage 
+  dur avec redirection /compte
+
+DÉCISION (17/07) : RPPS non chiffré — donnée publique (consultable 
+via Annuaire Santé officiel), au même titre qu'un SIRET. Chiffrer 
+ajouterait de la complexité sans bénéfice de sécurité réel.
+
+Action Jean-Charles à prévoir : activer le flag enforceContractProfile 
+une fois les 30 testeurs ont eu le temps de compléter leur profil 
+(pas immédiat).
+```
+
+---
+
+## 147. BUG — Bouton "Supprimer" inopérant sur disponibilité/timeline (côté remplaçant)
+
+### Constat
+
+```
+Dans le modal "Modifier la période" (Cas 1, disponibilité sans
+match, section 145), le bouton "Supprimer" ne produit aucun effet
+- la période reste sur la timeline. Possiblement lié au sprint
+précédent (commit aac9052) ayant touché la logique de ce modal
+pour ajouter le Cas 2 (match confirmé).
+```
+
+### Statut
+
+```
+✅ CORRIGÉ (commit 36b37b7, 17/07). Double défaut identifié, 
+préexistant (pas une régression de aac9052) :
+1. Serveur : DELETE /api/missions/[id] ne nettoyait pas les 
+   dépendances (Swipe, Match) avant suppression → échec silencieux 
+   par contrainte FK dès qu'une disponibilité avait reçu des swipes
+2. Client : remove() ne vérifiait pas res.ok → erreur avalée, 
+   modal fermé sans que la suppression ait réellement eu lieu
+
+Fix : nettoyage transactionnel des dépendances avant suppression 
+(même approche que la route d'annulation de match). Garde-fou 
+ajouté : refus 409 si la période est liée à un contrat confirmé, 
+avec redirection vers le flux "Supprimer ce match" sécurisé 
+(section 145) — évite de supprimer un contrat signé par la petite 
+porte. Client corrigé pour vérifier res.ok et afficher les erreurs. 
+Même route/bouton pour disponibilité et annonce remplaçant → les 
+deux corrigés, bénéficie aussi au bouton "Fermer/Annuler l'annonce" 
+du Planning cabinet (même endpoint).
 ```

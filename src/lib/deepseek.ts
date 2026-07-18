@@ -95,14 +95,15 @@ function scoreGeo(a: AffinityInput, b: AffinityInput): number {
   const aZones = (a.zones ?? []) as ZoneGeo[];
   const bZones = (b.zones ?? []) as ZoneGeo[];
 
-  // 1) La commune de l'annonce (b) tombe dans une zone souhaitée par le swiper (a).
+  // Section 144 : la flexibilité géo n'existe que côté CANDIDAT (Disponibilite.zones) ;
+  // le cabinet a une commune fixe. On vérifie donc si la commune (précise) d'une partie
+  // tombe dans les zones souhaitées de l'AUTRE — jamais une comparaison zones↔zones.
+  // 1) La commune de l'annonce évaluée (b) tombe dans une zone souhaitée par le swiper (a).
   if (bZone && aZones.includes(bZone)) return 25;
-  // 2) La commune du swiper (a) tombe dans une zone couverte par l'annonce (b).
+  // 2) La commune du swiper (a) tombe dans une zone souhaitée par l'annonce évaluée (b).
   if (aZone && bZones.includes(aZone)) return 25;
-  // 3) Chevauchement direct des zones sélectionnées de part et d'autre.
-  if (aZones.length && bZones.length && aZones.some((z) => bZones.includes(z))) return 25;
 
-  // 4) Repli historique commune (section 64) enrichi de la notion de zone.
+  // Repli historique commune (section 64) enrichi de la notion de zone.
   if (!a.location || !b.location) return 12;
   if (a.location.toLowerCase() === b.location.toLowerCase()) return 25;
   if (aZone && bZone && aZone === bZone) return 18; // communes différentes, même macro-zone

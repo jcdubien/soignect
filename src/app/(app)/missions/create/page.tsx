@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { COMMUNES_GUADELOUPE, type ZoneGeo } from "@/lib/communes";
-import ZoneSelector from "@/components/ui/ZoneSelector";
+import { COMMUNES_GUADELOUPE } from "@/lib/communes";
 import { bioLimitFor } from "@/lib/bio";
 import Link from "next/link";
 
@@ -138,7 +137,6 @@ export default function CreateMissionPage() {
 
   const [form, setForm] = useState({
     title: searchParams.get("title") ?? "", location: "",
-    zones: [] as ZoneGeo[],
     specialties: [] as string[],
     startDate: searchParams.get("startDate") ?? "",
     endDate: searchParams.get("endDate") ?? "",
@@ -198,7 +196,6 @@ export default function CreateMissionPage() {
           ...prev,
           title: m.title ?? "",
           location: m.location ?? "",
-          zones: (m.zones ?? []) as ZoneGeo[],
           specialties: m.specialties ?? [],
           startDate: m.startDate ? String(m.startDate).slice(0, 10) : "",
           endDate: m.endDate ? String(m.endDate).slice(0, 10) : "",
@@ -253,7 +250,6 @@ export default function CreateMissionPage() {
     const payload = {
       title: form.title,
       location: form.location,
-      zones: form.zones,
       specialties: form.specialties,
       startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
       endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
@@ -392,10 +388,12 @@ export default function CreateMissionPage() {
           </div>
           {form.pitchStarter && (
             <div>
-              <div className="relative">
-                <span className="absolute left-3 top-3 text-xs text-kine-500 font-medium select-none pointer-events-none">
-                  {form.pitchStarter}&nbsp;
-                </span>
+              {/* Starter affiché comme label AU-DESSUS du textarea (section 144) — plus
+                  d'overlay absolu qui se superposait au texte saisi. */}
+              <p className="text-xs text-kine-600 font-semibold mb-1 px-1 select-none">
+                {form.pitchStarter}
+              </p>
+              <div>
                 <textarea
                   value={form.pitchText}
                   onChange={(e) => {
@@ -405,7 +403,7 @@ export default function CreateMissionPage() {
                   onFocus={() => setPitchFocused(true)}
                   onBlur={() => setPitchFocused(false)}
                   rows={3}
-                  className="w-full pt-7 pb-2 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm bg-white text-gray-800 not-italic placeholder:text-gray-400 placeholder:italic"
+                  className="w-full py-2.5 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm bg-white text-gray-800 not-italic placeholder:text-gray-400 placeholder:italic"
                   placeholder="…complétez en quelques mots"
                 />
               </div>
@@ -441,13 +439,8 @@ export default function CreateMissionPage() {
           </select>
         </div>
 
-        {/* ── Macro-zones concernées (section 138) — multi-sélection ── */}
-        <ZoneSelector
-          value={form.zones}
-          onChange={(zones) => setForm({ ...form, zones })}
-          label="Zones géographiques concernées"
-          hint="En plus de la commune, indiquez la ou les zones couvertes. Un candidat cherchant dans l'une de ces zones sera mieux mis en correspondance."
-        />
+        {/* Zones géographiques retirées côté cabinet (section 144) — un cabinet a une
+            commune fixe ; la flexibilité géo n'existe que côté candidat (disponibilité). */}
 
         {/* ── Spécialités retirées (section 69) — le matching est géré par
              DeepSeek à partir du texte de l'accroche, plus de cases à cocher. ── */}

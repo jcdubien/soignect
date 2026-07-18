@@ -31,6 +31,14 @@
   --orange-vif:     #E8630A;   /* non couvert 1-3 mois (agir bientôt) */
 }
 
+/* Garde anti-débordement horizontal (section 143) : aucune page ne doit jamais
+   défiler/se décaler horizontalement. html reste le conteneur de scroll (vertical
+   préservé, position: sticky du header intacte). Les zones à défilement horizontal
+   interne (timeline Planning, pills, carrousels) gardent leur propre overflow-x-auto. */
+html {
+  overflow-x: hidden;
+}
+
 body {
   background-color: var(--md-background);
   color: var(--md-on-background);
