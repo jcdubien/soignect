@@ -1,6 +1,6 @@
 # Conditions Générales d'Utilisation et de Vente
 
-*Dernière mise à jour : [À COMPLÉTER — date de mise en ligne]*
+*Dernière mise à jour : 16 juillet 2026*
 
 ## 1. Objet
 

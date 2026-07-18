@@ -21,6 +21,7 @@ const createProfileSchema = z.object({
   phone: z.string().max(20).optional(),
   phoneCountry: z.string().max(4).optional(),
   emailOptIn: z.boolean().optional(),
+  acceptedTerms: z.boolean().optional(), // consentement légal (section 150)
 });
 
 // POST /api/profiles — inscription (profil simple, sans mission)
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email, password, type, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn } = parsed.data;
+  const { email, password, type, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, acceptedTerms } = parsed.data;
   // Ne persiste la nature que pour un titulaire ; sinon on laisse le défaut (CABINET).
   const kind = type === "TITULAIRE" ? titulaireKind : undefined;
 
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
       phone: phone ?? null,
       phoneCountry: phoneCountry ?? "GP",
       emailOptIn: optIn,
+      acceptedTermsAt: acceptedTerms ? new Date() : null,
       profile: {
         create: { type, name, bio, bioTinder, photoUrl, ...(kind ? { titulaireKind: kind } : {}) },
       },

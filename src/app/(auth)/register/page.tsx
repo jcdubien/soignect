@@ -136,6 +136,7 @@ function RegisterForm() {
         phone: toE164(phoneCountry, phone) || undefined,
         phoneCountry,
         emailOptIn,
+        acceptedTerms, // consentement légal enregistré (section 150)
       });
     } catch {
       setError("Problème de connexion. Vérifiez votre réseau et réessayez.");
