@@ -110,7 +110,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* ── Header top ── */}
       <header className="bg-white border-b border-gray-100 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3 sticky top-0 z-40 shadow-sm">
         <Link href={homeHref} className="flex items-center gap-1.5 flex-shrink-0">
-          <Image src="/logo-soignect-symbol.png" alt="" width={26} height={26} className="shrink-0" priority />
+          <Image src="/GeminiLogo.png" alt="" width={26} height={26} className="shrink-0" priority />
           <span className="text-xl font-black text-gray-800 tracking-tight">Soignect</span>
         </Link>
 

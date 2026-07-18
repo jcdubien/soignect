@@ -184,7 +184,7 @@ function RegisterForm() {
       {/* Logo */}
       <div className="flex flex-col items-center justify-center pt-10 pb-6 px-4 text-center">
         <Link href="/login" className="mb-2">
-          <Image src="/logo-soignect-web.png" alt="Soignect" width={132} height={132} priority className="rounded-2xl shadow-xl" />
+          <Image src="/GeminiLogo.png" alt="Soignect" width={132} height={132} priority className="rounded-2xl shadow-xl" />
         </Link>
         <p className="text-kine-100 text-xs font-medium tracking-wide">
           {step === 1 ? "Bienvenue !" : step === 2 ? "Votre identité" : "Votre présentation"}
