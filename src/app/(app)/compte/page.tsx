@@ -38,6 +38,10 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
       secondaryPhotoUrl2: true,
       isEmployeur: true,
       titulaireKind: true,
+      rpps: true,
+      numeroOrdre: true,
+      adresse: true,
+      siret: true,
       user: { select: { phone: true, phoneCountry: true, emailOptIn: true, notifyConsultation: true } },
     },
   });

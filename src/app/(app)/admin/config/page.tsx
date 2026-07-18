@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import ConfigToggle from "./ConfigToggle";
+import EnforceContractToggle from "./EnforceContractToggle";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminConfigPage() {
   const cfg = await prisma.platformConfig.findFirst();
   const freeAccessMode = cfg?.freeAccessMode ?? true;
+  const enforceContractProfile = cfg?.enforceContractProfile ?? false;
   const cabinetCount = await prisma.profile.count({ where: { type: "TITULAIRE" } });
 
   return (
@@ -20,6 +22,7 @@ export default async function AdminConfigPage() {
       </div>
 
       <ConfigToggle initial={freeAccessMode} />
+      <EnforceContractToggle initial={enforceContractProfile} />
     </div>
   );
 }

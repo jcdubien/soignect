@@ -17,6 +17,11 @@ const updateSchema = z.object({
   isVerified: z.boolean().optional(),
   isEmployeur: z.boolean().optional(),
   titulaireKind: z.nativeEnum(TitulaireKind).optional(),
+  // Identité contractuelle (section 150) — portée par le Profile, injectée dans le PDF
+  rpps: z.string().max(20).nullable().optional(),
+  numeroOrdre: z.string().max(30).nullable().optional(),
+  adresse: z.string().max(200).nullable().optional(),
+  siret: z.string().max(20).nullable().optional(),
   // Champs notifications (portés par User, section 50-51)
   phone: z.string().max(20).nullable().optional(),
   phoneCountry: z.string().max(4).optional(),

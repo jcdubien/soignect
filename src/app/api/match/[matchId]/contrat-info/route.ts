@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { hasPremiumAccess } from "@/lib/platform";
+import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
+import { missingContractLabels } from "@/lib/contractProfile";
+
+const IDENTITY_SELECT = {
+  name: true, rpps: true, numeroOrdre: true, adresse: true, siret: true, titulaireKind: true,
+} as const;
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +23,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
-      profileA: { select: { id: true, name: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true } },
-      profileB: { select: { id: true, name: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true } },
+      profileA: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, ...IDENTITY_SELECT } },
+      profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, ...IDENTITY_SELECT } },
       missionA: { select: { missionType: true, retrocessionRate: true } },
       missionB: { select: { missionType: true, retrocessionRate: true } },
     },
@@ -50,10 +55,18 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const retrocessionPct =
     match.missionA?.retrocessionRate ?? match.missionB?.retrocessionRate ?? 70;
 
+  // Complétude de l'identité contractuelle (section 150) des deux parties.
+  const missingSelf  = missingContractLabels(myProfile);
+  const missingOther = missingContractLabels(theirProfile);
+  const enforce = await isContractProfileEnforced();
+
   return NextResponse.json({
     missionType,
     theirName:       theirProfile.name,
     hasPremium,
     retrocessionPct,
+    missingSelf,      // champs manquants du profil courant → lien /compte
+    missingOther,     // champs manquants de l'autre partie → message informatif
+    enforce,          // true = blocage dur ; false = avertissement non bloquant
   });
 }

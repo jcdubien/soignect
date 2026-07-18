@@ -42,6 +42,11 @@ interface ProfileData {
   secondaryPhotoUrl2: string | null;
   isEmployeur: boolean;
   titulaireKind: TitulaireKind;
+  // Identité contractuelle (section 150) — injectée dans le PDF de contrat
+  rpps: string | null;
+  numeroOrdre: string | null;
+  adresse: string | null;
+  siret: string | null;
   user?: { phone: string | null; phoneCountry: string | null; emailOptIn: boolean; notifyConsultation?: boolean } | null;
 }
 
@@ -61,8 +66,12 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   const [bioTinder, setBioTinder] = useState(profile.bioTinder ?? "");
   const [region, setRegion]       = useState<Region>(profile.region);
   const [profession, setProfession] = useState<Profession>(profile.profession);
-  const [rpps, setRpps]           = useState("");
+  const [rpps, setRpps]           = useState(profile.rpps ?? "");
+  const [numeroOrdre, setNumeroOrdre] = useState(profile.numeroOrdre ?? "");
+  const [adresse, setAdresse]     = useState(profile.adresse ?? "");
+  const [siret, setSiret]         = useState(profile.siret ?? "");
   const [kind, setKind] = useState<TitulaireKind>(profile.titulaireKind);
+  const isStructure = profile.type === "TITULAIRE" && kind === "STRUCTURE";
 
   // Notifications (section 50-51)
   const initPhone = splitE164(profile.user?.phone, profile.user?.phoneCountry);
@@ -93,6 +102,11 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         name: name.trim() || undefined,
         bioTinder: bioTinder.trim() || undefined,
         region, profession, titulaireKind: kind,
+        // Identité contractuelle (section 150) — persistée pour injection PDF
+        rpps: rpps.trim() || null,
+        numeroOrdre: numeroOrdre.trim() || null,
+        adresse: adresse.trim() || null,
+        siret: siret.trim() || null,
         phone: toE164(phoneCountry, phone) || null,
         phoneCountry,
         emailOptIn,
@@ -222,39 +236,95 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
           </div>
         </div>
 
-        {/* RPPS */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
-            N° RPPS
-            {verified && (
-              <span className="ml-2 px-1.5 py-0.5 bg-emerald-100 text-emerald-600 rounded text-[10px] font-bold">VÉRIFIÉ</span>
-            )}
-          </label>
-          <div className="flex gap-2">
+        {/* ── Identité contractuelle (section 150) — figure dans le PDF de contrat ── */}
+        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Champs <strong>obligatoires pour générer un contrat</strong> (ils y figurent). Complétez-les dès maintenant.
+        </p>
+
+        {!isStructure && (
+          <>
+            {/* RPPS */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                N° RPPS <span className="text-red-500">*</span>
+                {verified && (
+                  <span className="ml-2 px-1.5 py-0.5 bg-emerald-100 text-emerald-600 rounded text-[10px] font-bold">VÉRIFIÉ</span>
+                )}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={rpps}
+                  onChange={e => setRpps(e.target.value.replace(/\D/g, ""))}
+                  maxLength={11}
+                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+                  placeholder="10 chiffres"
+                />
+                <button
+                  onClick={handleVerifyRpps}
+                  disabled={verifying || !rpps.trim()}
+                  className="px-4 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-semibold hover:bg-kine-700 transition disabled:opacity-40"
+                >
+                  {verifying ? "…" : "Vérifier"}
+                </button>
+              </div>
+              {verifyResult && (
+                <p className={`text-xs mt-1.5 font-medium ${verifyResult.startsWith("✓") ? "text-emerald-600" : "text-red-500"}`}>
+                  {verifyResult}
+                </p>
+              )}
+              <p className="text-[10px] text-gray-400 mt-1">
+                Vérifiable via l&apos;annuaire ANS ; conservé pour figurer sur vos contrats.
+              </p>
+            </div>
+
+            {/* N° Ordre */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                N° d&apos;inscription à l&apos;Ordre <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={numeroOrdre}
+                onChange={e => setNumeroOrdre(e.target.value)}
+                maxLength={30}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+                placeholder="Ex : 971 0000 0000"
+              />
+            </div>
+          </>
+        )}
+
+        {/* SIRET (structure employeuse) */}
+        {isStructure && (
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              N° SIRET <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
-              value={rpps}
-              onChange={e => setRpps(e.target.value.replace(/\D/g, ""))}
-              maxLength={11}
-              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
-              placeholder="10 chiffres"
+              value={siret}
+              onChange={e => setSiret(e.target.value.replace(/\D/g, ""))}
+              maxLength={14}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+              placeholder="14 chiffres"
             />
-            <button
-              onClick={handleVerifyRpps}
-              disabled={verifying || !rpps.trim()}
-              className="px-4 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-semibold hover:bg-kine-700 transition disabled:opacity-40"
-            >
-              {verifying ? "…" : "Vérifier"}
-            </button>
           </div>
-          {verifyResult && (
-            <p className={`text-xs mt-1.5 font-medium ${verifyResult.startsWith("✓") ? "text-emerald-600" : "text-red-500"}`}>
-              {verifyResult}
-            </p>
-          )}
-          <p className="text-[10px] text-gray-400 mt-1">
-            Le numéro RPPS n&apos;est pas stocké — sert uniquement à la vérification.
-          </p>
+        )}
+
+        {/* Adresse professionnelle (tous) */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Adresse professionnelle <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={adresse}
+            onChange={e => setAdresse(e.target.value)}
+            maxLength={200}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+            placeholder="N°, rue, code postal, commune"
+          />
         </div>
       </section>
 

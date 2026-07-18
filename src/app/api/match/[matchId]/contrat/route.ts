@@ -8,7 +8,8 @@ import { buildAssisanatPdf } from "@/lib/contrats/template-assistanat";
 import { buildCollaborationPdf } from "@/lib/contrats/template-collaboration";
 import type { ContractParty } from "@/lib/contrats/types";
 import { sendContratEmail } from "@/lib/email";
-import { hasPremiumAccess } from "@/lib/platform";
+import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
+import { missingContractFields } from "@/lib/contractProfile";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
@@ -24,11 +25,23 @@ function professionLabel(p: string): string {
   return map[p] ?? p;
 }
 
-function partyFromProfile(profile: { name: string | null; profession: string; location?: string | null }, location: string): ContractParty {
+function partyFromProfile(
+  profile: {
+    name: string | null; profession: string; location?: string | null;
+    rpps?: string | null; numeroOrdre?: string | null; adresse?: string | null;
+    siret?: string | null; titulaireKind?: string | null;
+  },
+  location: string
+): ContractParty {
   return {
-    name:       profile.name ?? "",
-    profession: professionLabel(profile.profession),
+    name:        profile.name ?? "",
+    profession:  professionLabel(profile.profession),
     location,
+    rpps:        profile.rpps ?? null,
+    numeroOrdre: profile.numeroOrdre ?? null,
+    adresse:     profile.adresse ?? null,
+    siret:       profile.siret ?? null,
+    isStructure: profile.titulaireKind === "STRUCTURE",
   };
 }
 
@@ -101,6 +114,20 @@ export async function GET(req: NextRequest, { params }: Params) {
   // Identifier TITULAIRE et l'autre partie
   const profileTitulaire = match.profileA.type === "TITULAIRE" ? match.profileA : match.profileB;
   const profileAutre      = match.profileA.type === "TITULAIRE" ? match.profileB : match.profileA;
+
+  // Identité contractuelle (section 150) — blocage dur si activé et une des 2 parties
+  // incomplète (RPPS/N° Ordre/adresse praticiens, SIRET/adresse structures). En phase
+  // d'avertissement (flag off), on laisse générer avec des placeholders « à compléter ».
+  if (await isContractProfileEnforced()) {
+    const missSelf  = missingContractFields(myProfile);
+    const missOther = missingContractFields(profileId === profileTitulaire.id ? profileAutre : profileTitulaire);
+    if (missSelf.length > 0 || missOther.length > 0) {
+      return NextResponse.json(
+        { error: "Identité contractuelle incomplète — complétez votre profil (et l'autre partie le sien) avant de générer le contrat." },
+        { status: 422 }
+      );
+    }
+  }
   const missionTitulaire  = match.profileA.type === "TITULAIRE" ? match.missionA : match.missionB;
   const missionAutre      = match.profileA.type === "TITULAIRE" ? match.missionB : match.missionA;
 

@@ -2,6 +2,12 @@ export interface ContractParty {
   name: string;
   profession: string;
   location: string;
+  // Identité contractuelle (section 150) — injectée dans le PDF (remplace les placeholders).
+  rpps?: string | null;
+  numeroOrdre?: string | null;
+  adresse?: string | null;
+  siret?: string | null;
+  isStructure?: boolean; // structure employeuse → SIRET au lieu de RPPS/Ordre
 }
 
 // Images de signature (data URL base64) — apposées en bas du contrat (section 61).

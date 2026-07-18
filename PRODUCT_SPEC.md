@@ -11293,3 +11293,145 @@ la précision de la vision, à concevoir en détail (maquettes, flux
 exact) une fois la bêta lancée et les premiers retours terrain 
 digérés.
 ```
+
+---
+
+## 143. BUG — Décalage horizontal coupant le bord gauche (page Relations, mobile)
+
+### Constat
+
+```
+Page "Relations" (mises en relation confirmées) affiche un contenu 
+décalé vers la gauche, hors du viewport : titre tronqué, avatar 
+coupé, labels tronqués, y compris la barre de navigation du bas. 
+Cause probable : scroll horizontal non nul par défaut, ou conteneur 
+avec largeur/marge dépassant le viewport.
+```
+
+### Statut
+
+```
+🟡 Prompt rédigé, non bloquant pour la bêta (bug visuel, pas de 
+perte de fonctionnalité — le chat reste accessible via "Ouvrir le 
+chat"), mais à corriger rapidement vu l'impact visuel fort.
+```
+
+---
+
+## 144. BUG CONCEPTUEL — Zones géographiques mal placées côté cabinet (correction architecture section 138)
+
+### Problème identifié
+
+```
+Le champ "Zones géographiques concernées" (section 138) a été
+implémenté sur Mission (annonce, côté cabinet) ET Disponibilite
+(côté candidat) — incohérent conceptuellement. Un cabinet a une
+adresse fixe (commune), pas une zone de recherche. Seul le candidat
+a une flexibilité géographique à exprimer.
+```
+
+### Correction
+
+```
+- Retirer le sélecteur de zones du formulaire de création/édition
+  d'annonce (côté cabinet) — garder uniquement "Commune du cabinet"
+- Garder le sélecteur de zones UNIQUEMENT côté disponibilité
+  (candidat)
+- Corriger scoreGeo : vérifier si Mission.location (commune
+  précise) tombe dans une zone sélectionnée par Disponibilite.zones
+  — pas une comparaison zones-vs-zones des deux côtés
+```
+
+### Bug associé — texte dupliqué bioTinder (formulaire annonce)
+
+```
+Le texte saisi s'affiche superposé au placeholder "Je recherche...",
+au lieu de le remplacer. Probable même famille de bug que les
+superpositions déjà rencontrées sur les cartes swipe.
+```
+
+### Statut
+
+```
+🟡 Prompt rédigé, non bloquant pour la bêta (fonctionnel mais
+source de confusion pour les cabinets testeurs) — à corriger
+rapidement vu l'impact sur la compréhension du produit.
+```
+
+---
+
+## 145. FEATURE — Menu adaptatif disponibilité selon match confirmé (miroir cabinet section 102/106)
+
+### Contexte
+
+```
+Cliquer sur une période de disponibilité avec un match confirmé
+affiche encore le modal générique "Modifier la période" avec un
+bouton "Voir mes mises en relation" trop vague. Devrait afficher
+directement la fiche du match précis, pas une liste.
+```
+
+### Comportement attendu
+
+```
+Cas 1 (pas de match) : modal actuel inchangé.
+Cas 2 (match confirmé) : "Voir la fiche du match" (accès direct)
++ "Supprimer ce match" (confirmation obligatoire, alerte
+conséquences, notification email a la partie adverse, cohérent
+avec section 137 - nouvel événement à ajouter, impact sur le
+Planning cabinet à vérifier - section 102).
+```
+
+### Statut
+
+```
+✅ CORRIGÉ côté remplaçant/disponibilité (commit aac9052, 17/07). 
+Menu adaptatif livré : "Voir la fiche du match" → /match/[id], 
+"Supprimer ce match" → parcours sécurisé (confirmation + 
+avertissement conséquences), DELETE /api/match/[matchId]?force=true, 
+notification email enrichie (wasConfirmed), nettoyage complet 
+(swipes, match, timelines remises en Recherche, poste cabinet 
+repasse en Recrutement).
+
+DÉCISION (17/07) : l'annulation d'un match confirmé N'annule PAS 
+le déclenchement billing individuel déjà survenu (section 100) — 
+le cabinet a déjà obtenu la valeur au moment de la signature, évite 
+aussi un contournement signer-puis-annuler.
+
+✅ COMPLÉMENT DÉCIDÉ (17/07) : répliquer le même menu adaptatif 
+côté cabinet/Planning, pour la symétrie. Prompt rédigé, en attente 
+d'envoi.
+```
+
+---
+
+## 146. FEATURE — Champs profil obligatoires (RPPS, adresse) avant accès contrat (extension section 137)
+
+### Contexte
+
+```
+Suite au diagnostic section 137 (formulaire contrat confirmé
+correct, sans bug) : le vrai problème est que numéro RPPS et
+adresse viennent du PROFIL, pas du contrat. Si absents du profil,
+ils apparaissent vides et non modifiables dans le PDF final, sans
+aucun moyen de les corriger depuis le flux contrat, ni d'alerte
+en amont.
+```
+
+### Feature
+
+```
+Bloquer accès édition/génération contrat si profil incomplet
+(RPPS, adresse, autres champs à identifier) -> redirection /compte
+avec message clair. Rendre ces champs obligatoires dans le
+formulaire de compte (cohérent avec la photo obligatoire déjà
+actée). Lister les profils existants concernés avant activation.
+```
+
+### Statut
+
+```
+🟡 Prompt rédigé, non bloquant pour la bêta mais recommandé avant
+l'usage réel par les 30 testeurs (risque de contrats PDF
+incomplets/inutilisables sinon).
+```

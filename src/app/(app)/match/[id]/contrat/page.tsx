@@ -11,6 +11,9 @@ interface MatchInfo {
   missionType: "REMPLACEMENT" | "ASSISTANAT" | "COLLABORATION" | null;
   theirName: string | null;
   hasPremium: boolean;
+  missingSelf?: string[];   // champs d'identité contractuelle manquants (moi)
+  missingOther?: string[];  // champs manquants de l'autre partie
+  enforce?: boolean;        // true = blocage dur ; false = avertissement
 }
 
 interface SigStatus {
@@ -147,6 +150,40 @@ export default function ContratPage() {
     );
   }
 
+  // Identité contractuelle (section 150) — champs requis pour le PDF.
+  const missingSelf  = info.missingSelf ?? [];
+  const missingOther = info.missingOther ?? [];
+  const identityIncomplete = missingSelf.length > 0 || missingOther.length > 0;
+
+  // Blocage dur : flag actif ET identité incomplète → accès contrat refusé, CTA /compte.
+  if (info.enforce && identityIncomplete) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12 flex flex-col items-center gap-5 text-center">
+        <span className="text-5xl">📝</span>
+        <h1 className="text-xl font-black text-gray-900">Profil à compléter avant le contrat</h1>
+        {missingSelf.length > 0 && (
+          <div className="w-full bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-left">
+            <p className="text-sm font-semibold text-amber-800 mb-1">Vos informations manquantes :</p>
+            <ul className="list-disc list-inside text-sm text-amber-700">
+              {missingSelf.map((f) => <li key={f}>{f}</li>)}
+            </ul>
+          </div>
+        )}
+        {missingOther.length > 0 && (
+          <p className="text-sm text-gray-500">
+            L&apos;autre partie ({info.theirName ?? "cabinet"}) doit aussi compléter : {missingOther.join(", ")}.
+          </p>
+        )}
+        {missingSelf.length > 0 && (
+          <Link href="/compte" className="w-full max-w-xs py-3 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition">
+            Compléter mon profil →
+          </Link>
+        )}
+        <Link href={`/match/${id}`} className="text-kine-600 text-sm underline">← Retour à la mise en relation</Link>
+      </div>
+    );
+  }
+
   const missionType   = info.missionType ?? "REMPLACEMENT";
   const isRemplacement = missionType === "REMPLACEMENT";
   const typeLabel     = TYPE_LABELS[missionType] ?? missionType;
@@ -172,6 +209,20 @@ export default function ContratPage() {
           {typeLabel} · {info.theirName ?? "Autre partie"}
         </p>
       </div>
+
+      {/* Avertissement identité contractuelle incomplète (section 150) — non bloquant
+          tant que le blocage dur n'est pas activé. Le PDF affichera « à compléter » sinon. */}
+      {identityIncomplete && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-800">
+          ⚠️ <strong>Informations manquantes pour le contrat.</strong>
+          {missingSelf.length > 0 && (
+            <> Votre profil : {missingSelf.join(", ")} — <Link href="/compte" className="underline font-semibold">compléter mon profil</Link>.</>
+          )}
+          {missingOther.length > 0 && (
+            <> {info.theirName ?? "L'autre partie"} doit compléter : {missingOther.join(", ")}.</>
+          )}
+        </div>
+      )}
 
       {/* Bandeau contrat officiel (les 2 ont signé) → formulaire figé */}
       {locked && (

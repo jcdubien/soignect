@@ -3,6 +3,7 @@ import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import { type ContractDataRemplacement, SIGNATURE_LEGAL_MENTION } from "./types";
 import { DraftBanner, DraftWatermark } from "./watermark";
+import { PartyIdentityRows } from "./party-identity";
 
 // Utilise Helvetica intégrée à pdf-lib — pas de chargement de police externe nécessaire
 const S = StyleSheet.create({
@@ -60,18 +61,14 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
         <View style={S.infoBox}>
           <Text style={[S.articleTitle, { marginBottom: 4 }]}>Le remplacé :</Text>
           <View style={S.infoRow}><Text style={S.infoLabel}>Nom :</Text><Text style={S.infoVal}>{remplace.name || "[Nom du titulaire]"}</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>N° RPPS :</Text><Text style={[S.infoVal, S.placeholder]}>[N° RPPS à compléter]</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>N° Ordre :</Text><Text style={[S.infoVal, S.placeholder]}>[N° Ordre à compléter]</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>Adresse professionnelle :</Text><Text style={[S.infoVal, S.placeholder]}>{remplace.location} — [adresse complète à compléter]</Text></View>
+          <PartyIdentityRows party={remplace} />
           <View style={S.infoRow}><Text style={S.infoLabel}>Profession :</Text><Text style={S.infoVal}>{remplace.profession}</Text></View>
         </View>
 
         <View style={S.infoBox}>
           <Text style={[S.articleTitle, { marginBottom: 4 }]}>Le remplaçant :</Text>
           <View style={S.infoRow}><Text style={S.infoLabel}>Nom :</Text><Text style={S.infoVal}>{remplacant.name || "[Nom du remplaçant]"}</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>N° RPPS :</Text><Text style={[S.infoVal, S.placeholder]}>[N° RPPS à compléter]</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>N° Ordre :</Text><Text style={[S.infoVal, S.placeholder]}>[N° Ordre à compléter]</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>Adresse :</Text><Text style={[S.infoVal, S.placeholder]}>{remplacant.location} — [adresse complète à compléter]</Text></View>
+          <PartyIdentityRows party={remplacant} />
           <View style={S.infoRow}><Text style={S.infoLabel}>Profession :</Text><Text style={S.infoVal}>{remplacant.profession}</Text></View>
         </View>
 

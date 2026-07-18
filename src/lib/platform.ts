@@ -12,6 +12,17 @@ export async function isFreeAccessMode(): Promise<boolean> {
   }
 }
 
+// Blocage dur des contrats si identité contractuelle incomplète (section 150).
+// false (défaut) = phase d'avertissement non bloquant ; true = accès contrat refusé.
+export async function isContractProfileEnforced(): Promise<boolean> {
+  try {
+    const cfg = await prisma.platformConfig.findFirst({ select: { enforceContractProfile: true } });
+    return cfg?.enforceContractProfile ?? false;
+  } catch {
+    return false;
+  }
+}
+
 // Accès Premium effectif (sections 2 / 99 / 100) :
 //   (freeAccessMode global ET (billingTriggeredAt null OU dans la période de grâce))
 //   OU abonnement payant actif.

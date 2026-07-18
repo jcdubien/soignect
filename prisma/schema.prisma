@@ -183,6 +183,13 @@ model Profile {
   // Vérification RPPS via API ANS (section 30)
   isVerified  Boolean @default(false)
 
+  // Identité contractuelle (section 150) — injectée dans le PDF de contrat, obligatoire
+  // avant génération. Praticiens : rpps + numeroOrdre + adresse. Structures : siret + adresse.
+  rpps        String?
+  numeroOrdre String?
+  adresse     String?
+  siret       String?
+
   // Établissement employeur : terminologie CDI/CDD/Vacation (section 37)
   isEmployeur Boolean @default(false)
   // Distinction explicite Cabinet/Structure (segmentation & billing, section 7/99)
@@ -490,5 +497,8 @@ model TraceEvent {
 model PlatformConfig {
   id             String   @id @default(cuid())
   freeAccessMode Boolean  @default(true)
+  // Blocage dur des contrats si identité contractuelle incomplète (section 150).
+  // false = phase d'avertissement (non bloquant) ; true = accès contrat refusé si incomplet.
+  enforceContractProfile Boolean @default(false)
   updatedAt      DateTime @updatedAt
 }

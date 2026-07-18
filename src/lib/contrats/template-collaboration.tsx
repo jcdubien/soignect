@@ -3,6 +3,7 @@ import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import { type ContractDataCollaboration, SIGNATURE_LEGAL_MENTION } from "./types";
 import { DraftBanner, DraftWatermark } from "./watermark";
+import { PartyIdentityRows } from "./party-identity";
 
 const S = StyleSheet.create({
   page: { fontFamily: "Helvetica", fontSize: 10, paddingTop: 50, paddingBottom: 60, paddingHorizontal: 55, lineHeight: 1.5, color: "#1a1a1a" },
@@ -60,18 +61,14 @@ export function buildCollaborationPdf(data: ContractDataCollaboration) {
         <View style={S.infoBox}>
           <Text style={[S.articleTitle, { marginBottom: 4 }]}>Le titulaire :</Text>
           <View style={S.infoRow}><Text style={S.infoLabel}>Nom :</Text><Text style={S.infoVal}>{titulaire.name || "[Nom du titulaire]"}</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>N° RPPS :</Text><Text style={[S.infoVal, S.placeholder]}>[N° RPPS à compléter]</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>N° Ordre :</Text><Text style={[S.infoVal, S.placeholder]}>[N° Ordre à compléter]</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>Adresse professionnelle :</Text><Text style={[S.infoVal, S.placeholder]}>{titulaire.location} — [adresse complète à compléter]</Text></View>
+          <PartyIdentityRows party={titulaire} />
           <View style={S.infoRow}><Text style={S.infoLabel}>Profession :</Text><Text style={S.infoVal}>{titulaire.profession}</Text></View>
         </View>
 
         <View style={S.infoBox}>
           <Text style={[S.articleTitle, { marginBottom: 4 }]}>Le collaborateur :</Text>
           <View style={S.infoRow}><Text style={S.infoLabel}>Nom :</Text><Text style={S.infoVal}>{collaborateur.name || "[Nom du collaborateur]"}</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>N° RPPS :</Text><Text style={[S.infoVal, S.placeholder]}>[N° RPPS à compléter]</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>N° Ordre :</Text><Text style={[S.infoVal, S.placeholder]}>[N° Ordre à compléter]</Text></View>
-          <View style={S.infoRow}><Text style={S.infoLabel}>Adresse :</Text><Text style={[S.infoVal, S.placeholder]}>{collaborateur.location} — [adresse complète à compléter]</Text></View>
+          <PartyIdentityRows party={collaborateur} />
           <View style={S.infoRow}><Text style={S.infoLabel}>Profession :</Text><Text style={S.infoVal}>{collaborateur.profession}</Text></View>
         </View>
 
