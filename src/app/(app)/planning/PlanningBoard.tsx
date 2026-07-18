@@ -1116,6 +1116,76 @@ function SelfTimelineRow({
   );
 }
 
+// Annulation sécurisée d'un match confirmé (section 149/145) — symétrique au menu
+// disponibilité. Deux temps : confirmation explicite + avertissement conséquences, puis
+// DELETE /api/match/[id]?force=true (route réutilisée : notif autre partie + resync poste
+// en Recrutement, section 102). Le déclenchement billing individuel n'est PAS annulé (acté).
+function CancelMatchButton({ matchId, otherName, onCancelled }: {
+  matchId: string; otherName: string | null; onCancelled: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function cancel() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/match/${matchId}?force=true`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(typeof d?.error === "string" ? d.error : "L'annulation a échoué. Réessayez.");
+        setBusy(false);
+        return;
+      }
+      onCancelled();
+    } catch {
+      setError("Erreur réseau. Réessayez.");
+      setBusy(false);
+    }
+  }
+
+  if (!confirming) {
+    return (
+      <button
+        onClick={() => setConfirming(true)}
+        className="w-full py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition"
+      >
+        Supprimer ce match
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+      <p className="text-xs text-red-700 leading-relaxed">
+        Annuler cette mise en relation confirmée ? Le contrat signé sera annulé, la
+        conversation supprimée, et le poste redeviendra à pourvoir (Recrutement).{" "}
+        <strong>{otherName ?? "L'autre partie"} sera notifié·e de cette annulation.</strong>{" "}
+        Cette action est irréversible.
+      </p>
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={() => setConfirming(false)}
+          disabled={busy}
+          className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-40"
+        >
+          Retour
+        </button>
+        <button
+          onClick={cancel}
+          disabled={busy}
+          className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition disabled:opacity-40"
+        >
+          {busy ? "Annulation…" : "Oui, annuler"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Panel latéral droit ────────────────────────────────────────────────────────
 
 function SidePanel({
@@ -1266,7 +1336,7 @@ function SidePanel({
             href={`/match/${match.id}`}
             className="w-full py-3 bg-kine-600 text-white rounded-xl text-sm font-bold text-center hover:bg-kine-700 transition"
           >
-            Recontacter →
+            Voir la fiche du match →
           </Link>
         )}
         {isFinished && match && (
@@ -1276,6 +1346,14 @@ function SidePanel({
           >
             Recommander
           </Link>
+        )}
+        {/* Annulation sécurisée du match (Cas 2, symétrique disponibilité) */}
+        {match && (
+          <CancelMatchButton
+            matchId={match.id}
+            otherName={them?.name ?? null}
+            onCancelled={() => { onClose(); router.refresh(); }}
+          />
         )}
         {post.isActive && (
           <button
