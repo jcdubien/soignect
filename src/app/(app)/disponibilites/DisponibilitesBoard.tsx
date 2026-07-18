@@ -219,11 +219,13 @@ function SlotEditModal({ slot, onClose, onSaved }: {
   const [start, setStart] = useState(toDate(slot.startDate)?.toISOString().slice(0, 10) ?? "");
   const [end, setEnd]     = useState(toDate(slot.endDate)?.toISOString().slice(0, 10) ?? "");
   const [busy, setBusy]   = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function save() {
     if (!start || !end || busy) return;
     setBusy(true);
-    await fetch(`/api/missions/${slot.id}`, {
+    setError(null);
+    const res = await fetch(`/api/missions/${slot.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -232,13 +234,28 @@ function SlotEditModal({ slot, onClose, onSaved }: {
         endDate: new Date(end).toISOString(),
       }),
     });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setError(typeof d?.error === "string" ? d.error : "L'enregistrement a échoué. Réessayez.");
+      setBusy(false);
+      return;
+    }
     onSaved();
   }
 
   async function remove() {
     if (busy) return;
     setBusy(true);
-    await fetch(`/api/missions/${slot.id}`, { method: "DELETE" });
+    setError(null);
+    // On NE ferme le modal que si la suppression a réellement réussi (sinon l'erreur était
+    // avalée et la période restait — le serveur nettoie désormais swipes/matchs liés).
+    const res = await fetch(`/api/missions/${slot.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setError(typeof d?.error === "string" ? d.error : "La suppression a échoué. Réessayez.");
+      setBusy(false);
+      return;
+    }
     onSaved();
   }
 
@@ -270,10 +287,13 @@ function SlotEditModal({ slot, onClose, onSaved }: {
           >
             Voir mes mises en relation →
           </Link>
+          {error && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+          )}
           <div className="flex gap-2 pt-1">
             <button onClick={remove} disabled={busy}
               className="px-3 py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition disabled:opacity-40">
-              Supprimer
+              {busy ? "…" : "Supprimer"}
             </button>
             <button onClick={onClose} disabled={busy}
               className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-40">

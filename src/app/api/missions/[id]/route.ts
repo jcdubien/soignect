@@ -101,6 +101,23 @@ export async function DELETE(
     return NextResponse.json({ error: "Interdit" }, { status: 403 });
   }
 
-  await prisma.mission.delete({ where: { id } });
+  // Une période liée à un match CONFIRMÉ (contrat signé) ne se supprime pas ici : passer par
+  // l'annulation de match dédiée (section 145/149) qui notifie l'autre partie et resync le poste.
+  if (mission.briqueStatus === "CONFIRME") {
+    return NextResponse.json(
+      { error: "Cette période est liée à un contrat confirmé. Utilisez « Supprimer ce match » pour l'annuler." },
+      { status: 409 }
+    );
+  }
+
+  // Nettoyage des dépendances AVANT suppression, sinon les contraintes de clé étrangère
+  // (Swipe.swipedMission, Match.missionA/B — sans onDelete cascade) font échouer le delete :
+  // on retire les swipes reçus et les mises en relation non confirmées liées à cette annonce
+  // (les Message des matchs supprimés partent en cascade au niveau base).
+  await prisma.$transaction([
+    prisma.swipe.deleteMany({ where: { swipedMissionId: id } }),
+    prisma.match.deleteMany({ where: { OR: [{ missionAId: id }, { missionBId: id }] } }),
+    prisma.mission.delete({ where: { id } }),
+  ]);
   return NextResponse.json({ deleted: true });
 }
