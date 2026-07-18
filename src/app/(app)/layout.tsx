@@ -8,6 +8,7 @@ import { BILLING_GRACE_DAYS } from "@/lib/billing";
 import { isFreeAccessMode } from "@/lib/platform";
 import { fmtDay } from "@/lib/dates";
 import ActiveAnnoncesMenu from "./ActiveAnnoncesMenu";
+import ActiveAnnoncesMobile from "./ActiveAnnoncesMobile";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Point d'entrée mobile vers les annonces actives (section 141) — sm:hidden,
+              équivalent du compteur cliquable desktop masqué sur mobile. */}
+          {profileType === "TITULAIRE" && <ActiveAnnoncesMobile missions={activeMissions} />}
           {isAdmin && (
             <Link
               href="/admin"

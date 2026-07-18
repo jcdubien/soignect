@@ -1,20 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
-
-interface ActiveMission {
-  id: string;
-  title: string;
-  location: string;
-  missionType: string;
-}
-
-const TYPE_LABEL: Record<string, string> = {
-  REMPLACEMENT: "Remplacement",
-  ASSISTANAT: "Assistanat",
-  COLLABORATION: "Collaboration",
-};
+import ActiveAnnoncesList, { type ActiveMission } from "./ActiveAnnoncesList";
 
 // Compteur « N annonces actives » cliquable (section 21/102). Au clic : liste des annonces
 // actives du cabinet ; chaque item ouvre l'édition (flux « Modifier l'annonce » existant :
@@ -90,20 +77,7 @@ export default function ActiveAnnoncesMenu({
           <p className="px-4 py-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wide">
             Annonces actives
           </p>
-          {missions.map((m) => (
-            <Link
-              key={m.id}
-              href={`/missions/create?editId=${m.id}`}
-              onClick={() => setOpen(false)}
-              className="flex flex-col px-4 py-2 hover:bg-gray-50 transition"
-              role="menuitem"
-            >
-              <span className="text-sm font-semibold text-gray-800 truncate">{m.title}</span>
-              <span className="text-xs text-gray-400 truncate">
-                {TYPE_LABEL[m.missionType] ?? m.missionType} · 📍 {m.location}
-              </span>
-            </Link>
-          ))}
+          <ActiveAnnoncesList missions={missions} onItemClick={() => setOpen(false)} />
         </div>
       )}
     </div>
