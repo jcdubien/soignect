@@ -99,6 +99,8 @@ function RegisterForm() {
   const [phoneCountry, setPhoneCountry] = useState("GP");
   const [phone, setPhone] = useState("");
   const [emailOptIn, setEmailOptIn] = useState(true);
+  // Acceptation obligatoire des documents légaux (section 150) — bloque la création de compte.
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // Step 2 — optional photo (uploaded after account creation)
   const [pendingPhotoBlob, setPendingPhotoBlob] = useState<Blob | null>(null);
@@ -467,6 +469,23 @@ function RegisterForm() {
                 <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100 mb-3">{error}</p>
               )}
 
+              {/* Acceptation obligatoire des documents légaux (section 150) */}
+              <label className="flex items-start gap-2.5 mb-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-kine-600 shrink-0"
+                />
+                <span className="text-xs text-gray-500 leading-snug">
+                  J&apos;ai lu et j&apos;accepte les{" "}
+                  <a href="/cgu" target="_blank" rel="noopener noreferrer" className="text-kine-600 underline">CGU/CGV</a>, la{" "}
+                  <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-kine-600 underline">politique de confidentialité</a>{" "}
+                  et les{" "}
+                  <a href="/mentions-legales" target="_blank" rel="noopener noreferrer" className="text-kine-600 underline">mentions légales</a>.
+                </span>
+              </label>
+
               <div className="flex gap-3">
                 <button
                   type="button"
@@ -477,7 +496,7 @@ function RegisterForm() {
                 </button>
                 <button
                   onClick={handleFinalSubmit}
-                  disabled={loading}
+                  disabled={loading || !acceptedTerms}
                   className="md3-ripple flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
                 >
                   {loading ? "Création…" : "Rejoindre Soignect 🚀"}

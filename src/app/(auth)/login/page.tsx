@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import LegalFooter from "@/components/legal/LegalFooter";
 
 // N'autorise qu'un chemin interne relatif comme cible de retour (section 3)
 function safeReturnTo(v: string | null): string | null {
@@ -136,6 +137,7 @@ function LoginForm() {
           </p>
         </div>
       </div>
+      <LegalFooter className="text-white/70 pb-6 px-4" />
     </div>
   );
 }

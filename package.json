@@ -27,6 +27,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-image-crop": "^11.1.2",
+    "react-markdown": "^10.1.0",
     "resend": "^6.16.0",
     "stripe": "^17.3.1",
     "uploadthing": "^7.2.0",
