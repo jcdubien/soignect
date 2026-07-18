@@ -14,6 +14,8 @@ interface MissionSlot {
   endDate: string | null;
   briqueStatus: string;
   missionType: string;
+  matchId?: string | null;        // match rattaché (section 149) — présent si période pourvue
+  matchOtherName?: string | null; // nom de l'autre partie (cabinet) pour le menu adaptatif
 }
 
 interface Props {
@@ -288,6 +290,102 @@ function SlotEditModal({ slot, onClose, onSaved }: {
   );
 }
 
+// Menu adaptatif d'une période POURVUE (match confirmé, section 149) — au lieu du modal
+// d'édition : accès direct à la fiche du match précis + annulation sécurisée.
+function SlotMatchModal({ slot, onClose, onChanged }: {
+  slot: MissionSlot; onClose: () => void; onChanged: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function cancelMatch() {
+    if (!slot.matchId || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      // force=true : lève le garde « contrat confirmé » côté serveur pour CETTE annulation
+      // explicitement confirmée par l'utilisateur (notif de l'autre partie + resync planning).
+      const res = await fetch(`/api/match/${slot.matchId}?force=true`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(typeof d?.error === "string" ? d.error : "L'annulation a échoué. Réessayez.");
+        setBusy(false);
+        return;
+      }
+      onChanged();
+    } catch {
+      setError("Erreur réseau. Réessayez.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:px-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
+        {!confirming ? (
+          <>
+            <h3 className="font-bold text-gray-900 text-base">Mise en relation confirmée</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              {slot.matchOtherName ? `Avec ${slot.matchOtherName}` : "Période pourvue"} · {slot.title}
+            </p>
+            <div className="flex flex-col gap-2 mt-5">
+              <Link
+                href={`/match/${slot.matchId}`}
+                className="w-full py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold text-center hover:bg-kine-700 transition"
+              >
+                Voir la fiche du match →
+              </Link>
+              <button
+                onClick={() => setConfirming(true)}
+                className="w-full py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition"
+              >
+                Supprimer ce match
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition"
+              >
+                Fermer
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="font-bold text-gray-900 text-base">Annuler cette mise en relation confirmée ?</h3>
+            <div className="mt-3 rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700 leading-relaxed">
+              Êtes-vous sûr de vouloir annuler cette mise en relation confirmée ? Le contrat signé
+              rattaché à cette période sera annulé et la conversation supprimée ; la période
+              redeviendra disponible. <strong>{slot.matchOtherName ?? "L'autre partie"} sera
+              notifié·e de cette annulation.</strong> Cette action est irréversible.
+            </div>
+            {error && (
+              <p className="mt-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            )}
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setConfirming(false)}
+                disabled={busy}
+                className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-40"
+              >
+                Retour
+              </button>
+              <button
+                onClick={cancelMatch}
+                disabled={busy}
+                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition disabled:opacity-40"
+              >
+                {busy ? "Annulation…" : "Oui, annuler"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── DisponibilitesBoard principal ─────────────────────────────────────────────
 
 export default function DisponibilitesBoard({ profileName, profileType, profileLocation, missions }: Props) {
@@ -413,11 +511,21 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
 
       {/* Édition d'une disponibilité au clic sur la brique (section 64) */}
       {editSlot && (
-        <SlotEditModal
-          slot={editSlot}
-          onClose={() => setEditSlot(null)}
-          onSaved={() => { setEditSlot(null); router.refresh(); }}
-        />
+        editSlot.briqueStatus === "CONFIRME" && editSlot.matchId ? (
+          // Cas 2 — période pourvue (match confirmé) : menu dédié (fiche match + annulation)
+          <SlotMatchModal
+            slot={editSlot}
+            onClose={() => setEditSlot(null)}
+            onChanged={() => { setEditSlot(null); router.refresh(); }}
+          />
+        ) : (
+          // Cas 1 — période sans match : modal d'édition inchangé
+          <SlotEditModal
+            slot={editSlot}
+            onClose={() => setEditSlot(null)}
+            onSaved={() => { setEditSlot(null); router.refresh(); }}
+          />
+        )
       )}
 
       {/* Bandeau d'alerte contextuel (section 47) — période ouverte sans réponse */}

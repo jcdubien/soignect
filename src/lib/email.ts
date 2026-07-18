@@ -212,15 +212,23 @@ export async function sendSignatureAppliedEmail(
 // ── d) Mise en relation annulée ────────────────────────────────────────────────
 export async function sendRelationCancelledEmail(
   to: string,
-  opts: { optIn: boolean }
+  opts: { optIn: boolean; wasConfirmed?: boolean }
 ): Promise<void> {
   if (!opts.optIn) return;
+  // Annulation d'un match CONFIRMÉ (contrat signé) : message plus explicite sur les
+  // conséquences (section 149). Sinon, annulation d'une simple mise en relation.
+  const body = opts.wasConfirmed
+    ? `Une mise en relation <strong>confirmée</strong> a été annulée par l'autre partie.
+       Le contrat signé rattaché est annulé et le poste redevient à pourvoir.`
+    : `Une mise en relation a été annulée par l'autre partie. Le poste est à nouveau disponible.`;
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
-     <p style="font-size:15px;line-height:1.6;margin:0">
-       Une mise en relation a été annulée par l'autre partie. Le poste est à nouveau disponible.
-     </p>`,
+     <p style="font-size:15px;line-height:1.6;margin:0">${body}</p>`,
     { label: "Voir les propositions", path: "/annonces" }
   );
-  await sendEmail(to, "Une mise en relation a été annulée", html);
+  await sendEmail(
+    to,
+    opts.wasConfirmed ? "Une mise en relation confirmée a été annulée" : "Une mise en relation a été annulée",
+    html
+  );
 }

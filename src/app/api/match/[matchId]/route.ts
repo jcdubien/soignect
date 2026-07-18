@@ -7,10 +7,14 @@ export const dynamic = "force-dynamic";
 
 // DELETE /api/match/[matchId] — annulation unilatérale d'un match (section 48)
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ matchId: string }> }
 ) {
   const { matchId } = await params;
+  // force=true : annulation explicitement confirmée d'un match CONFIRMÉ (section 149, côté
+  // disponibilité). Lève le garde ci-dessous ; le reste du nettoyage (resync des 2 timelines,
+  // notification de l'autre partie) est identique et déjà correct.
+  const force = new URL(req.url).searchParams.get("force") === "true";
   const session = await auth();
   if (!session?.user?.profileId) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
@@ -33,7 +37,8 @@ export async function DELETE(
   const confirmed =
     match.missionA?.briqueStatus === "CONFIRME" ||
     match.missionB?.briqueStatus === "CONFIRME";
-  if (confirmed) {
+  // Un match confirmé (contrat signé) n'est annulable qu'avec confirmation explicite (force).
+  if (confirmed && !force) {
     return NextResponse.json(
       { error: "Contrat confirmé — annulation impossible" },
       { status: 403 }
@@ -52,9 +57,11 @@ export async function DELETE(
     }),
     // Supprimer le match (les Message sont supprimés en cascade, les ratings passent à null)
     prisma.match.delete({ where: { id: matchId } }),
-    // Les missions associées redeviennent disponibles dans les deux timelines
+    // Les missions associées redeviennent disponibles dans les deux timelines (resync section
+    // 102 : le poste cabinet repasse en Recrutement). On efface aussi le nom du successeur
+    // affiché (matchedName), positionné à la signature.
     ...(missionIds.length > 0
-      ? [prisma.mission.updateMany({ where: { id: { in: missionIds } }, data: { briqueStatus: "RECHERCHE" } })]
+      ? [prisma.mission.updateMany({ where: { id: { in: missionIds } }, data: { briqueStatus: "RECHERCHE", matchedName: null } })]
       : []),
   ]);
 
@@ -65,7 +72,8 @@ export async function DELETE(
     select: { email: true, emailOptIn: true },
   });
   if (otherUser) {
-    await sendRelationCancelledEmail(otherUser.email, { optIn: otherUser.emailOptIn });
+    // wasConfirmed → message adapté (contrat signé annulé), cohérent notifications section 137.
+    await sendRelationCancelledEmail(otherUser.email, { optIn: otherUser.emailOptIn, wasConfirmed: confirmed });
   }
 
   return NextResponse.json({ ok: true });
