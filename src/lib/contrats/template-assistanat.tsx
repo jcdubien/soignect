@@ -2,6 +2,7 @@
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import { type ContractDataAssisanat, SIGNATURE_LEGAL_MENTION } from "./types";
+import { DraftBanner, DraftWatermark } from "./watermark";
 
 const S = StyleSheet.create({
   page: { fontFamily: "Helvetica", fontSize: 10, paddingTop: 50, paddingBottom: 60, paddingHorizontal: 55, lineHeight: 1.5, color: "#1a1a1a" },
@@ -38,7 +39,7 @@ const LEGAL_MENTION =
 
 export function buildAssisanatPdf(data: ContractDataAssisanat) {
   const { titulaire, assistant, startDate, minMonths, redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
-    signatureTitulaireImg, signatureRemplacantImg } = data;
+    signatureTitulaireImg, signatureRemplacantImg, draft } = data;
   const dureeStr = minMonths ? `${minMonths} mois` : "[durée à compléter]";
 
   return (
@@ -50,6 +51,7 @@ export function buildAssisanatPdf(data: ContractDataAssisanat) {
           <Text style={S.title}>Contrat d'assistanat libéral</Text>
           <Text style={S.subtitle}>Masseurs-kinésithérapeutes — modèle CNOMK (15/11/2024)</Text>
           <Text style={S.version}>Généré le {fmtDate(generatedAt)}</Text>
+          <DraftBanner draft={draft} />
         </View>
 
         {/* Parties */}
@@ -284,6 +286,7 @@ export function buildAssisanatPdf(data: ContractDataAssisanat) {
         {/* Pied de page */}
         <Text style={S.footer}>{LEGAL_MENTION}</Text>
         <Text style={S.pageNum} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
+        <DraftWatermark draft={draft} />
       </Page>
     </Document>
   );

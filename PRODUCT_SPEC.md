@@ -11035,6 +11035,18 @@ l'événement, pas de cron nécessaire sauf batching futur si volume
    - Opt-out consultation exposé dans /compte (toggle dédié).
    - Nouvelle colonne User.notifyConsultation Boolean @default(true)
      (migration 20260717000000_notify_consultation, appliquée en prod).
+
+COMPLÉMENT (17/07) — PDF brouillon/aperçu avant signature :
+   - GET /api/match/[id]/contrat?draft=true → PDF filigrané « BROUILLON —
+     DOCUMENT NON OFFICIEL » (diagonale rouge répétée + bandeau d'en-tête),
+     téléchargeable AVANT les deux signatures. Le verrou du PDF officiel
+     (bothSigned, sans filigrane) est inchangé — 409 si draft=false et pas
+     encore bothSigned. Aucun email « contrat disponible » sur un brouillon.
+   - Filigrane : composant partagé src/lib/contrats/watermark.tsx
+     (DraftBanner + DraftWatermark), appliqué aux 3 templates ; flag draft
+     ajouté à SignatureImages. Fichier suffixé « -brouillon.pdf ».
+   - Client contrat : bouton adaptatif — « Télécharger l'aperçu (brouillon) »
+     avant signatures / « Télécharger le PDF officiel » après.
 ```
 
 ---

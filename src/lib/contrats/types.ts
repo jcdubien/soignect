@@ -9,6 +9,10 @@ export interface ContractParty {
 export interface SignatureImages {
   signatureTitulaireImg?: string | null;
   signatureRemplacantImg?: string | null;
+  // Aperçu/brouillon (section 137) — ajoute un filigrane « DOCUMENT NON OFFICIEL »
+  // et bloque toute confusion avec le contrat officiel signé. Téléchargeable avant
+  // les deux signatures ; le PDF officiel (sans filigrane) reste réservé au bothSigned.
+  draft?: boolean;
 }
 
 export interface ContractDataRemplacement extends SignatureImages {

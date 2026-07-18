@@ -84,11 +84,14 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Fonctionnalité réservée aux abonnés Premium" }, { status: 403 });
   }
 
-  // Verrou d'état (indépendant de l'abonnement, section signature) : le PDF officiel
-  // n'est téléchargeable qu'une fois les DEUX signatures apposées. Tant qu'il manque
-  // une signature, le contrat reste en préparation (éditable) mais non téléchargeable.
+  // Verrou d'état (indépendant de l'abonnement, section signature/137) : le PDF OFFICIEL
+  // (signatures apposées, sans filigrane) n'est téléchargeable qu'une fois les DEUX
+  // signatures présentes — verrou inchangé (commit 8561438). Avant cela, seul un
+  // BROUILLON filigrané « DOCUMENT NON OFFICIEL » est téléchargeable (draft=true),
+  // pour que les parties relisent le contenu avant de signer à la main.
   const bothSigned = !!match.signatureTitulaireUrl && !!match.signatureRemplacantUrl;
-  if (!bothSigned) {
+  const isDraft = new URL(req.url).searchParams.get("draft") === "true";
+  if (!isDraft && !bothSigned) {
     return NextResponse.json(
       { error: "Le contrat doit être signé par les deux parties avant de télécharger le PDF officiel." },
       { status: 409 }
@@ -134,7 +137,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate:  missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
       endDate:    missionTitulaire?.endDate?.toISOString()   ?? missionAutre?.endDate?.toISOString()   ?? null,
       retrocessionPct, rayonKm, periodeEssai, generatedAt,
-      signatureTitulaireImg, signatureRemplacantImg,
+      signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-remplacement.pdf";
   } else if (missionType === MissionType.ASSISTANAT) {
@@ -143,7 +146,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
-      signatureTitulaireImg, signatureRemplacantImg,
+      signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-assistanat.pdf";
   } else {
@@ -152,15 +155,18 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
-      signatureTitulaireImg, signatureRemplacantImg,
+      signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-collaboration.pdf";
   }
 
+  if (isDraft) filename = filename.replace(/\.pdf$/, "-brouillon.pdf");
+
   const buffer = await renderToBuffer(element);
 
-  // Email "contrat disponible" au remplaçant, quand c'est le titulaire qui le prépare
-  if (profileId === profileTitulaire.id && profileAutre.id !== profileTitulaire.id) {
+  // Email "contrat disponible" au remplaçant, quand c'est le titulaire qui le prépare.
+  // Uniquement pour le PDF officiel — un aperçu brouillon ne déclenche aucune notification.
+  if (!isDraft && profileId === profileTitulaire.id && profileAutre.id !== profileTitulaire.id) {
     const autreUser = await prisma.user.findFirst({
       where: { profile: { id: profileAutre.id } },
       select: { email: true, emailOptIn: true },

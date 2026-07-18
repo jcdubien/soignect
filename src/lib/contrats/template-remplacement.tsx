@@ -2,6 +2,7 @@
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import { type ContractDataRemplacement, SIGNATURE_LEGAL_MENTION } from "./types";
+import { DraftBanner, DraftWatermark } from "./watermark";
 
 // Utilise Helvetica intégrée à pdf-lib — pas de chargement de police externe nécessaire
 const S = StyleSheet.create({
@@ -39,7 +40,7 @@ const LEGAL_MENTION =
 
 export function buildRemplacementPdf(data: ContractDataRemplacement) {
   const { remplace, remplacant, startDate, endDate, retrocessionPct, rayonKm, periodeEssai, generatedAt,
-    signatureTitulaireImg, signatureRemplacantImg } = data;
+    signatureTitulaireImg, signatureRemplacantImg, draft } = data;
 
   return (
     <Document title="Contrat de remplacement" author="Soignect">
@@ -50,6 +51,7 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
           <Text style={S.title}>Contrat de remplacement libéral</Text>
           <Text style={S.subtitle}>Masseurs-kinésithérapeutes — modèle CNOMK (28/03/2023)</Text>
           <Text style={S.version}>Généré le {fmtDate(generatedAt)}</Text>
+          <DraftBanner draft={draft} />
         </View>
 
         {/* Parties */}
@@ -220,6 +222,7 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
         {/* Pied de page */}
         <Text style={S.footer}>{LEGAL_MENTION}</Text>
         <Text style={S.pageNum} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
+        <DraftWatermark draft={draft} />
       </Page>
     </Document>
   );

@@ -91,7 +91,7 @@ export default function ContratPage() {
     }
   }
 
-  function buildUrl() {
+  function buildUrl(draft: boolean) {
     const params = new URLSearchParams({
       rayonKm:      String(rayonKm),
       dureeAns:     String(dureeAns),
@@ -99,14 +99,15 @@ export default function ContratPage() {
       retrocessionPct: String(retrocessionPct),
       redevancePct:    String(redevancePct),
     });
+    if (draft) params.set("draft", "true");
     return `/api/match/${id}/contrat?${params.toString()}`;
   }
 
-  async function handleGenerate() {
+  async function handleGenerate(draft: boolean) {
     setGenerating(true);
+    setError(null);
     try {
-      const url = buildUrl();
-      const res = await fetch(url);
+      const res = await fetch(buildUrl(draft));
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? "Erreur lors de la génération du PDF.");
@@ -116,7 +117,8 @@ export default function ContratPage() {
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = `contrat-${info?.missionType?.toLowerCase() ?? "match"}.pdf`;
+      const base = `contrat-${info?.missionType?.toLowerCase() ?? "match"}`;
+      a.download = draft ? `${base}-brouillon.pdf` : `${base}.pdf`;
       a.click();
       URL.revokeObjectURL(blobUrl);
     } catch {
@@ -358,10 +360,11 @@ export default function ContratPage() {
         <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>
       )}
 
-      {/* Bouton génération — le PDF officiel n'est téléchargeable qu'une fois les 2 signatures apposées */}
+      {/* Bouton génération — le libellé indique clairement lequel des 2 PDF sera généré :
+          brouillon filigrané avant les 2 signatures, PDF officiel une fois les 2 apposées. */}
       {bothSigned ? (
         <button
-          onClick={handleGenerate}
+          onClick={() => handleGenerate(false)}
           disabled={generating}
           className="w-full py-4 bg-kine-600 text-white rounded-2xl font-bold text-base shadow hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-60"
         >
@@ -370,13 +373,15 @@ export default function ContratPage() {
       ) : (
         <div className="flex flex-col items-center gap-2">
           <button
-            disabled
-            className="w-full py-4 bg-gray-200 text-gray-400 rounded-2xl font-bold text-base cursor-not-allowed flex items-center justify-center gap-2"
+            onClick={() => handleGenerate(true)}
+            disabled={generating}
+            className="w-full py-4 bg-white border-2 border-kine-300 text-kine-700 rounded-2xl font-bold text-base shadow-sm hover:bg-kine-50 active:scale-[0.98] transition disabled:opacity-60"
           >
-            🔒 Générer le PDF →
+            {generating ? "Génération en cours…" : "Télécharger l'aperçu (brouillon) →"}
           </button>
           <p className="text-xs text-gray-400 text-center">
-            Le PDF officiel sera téléchargeable une fois les deux parties signées.
+            Document filigrané « non officiel », pour relecture avant signature. Le PDF officiel
+            (sans filigrane, avec les signatures) sera disponible une fois les deux parties signées.
           </p>
         </div>
       )}
