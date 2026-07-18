@@ -11364,9 +11364,18 @@ superpositions déjà rencontrées sur les cartes swipe.
 ### Statut
 
 ```
-🟡 Prompt rédigé, non bloquant pour la bêta (fonctionnel mais
-source de confusion pour les cabinets testeurs) — à corriger
-rapidement vu l'impact sur la compréhension du produit.
+✅ ENTIÈREMENT CORRIGÉ (commit 34f5b7c le 17/07, puis nettoyage
+données le même jour) :
+- ZoneSelector retiré du formulaire d'annonce cabinet, conservé
+  côté disponibilité (candidat)
+- scoreGeo corrigé : vérifie si la commune précise d'une partie
+  appartient aux zones souhaitées de l'autre (asymétrique,
+  cohérent avec l'architecture)
+- Bug de superposition bioTinder corrigé (overlay remplacé par un
+  label au-dessus du textarea)
+- Données parasites nettoyées : 3 missions TITULAIRE avec zones à
+  tort → zones=[] désormais, vérifié 0 mission TITULAIRE restante
+  avec zones, aucune autre donnée touchée
 ```
 
 ---
@@ -11540,5 +11549,13 @@ desktop et mobile.
 ### Statut
 
 ```
-Prompt rédigé, en attente d envoi.
+✅ CORRIGÉ (17/07). Bouton conditionnel (header + FAB mobile), 
+signal calculé côté serveur (force-dynamic, toujours frais) :
+- Titulaire : masqué si postes cabinet actifs > 0 OU annonces 
+  actives > 0. Visible seulement si aucun poste créé et aucune 
+  annonce (présence implicite du titulaire non comptée — seuil 
+  validé par Jean-Charles).
+- Remplaçant/Assistant : masqué si disponibilités actives > 0.
+Réapparition automatique si tout est supprimé. Header et menu bas 
+mobile cohérents (même signal showCreateButton).
 ```

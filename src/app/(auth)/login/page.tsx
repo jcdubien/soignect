@@ -60,7 +60,7 @@ function LoginForm() {
           ressort bien sur le dégradé bleu foncé. */}
       <div className="flex flex-col items-center justify-center pt-12 pb-8 px-4 text-center">
         <Image
-          src="/logo-soignect-web.png"
+          src="/GeminiLogo.png"
           alt="Soignect"
           width={200}
           height={200}
