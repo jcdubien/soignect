@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { BILLING_GRACE_DAYS } from "@/lib/billing";
 import { isFreeAccessMode } from "@/lib/platform";
 import { fmtDay } from "@/lib/dates";
+import ActiveAnnoncesMenu from "./ActiveAnnoncesMenu";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       missions: {
         where: { isActive: true },
         orderBy: { startDate: "asc" },
-        select: { startDate: true, endDate: true, location: true, missionType: true },
-        take: 1,
+        select: { id: true, title: true, startDate: true, endDate: true, location: true, missionType: true },
       },
     },
   });
@@ -58,26 +58,36 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Build contextual summary for header
   const emailPrefix = (session.user.email ?? "").split("@")[0];
   const displayName = profile?.name ?? emailPrefix;
-  const activeMissionCount = profile?._count.missions ?? 0;
   const firstMission = profile?.missions[0];
 
+  // Annonces actives du cabinet (compteur cliquable, section 21/102) — pour le TITULAIRE.
+  // Le compteur reste _count.missions (inchangé) ; on liste ici les mêmes missions actives
+  // pour ouvrir directement leur édition (flux « Modifier l'annonce » existant).
+  const titulaireLoc = firstMission?.location ?? (profile?.region ?? "Guadeloupe");
+  const activeMissions =
+    profileType === "TITULAIRE"
+      ? (profile?.missions ?? []).map((m) => ({
+          id: m.id,
+          title: m.title,
+          location: m.location,
+          missionType: m.missionType as string,
+        }))
+      : [];
+
+  // contextLine ne sert plus que pour les profils NON-titulaires (le titulaire a un menu client).
   let contextLine: string | null = null;
-  if (profileType === "TITULAIRE") {
-    const loc = firstMission?.location ?? (profile?.region ?? "Guadeloupe");
-    // « annonce active » (et non « poste actif ») : ce compteur = nombre de Missions/annonces
-    // actives publiées, distinct des « postes » du Planning (CabinetPost = postes de l'équipe).
-    // Même mot « poste » pour deux concepts → collision trompeuse, d'où ce libellé explicite.
-    contextLine = `${loc} · ${activeMissionCount} annonce${activeMissionCount !== 1 ? "s" : ""} active${activeMissionCount !== 1 ? "s" : ""}`;
-  } else if (firstMission?.startDate && firstMission?.endDate) {
-    const fmt = (d: Date) => fmtDay(d) ?? "";
-    contextLine = `Disponible ${fmt(firstMission.startDate)} – ${fmt(firstMission.endDate)}`;
-  } else {
-    const regionLabel: Record<string, string> = {
-      GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
-      MARTINIQUE: "Martinique", GUYANE: "Guyane", REUNION: "La Réunion",
-      MAYOTTE: "Mayotte", METROPOLE: "Métropole",
-    };
-    contextLine = regionLabel[profile?.region ?? "GUADELOUPE"] ?? "Guadeloupe";
+  if (profileType !== "TITULAIRE") {
+    if (firstMission?.startDate && firstMission?.endDate) {
+      const fmt = (d: Date) => fmtDay(d) ?? "";
+      contextLine = `Disponible ${fmt(firstMission.startDate)} – ${fmt(firstMission.endDate)}`;
+    } else {
+      const regionLabel: Record<string, string> = {
+        GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
+        MARTINIQUE: "Martinique", GUYANE: "Guyane", REUNION: "La Réunion",
+        MAYOTTE: "Mayotte", METROPOLE: "Métropole",
+      };
+      contextLine = regionLabel[profile?.region ?? "GUADELOUPE"] ?? "Guadeloupe";
+    }
   }
 
   return (
@@ -102,12 +112,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           >
             {displayName}
           </span>
-          {contextLine && (
+          {profileType === "TITULAIRE" ? (
+            <>
+              <span className="text-gray-300 shrink-0">·</span>
+              <ActiveAnnoncesMenu location={titulaireLoc} missions={activeMissions} />
+            </>
+          ) : contextLine ? (
             <>
               <span className="text-gray-300 shrink-0">·</span>
               <span className="truncate text-gray-400">{contextLine}</span>
             </>
-          )}
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">

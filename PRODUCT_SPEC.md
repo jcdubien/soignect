@@ -11005,48 +11005,41 @@ l'événement, pas de cron nécessaire sauf batching futur si volume
 ### Statut
 
 ```
-✅ IMPLÉMENTÉ (17/07).
+✅ 1. État intermédiaire signature — CORRIGÉ (commit 8561438). 
+   Verrou serveur 409 tant que les deux signatures ne sont pas 
+   présentes, indépendant de l'abonnement. Bandeau "En attente de 
+   la signature de l'autre partie", formulaire figé après double 
+   signature, bouton PDF verrouillé jusqu'au bothSigned.
+   → Complément décidé (16/07) : PDF brouillon/aperçu filigrané 
+   ("BROUILLON — DOCUMENT NON OFFICIEL") disponible AVANT signature, 
+   pour permettre aux deux parties de lire le contrat avant de 
+   signer physiquement (signature par photo). 
+   ✅ CORRIGÉ (commit e8c52f5) : GET /api/match/[id]/contrat?draft=true, 
+   filigrane rouge diagonal répété sur chaque page + bandeau 
+   "NE PAS SIGNER EN L'ÉTAT", fichier -brouillon.pdf, appliqué aux 
+   3 templates (remplacement/assistanat/collaboration). Verrou 
+   officiel inchangé (409 sans les deux signatures). Bouton 
+   adaptatif selon l'état. Pas d'email de notification sur 
+   téléchargement brouillon (évite le spam). Contrôle visuel de 
+   l'opacité du filigrane en prod à faire si besoin d'ajustement.
 
-1. État intermédiaire signature :
-   - Verrou serveur (GET /api/match/[id]/contrat) — 409 tant que les
-     deux signatures ne sont pas apposées, indépendant de l'abonnement.
-   - Client contrat/page.tsx : bandeau "En attente de la signature de
-     l'autre partie" (une seule signature), formulaire figé une fois
-     les deux signatures (opacity + pointer-events-none), bouton PDF
-     bloqué → "Télécharger le PDF officiel" débloqué au bothSigned.
+✅ 2. Diagnostic champs non modifiables — AUCUN BUG REPRODUCTIBLE. 
+   Le formulaire de contrat n'a ni champ texte ni champ adresse 
+   (uniquement sliders + case période d'essai). L'adresse du PDF 
+   vient de mission.location, entièrement éditable dans le 
+   formulaire d'annonce, sans verrou serveur. Piste probable : 
+   l'adresse affichée en lecture seule apparaissait vide car la 
+   commune de l'annonce n'était pas renseignée — pas un bug de 
+   contrat. Pas d'action requise sauf si Jean-Charles identifie 
+   l'écran exact concerné.
 
-2. Diagnostic champs — AUCUN BUG REPRODUCTIBLE. Le formulaire de contrat
-   n'a aucun champ texte/adresse : uniquement des sliders (rayon, durée,
-   taux) + une case période d'essai, tous avec valeur par défaut. Aucune
-   logique de verrou pré-existante. L'adresse du PDF provient de
-   mission.location (commune), éditable via le formulaire d'annonce
-   (missions/create, PATCH /api/missions/[id] — aucun verrou même mission
-   confirmée). Le verrou ajouté en 1 ne concerne que l'état "signé des
-   deux côtés" et ne bloque pas des champs vides.
-
-3. Notifications recruteur (synchrones, Resend) :
-   - Consultation : GET /api/missions/[id]/card, si tiers + avant tout
-     swipe → email au propriétaire (opt-out dédié User.notifyConsultation).
-   - Match : déjà couvert (sendNewRelationEmail dans /api/swipe).
-   - Message : POST /api/matches/[id]/messages → email au destinataire
-     (emailOptIn). Distinct du rappel 24h (section 112).
-   - Signature : POST /api/match/[id]/signature → email à l'autre partie
-     (emailOptIn).
-   - Opt-out consultation exposé dans /compte (toggle dédié).
-   - Nouvelle colonne User.notifyConsultation Boolean @default(true)
-     (migration 20260717000000_notify_consultation, appliquée en prod).
-
-COMPLÉMENT (17/07) — PDF brouillon/aperçu avant signature :
-   - GET /api/match/[id]/contrat?draft=true → PDF filigrané « BROUILLON —
-     DOCUMENT NON OFFICIEL » (diagonale rouge répétée + bandeau d'en-tête),
-     téléchargeable AVANT les deux signatures. Le verrou du PDF officiel
-     (bothSigned, sans filigrane) est inchangé — 409 si draft=false et pas
-     encore bothSigned. Aucun email « contrat disponible » sur un brouillon.
-   - Filigrane : composant partagé src/lib/contrats/watermark.tsx
-     (DraftBanner + DraftWatermark), appliqué aux 3 templates ; flag draft
-     ajouté à SignatureImages. Fichier suffixé « -brouillon.pdf ».
-   - Client contrat : bouton adaptatif — « Télécharger l'aperçu (brouillon) »
-     avant signatures / « Télécharger le PDF officiel » après.
+✅ 3. Notifications recruteur multi-événements — CORRIGÉ (commit 
+   8561438). 4 événements synchrones via Resend : consultation 
+   d'annonce (avec opt-out dédié User.notifyConsultation), match 
+   (déjà existant, inchangé), nouveau message, signature apposée. 
+   Tous fire-and-forget (aucun impact latence/robustesse). 
+   Migration additive appliquée en prod 
+   (20260717000000_notify_consultation).
 ```
 
 ---
@@ -11062,65 +11055,149 @@ terme national). Découpage fixe du territoire guadeloupéen en 8
 macro-zones géographiques réelles.
 ```
 
-### Zones retenues (9 zones, mise à jour)
+### Zones retenues (10 zones) — MAPPING FINAL VALIDÉ PAR JEAN-CHARLES (16/07)
 
 ```
-Nord Basse-Terre · Sud Basse-Terre · Nord Grande-Terre · 
-Sud Grande-Terre · Marie-Galante · Les Saintes · Saint-Martin · 
-Saint-Barthélemy · CENTRE / CAP EXCELLENCE (nouvelle, 9e zone)
-
 Zone "Centre / Cap Excellence" ajoutée sur demande explicite de 
-Jean-Charles : reprend le nom de l'agglomération réelle (Cap 
-Excellence — Pointe-à-Pitre, Les Abymes, Baie-Mahault, rejointes 
-plus tard par Le Gosier). 
+Jean-Charles : reprend le nom de l'agglomération réelle, isolée 
+délibérément car de nombreux kinés cherchent uniquement dans cette 
+zone centrale — comportement de sur-concentration que Soignect 
+cherche à atténuer à terme (cohérent avec la vision "favoriser les 
+zones moins dotées", section 123 niveau 3 DeepSeek, différé au 
+TensionScore section 82-84).
 
-RAISON STRATÉGIQUE (pas seulement géographique) : Jean-Charles 
-signale un comportement observé — de nombreux kinés cherchent 
-UNIQUEMENT dans cette zone centrale (Baie-Mahault, Les Abymes, 
-Petit-Bourg), le comportement de sur-concentration exact que 
-Soignect cherche à atténuer (cohérent avec la vision "favoriser 
-les zones moins dotées", section 123 niveau 3 DeepSeek, différé au 
-TensionScore section 82-84). Isoler cette zone permet de la 
-traiter différemment plus tard (ex: ne pas la booster autant que 
-les zones sous-représentées) une fois le TensionScore opérationnel.
-```
+MAPPING COMPLET (32 communes + Saint-Martin + Saint-Barthélemy → 
+10 zones) :
 
-### Point de vigilance
+CENTRE / CAP EXCELLENCE :
+  Pointe-à-Pitre, Les Abymes, Baie-Mahault, Le Gosier, Goyave, 
+  Petit-Bourg
 
-```
-Le mapping exact des 32 communes vers ces 9 zones doit être validé 
-par Jean-Charles avant implémentation (cas limites à la jonction 
-Basse-Terre/Grande-Terre : Baie-Mahault, Lamentin, Petit-Bourg, 
-Goyave notamment ; périmètre exact de "Centre/Cap Excellence" — 
-inclut-il Le Gosier ? Petit-Bourg, mentionné par Jean-Charles dans 
-le comportement observé, en fait-il partie administrativement ou 
-seulement par proximité comportementale ?) — ne pas laisser Claude 
-Code deviner seul.
+SUD GRANDE-TERRE :
+  Sainte-Anne, Saint-François, Le Moule, Morne-à-l'Eau
+
+NORD GRANDE-TERRE :
+  Anse-Bertrand, Port-Louis, Petit-Canal
+
+SUD BASSE-TERRE :
+  Basse-Terre, Gourbeyre, Baillif, Saint-Claude, Vieux-Fort, 
+  Capesterre-Belle-Eau, Trois-Rivières, Vieux-Habitants, Bouillante
+
+NORD BASSE-TERRE :
+  Deshaies, Sainte-Rose, Lamentin, Pointe-Noire
+
+MARIE-GALANTE :
+  Grand-Bourg, Capesterre-de-Marie-Galante, Saint-Louis
+
+LES SAINTES :
+  Terre-de-Haut, Terre-de-Bas
+
+LA DÉSIRADE :
+  La Désirade (zone dédiée, île isolée)
+
+SAINT-MARTIN :
+  Saint-Martin
+
+SAINT-BARTHÉLEMY :
+  Saint-Barthélemy
+
+TOTAL : 32 communes de Guadeloupe + Saint-Martin + Saint-Barthélemy 
+= 34 communes réparties en 10 zones. Mapping validé et figé par 
+Jean-Charles — prêt pour implémentation sans ambiguïté.
 ```
 
 ### Statut
 
 ```
-✅ IMPLÉMENTÉ (17/07) — 10 zones (La Désirade isolée, mapping figé du
-prompt utilisé tel quel, primant sur la version 9 zones ci-dessus).
+🟡 Prompt rédigé. Priorité à trancher : bloquant pré-bêta ou 
+améliorable après premiers retours des 30 testeurs SNMKR.
+```
 
-Modèle retenu : COMMUNE + ZONES (additif, non destructif).
-- Mission.zones ZoneGeographique[] @default([]) — multi-sélection, en
-  PLUS de location (commune, ancre conservée pour contrat PDF + zonage
-  ARS + affichage). Rien de supprimé.
-- enum ZoneGeographique (10) + table CommuneZone (commune→zone, 35
-  lignes seedées). Mapping applicatif de référence : src/lib/communes.ts
-  (COMMUNE_ZONE, ZONE_LABELS, ZONE_ORDER) — clés = chaînes exactes des
-  communes (suffixes « (Marie-Galante) » / « (Saint-Martin) » inclus ;
-  Saint-Martin = Marigot + Grand Case ; Saint-Barth = Gustavia).
-- Formulaires missions/create + disponibilites/create : commune conservée
-  + nouveau <ZoneSelector/> (chips multi). Prefill zones en édition.
-- Score géo (deepseek.scoreGeo, section 120/126) intègre les zones :
-  25 pts si commune d'une annonce ∈ zones de recherche de l'autre, ou
-  chevauchement de zones ; repli 18 pts même macro-zone, 25 même commune,
-  6 sinon. Score Bio/Dates/Logement inchangé.
-- Feed inchangé (aucun filtre géo dur ; le filtre location optionnel reste).
-- NON touché : architecture temps de trajet (section 135).
-- Migration 20260717010000_zones_geographiques, appliquée en prod
-  (colonne + table + seed 35 vérifiés).
+---
+
+## 139. DIAGNOSTIC — Bouton "Partager sur Facebook" limité au profil individuel
+
+### Constat
+
+```
+Le bouton de partage (section 101) ne propose que le partage vers 
+le profil individuel, alors que sharer.php devrait normalement 
+offrir plusieurs destinations (Groupe, Page, Story). Cause à 
+diagnostiquer : bug d'implémentation, ou limitation plateforme 
+(mobile vs desktop), ou métadonnées Open Graph manquantes.
+
+RAPPEL : Facebook ne permet de toute façon pas de présélectionner 
+un groupe précis via URL (restriction Meta anti-spam) — même 
+corrigé, le bouton ouvrira au mieux un sélecteur où l'utilisateur 
+choisit son groupe manuellement, jamais un lien direct vers un 
+groupe spécifique.
+```
+
+### Statut
+
+```
+🟡 Prompt de diagnostic rédigé, en attente d'envoi. Non bloquant 
+pour la bêta (le partage vers profil individuel reste fonctionnel 
+en attendant).
+```
+
+---
+
+## 140. FEATURE — Copier le lien + partage natif mobile (au lieu de boutons Instagram/TikTok dédiés)
+
+### Contexte
+
+```
+Instagram et TikTok n'ont pas d'équivalent du sharer.php Facebook 
+— pas de mécanisme web fiable pour partager un lien directement 
+vers ces plateformes. Solution technique plus adaptée : Web Share 
+API (partage natif du système d'exploitation mobile) plutôt que 
+des boutons construits par réseau.
+```
+
+### Feature retenue
+
+```
+1. "Copier le lien" — universel, toujours disponible
+2. Partage natif mobile (navigator.share()) — ouvre le sélecteur 
+   système, affiche automatiquement Instagram/TikTok/WhatsApp/SMS/
+   Mail/etc. sans intégration par réseau. Fallback vers copier le 
+   lien + Facebook si non supporté.
+3. Bouton Facebook existant (section 101) inchangé, conservé en 
+   plus du partage natif générique.
+```
+
+### Statut
+
+```
+✅ CORRIGÉ (commit 19e99ee). Sur /annonce/[id], section "Partager 
+cette annonce" avec 3 actions :
+1. "Copier le lien" — toujours affiché, clipboard API + repli 
+   execCommand, confirmation visuelle 2s
+2. "Partager…" (Web Share API) — affiché uniquement si supporté 
+   (détection post-montage, pas d'écart d'hydratation), ouvre le 
+   sélecteur natif OS (Instagram/TikTok/WhatsApp/SMS/Mail...)
+3. Bouton Facebook (sharer.php) — inchangé, réutilisé tel quel
+
+Fallback desktop sans navigator.share : "Copier le lien" + Facebook 
+uniquement, comme prévu. Test recommandé sur mobile réel (partage 
+natif absent sur desktop Chrome/Firefox par nature, comportement 
+attendu).
+```---
+
+## 141. FEATURE — Compteur "annonces actives" cliquable vers liste + édition
+
+### Contexte
+
+```
+Le compteur header (déjà corrigé en libellé, commit acfb942) 
+n'est pas cliquable. Feature : clic → liste des annonces actives 
+→ édition rapide de chacune (réutilise le CRUD annonce déjà 
+existant, sections 102/106).
+```
+
+### Statut
+
+```
+🟡 Prompt rédigé, non bloquant pour la bêta.
 ```
