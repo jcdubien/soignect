@@ -75,6 +75,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         }))
       : [];
 
+  // Bouton « + Annonce » (header desktop + FAB nav mobile, section 148) : visible UNIQUEMENT
+  // quand la timeline est vide — aucun poste NI annonce côté cabinet, aucune disponibilité
+  // côté remplaçant. Sinon la création se fait au clic sur la timeline (section 102). Recalculé
+  // à chaque requête (force-dynamic) → réapparaît si l'utilisateur supprime tout.
+  const activeMissionCount = profile?._count.missions ?? 0;
+  const cabinetPostCount =
+    profileType === "TITULAIRE"
+      ? await prisma.cabinetPost.count({ where: { cabinetId: profileId, isActive: true } })
+      : 0;
+  const showCreateButton =
+    profileType === "TITULAIRE"
+      ? activeMissionCount === 0 && cabinetPostCount === 0
+      : activeMissionCount === 0;
+
   // contextLine ne sert plus que pour les profils NON-titulaires (le titulaire a un menu client).
   let contextLine: string | null = null;
   if (profileType !== "TITULAIRE") {
@@ -138,12 +152,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Admin
             </Link>
           )}
-          <Link
-            href={createHref}
-            className="text-xs px-3 py-1.5 bg-kine-600 text-white rounded-lg font-semibold hover:bg-kine-700 transition"
-          >
-            + Annonce
-          </Link>
+          {showCreateButton && (
+            <Link
+              href={createHref}
+              className="text-xs px-3 py-1.5 bg-kine-600 text-white rounded-lg font-semibold hover:bg-kine-700 transition"
+            >
+              + Annonce
+            </Link>
+          )}
           {profileType === "TITULAIRE" ? (
             <Link
               href="/planning"
@@ -231,12 +247,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="text-[10px] font-medium truncate max-w-full">Annonces</span>
         </Link>
 
-        <Link href={createHref} className="shrink-0 flex flex-col items-center gap-0.5 -mt-4 mx-1 px-4 py-2.5 bg-kine-600 text-white rounded-2xl shadow-lg hover:bg-kine-700 transition">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          <span className="text-[10px] font-semibold">Annonce</span>
-        </Link>
+        {showCreateButton && (
+          <Link href={createHref} className="shrink-0 flex flex-col items-center gap-0.5 -mt-4 mx-1 px-4 py-2.5 bg-kine-600 text-white rounded-2xl shadow-lg hover:bg-kine-700 transition">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span className="text-[10px] font-semibold">Annonce</span>
+          </Link>
+        )}
 
         <Link href="/compte" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-gray-500 hover:text-kine-600 transition">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

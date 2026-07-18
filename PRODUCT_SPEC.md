@@ -11146,9 +11146,20 @@ groupe spécifique.
 ### Statut
 
 ```
-🟡 Prompt de diagnostic rédigé, en attente d'envoi. Non bloquant 
-pour la bêta (le partage vers profil individuel reste fonctionnel 
-en attendant).
+✅ DIAGNOSTIQUÉ (17/07) : comportement attendu de sharer.php 
+(limite intrinsèque, pas un bug) — partage uniquement vers le 
+profil individuel. Pour un sélecteur multi-destinations 
+(Groupe/Page/Story), il faut le Share Dialog Facebook avec un App 
+ID Meta enregistré.
+
+DÉCISION : passer au Share Dialog — validé par Jean-Charles, mais 
+BLOQUÉ EN ATTENTE (accès à Facebook Developers indisponible 
+temporairement côté Jean-Charles). Reporté à plus tard, non 
+urgent — copier le lien + partage natif mobile (section 140) 
+restent pleinement fonctionnels en attendant.
+
+Marche à suivre déjà documentée (guide + prompt prêt) pour quand 
+l'accès sera possible.
 ```
 
 ---
@@ -11500,4 +11511,34 @@ porte. Client corrigé pour vérifier res.ok et afficher les erreurs.
 Même route/bouton pour disponibilité et annonce remplaçant → les 
 deux corrigés, bénéficie aussi au bouton "Fermer/Annuler l'annonce" 
 du Planning cabinet (même endpoint).
+```
+
+---
+
+## 148. FEATURE — Masquer "+ Annonce" dès qu un poste/période existe (redondance avec timeline)
+
+### Contexte
+
+```
+Le bouton "+ Annonce" (header desktop + menu bas mobile) reste
+visible en permanence, redondant avec la creation contextuelle
+deja disponible via clic sur la timeline (section 102) des quun
+poste/periode existe. Confirme par Jean-Charles : les deux sont
+visibles simultanement, independamment de l etat de la timeline.
+```
+
+### Decision
+
+```
+Masquer le bouton "+ Annonce" des qu au moins un poste
+(titulaire) ou une disponibilite (remplacant) existe sur la
+timeline. Le garder visible uniquement pour l etat vide (premier
+usage, aucune entree contextuelle possible sinon). Meme logique
+desktop et mobile.
+```
+
+### Statut
+
+```
+Prompt rédigé, en attente d envoi.
 ```
