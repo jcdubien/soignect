@@ -574,7 +574,9 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
 
       {/* ── En-tête ── */}
       <div className="bg-white border-b border-gray-100 px-3 sm:px-4 py-3 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">
-        <div className="w-full sm:w-auto sm:flex-1 min-w-0">
+        {/* Titre en largeur naturelle (plus de sm:flex-1) : le groupe de zoom se place juste
+            à sa droite, sans espace vide forcé depuis le retrait du bouton « + Ajouter » (section 148). */}
+        <div className="w-full sm:w-auto min-w-0">
           <h1 className="text-base sm:text-lg font-bold text-gray-900">Mes disponibilités</h1>
           <p className="text-xs text-gray-400 truncate">
             {profileName} · {isAssistant ? "Poste long terme (min. 3 mois)" : "Remplaçant"}
