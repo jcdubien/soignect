@@ -6,6 +6,7 @@ import Link from "next/link";
 import { X, Heart } from "lucide-react";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import { fmtDay } from "@/lib/dates";
+import { zoneOfCommune } from "@/lib/communes";
 
 // Type souple, compatible avec MissionWithProfile (carrousel) ET la réponse /card.
 export interface DetailMission {
@@ -71,7 +72,13 @@ export default function MissionDetailSheet({
   const [swiping, setSwiping] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Le résumé Wikipédia n'a de sens que pour une VRAIE commune (annonce cabinet). Côté
+  // remplaçant, location est désormais un libellé de zone (« Toute la Guadeloupe », etc.,
+  // section 148) → pas de commune connue → on masque la section.
+  const isKnownCommune = !!zoneOfCommune(mission.location);
+
   useEffect(() => {
+    if (!isKnownCommune) { setLoadingSummary(false); return; }
     let cancelled = false;
     const region = p.region ?? "GUADELOUPE";
     fetch(`/api/commune-summary?commune=${encodeURIComponent(mission.location)}&region=${encodeURIComponent(region)}`)
@@ -80,7 +87,7 @@ export default function MissionDetailSheet({
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoadingSummary(false); });
     return () => { cancelled = true; };
-  }, [mission.location, p.region]);
+  }, [mission.location, p.region, isKnownCommune]);
 
   async function handleSwipe(direction: "LEFT" | "RIGHT") {
     if (swiping || !onSwipe) return;
@@ -197,25 +204,27 @@ export default function MissionDetailSheet({
           </p>
         )}
 
-        <div className="mt-4">
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">
-            À propos de {mission.location}
-          </p>
-          {loadingSummary ? (
-            <p className="text-xs text-gray-400">Chargement…</p>
-          ) : summary ? (
-            <>
-              <p className="text-sm text-gray-600 leading-relaxed">{summary.extract}</p>
-              {summary.url && (
-                <a href={summary.url} target="_blank" rel="noopener noreferrer" className="text-xs text-kine-600 underline mt-1 inline-block">
-                  Source : Wikipédia
-                </a>
-              )}
-            </>
-          ) : (
-            <p className="text-xs text-gray-400">Aucune description disponible pour cette commune.</p>
-          )}
-        </div>
+        {isKnownCommune && (
+          <div className="mt-4">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">
+              À propos de {mission.location}
+            </p>
+            {loadingSummary ? (
+              <p className="text-xs text-gray-400">Chargement…</p>
+            ) : summary ? (
+              <>
+                <p className="text-sm text-gray-600 leading-relaxed">{summary.extract}</p>
+                {summary.url && (
+                  <a href={summary.url} target="_blank" rel="noopener noreferrer" className="text-xs text-kine-600 underline mt-1 inline-block">
+                    Source : Wikipédia
+                  </a>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-gray-400">Aucune description disponible pour cette commune.</p>
+            )}
+          </div>
+        )}
 
         {renderActions()}
 

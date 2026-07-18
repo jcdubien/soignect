@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { COMMUNES_GUADELOUPE, type ZoneGeo } from "@/lib/communes";
+import { ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
 import ZoneSelector from "@/components/ui/ZoneSelector";
 import Link from "next/link";
 
@@ -40,7 +40,6 @@ export default function CreateDisponibilitePage() {
     title: "",
     description: "",
     bioTinder: "",
-    location: "",
     zones: [] as ZoneGeo[],
     specialties: [] as string[],
     startDate: searchParams.get("startDate") ?? "",
@@ -68,6 +67,13 @@ export default function CreateDisponibilitePage() {
     setLoading(true);
     setError("");
 
+    // location dérivé des zones (section 148) — plus de commune saisie côté remplaçant.
+    // Sert uniquement à l'affichage (📍 carte/sheet) ; le matching se fait via zones.
+    const geoLabel =
+      form.zones.length === ZONE_ORDER.length
+        ? "Toute la Guadeloupe"
+        : form.zones.map((z) => ZONE_LABELS[z]).join(", ");
+
     const res = await fetch("/api/missions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -75,7 +81,7 @@ export default function CreateDisponibilitePage() {
         title: form.title,
         description: form.description || undefined,
         bioTinder: form.bioTinder || undefined,
-        location: form.location,
+        location: geoLabel,
         zones: form.zones,
         specialties: form.specialties,
         startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
@@ -196,28 +202,16 @@ export default function CreateDisponibilitePage() {
           <p className="text-right text-xs text-gray-300 mt-0.5">{form.description.length}/500</p>
         </div>
 
-        {/* Zone géographique */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Commune ou zone souhaitée
-          </label>
-          <select
-            value={form.location}
-            onChange={(e) => setForm({ ...form, location: e.target.value })}
-            required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-          >
-            <option value="">Sélectionner une commune…</option>
-            {COMMUNES_GUADELOUPE.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
+        {/* Champ commune retiré (section 148) — la recherche géo remplaçant repose UNIQUEMENT
+            sur les zones ci-dessous (dispositif provisoire en attendant le rayon temps de
+            trajet, section 135). La commune côté cabinet (Mission.location) reste inchangée. */}
 
-        {/* Macro-zones souhaitées (section 138) — multi-sélection */}
+        {/* Zones souhaitées (seul critère géo) — multi-sélection + « Toute la Guadeloupe » */}
         <ZoneSelector
           value={form.zones}
           onChange={(zones) => setForm({ ...form, zones })}
           label="Zones où vous cherchez à travailler"
-          hint="Sélectionnez une ou plusieurs zones (ex: Nord + Sud Basse-Terre). Les annonces situées dans ces zones seront mieux notées."
+          hint="Sélectionnez une ou plusieurs zones, ou « Toute la Guadeloupe » pour ne poser aucune restriction géographique."
         />
 
         {/* Spécialités retirées (section 69) — matching via DeepSeek à partir de l'accroche */}
@@ -347,7 +341,7 @@ export default function CreateDisponibilitePage() {
           </Link>
           <button
             type="submit"
-            disabled={loading || !form.title || !form.location || !bioValid || !!under90Days || hasPhoto === false}
+            disabled={loading || !form.title || form.zones.length === 0 || !bioValid || !!under90Days || hasPhoto === false}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
             {loading ? "Publication…" : "Publier mes disponibilités →"}
