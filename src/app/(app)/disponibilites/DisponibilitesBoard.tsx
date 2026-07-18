@@ -595,12 +595,8 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
           ))}
         </div>
 
-        <Link
-          href="/disponibilites/create"
-          className="px-3 py-2 bg-kine-600 text-white rounded-xl text-xs font-bold hover:bg-kine-700 transition"
-        >
-          + Ajouter
-        </Link>
+        {/* Bouton « + Ajouter » supprimé (section 148) — ajout d'une disponibilité
+            uniquement via clic sur la timeline (zone claire → créer). */}
       </div>
 
       {/* ── Timeline ── */}
