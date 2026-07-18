@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logTraceEvent } from "@/lib/trace";
-import ShareFacebookButton from "./ShareFacebookButton";
+import ShareActions from "./ShareActions";
 
 export const dynamic = "force-dynamic";
 
@@ -129,8 +129,9 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
             )}
           </div>
 
-          <div className="px-6 pb-6">
-            <ShareFacebookButton path={`/annonce/${m.id}`} />
+          <div className="mt-5">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2 text-center">Partager cette annonce</p>
+            <ShareActions path={`/annonce/${m.id}`} title={`${m.title} · ${m.location}`} />
           </div>
         </div>
       </div>
