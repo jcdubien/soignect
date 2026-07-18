@@ -11199,5 +11199,78 @@ existant, sections 102/106).
 ### Statut
 
 ```
-🟡 Prompt rédigé, non bloquant pour la bêta.
+✅ CORRIGÉ desktop/tablette (commit 450d175). Compteur cliquable 
+(bouton souligné pointillé), menu déroulant listant titre + type + 
+commune de chaque annonce active, édition via /missions/create?editId=
+(flux CRUD existant réutilisé, rien dupliqué). Fermeture au clic 
+extérieur/scroll/resize. Positionnement fixed avec clamp anti-
+débordement. Bouton désactivé si compteur = 0.
+
+⚠️ Complément décidé (16/07) : point d'entrée mobile manquant 
+(compteur masqué sous sm comme avant). À ajouter — réutiliser 
+ActiveAnnoncesMenu en l'adaptant (bottom sheet plutôt que dropdown), 
+emplacement à définir par Claude Code selon l'espace mobile 
+disponible. Prompt rédigé, en attente d'envoi.
+```
+
+---
+
+## 142. VISION PRÉCISÉE — Page unique timeline-centrique pour remplaçant/assistant/salarié (évolution section 107)
+
+### Contexte
+
+```
+Précision de la vision "portfolio dans la poche" (section 107), 
+inspirée de l'expérience Facebook (fil unique, chronologique, 
+englobant) — cohérent avec le constat déjà établi que les jeunes 
+kinés guadeloupéens s'orientent naturellement vers Facebook plutôt 
+que des plateformes dédiées (section 118).
+```
+
+### Mécanique proposée
+
+```
+Une seule page pour le remplaçant/assistant/salarié, organisée 
+autour de SA PROPRE TIMELINE PERSONNELLE (même composant que le 
+Planning Board cabinet, adapté côté candidat).
+
+Chaque segment de la timeline, au clic, ouvre le contenu contextuel 
+selon son état :
+- Période disponible SANS match en cours → carrousel swipe filtré 
+  sur cette période précise (réutilise le mécanisme déjà existant, 
+  section 105 — filtre disponibiliteId)
+- Période AVEC match en cours → accès direct au chat/conversation
+- Période AVEC contrat en cours → statut du contrat (réutilise 
+  section 137 — état intermédiaire signature, PDF brouillon/officiel)
+
+Tout visible d'un coup d'œil sur la timeline, plutôt que des 
+onglets séparés (Annonces / Mes disponibilités / Mes mises en 
+relation) — logique de fil unique façon Facebook.
+```
+
+### Évaluation de faisabilité
+
+```
+Plus réalisable qu'un redesign complet — réutilise fortement 
+l'existant plutôt que de reconstruire :
+- Composant timeline : déjà construit (Planning Board cabinet)
+- Carrousel swipe filtré par disponibilité : déjà construit 
+  (section 105)
+- Chat : déjà construit
+- Bottom sheet détaillé : déjà construit (sections 106, 137)
+
+Le chantier consiste principalement à ORCHESTRER ces briques 
+existantes autour d'un nouveau point d'entrée unifié, pas à tout 
+recréer — réduit significativement l'ampleur perçue du chantier 
+par rapport à un redesign from-scratch.
+```
+
+### Statut
+
+```
+⚪ DIFFÉRÉ — reste en Phase 3 (v1.1, section 121 index maître), 
+NE BLOQUE PAS la bêta v0. Documenté maintenant pour ne pas perdre 
+la précision de la vision, à concevoir en détail (maquettes, flux 
+exact) une fois la bêta lancée et les premiers retours terrain 
+digérés.
 ```

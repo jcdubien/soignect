@@ -161,11 +161,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
           {/* Pastille d'état de plan (F1) — dit clairement le plan courant et invite à
               Premium. Gratuit = ambre (incite) ; payé = vert (rassure). ✨/Gratuit compact
-              sur mobile, libellé complet sur desktop. */}
-          {profileType === "TITULAIRE" && (
+              sur mobile, libellé complet sur desktop.
+              Pendant le mode lancement gratuit (freeAccess) : masquée ENTIÈREMENT (section
+              132) — afficher « Premium » (ou « Gratuit ») laisserait croire à un statut payant
+              actif alors que tout est débloqué pour tous. Réapparaît dès freeAccessMode=false. */}
+          {profileType === "TITULAIRE" && !freeAccess && (
             <Link
               href="/premium"
-              title={isPaid ? "Votre abonnement" : freeAccess ? "Découvrir Premium" : "Vous êtes en plan Gratuit — découvrir Premium"}
+              title={isPaid ? "Votre abonnement" : "Vous êtes en plan Gratuit — découvrir Premium"}
               className={`text-xs px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold transition inline-flex items-center gap-1 ${
                 isPaid
                   ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
@@ -178,13 +181,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   <span className="hidden sm:inline">
                     {profile?.subscriptionPlan === "BOOST" ? "Boost" : profile?.subscriptionPlan === "STRUCTURE" ? "Établissement" : "Premium"}
                   </span>
-                </>
-              ) : freeAccess ? (
-                // Mode lancement gratuit : tout est débloqué → pas de mention « Gratuit »
-                // (qui induirait en erreur). Simple découverte de Premium.
-                <>
-                  <span>✨</span>
-                  <span className="hidden sm:inline">Premium</span>
                 </>
               ) : (
                 <>
