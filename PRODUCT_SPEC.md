@@ -11876,9 +11876,28 @@ linkedUserId String?  // compte ASSISTANT rattache, nullable
 ### Statut
 
 ```
-🟡 Décision de principe + cas limites tranchés. Prompt à rédiger 
-complet avant envoi (chantier conséquent : schéma CabinetPost + 
-contrainte unicité + hook sur fin de contrat + extension du modèle 
-de permissions Mission pour ASSISTANT). Non bloquant pour la bêta 
-en cours — à traiter dans un sprint dédié.
+✅ CORRIGÉ (commit f840ffe, 18/07). CabinetPost.linkedUserId 
+(unique, FK ON DELETE SET NULL). Rattachement auto à la double 
+signature d'un contrat ASSISTANAT (crée ou lie le CabinetPost). 
+Rattachement/détachement manuel via /api/cabinet-posts/[id]/link 
++ composant PostAssistantLink dans le Planning. Détachement 
+automatique câblé sur l'annulation de match (pas de cron dédié — 
+détach basé sur date de fin explicitement écarté, décision Jean-
+Charles, cohérent avec la contrainte cron unique/jour du plan 
+Hobby déjà connue). Permission Mission renforcée CÔTÉ SERVEUR 
+(découverte annexe : c'était UI-only avant, faille de sécurité non 
+identifiée jusqu'ici, maintenant corrigée) — un assistant rattaché 
+ne peut créer qu'un REMPLACEMENT lié à son poste. Bannière + 
+bouton "Faire remplacer mon absence" sur /disponibilites côté 
+assistant.
+
+⚠️ LIMITE SIGNALÉE PAR CLAUDE CODE : flux complet non testé en 
+conditions réelles (pas d'accès navigateur autorisé). Un test 
+manuel end-to-end (signer un contrat assistanat de test, vérifier 
+l'apparition du poste rattaché) est nécessaire avant d'ouvrir la 
+bêta sur ce parcours précis — action recommandée à Jean-Charles.
+
+Limite assumée : un poste peut rester rattaché après la fin réelle 
+si personne n'annule/ne détache manuellement — pas de détection 
+automatique par date de fin.
 ```

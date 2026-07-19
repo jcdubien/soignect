@@ -1,6 +1,6 @@
 # Politique de confidentialité
 
-*Dernière mise à jour : 18 juillet 2026
+*Dernière mise à jour : 18 juillet 2026*
 
 ## 1. Qui traite vos données ?
 
