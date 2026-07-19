@@ -25,6 +25,7 @@ const createMissionSchema = z.object({
   dateFlexibility: z.number().int().min(0).max(4).optional(),
   logementPropose: z.boolean().optional(),   // annonce cabinet : logement proposé (section 120)
   rechercheLogement: z.boolean().optional(), // dispo remplaçant : recherche un logement (→ Profile)
+  ouvertSalariat: z.boolean().optional(),    // dispo candidat : ouvert au salariat (→ Profile, section 154)
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),
   cabinetPostId: z.string().optional().nullable(),
 });
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, briqueStatus, cabinetPostId } = parsed.data;
+  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, ouvertSalariat, briqueStatus, cabinetPostId } = parsed.data;
 
   // Photo de profil obligatoire pour publier une annonce/disponibilité (ferme la brèche
   // rétroactive : un profil créé avant l'onboarding-photo pouvait publier sans photo).
@@ -201,11 +202,15 @@ export async function POST(req: NextRequest) {
   });
 
   // "Je recherche un logement" est une préférence du profil remplaçant (section 120) —
-  // portée par le formulaire de disponibilité, persistée sur le Profile.
-  if (typeof rechercheLogement === "boolean") {
+  // portée par le formulaire de disponibilité, persistée sur le Profile. Idem pour
+  // "ouvert au salariat" (section 154) — préférence candidat qui pilote le gating salariat.
+  if (typeof rechercheLogement === "boolean" || typeof ouvertSalariat === "boolean") {
     await prisma.profile.update({
       where: { id: session.user.profileId },
-      data: { rechercheLogement },
+      data: {
+        ...(typeof rechercheLogement === "boolean" ? { rechercheLogement } : {}),
+        ...(typeof ouvertSalariat === "boolean" ? { ouvertSalariat } : {}),
+      },
     }).catch(() => { /* non bloquant */ });
   }
 

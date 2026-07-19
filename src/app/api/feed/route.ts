@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ProfileType } from "@prisma/client";
+import { ProfileType, TitulaireKind, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -48,15 +48,31 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Gating « ouverture au salariat » (section 154, opt-in) :
+  //  - Candidat (REMPLACANT/ASSISTANT) NON opté → ne voit pas les missions des STRUCTURES
+  //    (contrats salariés CDD/CDI/Stage/Vacation). Les cabinets libéraux restent visibles.
+  //  - Viewer STRUCTURE → ne voit que les candidats ayant coché « ouvert au salariat ».
+  //    (Un cabinet libéral titulaire, lui, voit tous les candidats — comportement inchangé.)
+  const profileWhere: Prisma.ProfileWhereInput = {
+    type: { in: oppositeTypes },
+    isActive: true,
+    id: { not: myProfile.id },
+  };
+  const isCandidateViewer = myProfile.type !== ProfileType.TITULAIRE;
+  const isStructureViewer =
+    myProfile.type === ProfileType.TITULAIRE && myProfile.titulaireKind === TitulaireKind.STRUCTURE;
+  if (isCandidateViewer && !myProfile.ouvertSalariat) {
+    profileWhere.titulaireKind = { not: TitulaireKind.STRUCTURE };
+  }
+  if (isStructureViewer) {
+    profileWhere.ouvertSalariat = true;
+  }
+
   const missions = await prisma.mission.findMany({
     where: {
       isActive: true,
       id: { notIn: excludeMissionIds },
-      profile: {
-        type: { in: oppositeTypes },
-        isActive: true,
-        id: { not: myProfile.id },
-      },
+      profile: profileWhere,
       ...(location ? { location } : {}),
       ...dateFilter,
     },

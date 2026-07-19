@@ -42,6 +42,10 @@ export default function CreateDisponibilitePage() {
           setForm((prev) => (prev.bioTinder.trim() === "" ? { ...prev, bioTinder: profileBio } : prev));
           setBioPrefilled(true);
         }
+        // Pré-cocher « ouvert au salariat » selon la préférence déjà enregistrée (section 154).
+        if (typeof p?.ouvertSalariat === "boolean") {
+          setForm((prev) => ({ ...prev, ouvertSalariat: p.ouvertSalariat }));
+        }
       })
       .catch(() => setHasPhoto(true));
   }, [profileId]);
@@ -57,6 +61,7 @@ export default function CreateDisponibilitePage() {
     minMonths: "",
     dateFlexibility: 0,
     rechercheLogement: false,
+    ouvertSalariat: false,
   });
 
   const isAssistant = profileType === "ASSISTANT";
@@ -100,6 +105,7 @@ export default function CreateDisponibilitePage() {
         missionType: isAssistant ? "ASSISTANAT" : "REMPLACEMENT",
         dateFlexibility: form.dateFlexibility,
         rechercheLogement: form.rechercheLogement,
+        ouvertSalariat: form.ouvertSalariat,
       }),
     });
 
@@ -322,6 +328,21 @@ export default function CreateDisponibilitePage() {
             className="w-4 h-4 rounded accent-kine-600"
           />
           <span className="text-sm text-gray-700">🏠 Je recherche un logement</span>
+        </label>
+
+        {/* ── Ouverture au salariat (section 154) — opt-in : rend le profil visible/matchable
+             avec les postes salariés (CDD/CDI/Stage/Vacation) publiés par les établissements ── */}
+        <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.ouvertSalariat}
+            onChange={(e) => setForm({ ...form, ouvertSalariat: e.target.checked })}
+            className="mt-0.5 w-4 h-4 rounded accent-kine-600 shrink-0"
+          />
+          <span className="text-sm text-gray-700">
+            💼 Je suis aussi ouvert·e aux postes salariés (CDD / CDI / Stage / Vacation)
+            <span className="block text-xs text-gray-400">Vous serez alors proposé·e aux établissements (EHPAD, clinique, SSR…).</span>
+          </span>
         </label>
 
         {/* Taux de rétrocession retiré (section 88) — se négocie dans la discussion/le contrat */}

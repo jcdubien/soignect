@@ -186,6 +186,11 @@ model Profile {
   // bonus logement du score d'affinité (match binaire avec Mission.logementPropose).
   rechercheLogement Boolean @default(false)
 
+  // Ouverture aux postes salariés (section 154) — REMPLACANT/ASSISTANT qui accepte aussi
+  // les contrats salariés (CDD/CDI/Stage/Vacation) publiés par les comptes STRUCTURE.
+  // Défaut false = le candidat ne voit pas / n'est pas visible pour le salariat (opt-in).
+  ouvertSalariat Boolean @default(false)
+
   // Vérification RPPS via API ANS (section 30)
   isVerified  Boolean @default(false)
 
