@@ -127,6 +127,9 @@ model User {
   // Opt-out par type (section notifications recruteur) — la consultation d'annonce
   // est fréquente : on la coupe indépendamment du consentement email global.
   notifyConsultation Boolean @default(true)
+  // Poste cabinet auquel ce compte ASSISTANT est rattaché (section 153) — double casquette.
+  // Un compte n'est rattaché qu'à UN poste à la fois (unicité côté CabinetPost.linkedUserId).
+  assistantPost    CabinetPost? @relation("AssistantPost")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -473,6 +476,12 @@ model CabinetPost {
   autoPublish  Boolean   @default(false)
   isActive     Boolean   @default(true)
   missions     Mission[] @relation("PostMissions")
+
+  // Compte ASSISTANT rattaché à ce poste (section 153) — double casquette employeur/employé.
+  // @unique : un compte User ne peut être rattaché qu'à UN SEUL poste à la fois (les NULL
+  // multiples sont autorisés en Postgres). Null = poste géré uniquement par le titulaire.
+  linkedUserId String?   @unique
+  linkedUser   User?     @relation("AssistantPost", fields: [linkedUserId], references: [id])
 }
 
 // Back-office de traçabilité (section 86) — table d'événements horodatés, écrite

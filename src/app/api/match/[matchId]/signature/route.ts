@@ -7,6 +7,7 @@ import { logTraceEvent } from "@/lib/trace";
 import { triggerBillingIfNeeded } from "@/lib/billing";
 import { sendBillingTriggeredEmail, sendSignatureAppliedEmail } from "@/lib/email";
 import { reportStructureContractUsage } from "@/lib/stripe-usage";
+import { attachAssistantPostForMatch } from "@/lib/assistantPost";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -179,6 +180,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
         })
       )
       .catch(() => logTraceEvent({ eventType: "CONTRACT_SIGNED", matchId, missionId: traceMissionId }));
+
+    // Rattachement automatique du poste à l'assistant (section 153, point 1) — pour un
+    // contrat d'ASSISTANAT uniquement. Non bloquant (le helper avale ses erreurs).
+    await attachAssistantPostForMatch(matchId);
   }
 
   return NextResponse.json({ ok: true, mySide: side, bothSigned }, { status: 201 });

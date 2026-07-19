@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendRelationCancelledEmail } from "@/lib/email";
+import { detachAssistantPostForMatch } from "@/lib/assistantPost";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,11 @@ export async function DELETE(
 
   const match = await prisma.match.findUnique({
     where: { id: matchId },
-    include: { missionA: true, missionB: true },
+    include: {
+      missionA: true, missionB: true,
+      profileA: { select: { type: true, userId: true } },
+      profileB: { select: { type: true, userId: true } },
+    },
   });
   if (!match) return NextResponse.json({ error: "Match introuvable" }, { status: 404 });
 
@@ -64,6 +69,10 @@ export async function DELETE(
       ? [prisma.mission.updateMany({ where: { id: { in: missionIds } }, data: { briqueStatus: "RECHERCHE", matchedName: null } })]
       : []),
   ]);
+
+  // Détachement du poste rattaché à l'assistant (section 153, point 3) — l'annulation de
+  // match est le déclencheur retenu (pas de mécanisme de « fin de contrat » distinct).
+  await detachAssistantPostForMatch(match);
 
   // Email "mise en relation annulée" à l'autre partie (fire-and-forget)
   const otherProfileId = match.profileAId === profileId ? match.profileBId : match.profileAId;

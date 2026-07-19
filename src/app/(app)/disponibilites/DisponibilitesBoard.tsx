@@ -18,11 +18,19 @@ interface MissionSlot {
   matchOtherName?: string | null; // nom de l'autre partie (cabinet) pour le menu adaptatif
 }
 
+interface LinkedPost {
+  id: string;
+  label: string;
+  cabinetName: string | null;
+}
+
 interface Props {
   profileName: string | null;
   profileType: "REMPLACANT" | "ASSISTANT";
   profileLocation: string;
   missions: MissionSlot[];
+  // Poste cabinet auquel cet assistant est rattaché (section 153, point 5) — null sinon.
+  linkedPost?: LinkedPost | null;
 }
 
 // ── Constantes timeline ────────────────────────────────────────────────────────
@@ -408,7 +416,7 @@ function SlotMatchModal({ slot, onClose, onChanged }: {
 
 // ── DisponibilitesBoard principal ─────────────────────────────────────────────
 
-export default function DisponibilitesBoard({ profileName, profileType, profileLocation, missions }: Props) {
+export default function DisponibilitesBoard({ profileName, profileType, profileLocation, missions, linkedPost }: Props) {
   const router = useRouter();
   const isAssistant = profileType === "ASSISTANT";
 
@@ -571,6 +579,22 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
             }`}
           >
             Voir les annonces
+          </Link>
+        </div>
+      )}
+
+      {/* Bannière « poste rattaché » (section 153, point 5) — l'assistant placé dans un
+          cabinet voit son poste + peut recruter un remplaçant pour couvrir son absence. */}
+      {linkedPost && (
+        <div className="bg-violet-50 border-b border-violet-200 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-violet-800">
+            👩‍⚕️ Vous êtes actuellement assistant{linkedPost.cabinetName ? <> chez <strong>{linkedPost.cabinetName}</strong></> : ""} (poste « {linkedPost.label} »).
+          </p>
+          <Link
+            href={`/missions/create?cabinetPostId=${encodeURIComponent(linkedPost.id)}&needType=remplacement`}
+            className="shrink-0 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition"
+          >
+            Faire remplacer mon absence →
           </Link>
         </div>
       )}

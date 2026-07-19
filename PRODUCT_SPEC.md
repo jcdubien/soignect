@@ -11549,13 +11549,336 @@ desktop et mobile.
 ### Statut
 
 ```
-✅ CORRIGÉ (17/07). Bouton conditionnel (header + FAB mobile), 
-signal calculé côté serveur (force-dynamic, toujours frais) :
-- Titulaire : masqué si postes cabinet actifs > 0 OU annonces 
-  actives > 0. Visible seulement si aucun poste créé et aucune 
-  annonce (présence implicite du titulaire non comptée — seuil 
-  validé par Jean-Charles).
-- Remplaçant/Assistant : masqué si disponibilités actives > 0.
-Réapparition automatique si tout est supprimé. Header et menu bas 
-mobile cohérents (même signal showCreateButton).
+✅ CORRIGÉ une première fois (17/07, masquage conditionnel). 
+
+🔄 DÉCISION RÉVISÉE (17/07) : suppression complète des boutons 
+"+ Annonce" et "+ Ajouter" décidée (double redondance avec le clic 
+timeline).
+
+✅ CORRIGÉ ET VÉRIFIÉ (18/07, capture à l'appui) : les deux boutons 
+ont bien disparu de la page Disponibilités. "Déconnexion" remplacé 
+par une icône claire (flèche de sortie), plus de troncature. Bonus 
+constaté : menu du bas mobile passé de 5 à 4 items (FAB central 
+disparu), plus épuré.
+
+SECTION 148 ENTIÈREMENT CLOSE.
+```
+
+### ⚠️ RÉOUVERTURE URGENTE (18/07, plus tard) — clic timeline peu fiable
+
+```
+Constat critique : le clic sur la timeline (devenu seul point 
+d'entrée après suppression des boutons) échoue environ 9 fois sur 
+10 côté remplaçant — création de disponibilité quasiment 
+impossible dans cet état.
+
+DÉCISION DE SÉCURITÉ : rétablir le bouton "+ Annonce" de façon 
+PERMANENTE (header + FAB mobile), annule la suppression complète 
+décidée plus tôt le même jour.
+
+✅ CORRIGÉ (commit dfe117f, 18/07) : bouton "+ Annonce" rétabli en 
+permanence (filet de sécurité garanti à 100%). Cause du clic 
+timeline peu fiable identifiée et corrigée : cibles tactiles 
+agrandies (desktop pleine hauteur de ligne, mobile piste 56px) + 
+bug de date décalée corrigé. Détail complet section 152 (audit UX 
+plus large mené en parallèle, découverte critique sur l'inscription 
+Assistant).
+
+SECTION 148 DÉFINITIVEMENT CLOSE — le bouton "+ Annonce" reste 
+désormais un point d'entrée permanent, pas conditionnel.
+```
+
+---
+
+## 149. BUG — Deconnexion coupe/tronque en mobile (header)
+
+### Constat
+
+```
+Sur mobile, "Deconnexion" apparait tronque ("Deconnexio") dans le
+header - probable debordement horizontal du header sur petit
+ecran avec plusieurs elements (logo, badge role, +Annonce,
+Deconnexion).
+```
+
+### Statut
+
+```
+✅ CORRIGÉ (commit 61d81eb, 18/07) :
+- Champ "Commune ou zone souhaitée" retiré du formulaire de 
+  disponibilité
+- Zones = seul critère ; publication désactivée si 0 zone 
+  sélectionnée
+- Puce "🌴 Toute la Guadeloupe" ajoutée dans ZoneSelector (coche 
+  les 10 zones = aucune restriction)
+- Matching zones-only (scoreGeo sans repli commune côté remplaçant)
+- Dépendances gérées : location dérivé des zones pour l'affichage 
+  (geoLabel), résumé Wikipédia masqué si pas une commune connue 
+  (isKnownCommune)
+
+Bug associé (espace vide barre d'outils) également corrigé, commit 
+76b7ee7 : titre + groupe de zoom groupés à gauche sur Disponibilités 
+(sm:flex-1 retiré). Planning cabinet non concerné (ses boutons 
+restent légitimes, non redondants avec le clic timeline).
+```
+
+---
+
+## 149. FEATURE — Photo Wikipédia illustrative + mise en valeur visuelle du texte annonce (bottom sheet)
+
+### Contexte
+
+```
+Extension du descriptif Wikipédia commune déjà existant (sections
+104/106) : ajouter la première photo illustrative Wikipedia
+(thumbnail via API summary déjà utilisée), et donner plus de
+présence visuelle au texte bioTinder (carte avec relief/élévation
+plutôt que bloc plat).
+```
+
+### Statut
+
+```
+Prompt rédigé, non bloquant, vision générale liée à la section 142
+(portfolio dans la poche) mais scope plus modeste et réalisable
+rapidement vu que ça étend une intégration déjà existante.
+```
+
+---
+
+## 150. FIX — Simplification recherche géo remplaçant : zones uniquement (retrait commune), option "Toute la Guadeloupe"
+
+### Contexte
+
+```
+Le systeme actuel (commune unique + zones en parallele, section
+138) cree une ambiguite de matching sans regle claire. Decision :
+c est un dispositif PROVISOIRE en attendant le vrai systeme de
+rayon en temps de trajet (section 135, pas encore developpe) -
+pas la peine de sur-raffiner.
+```
+
+### Decision
+
+```
+Retirer le champ commune du formulaire de disponibilite. Garder
+uniquement les zones (multi-selection), ajouter une option
+"Toute la Guadeloupe". Matching base uniquement sur
+Disponibilite.zones. Verifier avant suppression si le champ
+commune est utilise ailleurs (Wikipedia bottom sheet, affichage
+profil) avant de le retirer sans solution de repli.
+```
+
+### Statut
+
+```
+Prompt rédigé, en attente d envoi.
+```
+
+---
+
+## 151. FEATURE — Intégration documents légaux (mentions/confidentialité/CGU) + consentement horodaté
+
+### Livré
+
+```
+✅ CORRIGÉ (commit d25d40b, 18/07) :
+- Pages mentions légales, confidentialité, CGU/CGV intégrées
+- Case obligatoire à inscription (bouton bloqué tant que non cochée)
+- User.acceptedTermsAt DateTime? — horodatage du consentement pour
+  chaque nouveau compte, exploitable juridiquement
+- Date CGU/CGV fixée au 16 juillet 2026
+
+Note : comptes existants avant ce déploiement ont
+acceptedTermsAt = null (pas de consentement rétroactif) - attendu
+et accepté, volume de comptes concerné = tests internes
+uniquement. Possibilité différée : présenter une acceptation au
+prochain login pour ces comptes si besoin plus tard.
+```
+
+### Statut
+
+```
+Point le plus critique de la checklist "protection avant inconnus"
+desormais couvert. Sujet clos sauf si Jean-Charles veut traiter
+le point des comptes existants plus tard.
+```
+
+---
+
+## 152. AUDIT UX CRITIQUE — Parcours candidat (Assistant + Remplaçant), découverte majeure
+
+### 🔴 Découverte critique — le type ASSISTANT ne pouvait pas s inscrire
+
+```
+L inscription (ecran 1) ne proposait que 3 choix : Cabinet/Titulaire,
+Etablissement, Remplacant. setProfileType("ASSISTANT") n etait JAMAIS
+appele, alors que tout le reste du code le supportait deja
+(feed, matching, disponibilites/create avec isAssistant, duree min
+90 jours, missionType ASSISTANAT). Consequence : un candidat cherchant
+un assistanat/collaboration devait s inscrire en "Remplacant", ne
+pouvait alors creer QUE des annonces REMPLACEMENT - jamais ASSISTANAT.
+Toute la logique assistant candidat etait du code mort.
+
+IMPACT STRATEGIQUE : l assistanat est identifie depuis la section 118
+comme le "produit gold" (segment le plus precieux). Ce bug aurait pu
+saboter silencieusement cette strategie pendant toute la beta sans
+explication apparente.
+```
+
+### Fix — 4e carte Assistant a inscription ✅ (commit 2b7fb79)
+
+```
+Carte "Assistant·e / Collaborateur·rice" ajoutee a l ecran 1.
+Verification complete des branches en aval : toutes geraient deja
+ASSISTANT correctement (identite candidat, API profiles, disponibilites
+create avec regles specifiques, feed/matching oppositeTypes, layout).
+Parcours assistant debloque de bout en bout.
+```
+
+### Reco n°2 — Guider vers le double geste publier→swiper ✅ (commit a467383)
+
+```
+Le redirect vers /annonces apres publication existait deja. Ajout d un
+repere explicatif avant le bouton de publication expliquant le
+fonctionnement du matching reciproque (publier ne suffit pas, il faut
+aussi swiper).
+```
+
+### Reco n°3 — Bio annonce pre-remplie depuis le profil ✅ (commit a467383)
+
+```
+Le formulaire de disponibilite recupere deja le profil (check photo)
+- reutilise pour pre-remplir la bio avec celle saisie a l inscription.
+N ecrase jamais une saisie en cours (uniquement si champ vide).
+Supprime une redondance de saisie (40+ caracteres a retaper).
+```
+
+### Reco n°4 — Photo bloquante : DECISION DE NE PAS CHANGER (justifiee)
+
+```
+Investigation avant conclusion : la photo est deja obligatoire a l
+inscription (une seule fois, onboarding). Explorer/swiper ne requiert
+aucune photo (aucun check sur /api/feed ou /api/swipe). Le blocage
+photo "au moment de publier" ne concerne que d eventuels comptes
+herites crees avant l onboarding-photo - cas quasi inexistant.
+
+CONCLUSION : rendre la photo non-bloquante n apporterait aucun gain
+reel et retirerait un signal qualite important pour une app type
+Tinder. Non modifie - bonne discipline de ne pas inventer du scope
+non necessaire.
+```
+
+### Reco n°5 — Fiabiliser le clic timeline ✅ (commit dfe117f)
+
+```
+Cause identifiee : cible tactile trop fine (bande de 28-44px dans une
+zone qui semblait occuper toute la timeline) → taps dans le vide. Bug
+preexistant, expose par le retrait des boutons "+" (section 148).
+Cibles agrandies (desktop pleine hauteur de ligne, mobile piste 56px)
++ bug de date decalee au clic corrige.
+
+Bouton "+ Annonce" retabli en permanence en parallele (filet de
+securite, section 148 reouverte en urgence) - creation garantie a
+100% independamment de la fiabilite du clic.
+
+Limite honnete signalee par Claude Code : taux de reussite reel du
+tap non verifiable en conditions reelles (pas d acces navigateur
+autorise sur le domaine) - a confirmer sur device par Jean-Charles.
+```
+
+### Statut global
+
+```
+4 sur 5 recommandations livrees, la 5e (#4 photo) sciemment non
+appliquee avec justification solide. Aucun nouveau bug identifie non
+traite. Pistes suivantes proposees par Claude Code, non lancees :
+- Verifier en conditions reelles le taux de reussite du clic timeline
+  (Jean-Charles a tester sur mobile)
+- Specialiser les exemples de bio/placeholders pour assistant
+  (cosmetique)
+- Reduire les clics de saisie de dates (presets type "cette semaine")
+```
+
+---
+
+## 153. FEATURE — Rattachement compte ASSISTANT à un poste (CabinetPost), double casquette employeur/employé
+
+### Vision
+
+```
+Un assistant a un role double dans le temps : candidat (cherche un
+poste, ce que la section 152 vient de debloquer) ET, une fois place
+dans un cabinet, potentiellement employeur temporaire de sa propre
+couverture (besoin de trouver un remplacant pour ses absences).
+
+Mecanisme retenu : rattacher un CabinetPost (poste dans le Planning
+du cabinet, ex: Marion/Matheo/Lea) a un vrai compte Soignect de type
+ASSISTANT. Une fois ce lien fait, DEUX parties peuvent gerer la
+couverture de ce poste : le titulaire (comme aujourd hui) ET l
+assistant lie lui-meme.
+```
+
+### Mecanique de rattachement
+
+```
+1. AUTOMATIQUE : quand un match de type ASSISTANAT atteint l etat
+   contrat confirme/signe (section 137/145, deja construit), creer
+   ou rattacher automatiquement un CabinetPost dans le Planning du
+   cabinet concerne, lie au compte User de l assistant. Pas d action
+   manuelle necessaire dans le cas le plus frequent.
+
+2. MANUEL (cas de reprise) : pour les postes CabinetPost existants
+   sans compte Soignect rattache (ex: Marion/Matheo/Lea actuels, cree
+   avant ce systeme), le titulaire garde la possibilite de rattacher
+   manuellement un compte assistant existant a un poste, si cet
+   assistant rejoint la plateforme plus tard.
+```
+
+### Modele de permissions (a detailler techniquement)
+
+```
+Poste NON rattache a un compte : seul le titulaire gere (comportement
+actuel, inchange).
+
+Poste RATTACHE a un compte assistant : le titulaire ET l assistant
+lie peuvent tous deux publier une recherche de remplacement pour CE
+poste precis. Necessite d etendre le modele de permissions actuel
+(actuellement seuls TITULAIRE et STRUCTURE peuvent creer des Mission)
+pour autoriser un compte ASSISTANT a creer une Mission de type
+REMPLACEMENT specifiquement liee a son propre poste rattache - pas
+de creation libre d annonces par un assistant en dehors de ce
+contexte precis.
+```
+
+### Schema (esquisse, a affiner avant implementation)
+
+```prisma
+// Sur CabinetPost - ajouter :
+linkedUserId String?  // compte ASSISTANT rattache, nullable
+
+// Le compte assistant rattache voit ce poste dans SA PROPRE
+// timeline personnelle (lien avec la vision section 142 - page
+// unique timeline-centrique remplacant/assistant/salarie)
+```
+
+### Cas limites tranchés (18/07)
+
+```
+- Un assistant ne peut être rattaché QU'À UN SEUL poste à la fois 
+  (pas de multi-cabinets simultané) — contrainte unique à 
+  appliquer côté schéma/logique
+- Fin de contrat = détachement AUTOMATIQUE du poste (pas d'action 
+  manuelle du titulaire nécessaire) — le CabinetPost redevient 
+  "non rattaché", géré uniquement par le titulaire comme avant
+```
+
+### Statut
+
+```
+🟡 Décision de principe + cas limites tranchés. Prompt à rédiger 
+complet avant envoi (chantier conséquent : schéma CabinetPost + 
+contrainte unicité + hook sur fin de contrat + extension du modèle 
+de permissions Mission pour ASSISTANT). Non bloquant pour la bêta 
+en cours — à traiter dans un sprint dédié.
 ```

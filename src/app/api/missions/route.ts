@@ -137,6 +137,38 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Permissions liées à un poste (section 153, point 4). Par défaut la mission appartient à
+  // son auteur (profileId courant). Cas particulier : un ASSISTANT rattaché à un CabinetPost
+  // peut publier UN REMPLACEMENT pour couvrir SON absence — la mission appartient alors au
+  // CABINET (elle vit dans le Planning du cabinet). Sans cabinetPostId → comportement candidat
+  // inchangé (publication de sa propre disponibilité).
+  let ownerProfileId = session.user.profileId as string;
+  if (cabinetPostId) {
+    const post = await prisma.cabinetPost.findUnique({
+      where: { id: cabinetPostId },
+      select: { cabinetId: true, linkedUserId: true },
+    });
+    if (!post) {
+      return NextResponse.json({ error: "Poste introuvable." }, { status: 404 });
+    }
+    const isCabinetOwner = post.cabinetId === session.user.profileId;
+    const isLinkedAssistant = post.linkedUserId != null && post.linkedUserId === session.user.id;
+    if (!isCabinetOwner && !isLinkedAssistant) {
+      return NextResponse.json({ error: "Vous n'êtes pas autorisé à publier sur ce poste." }, { status: 403 });
+    }
+    if (isLinkedAssistant && !isCabinetOwner) {
+      // L'assistant rattaché ne peut publier qu'un REMPLACEMENT (couverture de son absence).
+      if (effectiveMissionType !== MissionType.REMPLACEMENT) {
+        return NextResponse.json(
+          { error: "En tant qu'assistant rattaché, vous ne pouvez publier qu'un remplacement pour votre poste." },
+          { status: 403 }
+        );
+      }
+      // La mission appartient au cabinet → apparaît dans son Planning, swipeable par les remplaçants.
+      ownerProfileId = post.cabinetId;
+    }
+  }
+
   // Derive zonage from commune — only meaningful for ASSISTANAT/COLLABORATION
   const rawZonage = getCommuneZonage(location);
   const zonage = rawZonage === "INTERMEDIAIRE"
@@ -147,7 +179,7 @@ export async function POST(req: NextRequest) {
 
   const mission = await prisma.mission.create({
     data: {
-      profileId: session.user.profileId,
+      profileId: ownerProfileId,
       title,
       description,
       location,

@@ -40,6 +40,9 @@ interface PostData {
   noticeMonths: number;
   isActive: boolean;
   missions: MissionData[];
+  // Compte ASSISTANT rattaché à ce poste (section 153) — null si géré uniquement par le titulaire.
+  linkedUserId?: string | null;
+  linkedUser?: { id: string; email: string; profile: { name: string | null } | null } | null;
 }
 
 interface UnlinkedMission {
@@ -1186,6 +1189,83 @@ function CancelMatchButton({ matchId, otherName, onCancelled }: {
   );
 }
 
+// Rattachement/détachement manuel d'un compte ASSISTANT à un poste (section 153, point 2/3).
+function PostAssistantLink({ post, onChanged }: { post: PostData; onChanged: () => void }) {
+  const [open, setOpen]   = useState(false);
+  const [email, setEmail] = useState("");
+  const [busy, setBusy]   = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const linked = post.linkedUser;
+
+  async function attach() {
+    if (!email.trim() || busy) return;
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(`/api/cabinet-posts/${post.id}/link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(typeof d?.error === "string" ? d.error : "Rattachement impossible."); setBusy(false); return;
+      }
+      onChanged();
+    } catch { setError("Erreur réseau."); setBusy(false); }
+  }
+
+  async function detach() {
+    if (busy) return;
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(`/api/cabinet-posts/${post.id}/link`, { method: "DELETE" });
+      if (!res.ok) { setError("Détachement impossible."); setBusy(false); return; }
+      onChanged();
+    } catch { setError("Erreur réseau."); setBusy(false); }
+  }
+
+  if (linked) {
+    return (
+      <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+        <p className="text-[11px] font-bold text-violet-700 uppercase tracking-wide mb-0.5">👩‍⚕️ Compte assistant rattaché</p>
+        <p className="text-sm font-semibold text-gray-900">{linked.profile?.name ?? linked.email}</p>
+        <p className="text-xs text-gray-500">{linked.email}</p>
+        <button onClick={detach} disabled={busy}
+          className="mt-2 text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-40">
+          {busy ? "…" : "Détacher ce compte"}
+        </button>
+        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {!open ? (
+        <button onClick={() => setOpen(true)}
+          className="w-full py-2.5 border border-violet-200 text-violet-700 rounded-xl text-sm font-semibold hover:bg-violet-50 transition">
+          + Rattacher un compte assistant
+        </button>
+      ) : (
+        <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+          <label className="block text-xs font-medium text-gray-600 mb-1">Email du compte assistant</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="assistant@email.fr"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
+          {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+          <div className="flex gap-2 mt-2">
+            <button onClick={() => { setOpen(false); setError(null); }} disabled={busy}
+              className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:opacity-40">Annuler</button>
+            <button onClick={attach} disabled={busy || !email.trim()}
+              className="flex-1 py-2 bg-violet-600 text-white rounded-lg text-sm font-bold hover:bg-violet-700 disabled:opacity-40">
+              {busy ? "…" : "Rattacher"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Panel latéral droit ────────────────────────────────────────────────────────
 
 function SidePanel({
@@ -1261,6 +1341,8 @@ function SidePanel({
         >
           Voir tous les matchs
         </Link>
+        {/* Rattachement d'un compte assistant à ce poste (section 153) */}
+        <PostAssistantLink post={post} onChanged={() => { onClose(); router.refresh(); }} />
         {post.isActive && (
           <button
             onClick={() => onClosePost(post)}
@@ -1355,6 +1437,8 @@ function SidePanel({
             onCancelled={() => { onClose(); router.refresh(); }}
           />
         )}
+        {/* Rattachement d'un compte assistant à ce poste (section 153) */}
+        <PostAssistantLink post={post} onChanged={() => { onClose(); router.refresh(); }} />
         {post.isActive && (
           <button
             onClick={() => onClosePost(post)}

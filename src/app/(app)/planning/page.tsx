@@ -28,6 +28,8 @@ export default async function PlanningPage() {
   const posts = await prisma.cabinetPost.findMany({
     where: { cabinetId: profileId },
     include: {
+      // Compte assistant rattaché (section 153) — pour afficher le lien + le bouton détacher.
+      linkedUser: { select: { id: true, email: true, profile: { select: { name: true } } } },
       missions: {
         include: {
           matchesA: {

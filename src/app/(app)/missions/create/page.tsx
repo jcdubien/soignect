@@ -85,14 +85,23 @@ export default function CreateMissionPage() {
   const isEmployeur = sessionEmployeur || kindEmployeur;
   const profileType = rawProfileType as ProfileTypeKey;
 
-  // Remplaçants et assistants publient leurs disponibilités, pas des missions
+  // Mode « couverture » (section 153, point 4/5) : un ASSISTANT rattaché à un poste peut
+  // publier un REMPLACEMENT pour couvrir SON absence — il arrive ici avec ?cabinetPostId=…
+  // et utilise le formulaire de recrutement (config titulaire), au lieu d'être redirigé.
+  const coverMode = rawProfileType === "ASSISTANT" && !!searchParams.get("cabinetPostId");
+
+  // Remplaçants et assistants publient leurs disponibilités, pas des missions —
+  // sauf l'assistant en mode couverture (recrutement d'un remplaçant pour son poste).
   useEffect(() => {
-    if (status === "authenticated" && rawProfileType !== "TITULAIRE") {
+    if (status === "authenticated" && rawProfileType !== "TITULAIRE" && !coverMode) {
       router.replace("/disponibilites/create");
     }
-  }, [status, rawProfileType, router]);
+  }, [status, rawProfileType, router, coverMode]);
 
-  const cfgKey: ProfileTypeKey = profileType === "TITULAIRE" && isEmployeur ? "TITULAIRE_EMPLOYEUR" : profileType;
+  const cfgKey: ProfileTypeKey =
+    coverMode ? "TITULAIRE"
+    : profileType === "TITULAIRE" && isEmployeur ? "TITULAIRE_EMPLOYEUR"
+    : profileType;
   const cfg = CONFIG[cfgKey] ?? CONFIG.REMPLACANT;
 
   // Labels mission type selon isEmployeur

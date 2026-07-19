@@ -59,6 +59,14 @@ export default async function DisponibilitesPage() {
     if (myMissionId) matchByMission.set(myMissionId, { matchId: mt.id, otherName });
   }
 
+  // Poste cabinet auquel ce compte ASSISTANT est rattaché (section 153, point 5) — double
+  // casquette : afficher « Vous êtes assistant chez [cabinet] » + accès à sa propre couverture.
+  const userId = session.user.id as string;
+  const linkedPost = await prisma.cabinetPost.findFirst({
+    where: { linkedUserId: userId },
+    select: { id: true, label: true, cabinet: { select: { name: true } } },
+  });
+
   const regionLabel: Record<string, string> = {
     GUADELOUPE: "Pointe-à-Pitre", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Gustavia",
     MARTINIQUE: "Fort-de-France", GUYANE: "Cayenne", REUNION: "Saint-Denis",
@@ -80,6 +88,7 @@ export default async function DisponibilitesPage() {
         matchId: matchByMission.get(m.id)?.matchId ?? null,
         matchOtherName: matchByMission.get(m.id)?.otherName ?? null,
       }))}
+      linkedPost={linkedPost ? { id: linkedPost.id, label: linkedPost.label, cabinetName: linkedPost.cabinet?.name ?? null } : null}
     />
   );
 }
