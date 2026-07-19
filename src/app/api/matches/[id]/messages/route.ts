@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { sendNewMessageEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,13 @@ export async function GET(
     orderBy: { createdAt: "asc" },
     take: 100,
   });
+
+  // Marquer comme lus les messages reçus (envoyés par l'autre) — section 155. Fire-and-forget :
+  // ouvrir la conversation vaut lecture ; alimente le badge « non lu » de la page Relations.
+  prisma.message.updateMany({
+    where: { matchId: id, senderId: { not: session.user.profileId }, readAt: null },
+    data: { readAt: new Date() },
+  }).catch(() => {});
 
   return NextResponse.json(messages);
 }
@@ -72,11 +80,18 @@ export async function POST(
   prisma.profile
     .findUnique({
       where: { id: recipientId },
-      select: { user: { select: { email: true, emailOptIn: true } } },
+      select: { user: { select: { id: true, email: true, emailOptIn: true } } },
     })
     .then((rec) => {
       if (!rec?.user?.email) return;
       const senderLabel = message.sender.type === "TITULAIRE" ? "Un cabinet" : "Un remplaçant";
+      // Notification in-app (section 155) — en parallèle de l'email.
+      createNotification({
+        userId: rec.user.id,
+        type: "message",
+        message: `${senderLabel} vous a envoyé un message : « ${parsed.data.content.slice(0, 60)} »`,
+        linkUrl: `/matches?matchId=${id}`,
+      });
       return sendNewMessageEmail(rec.user.email, {
         senderLabel,
         excerpt: parsed.data.content,

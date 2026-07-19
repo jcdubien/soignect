@@ -130,6 +130,8 @@ model User {
   // Poste cabinet auquel ce compte ASSISTANT est rattaché (section 153) — double casquette.
   // Un compte n'est rattaché qu'à UN poste à la fois (unicité côté CabinetPost.linkedUserId).
   assistantPost    CabinetPost? @relation("AssistantPost")
+  // Notifications in-app (section 155) — canal d'affichage en plus des emails.
+  notifications    Notification[]
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -383,6 +385,9 @@ model Message {
   createdAt DateTime @default(now())
   // Rappel 24h envoyé pour ce message resté sans réponse (section 9) — évite les doublons
   reminderSentAt DateTime?
+  // Lecture par le destinataire (section 155) — null = non lu. Renseigné quand le
+  // destinataire (senderId != lui) ouvre la conversation.
+  readAt    DateTime?
 
   @@index([matchId, createdAt])
 }
@@ -511,6 +516,21 @@ model TraceEvent {
 
 // Configuration plateforme (singleton) — mode lancement gratuit (section 2).
 // Tant que freeAccessMode = true, tous les comptes ont accès au Premium.
+// Notifications in-app (section 155) — une entrée créée en parallèle de chaque email
+// (mêmes déclencheurs : message, match, signature, consultation). readAt null = non lu.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    // "message" | "match" | "signature" | "consultation"
+  message   String    @db.VarChar(300)
+  linkUrl   String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
 model PlatformConfig {
   id             String   @id @default(cuid())
   freeAccessMode Boolean  @default(true)

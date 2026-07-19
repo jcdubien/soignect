@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendConsultationEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -53,12 +54,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     prisma.profile
       .findUnique({
         where: { id: mission.profileId },
-        select: { user: { select: { email: true, notifyConsultation: true } } },
+        select: { user: { select: { id: true, email: true, notifyConsultation: true } } },
       })
       .then((owner) => {
         if (!owner?.user?.email) return;
         const viewerType = (session.user as { profileType?: string }).profileType;
         const viewerLabel = viewerType === "TITULAIRE" ? "Un cabinet" : "Un remplaçant";
+        // Notification in-app (section 155) — en parallèle de l'email.
+        createNotification({
+          userId: owner.user.id,
+          type: "consultation",
+          message: `${viewerLabel} a consulté votre annonce « ${mission.title} »`,
+          linkUrl: "/planning",
+        });
         return sendConsultationEmail(owner.user.email, {
           viewerLabel,
           missionTitle: mission.title,

@@ -8,6 +8,7 @@ import { triggerBillingIfNeeded } from "@/lib/billing";
 import { sendBillingTriggeredEmail, sendSignatureAppliedEmail } from "@/lib/email";
 import { reportStructureContractUsage } from "@/lib/stripe-usage";
 import { attachAssistantPostForMatch } from "@/lib/assistantPost";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -103,10 +104,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
   prisma.profile
     .findUnique({
       where: { id: otherProfileId },
-      select: { user: { select: { email: true, emailOptIn: true } } },
+      select: { user: { select: { id: true, email: true, emailOptIn: true } } },
     })
     .then((other) => {
       if (!other?.user?.email) return;
+      // Notification in-app (section 155) — en parallèle de l'email.
+      createNotification({
+        userId: other.user.id,
+        type: "signature",
+        message: bothSigned
+          ? `${signerLabel} a signé — le contrat est signé des deux côtés.`
+          : `${signerLabel} a signé le contrat — à votre tour.`,
+        linkUrl: `/match/${matchId}/contrat`,
+      });
       return sendSignatureAppliedEmail(other.user.email, {
         signerLabel,
         bothSigned,

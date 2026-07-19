@@ -9,6 +9,7 @@ import { isFreeAccessMode } from "@/lib/platform";
 import { fmtDay } from "@/lib/dates";
 import ActiveAnnoncesMenu from "./ActiveAnnoncesMenu";
 import ActiveAnnoncesMobile from "./ActiveAnnoncesMobile";
+import NotificationBell from "@/components/ui/NotificationBell";
 
 export const dynamic = "force-dynamic";
 
@@ -194,6 +195,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               )}
             </Link>
           )}
+          <NotificationBell />
           <Link
             href="/compte"
             className="text-xs px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg font-semibold hover:bg-gray-50 transition hidden sm:inline-flex items-center"

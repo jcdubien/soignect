@@ -9,6 +9,15 @@ import { ProfileType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
+// Horodatage compact d'un message (section 155) : heure si aujourd'hui, sinon date courte.
+function fmtMsgTime(d: Date): string {
+  const now = new Date();
+  const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  return sameDay
+    ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
 // Groupes de statut repliables (item 12) — Déclinées/Expirées repliées par défaut
 const STATUS_GROUPS: { keys: string[]; label: string; defaultOpen: boolean }[] = [
   { keys: ["EN_ATTENTE"],          label: "En attente de réponse", defaultOpen: true },
@@ -54,10 +63,34 @@ export default async function MatchesPage() {
   const swipeScore: Record<string, number | null> = {};
   for (const s of mySwipes) swipeScore[s.swipedMissionId] = s.affinityScore;
 
+  // Aperçu de conversation (section 155) : dernier message + non-lus par match.
+  const matchIds = matches.map((m) => m.id);
+  const [lastMessages, unreadGroups] = await Promise.all([
+    // Dernier message de chaque match (on récupère les récents et on garde le 1er par match).
+    prisma.message.findMany({
+      where: { matchId: { in: matchIds } },
+      orderBy: { createdAt: "desc" },
+      select: { matchId: true, content: true, createdAt: true, senderId: true },
+    }),
+    // Non-lus pour MOI = messages envoyés par l'autre, non lus.
+    prisma.message.groupBy({
+      by: ["matchId"],
+      where: { matchId: { in: matchIds }, senderId: { not: profileId }, readAt: null },
+      _count: { _all: true },
+    }),
+  ]);
+  const lastByMatch = new Map<string, { content: string; createdAt: Date; senderId: string }>();
+  for (const msg of lastMessages) {
+    if (!lastByMatch.has(msg.matchId)) lastByMatch.set(msg.matchId, msg); // 1er = plus récent (tri desc)
+  }
+  const unreadByMatch = new Map<string, number>();
+  for (const g of unreadGroups) unreadByMatch.set(g.matchId, g._count._all);
+
   const formatted = matches.map((m) => {
     const isA = m.profileAId === profileId;
     const theirMissionId = (isA ? m.missionBId : m.missionAId) ?? null;
     const affinityScore  = theirMissionId ? (swipeScore[theirMissionId] ?? null) : null;
+    const last = lastByMatch.get(m.id) ?? null;
 
     return {
       ...m,
@@ -65,8 +98,14 @@ export default async function MatchesPage() {
       myMission:    isA ? m.missionA : m.missionB,
       theirMission: isA ? m.missionB : m.missionA,
       affinityScore,
+      lastMessage: last ? { content: last.content, at: last.createdAt, fromMe: last.senderId === profileId } : null,
+      unreadCount: unreadByMatch.get(m.id) ?? 0,
+      // Tri par activité : dernier message sinon date de création du match.
+      lastActivityAt: (last?.createdAt ?? m.createdAt).getTime(),
     };
   });
+  // Conversations les plus récemment actives en premier (section 155).
+  formatted.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
 
   const typeConfig = (type: string) => ({
     REMPLACANT: { label: "Remplaçant·e", badge: "bg-blue-100 text-blue-700",      emoji: "🩺" },
@@ -145,12 +184,23 @@ export default async function MatchesPage() {
                           {score}% compatible
                         </span>
                       )}
+                      {m.unreadCount > 0 && (
+                        <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                          {m.unreadCount > 9 ? "9+" : m.unreadCount}
+                        </span>
+                      )}
                     </div>
                     {m.theirMission && (
                       <p className="text-sm font-semibold text-gray-800 truncate">{m.theirMission.title}</p>
                     )}
-                    {m.theirMission && (
-                      <p className="text-xs text-gray-400">📍 {m.theirMission.location}</p>
+                    {/* Aperçu du dernier message (section 155) — remplace la ligne lieu s'il existe. */}
+                    {m.lastMessage ? (
+                      <p className={`text-xs truncate ${m.unreadCount > 0 ? "text-gray-700 font-semibold" : "text-gray-400"}`}>
+                        {m.lastMessage.fromMe ? "Vous : " : ""}{m.lastMessage.content.length > 50 ? m.lastMessage.content.slice(0, 50).trimEnd() + "…" : m.lastMessage.content}
+                        <span className="text-gray-300 font-normal"> · {fmtMsgTime(m.lastMessage.at)}</span>
+                      </p>
+                    ) : (
+                      m.theirMission && <p className="text-xs text-gray-400">📍 {m.theirMission.location}</p>
                     )}
                   </div>
 

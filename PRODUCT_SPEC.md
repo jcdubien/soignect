@@ -11962,6 +11962,64 @@ comptes STRUCTURE.
 ### Statut
 
 ```
-Prompts rediges (2, dependants l un de l autre dans l ordre), en
-attente d envoi.
+✅ CORRIGÉ (commit 2e12cba, 18/07). Case à cocher optionnelle 
+(REMPLACANT/ASSISTANT) : "Je suis aussi ouvert·e aux postes 
+salariés (CDD/CDI/Stage/Vacation)". Persisté sur Profile.ouvertSalariat 
+(déviation assumée : Disponibilite n'existe pas en tant que modèle, 
+une disponibilité EST une Mission — préférence candidat placée sur 
+Profile, cohérent avec rechercheLogement/dateFlexibility déjà là).
+
+Gating réciproque du feed : candidat non opté ne voit pas les 
+Missions STRUCTURE ; viewer STRUCTURE ne voit que les candidats 
+opt-in.
+
+Analyse score (rapportée avant implémentation) : PAS de 4e profil 
+de pondération créé — types salariés mappés sur les profils 
+existants sémantiquement cohérents (CDD→ASSISTANAT, CDI→
+COLLABORATION, Vacation/Intérim→REMPLACEMENT, Stage→COLLABORATION/
+ASSOCIE). Décision de ne pas spéculer, conforme à la consigne 
+donnée.
+
+Décision (18/07) : pas de backfill des comptes existants — reste 
+opt-in par défaut (false), conforme à l'intention initiale, faible 
+volume de profils concernés en bêta.
+
+✅ Point 1 (agencement toolbar + types conditionnels) CORRIGÉ 
+(commit 278f40c, 18/07) : boutons groupés dans un conteneur flex 
+gap-2 (restent collés, tout compte confondu). Types de poste 
+conditionnels selon titulaireKind, sans migration (réutilisation 
+des valeurs PostType existantes, seuls les libellés changent pour 
+Structure). Vérifié : champ "Comment se termine cette occupation" 
+reste pertinent tel quel pour le salariat, aucun ajustement 
+nécessaire.
+
+SECTION 155 ENTIÈREMENT CLOSE.
+```
+
+---
+
+## 156. FEATURE — Vue centralisée des messages + notifications in-app
+
+### Contexte
+
+```
+Notifications actuellement email-only (sections 112, 137). Pas de
+vue centralisee des messages ni de systeme de notification in-app.
+```
+
+### Feature
+
+```
+1. Page Relations enrichie : apercu dernier message + badge non lu
+   par conversation, tri par activite recente
+2. Icone notification (header) + badge compteur + panneau listant
+   les evenements recents (message/match/signature/consultation,
+   memes declencheurs que les emails section 137, canal
+   supplementaire pas un remplacement)
+```
+
+### Statut
+
+```
+Prompt redige, en attente d envoi.
 ```

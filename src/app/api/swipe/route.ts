@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Prisma, SwipeDirection } from "@prisma/client";
 import { computeAffinityScore, computeMatchScore } from "@/lib/deepseek";
 import { sendNewRelationEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
@@ -242,11 +243,18 @@ export async function POST(req: NextRequest) {
         // Email "nouvelle mise en relation" à l'autre partie (fire-and-forget)
         const recipient = await prisma.profile.findUnique({
           where: { id: swipedMission.profileId },
-          select: { user: { select: { email: true, emailOptIn: true } } },
+          select: { user: { select: { id: true, email: true, emailOptIn: true } } },
         });
         if (recipient?.user) {
           const actorType = (session.user as { profileType?: string }).profileType;
           const actorLabel = actorType === "TITULAIRE" ? "Un cabinet" : "Un remplaçant";
+          // Notification in-app (section 155) — en parallèle de l'email.
+          createNotification({
+            userId: recipient.user.id,
+            type: "match",
+            message: `${actorLabel} a retenu votre profil — nouvelle mise en relation !`,
+            linkUrl: `/matches?matchId=${match.id}`,
+          });
           await sendNewRelationEmail(recipient.user.email, {
             actorLabel,
             optIn: recipient.user.emailOptIn,
