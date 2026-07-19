@@ -1556,7 +1556,9 @@ function DeclareAbsenceForm({ suggestedStart, suggestedEnd, onClose, onCreated }
 
 function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void; onCreated: () => void; isEmployeur: boolean }) {
   const [label, setLabel] = useState("");
-  const [postType, setPostType] = useState("TITULAIRE");
+  // Défaut selon le type de compte (section 154) : structure = salariat (CDD → ASSISTANT),
+  // cabinet libéral = TITULAIRE. isEmployeur ⇔ titulaireKind === STRUCTURE.
+  const [postType, setPostType] = useState(isEmployeur ? "ASSISTANT" : "TITULAIRE");
   const [startDate, setStartDate] = useState(""); // date d'occupation, peut être passée
   // Mode de fin d'occupation (section 57) : A=date connue, B=durée prévue, C=indéterminée
   const [finMode, setFinMode] = useState<"A" | "B" | "C">("C");
@@ -1618,11 +1620,25 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
           onChange={e => setPostType(e.target.value)}
           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
         >
-          {/* Section 5 — "Remplacement ponctuel" retiré (occupation temporaire, pas un type de poste) */}
-          <option value="TITULAIRE">Titulaire</option>
-          <option value="ASSOCIE">Associé</option>
-          <option value="ASSISTANT">{isEmployeur ? "Poste salarié (CDD)" : "Assistanat (long terme)"}</option>
-          <option value="COLLABORATION">{isEmployeur ? "CDI" : "Collaboration libérale"}</option>
+          {/* Types conditionnels (section 154) : une STRUCTURE (employeur, salariat) n'a pas de
+              statuts libéraux → CDD/CDI/Stage/Vacation-Intérim. Les valeurs restent des PostType
+              existants (pas de migration) ; seuls les libellés changent.
+              Section 5 — "Remplacement ponctuel" retiré (occupation temporaire, pas un type). */}
+          {isEmployeur ? (
+            <>
+              <option value="ASSISTANT">CDD</option>
+              <option value="COLLABORATION">CDI</option>
+              <option value="ASSOCIE">Stage</option>
+              <option value="REMPLACEMENT_REGULIER">Vacation / Intérim</option>
+            </>
+          ) : (
+            <>
+              <option value="TITULAIRE">Titulaire</option>
+              <option value="ASSOCIE">Associé</option>
+              <option value="ASSISTANT">Assistanat (long terme)</option>
+              <option value="COLLABORATION">Collaboration libérale</option>
+            </>
+          )}
         </select>
       </div>
       <div>
@@ -2057,24 +2073,28 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
           ))}
         </div>
 
-        <button
-          onClick={() => {
-            const today = new Date().toISOString().slice(0, 10);
-            const inTwoWeeks = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
-            setPanel({ type: "declare_absence", suggestedStart: today, suggestedEnd: inTwoWeeks });
-            setDropdown(null);
-          }}
-          className="md3-ripple px-3 py-2 border border-gray-200 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition flex items-center gap-1"
-        >
-          + Déclarer une absence
-        </button>
+        {/* Les deux actions groupées avec un gap FIXE (section 154) — évite que le flex-1 du
+            titre ne les écarte de façon déséquilibrée (effet « space-between »). */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const today = new Date().toISOString().slice(0, 10);
+              const inTwoWeeks = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+              setPanel({ type: "declare_absence", suggestedStart: today, suggestedEnd: inTwoWeeks });
+              setDropdown(null);
+            }}
+            className="md3-ripple px-3 py-2 border border-gray-200 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition flex items-center gap-1"
+          >
+            + Déclarer une absence
+          </button>
 
-        <button
-          onClick={() => { setPanel({ type: "add_post" }); setDropdown(null); }}
-          className="md3-ripple px-3 py-2 bg-kine-600 text-white rounded-xl text-xs font-bold hover:bg-kine-700 transition flex items-center gap-1"
-        >
-          + Ajouter un poste
-        </button>
+          <button
+            onClick={() => { setPanel({ type: "add_post" }); setDropdown(null); }}
+            className="md3-ripple px-3 py-2 bg-kine-600 text-white rounded-xl text-xs font-bold hover:bg-kine-700 transition flex items-center gap-1"
+          >
+            + Ajouter un poste
+          </button>
+        </div>
       </div>
 
       {/* ── Corps : timeline + panel ── */}

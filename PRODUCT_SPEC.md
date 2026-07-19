@@ -11901,3 +11901,67 @@ Limite assumée : un poste peut rester rattaché après la fin réelle
 si personne n'annule/ne détache manuellement — pas de détection 
 automatique par date de fin.
 ```
+
+---
+
+## 154. Smoke test pré-diffusion large (18/07)
+
+### Résultats
+
+```
+✅ Verifie en lecture seule par Claude Code (avec autorisation
+extension Chrome accordee) :
+- /cgu, /confidentialite, /mentions-legales : rendent bien
+- Carte Assistant a inscription : presente et live
+- Bouton "+ Annonce" + compteur cliquable : live
+- Toolbar Planning : correcte
+- 2 defauts markdown corriges (asterisque non ferme, sauts de
+  ligne editeur) - commit 1babb97, verifie visuellement
+
+⏳ RESTENT A TESTER PAR JEAN-CHARLES (necessitent mobile/autre
+compte, hors de portee de l automatisation Claude Code) :
+1. Fiabilite clic timeline (compte remplacant, mobile)
+2. Rattachement assistant<->poste end-to-end (inscription
+   assistant -> matching -> signature contrat -> verification
+   poste rattache cote cabinet ET cote assistant -> bouton
+   "Faire remplacer mon absence")
+3. Case de consentement obligatoire a inscription (ecran 3)
+```
+
+### Statut
+
+```
+Bêta consideree prete pour diffusion large des que ces 3 tests
+sont concluants. Aucun autre point ne bloque a ce jour.
+```
+
+---
+
+## 155. FIX — Types de contrats conditionnels Structure + ouverture salariat candidats
+
+### 1. Agencement toolbar + types conditionnels (Structure vs Cabinet)
+
+```
+Boutons "+ Declarer une absence"/"+ Ajouter un poste" mal espaces
+(compte Structure). Selecteur de type de poste incoherent pour
+une Structure (Titulaire/Associe/Assistanat/Collaboration = statuts
+liberaux) - remplace par CDD/CDI/Stage/Vacation-Interim pour
+titulaireKind=STRUCTURE, inchange pour CABINET.
+```
+
+### 2. Ouverture salariat pour Remplacant/Assistant (sans nouveau profil)
+
+```
+Decision (18/07) : pas de nouveau profil "Salarie" - reutiliser
+REMPLACANT/ASSISTANT existants avec une case a cocher "ouvert aux
+postes salaries" (Disponibilite.ouvertSalariat). Rend le profil
+visible dans le feed des Missions salariees publiees par les
+comptes STRUCTURE.
+```
+
+### Statut
+
+```
+Prompts rediges (2, dependants l un de l autre dans l ordre), en
+attente d envoi.
+```
