@@ -28,11 +28,21 @@ export default function CreateDisponibilitePage() {
   // Photo de profil obligatoire pour publier (ferme la brèche — cohérent avec le serveur)
   const profileId = (session?.user as { profileId?: string })?.profileId;
   const [hasPhoto, setHasPhoto] = useState<boolean | null>(null);
+  const [bioPrefilled, setBioPrefilled] = useState(false);
   useEffect(() => {
     if (!profileId) return;
     fetch(`/api/profiles/${profileId}`)
       .then((r) => r.json())
-      .then((p) => setHasPhoto(Boolean(p?.photoUrl)))
+      .then((p) => {
+        setHasPhoto(Boolean(p?.photoUrl));
+        // Reco n°3 (audit UX) : pré-remplir l'accroche avec la bio du profil (saisie à
+        // l'inscription) pour éviter une re-saisie. N'écrase jamais une saisie en cours.
+        const profileBio = (p?.bioTinder ?? "").trim();
+        if (profileBio) {
+          setForm((prev) => (prev.bioTinder.trim() === "" ? { ...prev, bioTinder: profileBio } : prev));
+          setBioPrefilled(true);
+        }
+      })
       .catch(() => setHasPhoto(true));
   }, [profileId]);
 
@@ -154,6 +164,11 @@ export default function CreateDisponibilitePage() {
           <p className="text-xs text-kine-600/70 mb-2">
             C&apos;est ce texte qui alimente le matching intelligent — présentez-vous en quelques mots (40 caractères minimum).
           </p>
+          {bioPrefilled && (
+            <p className="text-xs text-emerald-600 mb-2">
+              ✓ Repris de votre profil — modifiable pour cette annonce.
+            </p>
+          )}
           <textarea
             value={form.bioTinder}
             onChange={(e) => {
@@ -331,6 +346,13 @@ export default function CreateDisponibilitePage() {
         {error && (
           <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{error}</p>
         )}
+
+        {/* Reco n°2 (audit UX) : expliciter le geste suivant — le matching est réciproque,
+            publier ne suffit pas, il faut aussi swiper les cabinets qui recrutent. */}
+        <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5">
+          🔎 Après publication, vous arrivez sur le fil des cabinets qui recrutent :
+          <strong> swipez « Intéressé »</strong> sur ceux qui vous plaisent pour créer une mise en relation.
+        </p>
 
         <div className="flex gap-3 pt-1">
           <Link
