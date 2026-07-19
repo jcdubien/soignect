@@ -476,7 +476,10 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
   const handleFreeZoneClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const relX = e.clientX - rect.left;
-    const dayIndex = Math.max(0, Math.floor(relX / dayWidth));
+    // La zone libre commence à AUJOURD'HUI (left = todayOff), pas à RANGE_START : on part
+    // donc de l'offset d'aujourd'hui, sinon la date suggérée est ~1 mois trop tôt (parfois
+    // dans le passé), section 149. Bord gauche de la zone = aujourd'hui.
+    const dayIndex = dayOffset(new Date()) + Math.max(0, Math.floor(relX / dayWidth));
     const startDate = new Date(RANGE_START.getTime() + dayIndex * 86400000);
     const endDate   = new Date(startDate);
     endDate.setDate(endDate.getDate() + (isAssistant ? 90 : 30));
@@ -615,8 +618,14 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
                 <p className="text-sm font-semibold text-gray-800 truncate mb-2">
                   {profileName ?? (isAssistant ? "Assistant" : "Remplaçant")}
                 </p>
-                <div className="relative h-9 rounded-lg bg-[var(--sable-chaud)] overflow-hidden">
+                {/* Piste h-14 (56px) au lieu de h-9 : cible tactile confortable ≥44px pour
+                    le tap « ajouter une disponibilité » (section 149). */}
+                <div className="relative h-14 rounded-lg bg-[var(--sable-chaud)] overflow-hidden">
                   {/* Zone libre à partir d'aujourd'hui */}
+                  {/* Zone libre cliquable — PAS de classe md3-ripple ici : `.md3-ripple`
+                      (position:relative, défini après @tailwind utilities) écrasait le
+                      `absolute` → le bouton s'effondrait à ~0 largeur et devenait
+                      quasi-intappable (échec ~9/10, section 149). */}
                   <button
                     onClick={() => {
                       const s = new Date();
@@ -624,7 +633,7 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
                       setFreeZoneModal({ suggestedStart: s.toISOString().slice(0, 10), suggestedEnd: e.toISOString().slice(0, 10) });
                     }}
                     title="Ouvrir cette période à la réservation"
-                    className="md3-ripple absolute top-1 bottom-1 rounded-[5px] bg-kine-50 border border-dashed border-kine-200"
+                    className="absolute top-1 bottom-1 rounded-[5px] bg-kine-50 border border-dashed border-kine-200 active:bg-kine-100 transition"
                     style={{ left: `${mpct(new Date())}%`, right: 0 }}
                   />
                   {/* Briques disponibilités */}
@@ -712,9 +721,11 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
                 {/* Piste */}
                 <div className="relative flex-1 overflow-hidden bg-[var(--sable-chaud)]">
                   <div className="relative" style={{ width: totalWidth, height: "100%" }}>
-                    {/* Zone libre cliquable */}
+                    {/* Zone libre cliquable — pleine hauteur de la ligne (top-0 bottom-0) pour
+                        une cible tactile fiable (avant : bande fine top-1.5 bottom-1.5 que les
+                        clics manquaient ~9/10, section 149). */}
                     <div
-                      className="absolute top-1.5 bottom-1.5 bg-kine-50 border border-dashed border-kine-200 rounded-xl cursor-pointer hover:bg-kine-100 transition"
+                      className="absolute top-0 bottom-0 bg-kine-50 border border-dashed border-kine-200 rounded-xl cursor-pointer hover:bg-kine-100 transition"
                       style={{ left: Math.max(todayOff, 0), right: 0 }}
                       onClick={handleFreeZoneClick}
                       title="Cliquez pour ouvrir cette période"

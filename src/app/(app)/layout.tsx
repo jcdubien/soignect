@@ -52,6 +52,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // le gratuit mènera au payant (bandeau de grâce inclus) tant que ce mode est actif.
   const freeAccess = await isFreeAccessMode();
 
+  // Bouton « + Annonce » rétabli en PERMANENCE (section 149) — filet de sécurité tant que le
+  // clic sur la timeline n'est pas fiable à 100 %. Ouvre le flux de création quel que soit
+  // l'état de la timeline (annule la suppression conditionnelle de la section 148).
+  const createHref = profileType === "TITULAIRE" ? "/missions/create" : "/disponibilites/create";
   // Lien du logo adapté au profil (item 6) — accueil = booking
   const homeHref = profileType === "TITULAIRE" ? "/planning" : "/disponibilites";
 
@@ -137,8 +141,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Admin
             </Link>
           )}
-          {/* Bouton « + Annonce » supprimé (section 148) — la création se fait uniquement
-              au clic sur la timeline (zone vide → créer, zone remplie → éditer). */}
+          <Link
+            href={createHref}
+            className="text-xs px-3 py-1.5 bg-kine-600 text-white rounded-lg font-semibold hover:bg-kine-700 transition"
+          >
+            + Annonce
+          </Link>
           {profileType === "TITULAIRE" ? (
             <Link
               href="/planning"
@@ -226,7 +234,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="text-[10px] font-medium truncate max-w-full">Annonces</span>
         </Link>
 
-        {/* FAB « + Annonce » supprimé (section 148) — création via clic sur la timeline. */}
+        <Link href={createHref} className="shrink-0 flex flex-col items-center gap-0.5 -mt-4 mx-1 px-4 py-2.5 bg-kine-600 text-white rounded-2xl shadow-lg hover:bg-kine-700 transition">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span className="text-[10px] font-semibold">Annonce</span>
+        </Link>
 
         <Link href="/compte" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-gray-500 hover:text-kine-600 transition">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
