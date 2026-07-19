@@ -10,7 +10,7 @@ import { bioLimitFor } from "@/lib/bio";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
 
-type ProfileTypeChoice = "TITULAIRE" | "REMPLACANT";
+type ProfileTypeChoice = "TITULAIRE" | "REMPLACANT" | "ASSISTANT";
 
 // Création du profil avec un retry automatique (durcissement) : le pooler Supabase
 // peut échouer ponctuellement sous charge. En cas de 5xx ou d'erreur réseau, on
@@ -236,9 +236,21 @@ function RegisterForm() {
                   <span className="text-3xl">🩺</span>
                   <div>
                     <p className="font-bold text-gray-800 text-base">Remplaçant·e</p>
-                    <p className="text-sm text-gray-400">Je cherche des missions en Guadeloupe</p>
+                    <p className="text-sm text-gray-400">Je cherche des missions ponctuelles en Guadeloupe</p>
                   </div>
                   <span className="ml-auto text-gray-300 group-hover:text-kine-500 text-xl">→</span>
+                </button>
+
+                <button
+                  onClick={() => { setProfileType("ASSISTANT"); setStructure(false); setStep(2); }}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-violet-400 hover:bg-violet-50 text-left transition group"
+                >
+                  <span className="text-3xl">👩‍⚕️</span>
+                  <div>
+                    <p className="font-bold text-gray-800 text-base">Assistant·e / Collaborateur·rice</p>
+                    <p className="text-sm text-gray-400">Je cherche un poste longue durée (assistanat, collaboration)</p>
+                  </div>
+                  <span className="ml-auto text-gray-300 group-hover:text-violet-500 text-xl">→</span>
                 </button>
               </div>
 
