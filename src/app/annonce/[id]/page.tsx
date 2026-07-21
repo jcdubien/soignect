@@ -8,6 +8,10 @@ import ShareActions from "./ShareActions";
 
 export const dynamic = "force-dynamic";
 
+function baseUrl(): string {
+  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://soignect.vercel.app";
+}
+
 const TYPE_LABEL: Record<string, string> = {
   REMPLACEMENT: "Remplacement",
   ASSISTANAT: "Assistanat (long terme)",
@@ -31,9 +35,47 @@ async function getMission(id: string) {
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
       minMonths: true, missionType: true, pitch: true, bioTinder: true,
-      profile: { select: { profession: true } },
+      createdAt: true, updatedAt: true,
+      profile: { select: { profession: true, name: true, region: true, titulaireKind: true } },
     },
   });
+}
+
+// employmentType schema.org (Google Jobs) mappé depuis le type de mission.
+const EMPLOYMENT_TYPE: Record<string, string> = {
+  REMPLACEMENT: "TEMPORARY",
+  ASSISTANAT: "CONTRACTOR",
+  COLLABORATION: "CONTRACTOR",
+};
+
+// Données structurées JobPosting (schema.org) pour Google Jobs (section 158).
+function jobPostingLd(m: NonNullable<Awaited<ReturnType<typeof getMission>>>, url: string) {
+  const type = TYPE_LABEL[m.missionType] ?? m.missionType;
+  const description =
+    (m.pitch ?? m.bioTinder ?? `${type} en Guadeloupe`).trim() +
+    ` — ${type} · ${m.location} · ${periodLabel(m)}.`;
+  const orgName = m.profile.name ?? "Cabinet de santé";
+  return {
+    "@context": "https://schema.org/",
+    "@type": "JobPosting",
+    title: m.title,
+    description,
+    datePosted: m.createdAt.toISOString(),
+    ...(m.endDate ? { validThrough: m.endDate.toISOString() } : {}),
+    employmentType: EMPLOYMENT_TYPE[m.missionType] ?? "CONTRACTOR",
+    hiringOrganization: { "@type": "Organization", name: orgName },
+    jobLocation: {
+      "@type": "Place",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: m.location,
+        addressRegion: "Guadeloupe",
+        addressCountry: "FR",
+      },
+    },
+    url,
+    directApply: false,
+  };
 }
 
 // Open Graph pour un aperçu propre au partage (Facebook, etc.)
@@ -52,7 +94,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       description,
       type: "website",
       siteName: "Soignect",
-      images: ["/icon-512.png"],
+      // og:image généré dynamiquement par annonce (opengraph-image.tsx, section 158) —
+      // 1200×630 avec titre + lieu sur un visuel de marque. Next l'ajoute automatiquement.
     },
   };
 }
@@ -80,9 +123,15 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
   const teaser = teaserSrc.length > 120 ? teaserSrc.slice(0, 120).trimEnd() + "…" : teaserSrc;
 
   const loginHref = `/login?return_to=${encodeURIComponent(`/annonce/${m.id}`)}`;
+  const canonicalUrl = `${baseUrl()}/annonce/${m.id}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-kine-900 via-kine-700 to-kine-500 flex flex-col items-center px-4 py-10">
+      {/* Données structurées JobPosting (Google Jobs, section 158) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingLd(m, canonicalUrl)) }}
+      />
       <Link href="/" className="text-white/90 text-2xl font-black tracking-tight mb-6">Soignect</Link>
 
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
