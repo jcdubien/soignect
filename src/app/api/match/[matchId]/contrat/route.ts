@@ -160,6 +160,14 @@ export async function GET(req: NextRequest, { params }: Params) {
   const retrocessionPct = parseInt(sp.get("retrocessionPct") ?? String(missionTitulaire?.retrocessionRate ?? 70), 10);
   const redevancePct    = parseInt(sp.get("redevancePct")    ?? "40", 10);
 
+  // Clauses négociables in-app (section 164) — remplacent les placeholders figés des templates.
+  const ALLOWED_MODES = ["Virement bancaire", "Chèque", "Espèces", "Autre"];
+  const rawMode = sp.get("modePaiement") ?? "";
+  const modePaiement = ALLOWED_MODES.includes(rawMode) ? rawMode : "Virement bancaire";
+  const delaiParsed = parseInt(sp.get("delaiPaiementJours") ?? "5", 10);
+  const delaiPaiementJours = Number.isFinite(delaiParsed) ? Math.min(60, Math.max(1, delaiParsed)) : 5;
+  const modalitesLocaux = (sp.get("modalitesLocaux") ?? "").slice(0, 600); // borne anti-débordement PDF
+
   const generatedAt = new Date().toISOString();
 
   // Signatures photo (section 61) — apposées dans le PDF si présentes
@@ -175,6 +183,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate:  missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
       endDate:    missionTitulaire?.endDate?.toISOString()   ?? missionAutre?.endDate?.toISOString()   ?? null,
       retrocessionPct, rayonKm, periodeEssai, generatedAt,
+      modePaiement, delaiPaiementJours, modalitesLocaux,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-remplacement.pdf";
@@ -184,6 +193,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+      modePaiement, delaiPaiementJours, modalitesLocaux,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-assistanat.pdf";
@@ -193,6 +203,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+      modePaiement, delaiPaiementJours, modalitesLocaux,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-collaboration.pdf";

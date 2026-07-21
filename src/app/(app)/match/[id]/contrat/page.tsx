@@ -53,6 +53,12 @@ export default function ContratPage() {
   const [retrocessionPct, setRetrocessionPct] = useState(70);
   const [redevancePct,    setRedevancePct]    = useState(40);
 
+  // Clauses négociables in-app (section 164) — remplacent les placeholders figés du PDF.
+  // Valeurs par défaut raisonnables : aucune saisie n'est obligatoire.
+  const [modePaiement,        setModePaiement]        = useState("Virement bancaire");
+  const [delaiPaiementJours,  setDelaiPaiementJours]  = useState(5);
+  const [modalitesLocaux,     setModalitesLocaux]     = useState("");
+
   // Signature photo (section 61)
   const [sig, setSig] = useState<SigStatus | null>(null);
   const [signing, setSigning] = useState(false);
@@ -102,6 +108,9 @@ export default function ContratPage() {
       periodeEssai: String(periodeEssai),
       retrocessionPct: String(retrocessionPct),
       redevancePct:    String(redevancePct),
+      modePaiement,
+      delaiPaiementJours: String(delaiPaiementJours),
+      modalitesLocaux,
     });
     if (draft) params.set("draft", "true");
     return `/api/match/${id}/contrat?${params.toString()}`;
@@ -340,6 +349,57 @@ export default function ContratPage() {
             </div>
           </div>
         )}
+
+        {/* Modalités de paiement (section 164) — remplacent les placeholders [mode]/[délai] du PDF.
+            « rétrocession » pour un remplacement, « redevance » sinon. */}
+        <div className="border-t border-gray-100 pt-4 flex flex-col gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-1">
+              Mode de paiement de la {isRemplacement ? "rétrocession" : "redevance"}
+            </label>
+            <select
+              value={modePaiement}
+              onChange={e => setModePaiement(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-kine-200"
+            >
+              <option>Virement bancaire</option>
+              <option>Chèque</option>
+              <option>Espèces</option>
+              <option>Autre</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-1">
+              Délai de paiement (jours après la fin de {isRemplacement ? "chaque période" : "chaque mois"})
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min={1} max={60} step={1}
+                value={delaiPaiementJours}
+                onChange={e => setDelaiPaiementJours(Math.min(60, Math.max(1, Number(e.target.value) || 1)))}
+                className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-kine-200"
+              />
+              <span className="text-sm text-gray-500">jours</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-1">
+              Modalités des locaux et du matériel (Art. 6)
+            </label>
+            <textarea
+              value={modalitesLocaux}
+              onChange={e => setModalitesLocaux(e.target.value.slice(0, 600))}
+              rows={3}
+              placeholder="Ex. : charges (loyer, fluides, fournitures) incluses dans la redevance, ou réparties à 50/50…"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-kine-200"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Facultatif — si laissé vide, le contrat indiquera « à convenir entre les parties ».
+            </p>
+          </div>
+        </div>
 
         {/* Période d'essai */}
         <label className="flex items-start gap-3 cursor-pointer">

@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
-import { type ContractDataCollaboration, SIGNATURE_LEGAL_MENTION } from "./types";
+import { type ContractDataCollaboration, SIGNATURE_LEGAL_MENTION, paymentMethodPhrase, localModalities } from "./types";
 import { DraftBanner, DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 
@@ -40,6 +40,7 @@ const LEGAL_MENTION =
 
 export function buildCollaborationPdf(data: ContractDataCollaboration) {
   const { titulaire, collaborateur, startDate, minMonths, redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+    modePaiement, delaiPaiementJours, modalitesLocaux,
     signatureTitulaireImg, signatureRemplacantImg, draft } = data;
   const dureeStr = minMonths ? `${minMonths} mois` : "[durée à compléter]";
 
@@ -115,7 +116,7 @@ export function buildCollaborationPdf(data: ContractDataCollaboration) {
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 5 — Redevance</Text>
           <Text style={S.body}>
-            En contrepartie de la mise à disposition des locaux, du matériel et des équipements, le collaborateur versera au titulaire une redevance mensuelle de {redevancePct}% de ses honoraires nets encaissés. Cette redevance sera versée par <Text style={S.placeholder}>[virement bancaire / autre]</Text> dans les <Text style={S.placeholder}>[délai]</Text> jours suivant la fin de chaque mois.
+            En contrepartie de la mise à disposition des locaux, du matériel et des équipements, le collaborateur versera au titulaire une redevance mensuelle de {redevancePct}% de ses honoraires nets encaissés. Cette redevance sera versée par {paymentMethodPhrase(modePaiement)} dans les {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque mois.
           </Text>
         </View>
 
@@ -123,7 +124,7 @@ export function buildCollaborationPdf(data: ContractDataCollaboration) {
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 6 — Locaux et matériel</Text>
           <Text style={S.body}>
-            Le titulaire met à la disposition du collaborateur ses locaux professionnels, son matériel et ses équipements. Le collaborateur s'engage à les entretenir avec soin. La répartition des charges (loyer, fluides, fournitures) est fixée comme suit : <Text style={S.placeholder}>[modalités à préciser]</Text>.
+            Le titulaire met à la disposition du collaborateur ses locaux professionnels, son matériel et ses équipements. Le collaborateur s'engage à les entretenir avec soin. La répartition des charges (loyer, fluides, fournitures) est fixée comme suit : {localModalities(modalitesLocaux)}.
           </Text>
         </View>
 

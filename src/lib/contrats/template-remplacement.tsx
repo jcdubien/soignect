@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
-import { type ContractDataRemplacement, SIGNATURE_LEGAL_MENTION } from "./types";
+import { type ContractDataRemplacement, SIGNATURE_LEGAL_MENTION, paymentMethodPhrase, localModalities } from "./types";
 import { DraftBanner, DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 
@@ -41,6 +41,7 @@ const LEGAL_MENTION =
 
 export function buildRemplacementPdf(data: ContractDataRemplacement) {
   const { remplace, remplacant, startDate, endDate, retrocessionPct, rayonKm, periodeEssai, generatedAt,
+    modePaiement, delaiPaiementJours, modalitesLocaux,
     signatureTitulaireImg, signatureRemplacantImg, draft } = data;
 
   return (
@@ -107,7 +108,7 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 4 — Mise à disposition des locaux et installations</Text>
           <Text style={S.body}>
-            Le remplacé met à la disposition du remplaçant ses locaux professionnels, son matériel et ses installations pour la durée du remplacement. Le remplaçant s'engage à utiliser ces équipements avec soin et à les restituer en bon état à la fin du contrat. Les charges liées à l'utilisation des locaux (loyer, charges, fournitures) sont prises en charge selon les modalités suivantes : <Text style={S.placeholder}>[modalités à préciser]</Text>.
+            Le remplacé met à la disposition du remplaçant ses locaux professionnels, son matériel et ses installations pour la durée du remplacement. Le remplaçant s'engage à utiliser ces équipements avec soin et à les restituer en bon état à la fin du contrat. Les charges liées à l'utilisation des locaux (loyer, charges, fournitures) sont prises en charge selon les modalités suivantes : {localModalities(modalitesLocaux)}.
           </Text>
         </View>
 
@@ -123,7 +124,7 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 6 — Rétrocession</Text>
           <Text style={S.body}>
-            En rémunération de ses services, le remplaçant percevra {retrocessionPct}% des honoraires qu'il aura encaissés pendant la durée du remplacement. Le versement s'effectuera par <Text style={S.placeholder}>[virement bancaire / chèque]</Text> dans un délai de <Text style={S.placeholder}>[délai à préciser]</Text> suivant la fin de chaque période de remplacement.
+            En rémunération de ses services, le remplaçant percevra {retrocessionPct}% des honoraires qu'il aura encaissés pendant la durée du remplacement. Le versement s'effectuera par {paymentMethodPhrase(modePaiement)} dans un délai de {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque période de remplacement.
           </Text>
         </View>
 

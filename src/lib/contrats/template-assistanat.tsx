@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
-import { type ContractDataAssisanat, SIGNATURE_LEGAL_MENTION } from "./types";
+import { type ContractDataAssisanat, SIGNATURE_LEGAL_MENTION, paymentMethodPhrase, localModalities } from "./types";
 import { DraftBanner, DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 
@@ -40,6 +40,7 @@ const LEGAL_MENTION =
 
 export function buildAssisanatPdf(data: ContractDataAssisanat) {
   const { titulaire, assistant, startDate, minMonths, redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+    modePaiement, delaiPaiementJours, modalitesLocaux,
     signatureTitulaireImg, signatureRemplacantImg, draft } = data;
   const dureeStr = minMonths ? `${minMonths} mois` : "[durée à compléter]";
 
@@ -107,7 +108,7 @@ export function buildAssisanatPdf(data: ContractDataAssisanat) {
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 4 — Redevance</Text>
           <Text style={S.body}>
-            En contrepartie de la mise à disposition du cabinet et des équipements, l'assistant versera au titulaire une redevance mensuelle de {redevancePct}% de ses honoraires nets encaissés. Cette redevance sera versée par <Text style={S.placeholder}>[virement bancaire / autre]</Text> dans les <Text style={S.placeholder}>[délai]</Text> jours suivant la fin de chaque mois.
+            En contrepartie de la mise à disposition du cabinet et des équipements, l'assistant versera au titulaire une redevance mensuelle de {redevancePct}% de ses honoraires nets encaissés. Cette redevance sera versée par {paymentMethodPhrase(modePaiement)} dans les {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque mois.
           </Text>
         </View>
 
@@ -123,7 +124,7 @@ export function buildAssisanatPdf(data: ContractDataAssisanat) {
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 6 — Locaux et matériel</Text>
           <Text style={S.body}>
-            Le titulaire met à la disposition de l'assistant ses locaux professionnels, son matériel et son équipement. L'assistant s'engage à les utiliser avec soin et à ne pas les détourner de leur usage professionnel. Les charges afférentes aux locaux (loyer, charges, entretien) sont réparties selon les modalités suivantes : <Text style={S.placeholder}>[modalités à préciser]</Text>.
+            Le titulaire met à la disposition de l'assistant ses locaux professionnels, son matériel et son équipement. L'assistant s'engage à les utiliser avec soin et à ne pas les détourner de leur usage professionnel. Les charges afférentes aux locaux (loyer, charges, entretien) sont réparties selon les modalités suivantes : {localModalities(modalitesLocaux)}.
           </Text>
         </View>
 

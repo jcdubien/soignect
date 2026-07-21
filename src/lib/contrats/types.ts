@@ -21,7 +21,34 @@ export interface SignatureImages {
   draft?: boolean;
 }
 
-export interface ContractDataRemplacement extends SignatureImages {
+// Clauses négociables saisies dans le formulaire de contrat (section 164) — remplacent les
+// placeholders figés [virement bancaire / …], [délai], [modalités à préciser] des templates.
+// Éditables tant que le contrat n'est pas signé des deux côtés (même verrou que les autres
+// champs négociables : rayon / durée / taux / période d'essai, section 137).
+export interface NegotiableClauses {
+  modePaiement: string;       // "Virement bancaire" | "Chèque" | "Espèces" | "Autre"
+  delaiPaiementJours: number; // délai de paiement de la rétrocession/redevance (jours)
+  modalitesLocaux: string;    // modalités de répartition des charges locaux/matériel (texte libre)
+}
+
+// Phrase injectée après « versé(e) par … » selon le mode de paiement choisi.
+export function paymentMethodPhrase(mode: string): string {
+  switch (mode) {
+    case "Chèque":  return "chèque";
+    case "Espèces": return "espèces";
+    case "Autre":   return "un autre moyen convenu entre les parties";
+    case "Virement bancaire":
+    default:        return "virement bancaire";
+  }
+}
+
+// Modalités locaux : valeur saisie, ou repli neutre non bloquant si le champ est laissé vide.
+export function localModalities(value: string): string {
+  const v = value.trim();
+  return v.length > 0 ? v : "à convenir entre les parties";
+}
+
+export interface ContractDataRemplacement extends SignatureImages, NegotiableClauses {
   remplace: ContractParty;
   remplacant: ContractParty;
   startDate: string | null;
@@ -32,7 +59,7 @@ export interface ContractDataRemplacement extends SignatureImages {
   generatedAt: string;
 }
 
-export interface ContractDataAssisanat extends SignatureImages {
+export interface ContractDataAssisanat extends SignatureImages, NegotiableClauses {
   titulaire: ContractParty;
   assistant: ContractParty;
   startDate: string | null;
@@ -44,7 +71,7 @@ export interface ContractDataAssisanat extends SignatureImages {
   generatedAt: string;
 }
 
-export interface ContractDataCollaboration extends SignatureImages {
+export interface ContractDataCollaboration extends SignatureImages, NegotiableClauses {
   titulaire: ContractParty;
   collaborateur: ContractParty;
   startDate: string | null;
