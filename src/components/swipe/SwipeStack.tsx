@@ -440,6 +440,18 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const TAP_THRESHOLD = 10;
 
+  // Consultation « vue = consultation » (section 157) : enregistre une consultation dès qu'une
+  // annonce est réellement vue (carte au sommet ou fiche ouverte), DÉDUPLIQUÉE — une seule fois
+  // par annonce et par session, pour éviter d'inonder le propriétaire d'emails/notifs.
+  const consultedRef = useRef<Set<string>>(new Set());
+  const registerConsultation = useCallback((missionId: string) => {
+    if (consultedRef.current.has(missionId)) return;
+    consultedRef.current.add(missionId);
+    // Réutilise la route card (garde intégré : ni sa propre annonce, ni déjà swipée)
+    // → notif in-app + email au propriétaire. Fire-and-forget.
+    fetch(`/api/missions/${missionId}/card`).catch(() => {});
+  }, []);
+
   const x        = useMotionValue(0);
   const rotate   = useTransform(x, [-200, 200], [-15, 15]);
   const likeOp   = useTransform(x, [40, 120],   [0, 1]);
@@ -541,6 +553,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
         profile: { type: m.profile.type, name: m.profile.name ?? null },
       };
       trackRecentMission(recent, profileId);
+      // Vue = consultation (section 157) : la carte au sommet est réellement présentée → on
+      // enregistre la consultation (dédupliquée) pour le propriétaire de l'annonce.
+      registerConsultation(m.id);
     }
   }, [displayMissions[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -778,11 +793,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
               // Tap = déplacement sous le seuil ET pas sur un élément interactif interne
               const onInteractive = (e.target as HTMLElement).closest("button, a");
               if (dx < TAP_THRESHOLD && dy < TAP_THRESHOLD && !onInteractive) {
-                // Consultation sur le feed réel (section 157) : ouvrir la fiche depuis le feed
-                // enregistre la consultation, comme le tray « récemment consultées ». On
-                // réutilise la route card (garde intégré : ni sa propre annonce, ni déjà swipée)
-                // → notif in-app + email au propriétaire. Fire-and-forget.
-                fetch(`/api/missions/${stack[0].id}/card`).catch(() => {});
+                // Ouvrir la fiche = consultation (dédupliquée) ; en pratique déjà enregistrée
+                // quand la carte est arrivée au sommet, mais idempotent (section 157).
+                registerConsultation(stack[0].id);
                 setDetailMission(stack[0]);
               }
             }}
