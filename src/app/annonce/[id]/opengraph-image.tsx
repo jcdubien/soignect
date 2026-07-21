@@ -32,13 +32,14 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
     (
       <div
         style={{
-          width: "100%",
-          height: "100%",
+          width: 1200,
+          height: 630,
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          padding: "64px 72px",
-          background: "linear-gradient(135deg, #0B3D5C 0%, #12708f 55%, #1aa0a0 100%)",
+          padding: 72,
+          backgroundColor: "#0B3D5C",
+          backgroundImage: "linear-gradient(135deg, #0B3D5C 0%, #12708f 55%, #1aa0a0 100%)",
           color: "#ffffff",
           fontFamily: "sans-serif",
         }}
