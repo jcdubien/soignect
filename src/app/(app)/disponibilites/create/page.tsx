@@ -65,6 +65,9 @@ export default function CreateDisponibilitePage() {
   });
 
   const isAssistant = profileType === "ASSISTANT";
+  // Un profil ASSISTANT couvre assistant ET collaborateur (même statut, seule diff = patientèle
+  // propre au niveau du contrat). On le laisse donc choisir son type de poste recherché.
+  const [postKind, setPostKind] = useState<"ASSISTANAT" | "COLLABORATION">("ASSISTANAT");
 
   // Validation 90 jours pour ASSISTANT (section 37.E)
   const missionDays = form.startDate && form.endDate
@@ -102,7 +105,7 @@ export default function CreateDisponibilitePage() {
         startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
         endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
         minMonths: form.minMonths ? parseInt(form.minMonths) : null,
-        missionType: isAssistant ? "ASSISTANAT" : "REMPLACEMENT",
+        missionType: isAssistant ? postKind : "REMPLACEMENT",
         dateFlexibility: form.dateFlexibility,
         rechercheLogement: form.rechercheLogement,
         ouvertSalariat: form.ouvertSalariat,
@@ -160,6 +163,30 @@ export default function CreateDisponibilitePage() {
             }
           />
         </div>
+
+        {/* Type de poste recherché (section 154) — un profil ASSISTANT peut viser un
+            assistanat OU une collaboration libérale (patientèle propre). */}
+        {isAssistant && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Type de poste recherché</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([["ASSISTANAT", "Assistanat", "Long terme, patientèle du cabinet"],
+                 ["COLLABORATION", "Collaboration libérale", "Je me constitue ma patientèle"]] as const).map(([val, title, sub]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setPostKind(val)}
+                  className={`text-left rounded-xl border px-3 py-2.5 transition ${
+                    postKind === val ? "border-kine-500 bg-kine-50 ring-1 ring-kine-400" : "border-gray-200 hover:border-kine-300"
+                  }`}
+                >
+                  <span className="block text-sm font-semibold text-gray-800">{title}</span>
+                  <span className="block text-[11px] text-gray-400 leading-snug">{sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Bio Tinder — phrase accrocheuse */}
         <div className="bg-kine-50 rounded-2xl p-4 border border-kine-100">

@@ -24,9 +24,10 @@ export async function attachAssistantPostForMatch(matchId: string): Promise<void
     });
     if (!match) return;
 
-    // Ne concerne que les contrats d'ASSISTANAT entre un TITULAIRE et un ASSISTANT.
+    // Contrats longue durée (ASSISTANAT ou COLLABORATION, section 154 — collaborateur = même
+    // statut que l'assistant) entre un TITULAIRE et un candidat ASSISTANT.
     const type = match.missionA?.missionType ?? match.missionB?.missionType;
-    if (type !== MissionType.ASSISTANAT) return;
+    if (type !== MissionType.ASSISTANAT && type !== MissionType.COLLABORATION) return;
 
     const aIsTitulaire = match.profileA.type === ProfileType.TITULAIRE;
     const cabinet   = aIsTitulaire ? match.profileA : match.profileB;
@@ -58,7 +59,7 @@ export async function attachAssistantPostForMatch(matchId: string): Promise<void
         data: {
           cabinetId,
           label: assistant.name ?? "Assistant",
-          postType: PostType.ASSISTANT,
+          postType: type === MissionType.COLLABORATION ? PostType.COLLABORATION : PostType.ASSISTANT,
           linkedUserId: assistantUserId,
         },
       });
