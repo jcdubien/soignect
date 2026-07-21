@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import SwipeStack from "@/components/swipe/SwipeStack";
 import MatchTray from "@/components/swipe/MatchTray";
 import RecentMissionsTray, { RecentMission, removeRecentMission } from "@/components/swipe/RecentMissionsTray";
@@ -25,6 +27,14 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
   // n'étire alors plus la zone de swipe : les trays remontent juste sous le message
   // (fini le grand vide). Sur desktop (lg) la colonne garde flex-1 (panneau latéral).
   const [swipeEmpty, setSwipeEmpty] = useState(true);
+
+  // Confirmation de publication (section 163) — bannière de succès après création d'une annonce,
+  // pour lever toute ambiguïté même si le feed de candidats est vide à cet instant.
+  const searchParams = useSearchParams();
+  const justPublished = searchParams.get("published") === "1";
+  const publishedTitle = searchParams.get("pt") ?? "";
+  const publishedId = searchParams.get("pid") ?? "";
+  const [showPublished, setShowPublished] = useState(justPublished);
 
   // Clic sur une annonce récente → même fiche détaillée (bottom sheet) que l'icône "i",
   // enrichie du statut réel de l'utilisateur (swipe / mise en relation).
@@ -67,6 +77,30 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* Confirmation de publication (section 163) — non ambiguë, avec lien vers l'annonce. */}
+      {showPublished && (
+        <div className="shrink-0 bg-emerald-50 border-b border-emerald-200 px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-sm text-emerald-800 min-w-0">
+            ✅ <strong>Votre annonce{publishedTitle ? ` « ${publishedTitle} »` : ""} est en ligne</strong> — active et visible par les candidats.
+            {publishedId && (
+              <>
+                {" "}
+                <Link href={`/missions/create?editId=${encodeURIComponent(publishedId)}`} className="underline font-semibold whitespace-nowrap">
+                  La voir / modifier
+                </Link>
+              </>
+            )}
+          </p>
+          <button
+            onClick={() => setShowPublished(false)}
+            aria-label="Fermer"
+            className="shrink-0 text-emerald-500 hover:text-emerald-700 text-lg leading-none"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <LaunchOfferBanner profileType={profileType} profileId={profileId} freeAccessMode={freeAccessMode} />
       <RecentMissionsTray onSelectMission={handleSelectRecent} profileId={profileId} />
 

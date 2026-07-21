@@ -12219,3 +12219,89 @@ dans ce dernier retour, à vérifier si inclus ou encore en attente.
 ```
 Prompt rédigé, en attente d envoi.
 ```
+
+---
+
+## 161. FIX URGENT + SPRINT SYMETRIE — Cas A (contrat salarie neutralise) + partage/badges/wording candidat
+
+### Cas A — Contrat salarie neutralise ✅ (commit 989fe90)
+
+```
+CRITIQUE identifie via audit (comme le bug Assistant section 152) :
+un CDD/CDI/Stage/Vacation (Structure, section 155) mappait sur
+missionType ASSISTANAT/COLLABORATION -> generait un template PDF
+libéral juridiquement incorrect pour du salariat.
+
+Fix (choix delibere : blocage sur, pas de template non valide) :
+- Client : ecran dedie "Poste salarie - contrat hors plateforme"
+  si recruteur = STRUCTURE, avec message clair + acces conversation
+- Serveur : garde defensif 422 sur /api/match/[matchId]/contrat +
+  contrat-info si titulaire STRUCTURE - impossible de forcer via API
+
+Chantier separe non engage : vrais templates CDD/CDI si besoin plus
+tard (decision differee).
+```
+
+### Sprint symetrie candidat ✅ (commit 989fe90)
+
+```
+Audit de symetrie sur 4 acteurs (Cabinet/Structure/Remplacant/
+Assistant) a revele 3 asymetries, toutes corrigees :
+
+B. Partage disponibilite - section "Partager ma disponibilite"
+   dans le modal "Modifier la periode" : Copier le lien + Partage
+   natif + Facebook (ShareActions mutualise, section 140). Lien vers
+   /annonce/[id] avec garde auth. Symetrie totale avec le cabinet.
+
+C. Compteur candidatures recues cote candidat : badges ⏳ N en
+   attente / 🤝 N confirmee(s), cliquables, meme definition/UX que
+   les badges cabinet (section 159).
+
+D. Wording banniere corrige : "collaborateur·rice" ou "assistant·e"
+   selon le postType reel rattache (etait fige sur "assistant").
+```
+
+### Points restants (mineurs, non bloquants)
+
+```
+1. Wording page publique dispo candidat ("candidater" oriente
+   annonce cabinet) - a corriger selon le type du proprietaire
+2. ROADMAP.md a mettre a jour avec sprints 156-161 - fait par moi
+   (Claude), pas Claude Code, ci-dessous
+```
+
+### Statut
+
+```
+Cas A et sprint symetrie B/C/D entierement clos. Seul point non
+verifie en conditions reelles a ce jour, toujours signale : le
+rattachement assistant<->poste end-to-end (section 153/154).
+```
+
+---
+
+## 162. BUG — Aucune confirmation apres publication d une annonce (atterrissage sur ecran vide)
+
+### Constat
+
+```
+Apres publication d une annonce (cabinet), redirection vers le
+carrousel de swipe candidats - qui peut etre vide, sans aucune
+confirmation que la publication a reussi. Confusion totale pour
+l utilisateur.
+```
+
+### Fix
+
+```
+Confirmation explicite (toast/bandeau) apres publication + lien
+direct vers l annonce publiee (menu section 141) + message d etat
+vide plus rassurant et contextualise si le feed est vide au
+moment de la redirection.
+```
+
+### Statut
+
+```
+Prompt rédigé, en attente d envoi.
+```

@@ -287,8 +287,15 @@ export default function CreateMissionPage() {
       setLoading(false);
       return;
     }
-    // Édition : retour au planning (resync timeline). Création : liste des annonces.
-    router.push(isEdit ? "/planning" : "/annonces");
+    // Édition : retour au planning (resync timeline). Création : feed + confirmation explicite
+    // (section 163) — on transmet l'id + le titre de l'annonce publiée pour la bannière de succès.
+    if (isEdit) {
+      router.push("/planning");
+      return;
+    }
+    const created = await res.json().catch(() => null);
+    const publishedId = created?.id ? String(created.id) : "";
+    router.push(`/annonces?published=1&pid=${encodeURIComponent(publishedId)}&pt=${encodeURIComponent(form.title)}`);
   }
 
   // Limite BioTinder différenciée (section 123) : cabinet 700, remplaçant 280.

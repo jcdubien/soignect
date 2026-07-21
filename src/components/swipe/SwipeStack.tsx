@@ -675,15 +675,23 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   }
 
   if (displayMissions.length === 0) {
+    // État vide contextualisé et rassurant (section 163). Côté titulaire, un feed vide = pas
+    // (encore) de candidats à swiper — surtout PAS l'absence de son annonce. On le rassure.
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-10">
-        <span className="text-6xl">🌊</span>
+        <span className="text-6xl">{isTitulaire ? "👀" : "🌊"}</span>
         <p className="text-gray-500 font-semibold">
-          {filter === "ALL"
-            ? "Plus d'annonces pour le moment"
-            : `Aucune annonce "${FILTER_LABELS[filter]}" pour le moment`}
+          {filter !== "ALL"
+            ? `Aucune annonce "${FILTER_LABELS[filter]}" pour le moment`
+            : isTitulaire
+            ? "Aucun candidat à afficher pour l'instant"
+            : "Plus d'annonces pour le moment"}
         </p>
-        <p className="text-gray-400 text-sm">Revenez plus tard ou publiez vos disponibilités</p>
+        <p className="text-gray-400 text-sm max-w-xs">
+          {isTitulaire
+            ? "Votre annonce est bien en ligne et visible. Revenez bientôt, ou consultez vos candidatures depuis « Annonces actives » (en haut)."
+            : "Revenez plus tard, ou publiez vos disponibilités pour être visible des cabinets."}
+        </p>
         {filter !== "ALL" && (
           <button
             onClick={() => setFilter("ALL")}
@@ -693,10 +701,10 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           </button>
         )}
         <a
-          href="/missions/create"
+          href={isTitulaire ? "/missions/create" : "/disponibilites/create"}
           className="px-6 py-3 bg-kine-600 text-white rounded-xl text-sm font-semibold hover:bg-kine-700 transition"
         >
-          + Publier une annonce
+          {isTitulaire ? "+ Publier une annonce" : "+ Publier une disponibilité"}
         </a>
       </div>
     );
