@@ -7,7 +7,8 @@ export interface ActiveMission {
   title: string;
   location: string;
   missionType: string;
-  relationCount?: number; // mises en relation en cours sur cette annonce (section 157)
+  pendingCount?: number;   // likes reçus non encore matchés — « en attente » (section 157)
+  confirmedCount?: number; // mises en relation confirmées
 }
 
 export const TYPE_LABEL: Record<string, string> = {
@@ -16,10 +17,10 @@ export const TYPE_LABEL: Record<string, string> = {
   COLLABORATION: "Collaboration",
 };
 
-// Liste partagée des annonces actives (section 141) — réutilisée par le menu déroulant
-// desktop (ActiveAnnoncesMenu) et le bottom sheet mobile (ActiveAnnoncesMobile).
-// Le titre ouvre l'édition (/missions/create?editId=…) ; le badge de candidatures (section 157)
-// mène directement à la vue filtrée des mises en relation de CETTE annonce.
+// Liste partagée des annonces actives (section 141/157) — menu desktop + bottom sheet mobile.
+// Le titre ouvre l'édition (/missions/create?editId=…). Deux badges distincts de candidatures :
+//  ⏳ en attente → feed pour swiper les candidats intéressés (/annonces?missionId=…)
+//  🤝 confirmées → vue filtrée des mises en relation (/annonces?disponibiliteId=…)
 export default function ActiveAnnoncesList({
   missions,
   onItemClick,
@@ -30,7 +31,8 @@ export default function ActiveAnnoncesList({
   return (
     <>
       {missions.map((m) => {
-        const count = m.relationCount ?? 0;
+        const pending = m.pendingCount ?? 0;
+        const confirmed = m.confirmedCount ?? 0;
         return (
           <div key={m.id} className="flex items-stretch hover:bg-gray-50 transition">
             {/* Titre/type/commune → édition (comportement inchangé, section 141) */}
@@ -45,20 +47,30 @@ export default function ActiveAnnoncesList({
                 {TYPE_LABEL[m.missionType] ?? m.missionType} · 📍 {m.location}
               </span>
             </Link>
-            {/* Badge candidatures → vue filtrée des mises en relation de cette annonce (section 157) */}
-            <Link
-              href={`/annonces?disponibiliteId=${encodeURIComponent(m.id)}`}
-              onClick={onItemClick}
-              title={count > 0 ? `${count} mise${count > 1 ? "s" : ""} en relation — voir` : "Voir les mises en relation"}
-              className={`shrink-0 flex items-center gap-1 px-3 my-2 mr-2 rounded-lg text-xs font-bold transition ${
-                count > 0
-                  ? "bg-kine-600 text-white hover:bg-kine-700"
-                  : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-              }`}
-            >
-              <span>🤝</span>
-              <span>{count}</span>
-            </Link>
+
+            {/* Badges candidatures (section 157) — en attente / confirmées, chacun cliquable. */}
+            <div className="shrink-0 flex items-center gap-1.5 pr-2 my-2">
+              <Link
+                href={`/annonces?missionId=${encodeURIComponent(m.id)}`}
+                onClick={onItemClick}
+                title={`${pending} candidature${pending > 1 ? "s" : ""} en attente — swiper`}
+                className={`flex items-center gap-1 px-2 h-8 rounded-lg text-xs font-bold transition ${
+                  pending > 0 ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                }`}
+              >
+                <span>⏳</span><span>{pending}</span>
+              </Link>
+              <Link
+                href={`/annonces?disponibiliteId=${encodeURIComponent(m.id)}`}
+                onClick={onItemClick}
+                title={`${confirmed} mise${confirmed > 1 ? "s" : ""} en relation confirmée${confirmed > 1 ? "s" : ""} — voir`}
+                className={`flex items-center gap-1 px-2 h-8 rounded-lg text-xs font-bold transition ${
+                  confirmed > 0 ? "bg-kine-600 text-white hover:bg-kine-700" : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                }`}
+              >
+                <span>🤝</span><span>{confirmed}</span>
+              </Link>
+            </div>
           </div>
         );
       })}

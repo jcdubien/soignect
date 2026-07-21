@@ -73,15 +73,35 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Le compteur reste _count.missions (inchangé) ; on liste ici les mêmes missions actives
   // pour ouvrir directement leur édition (flux « Modifier l'annonce » existant).
   const titulaireLoc = firstMission?.location ?? (profile?.region ?? "Guadeloupe");
+
+  // Candidatures « en attente » (section 157) = swipes RIGHT reçus sur l'annonce mais pas
+  // encore réciproques (pending = likes reçus − mises en relation confirmées). Un seul groupBy.
+  const activeMissionIds = (profile?.missions ?? []).map((m) => m.id);
+  const rightSwipeGroups =
+    profileType === "TITULAIRE" && activeMissionIds.length > 0
+      ? await prisma.swipe.groupBy({
+          by: ["swipedMissionId"],
+          where: { swipedMissionId: { in: activeMissionIds }, direction: "RIGHT" },
+          _count: { _all: true },
+        })
+      : [];
+  const rightSwipeByMission = new Map<string, number>();
+  for (const g of rightSwipeGroups) rightSwipeByMission.set(g.swipedMissionId, g._count._all);
+
   const activeMissions =
     profileType === "TITULAIRE"
-      ? (profile?.missions ?? []).map((m) => ({
-          id: m.id,
-          title: m.title,
-          location: m.location,
-          missionType: m.missionType as string,
-          relationCount: m._count.matchesA + m._count.matchesB,
-        }))
+      ? (profile?.missions ?? []).map((m) => {
+          const confirmed = m._count.matchesA + m._count.matchesB;
+          const likes = rightSwipeByMission.get(m.id) ?? 0;
+          return {
+            id: m.id,
+            title: m.title,
+            location: m.location,
+            missionType: m.missionType as string,
+            confirmedCount: confirmed,
+            pendingCount: Math.max(0, likes - confirmed), // likes reçus non encore matchés
+          };
+        })
       : [];
 
   // contextLine ne sert plus que pour les profils NON-titulaires (le titulaire a un menu client).
