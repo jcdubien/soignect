@@ -212,7 +212,12 @@ function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
       ) : (
         <p className="text-sm font-semibold text-gray-800 truncate mb-2">{label}</p>
       )}
-      <div className="relative h-9 rounded-lg bg-[var(--sable-chaud)] overflow-hidden">
+      {/* Toute la piste (y compris la zone vide) ouvre le menu du poste sur mobile (section 156) —
+          avant, seules les briques répondaient. Un tap sur une brique garde son handler propre. */}
+      <div
+        className={`relative h-14 rounded-lg bg-[var(--sable-chaud)] overflow-hidden ${onLabelClick ? "cursor-pointer" : ""}`}
+        onClick={onLabelClick ? (e) => { if (e.target === e.currentTarget) onLabelClick(); } : undefined}
+      >
         {bricks.map(b => (
           <button
             key={b.key}
@@ -989,9 +994,19 @@ function TimelineRow({
         </div>
       </button>
 
-      {/* Piste */}
-      <div className="relative flex-1 overflow-hidden bg-[var(--sable-chaud)]">
-        <div className="relative" style={{ width: totalWidth, height: "100%" }}>
+      {/* Piste — toute la zone (y compris le vide) ouvre le menu du poste (section 156) :
+          avant, seuls le label/les briques/les gaps répondaient, la zone sable vide était
+          inerte → les postes semblaient « non cliquables ». Un clic sur une brique/un gap garde
+          son handler propre (target !== currentTarget). Pas pour la ligne titulaire (SelfTimelineRow). */}
+      <div
+        className={`relative flex-1 overflow-hidden bg-[var(--sable-chaud)] ${isSelf ? "" : "cursor-pointer"}`}
+        onClick={isSelf ? undefined : (e) => { if (e.target === e.currentTarget) onPostMenuClick(post); }}
+      >
+        <div
+          className="relative"
+          style={{ width: totalWidth, height: "100%" }}
+          onClick={isSelf ? undefined : (e) => { if (e.target === e.currentTarget) onPostMenuClick(post); }}
+        >
           {/* Segments NON_COUVERT calculés entre les missions */}
           {!isSelf && post.isActive && now.getTime() < RANGE_END.getTime() &&
             computeUncoveredGaps(post.missions).map((gap, gi) => {
