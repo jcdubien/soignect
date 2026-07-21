@@ -607,6 +607,15 @@ function PostMenu({
             >
               Annuler l&apos;annonce
             </Button>
+            {/* Suppression définitive du POSTE entier (section 156) — manquait ici : un poste
+                occupé/en recrutement ne pouvait pas être supprimé, seulement son annonce. */}
+            <Button
+              variant="outlined"
+              onClick={onRetirer}
+              className="w-full !py-2.5 !border-red-300 !text-red-700 hover:!bg-red-50"
+            >
+              Retirer ce poste
+            </Button>
             <Button variant="text" onClick={onClose} className="w-full !py-2 !text-gray-400 hover:!bg-gray-50">Fermer</Button>
           </div>
         )}

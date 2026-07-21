@@ -82,7 +82,16 @@ async function cropAndCompress(
   canvas.width = SIZE;
   canvas.height = SIZE;
   const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(img, px.x, px.y, px.width, px.height, 0, 0, SIZE, SIZE);
+  // react-image-crop renvoie un PixelCrop dans l'espace de l'image AFFICHÉE (pixels CSS),
+  // mais drawImage(HTMLImageElement, …) interprète le rectangle source en pixels NATIFS.
+  // Sans cette mise à l'échelle, la zone rognée ne correspond pas au cadrage (bug section 156).
+  const scaleX = img.naturalWidth / img.width;
+  const scaleY = img.naturalHeight / img.height;
+  ctx.drawImage(
+    img,
+    px.x * scaleX, px.y * scaleY, px.width * scaleX, px.height * scaleY,
+    0, 0, SIZE, SIZE
+  );
   return new Promise((resolve, reject) =>
     canvas.toBlob(
       (b) => (b ? resolve(b) : reject(new Error("Canvas empty"))),
