@@ -109,28 +109,31 @@ export default function ActiveAnnoncesList({
               {err && <span className="text-[11px] text-red-600 mt-0.5">{err}</span>}
             </Link>
 
-            {/* Badges candidatures (section 159, inchangés) */}
+            {/* Badges candidatures (section 159/163). Navigation via router.push explicite plutôt
+                que <Link> : vers /annonces (route lente, force-dynamic), la transition d'un <Link>
+                était avortée quand le menu se ferme (démontage) → badges « inopérants » sur mobile.
+                router.push est une navigation GLOBALE, non liée au composant qui se démonte. */}
             <div className="shrink-0 flex items-center gap-1.5 pr-1 my-2">
-              <Link
-                href={`/annonces?missionId=${encodeURIComponent(m.id)}`}
-                onClick={onItemClick}
+              <button
+                type="button"
+                onClick={() => { router.push(`/annonces?missionId=${encodeURIComponent(m.id)}`); onItemClick?.(); }}
                 title={`${pending} candidature${pending > 1 ? "s" : ""} en attente — swiper`}
                 className={`flex items-center gap-1 px-2 h-8 rounded-lg text-xs font-bold transition ${
                   pending > 0 ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-gray-100 text-gray-400 hover:bg-gray-200"
                 }`}
               >
                 <span>⏳</span><span>{pending}</span>
-              </Link>
-              <Link
-                href={`/annonces?disponibiliteId=${encodeURIComponent(m.id)}`}
-                onClick={onItemClick}
+              </button>
+              <button
+                type="button"
+                onClick={() => { router.push(`/annonces?disponibiliteId=${encodeURIComponent(m.id)}`); onItemClick?.(); }}
                 title={`${confirmed} mise${confirmed > 1 ? "s" : ""} en relation confirmée${confirmed > 1 ? "s" : ""} — voir`}
                 className={`flex items-center gap-1 px-2 h-8 rounded-lg text-xs font-bold transition ${
                   confirmed > 0 ? "bg-kine-600 text-white hover:bg-kine-700" : "bg-gray-100 text-gray-400 hover:bg-gray-200"
                 }`}
               >
                 <span>🤝</span><span>{confirmed}</span>
-              </Link>
+              </button>
             </div>
 
             {/* Suppression rapide (section 163) — icône discrète + confirmation inline */}
