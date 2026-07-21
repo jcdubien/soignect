@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/md3/Button";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
+import ShareActions from "@/components/share/ShareActions";
 import { notPast, nextDay } from "@/lib/dates";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -384,14 +385,6 @@ function PostMenu({
   const isAnnonceActive = !!mission && mission.isActive && mission.briqueStatus === "RECHERCHE";
   const relationCount = (mission?.matchesA?.length ?? 0) + (mission?.matchesB?.length ?? 0);
 
-  // Partager sur Facebook (section 8) — ouvre la boîte de partage native (sharer),
-  // pré-remplie avec l'URL publique de l'annonce. Pas d'automatisation (conforme Meta).
-  function shareOnFacebook() {
-    if (!mission) return;
-    const url = `${window.location.origin}/annonce/${mission.id}`;
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
-  }
-
   // DELETE — "Annuler l'annonce" : supprime l'annonce (pas le poste). Timeline resync.
   async function submitAnnulerAnnonce() {
     if (!mission || busy) return;
@@ -592,10 +585,14 @@ function PostMenu({
             <Button variant="outlined" onClick={onEditAnnonce} className="w-full !py-2.5">
               Modifier l&apos;annonce
             </Button>
-            {/* Partager sur Facebook (section 8) */}
-            <Button variant="outlined" onClick={shareOnFacebook} className="w-full !py-2.5 !border-[#1877F2] !text-[#1877F2] hover:!bg-blue-50">
-              Partager sur Facebook
-            </Button>
+            {/* Partager l'annonce (section 159) — copier le lien + partage natif Android/iPhone
+                + Facebook. Le lien mène à la page publique /annonce/[id] (garde auth/inscription). */}
+            {mission && (
+              <div className="pt-1">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Partager cette annonce</p>
+                <ShareActions path={`/annonce/${mission.id}`} title={mission.title} />
+              </div>
+            )}
             {/* Actions du POSTE, séparées visuellement */}
             <div className="border-t border-gray-100 my-1" />
             <Button variant="outlined" onClick={() => setStep("presence")} className="w-full !py-2.5">

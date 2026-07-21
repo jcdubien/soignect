@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logTraceEvent } from "@/lib/trace";
-import ShareActions from "./ShareActions";
+import ShareActions from "@/components/share/ShareActions";
 
 export const dynamic = "force-dynamic";
 

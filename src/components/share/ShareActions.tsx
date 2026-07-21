@@ -3,18 +3,15 @@
 import { useEffect, useState } from "react";
 import ShareFacebookButton from "./ShareFacebookButton";
 
-// Actions de partage de l'annonce publique (section 101 + partage natif) :
+// Actions de partage d'une annonce (section 101 + partage natif) — réutilisable partout
+// (page publique /annonce/[id] ET gestion d'annonce dans l'app, section 159) :
 //  1. « Copier le lien » — toujours disponible (desktop + mobile), confirmation temporaire.
-//  2. « Partager… » — via navigator.share() (Web Share API), affiché uniquement quand
-//     l'API est supportée (mobile en pratique, + certains navigateurs desktop). Le sélecteur
-//     natif de l'OS liste toutes les apps capables de recevoir un lien (Instagram, TikTok,
-//     WhatsApp, SMS, Mail…), sans intégration par réseau.
-//  3. Le bouton Facebook existant (sharer.php) reste inchangé — seul réseau avec un vrai
-//     mécanisme de partage web dédié.
-// Fallback : si navigator.share n'existe pas, seuls « Copier le lien » + Facebook s'affichent.
+//  2. « Partager… » — via navigator.share() (Web Share API) : sélecteur natif Android/iPhone
+//     listant toutes les apps (Instagram, TikTok, WhatsApp, SMS, Mail…). Affiché seulement si supporté.
+//  3. Bouton Facebook (sharer.php) — toujours présent.
+// Le lien pointe vers la page publique de l'annonce, qui demande auth/création de compte.
 export default function ShareActions({ path, title }: { path: string; title: string }) {
   const [copied, setCopied] = useState(false);
-  // Détection après montage → évite tout écart d'hydratation SSR/CSR.
   const [canShare, setCanShare] = useState(false);
 
   useEffect(() => {
@@ -31,7 +28,6 @@ export default function ShareActions({ path, title }: { path: string; title: str
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
       } else {
-        // Repli presse-papier (contexte non sécurisé / anciens navigateurs)
         const ta = document.createElement("textarea");
         ta.value = url;
         ta.style.position = "fixed";
@@ -44,7 +40,7 @@ export default function ShareActions({ path, title }: { path: string; title: str
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      /* copie impossible — on n'affiche pas de fausse confirmation */
+      /* copie impossible — pas de fausse confirmation */
     }
   }
 
@@ -52,7 +48,7 @@ export default function ShareActions({ path, title }: { path: string; title: str
     try {
       await navigator.share({ title, text: title, url: fullUrl() });
     } catch {
-      /* partage annulé par l'utilisateur ou indisponible — silencieux */
+      /* annulé/indisponible — silencieux */
     }
   }
 
@@ -62,12 +58,10 @@ export default function ShareActions({ path, title }: { path: string; title: str
         type="button"
         onClick={copyLink}
         className={`w-full py-2.5 rounded-xl text-sm font-bold border transition ${
-          copied
-            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-            : "border-gray-200 text-gray-700 hover:bg-gray-50"
+          copied ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-700 hover:bg-gray-50"
         }`}
       >
-        {copied ? "✓ Lien copié !" : "Copier le lien"}
+        {copied ? "✓ Lien copié !" : "🔗 Copier le lien"}
       </button>
 
       {canShare && (

@@ -12023,8 +12023,13 @@ in-app est PLEINEMENT FONCTIONNELLE, pas un résidu visuel :
 - N'ont PAS d'équivalent in-app : rappel 24h, annulation, contrat 
   dispo, facturation, bienvenue (email seulement)
 
-Point 1 de la section 156 (vue centralisée messages sur Relations) 
-reste à vérifier séparément — l'audit n'a pas confirmé son état.
+✅ Point 1 (vue centralisée messages sur Relations) CONFIRMÉ DÉJÀ 
+CONSTRUIT (commit c44dbc2, vérifié 20/07) : aperçu du dernier 
+message tronqué 50 caractères, badge non-lu, tri par activité 
+récente (lastActivityAt desc), Message.readAt existant. Rien à 
+faire, section 156 entièrement close.
+
+SECTION 156 ENTIÈREMENT CLOSE.
 ```
 
 ### Contexte
@@ -12089,8 +12094,22 @@ communautaire.
 ### Statut
 
 ```
-Prompt rédigé, en attente d envoi. Non bloquant pour la beta en
-cours, mais fort potentiel de croissance organique moyen terme.
+✅ CORRIGÉ ET VÉRIFIÉ EN PROD (commits e3201f9 + 7c0fc33, 20/07) :
+- JobPosting JSON-LD sur /annonce/[id] : title, description, 
+  datePosted, validThrough, employmentType (REMPLACEMENT→TEMPORARY, 
+  ASSISTANAT/COLLABORATION→CONTRACTOR), hiringOrganization, 
+  jobLocation (commune/région/pays) — validé complet et conforme
+- Sitemap.xml dynamique live : 7 pages statiques + toutes les 
+  annonces actives, lastmod/changefreq/priority
+- Image de partage OG dynamique 1200×630 par annonce (next/og) — 
+  bug de layout Satori (height:"100%") trouvé et corrigé en 
+  conditions réelles, rendu final vérifié visuellement
+
+ACTION MANUELLE RECOMMANDÉE (hors code, à faire par Jean-Charles) :
+- Soumettre https://soignect.vercel.app/sitemap.xml dans Google 
+  Search Console
+- Tester une URL /annonce/[id] avec le Rich Results Test Google 
+  (search.google.com/test/rich-results)
 ```
 
 ---
@@ -12163,7 +12182,19 @@ comportement (clic titre -> edition) inchange.
 ### Statut
 
 ```
-Prompt rédigé, en attente d envoi.
+✅ Point 1 CORRIGÉ (commit 0b860e0, 20/07) : consultation se 
+déclenche désormais dès qu'une carte arrive au sommet de la pile 
+de swipe (vue réelle) OU à l'ouverture de la fiche détaillée, 
+symétrique candidat/cabinet. Déduplication en mémoire (Set côté 
+session) : une seule notification par annonce par session, pas de 
+double-déclenchement entre les deux points d'entrée. Décision 
+(20/07) : dédup par session suffisante pour la bêta (~30 
+testeurs) — pas de table Consultation persistante pour l'instant, 
+le toggle notifyConsultation reste le garde-fou email si besoin.
+
+⏳ Points 2 (alignement opt-out sur emailOptIn) et 3 (bugs linkUrl/
+texte candidat) : statut à confirmer — pas explicitement rapportés 
+dans ce dernier retour, à vérifier si inclus ou encore en attente.
 ```
 
 ---
