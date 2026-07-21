@@ -5,7 +5,7 @@ import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractLabels } from "@/lib/contractProfile";
 
 const IDENTITY_SELECT = {
-  name: true, rpps: true, numeroOrdre: true, adresse: true, siret: true, titulaireKind: true,
+  type: true, name: true, rpps: true, numeroOrdre: true, adresse: true, siret: true, titulaireKind: true,
 } as const;
 
 export const dynamic = "force-dynamic";
@@ -60,6 +60,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const missingOther = missingContractLabels(theirProfile);
   const enforce = await isContractProfileEnforced();
 
+  // Salariat (section 161) : le recruteur est une STRUCTURE (employeur) → CDD/CDI/Stage/Vacation.
+  // Soignect ne génère PAS de contrat de travail (les 3 templates sont libéraux) → on bloque
+  // le PDF et on affiche un message dédié.
+  const titulaireParty =
+    match.profileA.type === "TITULAIRE" ? match.profileA :
+    match.profileB.type === "TITULAIRE" ? match.profileB : null;
+  const isSalariat = titulaireParty?.titulaireKind === "STRUCTURE";
+
   return NextResponse.json({
     missionType,
     theirName:       theirProfile.name,
@@ -68,5 +76,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
     missingSelf,      // champs manquants du profil courant → lien /compte
     missingOther,     // champs manquants de l'autre partie → message informatif
     enforce,          // true = blocage dur ; false = avertissement non bloquant
+    isSalariat,       // recruteur = structure employeuse → pas de PDF libéral (section 161)
   });
 }

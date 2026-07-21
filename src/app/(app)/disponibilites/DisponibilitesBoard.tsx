@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fmtDayYear } from "@/lib/dates";
+import ShareActions from "@/components/share/ShareActions";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -16,12 +17,15 @@ interface MissionSlot {
   missionType: string;
   matchId?: string | null;        // match rattaché (section 149) — présent si période pourvue
   matchOtherName?: string | null; // nom de l'autre partie (cabinet) pour le menu adaptatif
+  pendingCount?: number;          // cabinets qui ont liké cette dispo, sans réciprocité (section 162)
+  confirmedCount?: number;        // mises en relation confirmées sur cette dispo
 }
 
 interface LinkedPost {
   id: string;
   label: string;
   cabinetName: string | null;
+  isCollaboration?: boolean; // wording « collaborateur » vs « assistant » (section 162)
 }
 
 interface Props {
@@ -288,13 +292,32 @@ function SlotEditModal({ slot, onClose, onSaved }: {
             <input type="date" value={end} min={start || undefined} onChange={e => setEnd(e.target.value)}
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
           </div>
-          {/* Section 7 — voir les mises en relation rattachées à cette disponibilité */}
-          <Link
-            href={`/annonces?disponibiliteId=${encodeURIComponent(slot.id)}`}
-            className="w-full py-2.5 border border-kine-200 text-kine-700 rounded-xl text-sm font-semibold text-center hover:bg-kine-50 transition"
-          >
-            Voir mes mises en relation →
-          </Link>
+          {/* Candidatures reçues sur cette disponibilité (section 162) — symétrie avec le
+              compteur cabinet : cabinets en attente (like reçu) / mises en relation confirmées. */}
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/annonces?disponibiliteId=${encodeURIComponent(slot.id)}`}
+              className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition"
+              title="Cabinets intéressés en attente de votre réponse"
+            >
+              ⏳ {slot.pendingCount ?? 0} en attente
+            </Link>
+            <Link
+              href={`/annonces?disponibiliteId=${encodeURIComponent(slot.id)}`}
+              className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold bg-kine-600 text-white hover:bg-kine-700 transition"
+              title="Mises en relation confirmées"
+            >
+              🤝 {slot.confirmedCount ?? 0} confirmée{(slot.confirmedCount ?? 0) > 1 ? "s" : ""}
+            </Link>
+          </div>
+
+          {/* Partager ma disponibilité (section 162) — copier le lien + natif Android/iPhone + FB.
+              Le lien mène à la page publique, qui demande auth/inscription au visiteur. */}
+          <div className="pt-1">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Partager ma disponibilité</p>
+            <ShareActions path={`/annonce/${slot.id}`} title={slot.title} />
+          </div>
+
           {error && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
           )}
@@ -588,7 +611,7 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
       {linkedPost && (
         <div className="bg-violet-50 border-b border-violet-200 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-violet-800">
-            👩‍⚕️ Vous êtes actuellement assistant{linkedPost.cabinetName ? <> chez <strong>{linkedPost.cabinetName}</strong></> : ""} (poste « {linkedPost.label} »).
+            👩‍⚕️ Vous êtes actuellement {linkedPost.isCollaboration ? "collaborateur·rice" : "assistant·e"}{linkedPost.cabinetName ? <> chez <strong>{linkedPost.cabinetName}</strong></> : ""} (poste « {linkedPost.label} »).
           </p>
           <Link
             href={`/missions/create?cabinetPostId=${encodeURIComponent(linkedPost.id)}&needType=remplacement`}

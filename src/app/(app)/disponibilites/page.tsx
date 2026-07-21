@@ -36,9 +36,24 @@ export default async function DisponibilitesPage() {
       endDate: true,
       briqueStatus: true,
       missionType: true,
+      // Candidatures reçues (section 162) — mises en relation confirmées sur cette dispo.
+      _count: { select: { matchesA: true, matchesB: true } },
     },
     orderBy: { startDate: "asc" },
   });
+
+  // « En attente » (section 162) : cabinets qui ont liké la dispo sans réciprocité encore
+  // = swipes RIGHT reçus − confirmées. Un seul groupBy.
+  const dispoIds = missions.map((m) => m.id);
+  const rightSwipeGroups = dispoIds.length
+    ? await prisma.swipe.groupBy({
+        by: ["swipedMissionId"],
+        where: { swipedMissionId: { in: dispoIds }, direction: "RIGHT" },
+        _count: { _all: true },
+      })
+    : [];
+  const likesByMission = new Map<string, number>();
+  for (const g of rightSwipeGroups) likesByMission.set(g.swipedMissionId, g._count._all);
 
   // Match rattaché à chaque période (section 149) — pour le menu adaptatif : une période
   // « Confirmé » ouvre la fiche du match précis + l'annulation sécurisée, au lieu du modal
@@ -64,7 +79,7 @@ export default async function DisponibilitesPage() {
   const userId = session.user.id as string;
   const linkedPost = await prisma.cabinetPost.findFirst({
     where: { linkedUserId: userId },
-    select: { id: true, label: true, cabinet: { select: { name: true } } },
+    select: { id: true, label: true, postType: true, cabinet: { select: { name: true } } },
   });
 
   const regionLabel: Record<string, string> = {
@@ -78,17 +93,28 @@ export default async function DisponibilitesPage() {
       profileName={profile.name}
       profileType={profile.type === ProfileType.ASSISTANT ? "ASSISTANT" : "REMPLACANT"}
       profileLocation={regionLabel[profile.region] ?? "Guadeloupe"}
-      missions={missions.map(m => ({
-        id: m.id,
-        title: m.title,
-        startDate: m.startDate?.toISOString() ?? null,
-        endDate: m.endDate?.toISOString() ?? null,
-        briqueStatus: m.briqueStatus,
-        missionType: m.missionType,
-        matchId: matchByMission.get(m.id)?.matchId ?? null,
-        matchOtherName: matchByMission.get(m.id)?.otherName ?? null,
-      }))}
-      linkedPost={linkedPost ? { id: linkedPost.id, label: linkedPost.label, cabinetName: linkedPost.cabinet?.name ?? null } : null}
+      missions={missions.map(m => {
+        const confirmed = m._count.matchesA + m._count.matchesB;
+        const likes = likesByMission.get(m.id) ?? 0;
+        return {
+          id: m.id,
+          title: m.title,
+          startDate: m.startDate?.toISOString() ?? null,
+          endDate: m.endDate?.toISOString() ?? null,
+          briqueStatus: m.briqueStatus,
+          missionType: m.missionType,
+          matchId: matchByMission.get(m.id)?.matchId ?? null,
+          matchOtherName: matchByMission.get(m.id)?.otherName ?? null,
+          confirmedCount: confirmed,
+          pendingCount: Math.max(0, likes - confirmed), // cabinets qui ont liké, sans réciprocité
+        };
+      })}
+      linkedPost={linkedPost ? {
+        id: linkedPost.id,
+        label: linkedPost.label,
+        cabinetName: linkedPost.cabinet?.name ?? null,
+        isCollaboration: linkedPost.postType === "COLLABORATION" || linkedPost.postType === "ASSOCIE",
+      } : null}
     />
   );
 }

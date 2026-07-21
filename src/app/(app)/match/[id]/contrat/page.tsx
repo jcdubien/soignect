@@ -14,6 +14,7 @@ interface MatchInfo {
   missingSelf?: string[];   // champs d'identité contractuelle manquants (moi)
   missingOther?: string[];  // champs manquants de l'autre partie
   enforce?: boolean;        // true = blocage dur ; false = avertissement
+  isSalariat?: boolean;     // recruteur = structure → pas de contrat libéral (section 161)
 }
 
 interface SigStatus {
@@ -135,6 +136,31 @@ export default function ContratPage() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-kine-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Salariat (section 161) : le recruteur est un établissement (CDD/CDI/Stage/Vacation). Soignect
+  // ne génère que des contrats LIBÉRAUX (remplacement/assistanat/collaboration) → on ne propose
+  // pas de PDF pour le salariat, pour ne jamais produire un document juridiquement inadapté.
+  if (info?.isSalariat) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12 flex flex-col items-center gap-5 text-center">
+        <span className="text-5xl">🏢</span>
+        <h1 className="text-xl font-black text-gray-900">Poste salarié — contrat hors plateforme</h1>
+        <p className="text-gray-500 text-sm">
+          Cette mise en relation concerne un poste salarié (CDD, CDI, stage ou vacation).
+          Le <strong>contrat de travail est établi par l&apos;établissement</strong> selon ses
+          propres modalités : Soignect ne génère que des contrats d&apos;exercice libéral
+          (remplacement, assistanat, collaboration).
+        </p>
+        <p className="text-gray-400 text-xs">
+          Poursuivez la discussion dans la messagerie pour convenir des modalités.
+        </p>
+        <Link href={`/matches?matchId=${id}`} className="w-full max-w-xs py-3 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition">
+          Ouvrir la conversation →
+        </Link>
+        <Link href={`/match/${id}`} className="text-kine-600 text-sm underline">← Retour à la mise en relation</Link>
       </div>
     );
   }

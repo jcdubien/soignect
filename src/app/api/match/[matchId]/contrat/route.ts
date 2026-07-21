@@ -88,6 +88,17 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
+  // Salariat (section 161) : recruteur = STRUCTURE employeuse → pas de PDF (templates libéraux
+  // uniquement). Garde défensif si l'API est appelée directement.
+  const titulaireForKind =
+    (match.profileA as { type: string; titulaireKind?: string }).type === "TITULAIRE" ? match.profileA : match.profileB;
+  if ((titulaireForKind as { titulaireKind?: string }).titulaireKind === "STRUCTURE") {
+    return NextResponse.json(
+      { error: "Poste salarié : le contrat de travail est établi par l'établissement, hors plateforme." },
+      { status: 422 }
+    );
+  }
+
   // Accès Premium — via le helper unifié (mode gratuit global + grâce billing, section 100),
   // ou partenaire CPTS (Premium gratuit, item 25). Cohérent avec /annonces et /match/[id].
   const myProfile = match.profileAId === profileId ? match.profileA : match.profileB;
