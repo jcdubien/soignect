@@ -34,7 +34,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       missions: {
         where: { isActive: true },
         orderBy: { startDate: "asc" },
-        select: { id: true, title: true, startDate: true, endDate: true, location: true, missionType: true },
+        select: {
+          id: true, title: true, startDate: true, endDate: true, location: true, missionType: true,
+          // Compteur de candidatures/mises en relation par annonce (section 157).
+          _count: { select: { matchesA: true, matchesB: true } },
+        },
       },
     },
   });
@@ -76,6 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           title: m.title,
           location: m.location,
           missionType: m.missionType as string,
+          relationCount: m._count.matchesA + m._count.matchesB,
         }))
       : [];
 
