@@ -54,18 +54,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     prisma.profile
       .findUnique({
         where: { id: mission.profileId },
-        select: { user: { select: { id: true, email: true, notifyConsultation: true } } },
+        select: { type: true, user: { select: { id: true, email: true, notifyConsultation: true } } },
       })
       .then((owner) => {
         if (!owner?.user?.email) return;
         const viewerType = (session.user as { profileType?: string }).profileType;
         const viewerLabel = viewerType === "TITULAIRE" ? "Un cabinet" : "Un remplaçant";
+        // Lien + terme adaptés au propriétaire (section 157) : un cabinet a une « annonce »
+        // et un Planning ; un candidat a une « disponibilité » et la page /disponibilites.
+        const ownerIsCabinet = owner.type === "TITULAIRE";
+        const listingWord = ownerIsCabinet ? "annonce" : "disponibilité";
         // Notification in-app (section 155) — en parallèle de l'email.
         createNotification({
           userId: owner.user.id,
           type: "consultation",
-          message: `${viewerLabel} a consulté votre annonce « ${mission.title} »`,
-          linkUrl: "/planning",
+          message: `${viewerLabel} a consulté votre ${listingWord} « ${mission.title} »`,
+          linkUrl: ownerIsCabinet ? "/planning" : "/disponibilites",
         });
         return sendConsultationEmail(owner.user.email, {
           viewerLabel,

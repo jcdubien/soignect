@@ -778,6 +778,11 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
               // Tap = déplacement sous le seuil ET pas sur un élément interactif interne
               const onInteractive = (e.target as HTMLElement).closest("button, a");
               if (dx < TAP_THRESHOLD && dy < TAP_THRESHOLD && !onInteractive) {
+                // Consultation sur le feed réel (section 157) : ouvrir la fiche depuis le feed
+                // enregistre la consultation, comme le tray « récemment consultées ». On
+                // réutilise la route card (garde intégré : ni sa propre annonce, ni déjà swipée)
+                // → notif in-app + email au propriétaire. Fire-and-forget.
+                fetch(`/api/missions/${stack[0].id}/card`).catch(() => {});
                 setDetailMission(stack[0]);
               }
             }}

@@ -11672,7 +11672,16 @@ profil) avant de le retirer sans solution de repli.
 ### Statut
 
 ```
-Prompt rédigé, en attente d envoi.
+✅ CORRIGÉ (commit 82f6801, 20/07) — version de base : badge 🤝 N 
+par annonce (mises en relation CONFIRMÉES uniquement, cohérent 
+avec candidatesCount déjà utilisé ailleurs), coloré si N>0, 
+cliquable vers /annonces?disponibiliteId=<missionId>. Aucune 
+requête supplémentaire (ajouté à la requête layout existante).
+
+🔄 COMPLÉMENT DÉCIDÉ (20/07) : distinguer "en attente / confirmées" 
+— les candidats ayant swipé sans réciprocité du cabinet ne sont 
+actuellement pas comptés, alors qu'ils représentent une opportunité 
+d'action immédiate. Prompt rédigé, en attente d'envoi.
 ```
 
 ---
@@ -11998,7 +12007,25 @@ SECTION 155 ENTIÈREMENT CLOSE.
 
 ---
 
-## 156. FEATURE — Vue centralisée des messages + notifications in-app
+## 156. FEATURE — Vue centralisée des messages + notifications in-app ✅ PARTIELLEMENT DÉCOUVERT DÉJÀ CONSTRUIT (audit 20/07)
+
+### Découverte (audit section 154bis, 20/07)
+
+```
+Contrairement au suivi précédent, la cloche de notifications 
+in-app est PLEINEMENT FONCTIONNELLE, pas un résidu visuel :
+- Table Notification en base (userId, type, message, linkUrl, 
+  readAt, createdAt)
+- Composant NotificationBell branché dans layout.tsx, panneau + 
+  "tout marquer comme lu" + polling 60s
+- API /api/notifications (GET liste+compteur, PATCH marquer lu)
+- 4 déclencheurs actifs : match, message, consultation (in-app)
+- N'ont PAS d'équivalent in-app : rappel 24h, annulation, contrat 
+  dispo, facturation, bienvenue (email seulement)
+
+Point 1 de la section 156 (vue centralisée messages sur Relations) 
+reste à vérifier séparément — l'audit n'a pas confirmé son état.
+```
 
 ### Contexte
 
@@ -12022,4 +12049,142 @@ vue centralisee des messages ni de systeme de notification in-app.
 
 ```
 Prompt redige, en attente d envoi.
+```
+
+---
+
+## 157. FEATURE — SEO/referencement : JobPosting structured data + sitemap + image partage
+
+### Contexte
+
+```
+Question strategique : comment les annonces sont-elles referencees
+(Google, Facebook) ? Physiorama beneficiait historiquement d un bon
+referencement Google - probablement via donnees structurees
+JobPosting (Google Jobs). Levier de croissance organique majeur,
+pas encore exploite par Soignect.
+```
+
+### Feature (3 volets, par ordre d impact)
+
+```
+1. Donnees structurees JobPosting (schema.org) sur /annonce/[id] -
+   permet apparition dans Google Jobs
+2. Sitemap.xml dynamique - toutes les annonces publiques actives,
+   soumission Google Search Console (action manuelle JC ensuite)
+3. Image de partage OG 1200x630 de qualite (actuellement icone
+   512x512 seulement, deja repere section 139)
+```
+
+### Note strategique
+
+```
+La presence organique dans les groupes Facebook eux-memes reste
+une action humaine/communautaire (comme le groupe WhatsApp de
+Jean-Charles) - le code rend le lien partage beau et bien
+reference, mais ne remplace pas la demarche de presence
+communautaire.
+```
+
+### Statut
+
+```
+Prompt rédigé, en attente d envoi. Non bloquant pour la beta en
+cours, mais fort potentiel de croissance organique moyen terme.
+```
+
+---
+
+## 158. BUGS — Photo apres cadrage decalee, postes non cliquables, suppression poste occupe manquante
+
+### 1. Photo apres cadrage ne correspond pas au cadrage ✅ (commit 0294f6e)
+
+```
+Cause : react-image-crop dessinait avec les coordonnees de l image
+affichee (pixels CSS) alors que drawImage attend les pixels natifs -
+decalage/echelle fausse. Fix : mise a l echelle naturalWidth/width
+et naturalHeight/height avant le drawImage.
+```
+
+### 2. Postes (Marion/Matheo/Lea) non cliquables ✅ (commit d9eadc2)
+
+```
+Cause racine (trouvee grace a la precision de Jean-Charles : ligne
+titulaire actionnable, pas celle des postes) : sur une ligne de
+poste, seuls le label/les briques/les zones "non couvert"
+avaient un handler - la zone sable vide de la piste (avant
+"aujourd hui", entre les briques) etait inerte. La ligne titulaire
+fonctionnait car entierement couverte par des segments
+"Presence/Conge". Fix desktop + mobile : toute la piste devient
+cliquable (ouvre le menu du poste), les briques/gaps gardent leur
+action propre (target === currentTarget). Piste mobile aussi
+agrandie (h-9 -> h-14) pour la cible tactile.
+```
+
+### 3. Suppression de poste manquante sur les postes occupes ✅ (commit 0294f6e)
+
+```
+"Retirer ce poste" n existait que sur les postes VIDES (Mathéo/
+Lea sans mission). Sur un poste occupe/en recrutement (Marion), le
+menu n offrait que "Fermer temporairement"/"Annuler l annonce" -
+pas de suppression definitive du poste lui-meme. Fix : "Retirer ce
+poste" ajoute a cote de "Annuler l annonce" sur les postes occupes
+aussi.
+```
+
+### Statut
+
+```
+Les 3 corriges et deployes. Recharge a froid recommandee pour
+verifier.
+```
+
+---
+
+## 159. FEATURE — Compteur de candidatures + acces direct depuis menu "Annonces actives"
+
+### Contexte
+
+```
+Le menu deroulant "Annonces actives" (section 141) liste titre/
+type/commune par annonce sans indiquer le nombre de candidatures
+en cours sur chacune - pas de vue rapide de l activite reelle.
+```
+
+### Feature
+
+```
+Badge/compteur de candidatures par annonce dans le menu, cliquable
+-> acces direct aux mises en relation de CETTE annonce precise
+(reutilise le flux existant section 102/106, filtre). Le reste du
+comportement (clic titre -> edition) inchange.
+```
+
+### Statut
+
+```
+Prompt rédigé, en attente d envoi.
+```
+
+---
+
+## 160. FIX — Notification consultation : declenchement navigation normale + opt-out aligne + bugs candidat
+
+### Decisions (20/07)
+
+```
+1. Consultation doit se declencher aussi en navigation normale du
+   carrousel (pas seulement via le tray "dernieres consultees") -
+   avec deduplication pour eviter le spam a chaque swipe
+2. Opt-out consultation aligne sur emailOptIn (les deux doivent
+   etre actifs pour recevoir l email) - corrige l incoherence
+   trouvee lors de l audit
+3. Fix bugs candidat : linkUrl code en dur vers /planning (candidat
+   n en a pas), texte dit "annonce" au lieu de "disponibilite"
+```
+
+### Statut
+
+```
+Prompt rédigé, en attente d envoi.
 ```
