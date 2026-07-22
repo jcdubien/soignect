@@ -11,7 +11,8 @@ import { prisma } from "@/lib/prisma";
 // [profileId, eventType, occurredAt].
 export const DEEPSEEK_DAILY_USER_LIMIT = 200;
 export const DEEPSEEK_DAILY_GLOBAL_LIMIT = 3000;
-const GLOBAL_ALERT_AT = Math.floor(DEEPSEEK_DAILY_GLOBAL_LIMIT * 0.8); // 2400 = 80 %
+export const DEEPSEEK_GLOBAL_ALERT_AT = Math.floor(DEEPSEEK_DAILY_GLOBAL_LIMIT * 0.8); // 2400 = 80 %
+const GLOBAL_ALERT_AT = DEEPSEEK_GLOBAL_ALERT_AT;
 const CALL_EVENT = "DEEPSEEK_CALL";
 const ALERT_EVENT = "DEEPSEEK_ALERT";
 

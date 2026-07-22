@@ -9,6 +9,7 @@ const NAV = [
   { href: "/admin/profiles", label: "Profils" },
   { href: "/admin/missions", label: "Annonces" },
   { href: "/admin/ratings", label: "Recommandations" },
+  { href: "/admin/deepseek", label: "Appels DeepSeek" },
   { href: "/admin/apl", label: "Données APL" },
   { href: "/admin/config", label: "Configuration" },
 ];
