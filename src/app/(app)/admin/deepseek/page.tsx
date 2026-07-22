@@ -4,6 +4,8 @@ import {
   DEEPSEEK_DAILY_USER_LIMIT,
   DEEPSEEK_DAILY_GLOBAL_LIMIT,
   DEEPSEEK_GLOBAL_ALERT_AT,
+  BUDGET_TIMEZONE,
+  startOfBudgetDay,
 } from "@/lib/deepseekBudget";
 
 export const dynamic = "force-dynamic";
@@ -19,21 +21,14 @@ const TYPE_LABEL: Record<string, string> = {
   TITULAIRE: "Cabinet",
 };
 
-// Début de jour UTC décalé de `offsetDays` (cohérent avec le reset des plafonds).
-function utcDayStart(offsetDays = 0): Date {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() - offsetDays);
-  return d;
-}
-
 export default async function AdminDeepSeekPage() {
-  const todayStart = utcDayStart(0);
+  // Fenêtre de jour = minuit heure Guadeloupe (même borne que le limiteur, source unique).
+  const todayStart = startOfBudgetDay(0);
 
-  // Bornes des 7 derniers jours (aujourd'hui inclus), en UTC.
+  // Bornes des 7 derniers jours (aujourd'hui inclus).
   const dayBounds = Array.from({ length: 7 }, (_, i) => ({
-    start: utcDayStart(6 - i),
-    end: utcDayStart(5 - i),
+    start: startOfBudgetDay(6 - i),
+    end: startOfBudgetDay(5 - i),
   }));
 
   const [globalToday, alertToday, perUserRaw, dailyCounts] = await Promise.all([
@@ -82,8 +77,8 @@ export default async function AdminDeepSeekPage() {
       <div>
         <h1 className="text-xl font-bold text-gray-800">Appels DeepSeek</h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          Protection facture — plafonds quotidiens (reset minuit UTC). Au-delà, le score retombe
-          sur une valeur neutre sans appel payant (le swipe/match reste enregistré).
+          Protection facture — plafonds quotidiens (reset à minuit, heure Guadeloupe). Au-delà, le
+          score retombe sur une valeur neutre sans appel payant (le swipe/match reste enregistré).
         </p>
       </div>
 
@@ -100,7 +95,7 @@ export default async function AdminDeepSeekPage() {
           {alertToday && (
             <span className="block text-xs opacity-70 mt-0.5">
               Alerte enregistrée à{" "}
-              {alertToday.occurredAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC.
+              {alertToday.occurredAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: BUDGET_TIMEZONE })} (heure Guadeloupe).
             </span>
           )}
         </div>
@@ -120,7 +115,7 @@ export default async function AdminDeepSeekPage() {
           <p className="text-2xl font-black mt-1 text-gray-800">{DEEPSEEK_DAILY_USER_LIMIT}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4">
-          <p className="text-xs text-gray-500 font-medium">Utilisateurs actifs (24 h UTC)</p>
+          <p className="text-xs text-gray-500 font-medium">Utilisateurs actifs (aujourd'hui)</p>
           <p className="text-2xl font-black mt-1 text-gray-800">{perUser.length}</p>
         </div>
       </div>
@@ -140,7 +135,7 @@ export default async function AdminDeepSeekPage() {
 
       {/* Tendance 7 jours */}
       <div className="bg-white rounded-xl border border-gray-100 p-4">
-        <h2 className="text-sm font-semibold text-gray-600 mb-3">7 derniers jours (UTC)</h2>
+        <h2 className="text-sm font-semibold text-gray-600 mb-3">7 derniers jours (heure Guadeloupe)</h2>
         <div className="space-y-1.5">
           {dayBounds.map(({ start }, i) => {
             const n = dailyCounts[i];
@@ -148,7 +143,7 @@ export default async function AdminDeepSeekPage() {
             return (
               <div key={i} className="flex items-center gap-3">
                 <span className={`w-14 shrink-0 text-xs ${isToday ? "font-bold text-gray-700" : "text-gray-400"}`}>
-                  {start.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", timeZone: "UTC" })}
+                  {start.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", timeZone: BUDGET_TIMEZONE })}
                 </span>
                 <div className="flex-1 h-4 rounded bg-gray-50 overflow-hidden">
                   <div

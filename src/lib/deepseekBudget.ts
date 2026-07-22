@@ -16,17 +16,25 @@ const GLOBAL_ALERT_AT = DEEPSEEK_GLOBAL_ALERT_AT;
 const CALL_EVENT = "DEEPSEEK_CALL";
 const ALERT_EVENT = "DEEPSEEK_ALERT";
 
-function startOfUtcDay(): Date {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
+// Le « jour » des plafonds démarre à minuit HEURE GUADELOUPE (UTC-4, pas de changement d'heure)
+// plutôt qu'en UTC — plus intuitif pour l'exploitant. Fenêtre partagée avec le tableau de bord
+// admin (/admin/deepseek) pour que l'affichage colle exactement au comptage.
+export const BUDGET_TIMEZONE = "America/Guadeloupe";
+const GP_OFFSET_MS = 4 * 60 * 60 * 1000; // UTC-4
+
+// Instant UTC correspondant à minuit (heure Guadeloupe) du jour courant, décalé de `offsetDays`.
+export function startOfBudgetDay(offsetDays = 0): Date {
+  const wall = new Date(Date.now() - GP_OFFSET_MS); // « horloge murale » Guadeloupe
+  wall.setUTCHours(0, 0, 0, 0);
+  wall.setUTCDate(wall.getUTCDate() - offsetDays);
+  return new Date(wall.getTime() + GP_OFFSET_MS); // retour à l'instant UTC réel
 }
 
 // À appeler AVANT un appel DeepSeek. false → l'appelant doit sauter l'appel et utiliser le
 // score neutre. En cas d'erreur de comptage, on autorise (ne jamais casser le matching pour
 // un souci de compteur).
 export async function checkDeepSeekBudget(profileId: string): Promise<boolean> {
-  const since = startOfUtcDay();
+  const since = startOfBudgetDay();
   try {
     const [userCount, globalCount] = await Promise.all([
       prisma.traceEvent.count({ where: { eventType: CALL_EVENT, profileId, occurredAt: { gte: since } } }),
@@ -54,7 +62,7 @@ export async function recordDeepSeekCall(profileId: string, missionType?: string
   try {
     await prisma.traceEvent.create({ data: { eventType: CALL_EVENT, profileId, missionType: missionType ?? null } });
 
-    const since = startOfUtcDay();
+    const since = startOfBudgetDay();
     const globalCount = await prisma.traceEvent.count({ where: { eventType: CALL_EVENT, occurredAt: { gte: since } } });
     if (globalCount >= GLOBAL_ALERT_AT) {
       const alerted = await prisma.traceEvent.findFirst({
