@@ -80,6 +80,22 @@ export default function CreateDisponibilitePage() {
   const [bioFocused, setBioFocused] = useState(false);
   const bioRemaining = Math.max(0, 40 - form.bioTinder.trim().length);
 
+  // Dates requises pour un REMPLAÇANT (section 165) : sans dates, la dispo n'apparaît sur
+  // aucun segment de la timeline (les briques exigent startDate ET endDate). L'assistanat
+  // n'a pas de champ date ici (durée minimale à la place).
+  const datesMissing = !isAssistant && (!form.startDate || !form.endDate);
+
+  // Prérequis de publication explicités (section 165) — évite le bouton « grisé » silencieux :
+  // on liste précisément ce qu'il reste à renseigner.
+  const missingReqs: string[] = [];
+  if (!form.title.trim())        missingReqs.push("un titre");
+  if (form.zones.length === 0)   missingReqs.push("au moins une zone géographique");
+  if (!bioValid)                 missingReqs.push("une accroche de 40 caractères minimum");
+  if (datesMissing)              missingReqs.push("vos dates de disponibilité (du / au)");
+  if (under90Days)               missingReqs.push("une durée d'au moins 90 jours");
+  if (hasPhoto === false)        missingReqs.push("une photo de profil");
+  const canSubmit = missingReqs.length === 0;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -269,6 +285,7 @@ export default function CreateDisponibilitePage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Mes dates de disponibilité
+              <span className="text-red-500 font-normal ml-1">· obligatoire</span>
             </label>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -402,6 +419,14 @@ export default function CreateDisponibilitePage() {
           <strong> swipez « Intéressé »</strong> sur ceux qui vous plaisent pour créer une mise en relation.
         </p>
 
+        {/* Prérequis manquants (section 165) — explique pourquoi le bouton est désactivé,
+            au lieu d'un grisé silencieux. Masqué dès que tout est rempli ou pendant l'envoi. */}
+        {!loading && !canSubmit && (
+          <p className="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+            Pour publier, il reste à renseigner : <strong>{missingReqs.join(", ")}</strong>.
+          </p>
+        )}
+
         <div className="flex gap-3 pt-1">
           <Link
             href="/annonces"
@@ -411,7 +436,7 @@ export default function CreateDisponibilitePage() {
           </Link>
           <button
             type="submit"
-            disabled={loading || !form.title || form.zones.length === 0 || !bioValid || !!under90Days || hasPhoto === false}
+            disabled={loading || !canSubmit}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
             {loading ? "Publication…" : "Publier mes disponibilités →"}

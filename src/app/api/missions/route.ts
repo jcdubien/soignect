@@ -128,6 +128,22 @@ export async function POST(req: NextRequest) {
 
   // Validation 90 jours minimum pour les postes longs (section 37.E)
   const effectiveMissionType = missionType ?? MissionType.REMPLACEMENT;
+
+  // Une disponibilité de remplacement « en recherche » DOIT avoir des dates (section 165) :
+  // sinon elle est créée en base mais n'apparaît sur AUCUN segment de la timeline (les briques
+  // exigent startDate ET endDate). Les « dates bloquées » (INDISPONIBLE) en ont toujours ;
+  // l'assistanat/collaboration se place via la durée, pas de dates exigées ici.
+  if (
+    effectiveBrique === BriqueStatus.RECHERCHE &&
+    effectiveMissionType === MissionType.REMPLACEMENT &&
+    (!startDate || !endDate)
+  ) {
+    return NextResponse.json(
+      { error: "Renseignez vos dates de disponibilité (du / au) avant de publier." },
+      { status: 422 }
+    );
+  }
+
   if (effectiveMissionType === MissionType.ASSISTANAT && startDate && endDate) {
     const dureeJours = Math.floor((endDate.getTime() - startDate.getTime()) / 86400000);
     if (dureeJours < 90) {
