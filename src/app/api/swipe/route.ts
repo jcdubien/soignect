@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { Prisma, SwipeDirection } from "@prisma/client";
 import { computeAffinityScore, computeMatchScore } from "@/lib/deepseek";
+import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { sendNewRelationEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { logTraceEvent } from "@/lib/trace";
@@ -126,10 +127,14 @@ export async function POST(req: NextRequest) {
         logementPropose: swipedMission.logementPropose, // section 120 — bonus logement
       };
       try {
-        const result = await computeAffinityScore(swiperInput, missionInput);
+        // Rate-limit DeepSeek (section 165) : au-delà du plafond, on saute l'appel API et le
+        // score bio retombe sur le neutre — le swipe s'enregistre quand même.
+        const budgetOk = await checkDeepSeekBudget(swiperId);
+        const result = await computeAffinityScore(swiperInput, missionInput, { skipDeepSeek: !budgetOk });
         affinityScore = result.total;
         // scoreDetails inclut désormais le détail logement + le profil de pondération utilisé (section 120)
         scoreDetails  = { ...result.details, profile: result.weightProfile };
+        if (budgetOk) void recordDeepSeekCall(swiperId, swipedMission.missionType);
       } catch (err) {
         console.error("[AffinityScore] Erreur:", err);
       }
@@ -205,12 +210,16 @@ export async function POST(req: NextRequest) {
             : await prisma.mission.findUnique({ where: { id: reciprocalSwipe.swipedMissionId } });
 
           try {
+            // Rate-limit DeepSeek (section 165) — même politique de repli neutre.
+            const budgetOk = await checkDeepSeekBudget(swiperId);
             const result = await computeMatchScore(
               { profileType: profileA.type, bio: profileA.bio, ...(missionA ?? {}) },
-              { profileType: profileB.type, bio: profileB.bio, ...(missionB ?? {}) }
+              { profileType: profileB.type, bio: profileB.bio, ...(missionB ?? {}) },
+              { skipDeepSeek: !budgetOk }
             );
             aiScore   = result.score;
             aiFactors = result.factors;
+            if (budgetOk) void recordDeepSeekCall(swiperId, swipedMission.missionType);
           } catch (err) {
             console.error("[DeepSeek] Erreur calcul score match:", err);
           }

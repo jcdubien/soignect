@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { computeMatchScore } from "@/lib/deepseek";
+import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { MatchStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -60,10 +61,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Missions manquantes pour le scoring" }, { status: 422 });
   }
 
+  // Rate-limit DeepSeek (section 165) — repli neutre si plafond atteint.
+  const budgetOk = await checkDeepSeekBudget(session.user.profileId as string);
   const result = await computeMatchScore(
     { profileType: match.missionA.profile.type, bio: match.missionA.profile.bio, ...match.missionA },
-    { profileType: match.missionB.profile.type, bio: match.missionB.profile.bio, ...match.missionB }
+    { profileType: match.missionB.profile.type, bio: match.missionB.profile.bio, ...match.missionB },
+    { skipDeepSeek: !budgetOk }
   );
+  if (budgetOk) void recordDeepSeekCall(session.user.profileId as string);
 
   const updated = await prisma.match.update({
     where: { id },

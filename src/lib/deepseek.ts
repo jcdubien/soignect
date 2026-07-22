@@ -111,10 +111,13 @@ function scoreGeo(a: AffinityInput, b: AffinityInput): number {
 }
 
 // Bio DeepSeek : 0-30 pts (section 64 — repondération)
-async function scoreBio(a: AffinityInput, b: AffinityInput): Promise<number> {
+// skipDeepSeek=true (plafond budget atteint, rate-limit section 165) → score neutre 15/30
+// sans appel API, identique au repli d'erreur existant.
+async function scoreBio(a: AffinityInput, b: AffinityInput, skipDeepSeek = false): Promise<number> {
   const bioA = a.bioTinder ?? a.bio;
   const bioB = b.bioTinder ?? b.bio;
   if (!bioA || !bioB) return 15;
+  if (skipDeepSeek) return 15;
   try {
     const prompt = `Tu es un algorithme de matching professionnel.
 Compare ces deux descriptions professionnelles et donne un score de 0 à 30
@@ -153,13 +156,14 @@ Profil B : "${bioB}"`;
 // Bio n'est PAS modifié — seul son poids relatif change.
 export async function computeAffinityScore(
   swiper: AffinityInput,
-  mission: AffinityInput
+  mission: AffinityInput,
+  options?: { skipDeepSeek?: boolean }
 ): Promise<AffinityResult> {
   const { w, label } = weightsFor(mission.missionType);
 
   const datesRaw = scoreDates(mission, swiper);                             // 0-35
   const geoRaw   = scoreGeo(swiper, mission);                              // 0-25
-  const bioRaw   = await scoreBio(swiper, mission);                        // 0-30
+  const bioRaw   = await scoreBio(swiper, mission, options?.skipDeepSeek);  // 0-30
   // desirabilityScore est un POURCENTAGE 0-100 (section 126), appliqué au créneau du profil.
   const desirPercent = Math.min(Math.max(mission.desirabilityScore ?? 0, 0), 100);
 
@@ -206,8 +210,15 @@ export interface ScoringData {
 
 export async function computeMatchScore(
   a: ScoringData,
-  b: ScoringData
+  b: ScoringData,
+  options?: { skipDeepSeek?: boolean }
 ): Promise<MatchScore> {
+  // Repli budget (rate-limit section 165) : score neutre sans appel API. Évite aussi le throw
+  // historique de cette fonction quand on veut juste éviter la dépense.
+  if (options?.skipDeepSeek) {
+    return { score: 0.5, factors: { availability: 0.5, location: 0.5, specialties: 0.5, bio: 0.5 } };
+  }
+
   const formatDate = (d?: Date | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { computeMatchScore } from "@/lib/deepseek";
+import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -36,9 +37,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
+  // Rate-limit DeepSeek (section 165) — repli neutre si plafond atteint.
+  const budgetOk = await checkDeepSeekBudget(myProfileId);
   const result = await computeMatchScore(
     { profileType: missionA.profile.type, bio: missionA.profile.bio, ...missionA },
-    { profileType: missionB.profile.type, bio: missionB.profile.bio, ...missionB }
+    { profileType: missionB.profile.type, bio: missionB.profile.bio, ...missionB },
+    { skipDeepSeek: !budgetOk }
   );
+  if (budgetOk) void recordDeepSeekCall(myProfileId);
   return NextResponse.json(result);
 }
