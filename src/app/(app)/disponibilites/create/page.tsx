@@ -57,7 +57,7 @@ export default function CreateDisponibilitePage() {
     zones: [] as ZoneGeo[],
     specialties: [] as string[],
     startDate: searchParams.get("startDate") ?? "",
-    endDate: searchParams.get("endDate") ?? "",
+    endDate: searchParams.get("endDate") ?? "", // préremplis depuis le menu rapide timeline (section 178)
     minMonths: "",
     dateFlexibility: 0,
     rechercheLogement: false,

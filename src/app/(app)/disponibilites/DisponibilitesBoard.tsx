@@ -3,7 +3,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { fmtDayYear } from "@/lib/dates";
 import ShareActions from "@/components/share/ShareActions";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -131,47 +130,76 @@ interface FreeZoneModal {
 
 function FreeZoneChoiceModal({
   modal,
+  blocking,
   onOpenDispo,
   onBlockDates,
   onClose,
 }: {
   modal: FreeZoneModal;
-  onOpenDispo: () => void;
-  onBlockDates: () => void;
+  blocking: boolean;
+  onOpenDispo: (start: string, end: string) => void;
+  onBlockDates: (start: string, end: string) => void;
   onClose: () => void;
 }) {
+  // Plage éditable (section 178) : les deux actions opèrent sur la MÊME plage visible Du/Au,
+  // pré-remplie depuis la position du clic. Fini la fenêtre de blocage cachée de 30 jours et
+  // l'asymétrie entre « Oui » (formulaire) et « Non » (POST direct opaque).
+  const [start, setStart] = useState(modal.suggestedStart);
+  const [end, setEnd] = useState(modal.suggestedEnd);
+  const valid = !!start && !!end && end >= start;
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-kine-100 rounded-xl flex items-center justify-center shrink-0">
             <span className="text-xl">📅</span>
           </div>
           <h3 className="font-bold text-gray-900 text-base leading-tight">
-            Ouvrir cette période à la réservation ?
+            Choisir cette période
           </h3>
         </div>
 
-        {/* Pas de durée présupposée (section 88) — la fin sera précisée à l'écran suivant */}
-        <div className="bg-gray-50 rounded-xl p-3 mb-4 text-sm text-gray-600">
-          <p className="font-medium">
-            Disponible à partir du{" "}
-            {fmtDayYear(modal.suggestedStart)}
-          </p>
+        {/* Plage Du / Au — visible et modifiable avant toute action */}
+        <div className="grid grid-cols-2 gap-3 mb-1">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Du</label>
+            <input
+              type="date"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Au</label>
+            <input
+              type="date"
+              value={end}
+              min={start || undefined}
+              onChange={(e) => setEnd(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+            />
+          </div>
         </div>
+        {!valid && (
+          <p className="text-xs text-amber-600 mb-3">La date de fin doit être postérieure à la date de début.</p>
+        )}
 
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2.5 mt-4">
           <button
-            onClick={onOpenDispo}
+            onClick={() => onOpenDispo(start, end)}
+            disabled={!valid}
             className="w-full py-3 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition disabled:opacity-40"
           >
-            Oui, je suis disponible →
+            Je suis disponible sur cette plage →
           </button>
           <button
-            onClick={onBlockDates}
-            className="w-full py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition"
+            onClick={() => onBlockDates(start, end)}
+            disabled={!valid || blocking}
+            className="w-full py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-40"
           >
-            Non, bloquer ces dates
+            {blocking ? "Blocage…" : "Bloquer cette plage (indisponible)"}
           </button>
           <button
             onClick={onClose}
@@ -521,8 +549,10 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
     });
   }, [dayWidth, isAssistant]);
 
-  async function handleBlockDates() {
-    if (!freeZoneModal || blocking) return;
+  // Bloque EXACTEMENT la plage choisie dans la modale (section 178) — plus de fenêtre cachée
+  // de 30 jours : start/end viennent des champs Du/Au visibles et éditables.
+  async function handleBlockDates(start: string, end: string) {
+    if (blocking) return;
     setBlocking(true);
     try {
       await fetch("/api/missions", {
@@ -532,8 +562,8 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
           title: "Dates bloquées",
           location: profileLocation,
           specialties: [],
-          startDate: new Date(freeZoneModal.suggestedStart).toISOString(),
-          endDate:   new Date(freeZoneModal.suggestedEnd).toISOString(),
+          startDate: new Date(start).toISOString(),
+          endDate:   new Date(end).toISOString(),
           missionType: "REMPLACEMENT",
           briqueStatus: "INDISPONIBLE",
           isActive: false,
@@ -552,11 +582,14 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
       {freeZoneModal && (
         <FreeZoneChoiceModal
           modal={freeZoneModal}
-          onOpenDispo={() => {
-            const { suggestedStart } = freeZoneModal;
+          blocking={blocking}
+          onOpenDispo={(start, end) => {
             setFreeZoneModal(null);
-            // Pas d'endDate présupposé (section 88) — la fin sera saisie sur le formulaire Du/Au
-            router.push(`/disponibilites/create?startDate=${encodeURIComponent(suggestedStart)}`);
+            // Préremplit Du ET Au sur le formulaire complet (section 178) — l'utilisateur
+            // arrive sur une vraie plage éditable, plus « on confirme juste un départ ».
+            router.push(
+              `/disponibilites/create?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`,
+            );
           }}
           onBlockDates={handleBlockDates}
           onClose={() => setFreeZoneModal(null)}
@@ -674,8 +707,15 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
                       `absolute` → le bouton s'effondrait à ~0 largeur et devenait
                       quasi-intappable (échec ~9/10, section 149). */}
                   <button
-                    onClick={() => {
-                      const s = new Date();
+                    onClick={(ev) => {
+                      // Ancrage au tap (section 178) : le bouton s'étend d'aujourd'hui à la fin de
+                      // la fenêtre ; la position horizontale du tap donne la date de début (avant :
+                      // toujours « aujourd'hui », quel que soit l'endroit tapé).
+                      const rect = ev.currentTarget.getBoundingClientRect();
+                      const frac = rect.width > 0 ? Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width)) : 0;
+                      const todayMs = Date.now();
+                      const s = new Date(todayMs + frac * (mWin.end.getTime() - todayMs));
+                      s.setHours(0, 0, 0, 0);
                       const e = new Date(s); e.setDate(e.getDate() + (isAssistant ? 90 : 30));
                       setFreeZoneModal({ suggestedStart: s.toISOString().slice(0, 10), suggestedEnd: e.toISOString().slice(0, 10) });
                     }}
