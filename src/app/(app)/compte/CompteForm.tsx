@@ -479,6 +479,24 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         {saving ? "Sauvegarde…" : saved ? "✓ Sauvegardé !" : "Sauvegarder"}
       </button>
 
+      {/* ── Signaler un problème (Sprint 0.3) — simple mailto, aucune donnée perso dans l'URL ── */}
+      <section className="border border-gray-100 rounded-2xl p-5 bg-white">
+        <h2 className="text-sm font-bold text-gray-700 mb-1">Un souci sur l&apos;application ?</h2>
+        <p className="text-xs text-gray-400 mb-3">
+          Décrivez ce qui ne fonctionne pas — cela nous aide à corriger vite pendant la bêta.
+        </p>
+        <a
+          href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "jcdubien@gmail.com"}?subject=${encodeURIComponent(
+            "Soignect — Signalement d'un problème",
+          )}&body=${encodeURIComponent(
+            "Décrivez le problème (quelle page, quelle action, ce qui s'est passé) :\n\n\n",
+          )}`}
+          className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition"
+        >
+          🐛 Signaler un problème
+        </a>
+      </section>
+
       {/* ── Supprimer le compte ── */}
       <section className="border border-red-100 rounded-2xl p-5 bg-red-50/50">
         <h2 className="text-sm font-bold text-red-700 mb-2">Zone de danger</h2>
