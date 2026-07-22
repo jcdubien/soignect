@@ -34,6 +34,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Match introuvable ou accès interdit" }, { status: 403 });
   }
 
+  // ratedId DOIT être la contre-partie de CE match (audit #3) : sinon un membre du match pouvait
+  // noter un profil tiers arbitraire en l'attachant à son match → pollution du ratingAvg/classement.
+  const otherPartyId = match.profileAId === raterId ? match.profileBId : match.profileAId;
+  if (ratedId !== otherPartyId) {
+    return NextResponse.json({ error: "Vous ne pouvez évaluer que l'autre partie de ce match." }, { status: 403 });
+  }
+
   const scores = [scorePonctualite, scoreQualiteSoins, scoreDossierPatient, scoreCommunication].filter(Boolean) as number[];
   const scoreGlobal = scores.length === 4
     ? (scorePonctualite! + scoreQualiteSoins! + scoreDossierPatient! + scoreCommunication!) / 4

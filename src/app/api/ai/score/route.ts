@@ -13,7 +13,7 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  if (!session?.user?.profileId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
 
   const body = await req.json();
   const parsed = schema.safeParse(body);
@@ -26,6 +26,14 @@ export async function POST(req: NextRequest) {
 
   if (!missionA || !missionB) {
     return NextResponse.json({ error: "Mission introuvable" }, { status: 404 });
+  }
+
+  // Le scoring déclenche un appel DeepSeek payant (audit #4) : l'appelant doit être partie
+  // prenante — propriétaire d'au moins une des deux missions comparées. Sinon, n'importe quel
+  // compte pouvait scorer des paires arbitraires (abus de coût + sondage d'affinité de tiers).
+  const myProfileId = session.user.profileId as string;
+  if (missionA.profileId !== myProfileId && missionB.profileId !== myProfileId) {
+    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
   const result = await computeMatchScore(

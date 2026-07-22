@@ -15,7 +15,9 @@ const updateSchema = z.object({
   isActive: z.boolean().optional(),
   region: z.nativeEnum(Region).optional(),
   profession: z.nativeEnum(Profession).optional(),
-  isVerified: z.boolean().optional(),
+  // isVerified retiré du schéma user-facing (audit #5) : le badge « vérifié » ne doit PAS être
+  // auto-attribuable. Il est posé uniquement par la vérification RPPS serveur (/api/rpps/verify)
+  // ou par un admin (/api/admin/profiles/[id]).
   isEmployeur: z.boolean().optional(),
   titulaireKind: z.nativeEnum(TitulaireKind).optional(),
   // Identité contractuelle (section 150) — portée par le Profile, injectée dans le PDF
