@@ -130,13 +130,11 @@ interface FreeZoneModal {
 
 function FreeZoneChoiceModal({
   modal,
-  blocking,
   onOpenDispo,
   onBlockDates,
   onClose,
 }: {
   modal: FreeZoneModal;
-  blocking: boolean;
   onOpenDispo: (start: string, end: string) => void;
   onBlockDates: (start: string, end: string) => void;
   onClose: () => void;
@@ -196,10 +194,10 @@ function FreeZoneChoiceModal({
           </button>
           <button
             onClick={() => onBlockDates(start, end)}
-            disabled={!valid || blocking}
+            disabled={!valid}
             className="w-full py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-40"
           >
-            {blocking ? "Blocage…" : "Bloquer cette plage (indisponible)"}
+            Bloquer cette plage (indisponible)
           </button>
           <button
             onClick={onClose}
@@ -467,14 +465,13 @@ function SlotMatchModal({ slot, onClose, onChanged }: {
 
 // ── DisponibilitesBoard principal ─────────────────────────────────────────────
 
-export default function DisponibilitesBoard({ profileName, profileType, profileLocation, missions, linkedPost }: Props) {
+export default function DisponibilitesBoard({ profileName, profileType, missions, linkedPost }: Props) {
   const router = useRouter();
   const isAssistant = profileType === "ASSISTANT";
 
   const [zoom, setZoom] = useState<Zoom>("quarter");
   const [freeZoneModal, setFreeZoneModal] = useState<FreeZoneModal | null>(null);
   const [editSlot, setEditSlot] = useState<MissionSlot | null>(null);
-  const [blocking, setBlocking] = useState(false);
 
   // Largeur réactive (mobile-first) — se recalcule au resize / rotation
   const [winW, setWinW] = useState(800);
@@ -549,40 +546,12 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
     });
   }, [dayWidth, isAssistant]);
 
-  // Bloque EXACTEMENT la plage choisie dans la modale (section 178) — plus de fenêtre cachée
-  // de 30 jours : start/end viennent des champs Du/Au visibles et éditables.
-  async function handleBlockDates(start: string, end: string) {
-    if (blocking) return;
-    setBlocking(true);
-    try {
-      await fetch("/api/missions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "Dates bloquées",
-          location: profileLocation,
-          specialties: [],
-          startDate: new Date(start).toISOString(),
-          endDate:   new Date(end).toISOString(),
-          missionType: "REMPLACEMENT",
-          briqueStatus: "INDISPONIBLE",
-          isActive: false,
-        }),
-      });
-      setFreeZoneModal(null);
-      router.refresh();
-    } finally {
-      setBlocking(false);
-    }
-  }
-
   return (
     <div className="flex flex-col h-full min-h-0 bg-gray-50">
       {/* Modale zone libre */}
       {freeZoneModal && (
         <FreeZoneChoiceModal
           modal={freeZoneModal}
-          blocking={blocking}
           onOpenDispo={(start, end) => {
             setFreeZoneModal(null);
             // Préremplit Du ET Au sur le formulaire complet (section 178) — l'utilisateur
@@ -591,7 +560,14 @@ export default function DisponibilitesBoard({ profileName, profileType, profileL
               `/disponibilites/create?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`,
             );
           }}
-          onBlockDates={handleBlockDates}
+          onBlockDates={(start, end) => {
+            setFreeZoneModal(null);
+            // Blocage unifié via LE formulaire (section 178) — mode compact Du/Au, plus de POST
+            // direct depuis la modale.
+            router.push(
+              `/disponibilites/create?mode=block&startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`,
+            );
+          }}
           onClose={() => setFreeZoneModal(null)}
         />
       )}

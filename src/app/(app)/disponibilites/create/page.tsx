@@ -65,6 +65,11 @@ export default function CreateDisponibilitePage() {
   });
 
   const isAssistant = profileType === "ASSISTANT";
+
+  // Mode blocage (section 178) : unifie le « bloquer ces dates » du menu rapide timeline via CE
+  // formulaire (au lieu d'un POST direct). Variante compacte Du/Au → mission INDISPONIBLE.
+  const isBlockMode = searchParams.get("mode") === "block";
+  const blockValid = !!form.startDate && !!form.endDate && form.endDate >= form.startDate;
   // Un profil ASSISTANT couvre assistant ET collaborateur (même statut, seule diff = patientèle
   // propre au niveau du contrat). On le laisse donc choisir son type de poste recherché.
   const [postKind, setPostKind] = useState<"ASSISTANAT" | "COLLABORATION">("ASSISTANAT");
@@ -142,7 +147,101 @@ export default function CreateDisponibilitePage() {
     router.push("/annonces");
   }
 
+  async function handleBlockSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!blockValid) return;
+    setLoading(true);
+    setError("");
+    // Mission INDISPONIBLE (isActive=false) — non matchable, apparaît en hachuré sur la timeline.
+    // Exemptée de photo/zones/accroche côté serveur (briqueStatus INDISPONIBLE).
+    const res = await fetch("/api/missions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Dates bloquées",
+        location: "Indisponibilité",
+        specialties: [],
+        startDate: new Date(form.startDate).toISOString(),
+        endDate: new Date(form.endDate).toISOString(),
+        missionType: "REMPLACEMENT",
+        briqueStatus: "INDISPONIBLE",
+        isActive: false,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(typeof data?.error === "string" ? data.error : "Le blocage des dates a échoué.");
+      setLoading(false);
+      return;
+    }
+    router.push("/disponibilites");
+  }
+
   if (status === "loading" || profileType === "TITULAIRE") return null;
+
+  // ── Mode blocage (section 178) : formulaire compact, uniquement Du/Au ──
+  if (isBlockMode) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-8 animate-fade-up">
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xl">🚫</span>
+            <h1 className="text-2xl font-bold text-gray-800">Bloquer des dates</h1>
+          </div>
+          <p className="text-gray-400 text-sm">
+            Ces dates apparaîtront en « indisponible » sur votre timeline et ne seront pas proposées aux cabinets.
+          </p>
+        </div>
+
+        <form onSubmit={handleBlockSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Période à bloquer</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Du</label>
+                <input
+                  type="date"
+                  value={form.startDate}
+                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Au</label>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  min={form.startDate || undefined}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{error}</p>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <Link
+              href="/disponibilites"
+              className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-500 text-center text-sm hover:bg-gray-50 transition"
+            >
+              Annuler
+            </Link>
+            <button
+              type="submit"
+              disabled={loading || !blockValid}
+              className="flex-1 py-3 bg-gray-800 text-white rounded-xl font-semibold hover:bg-black active:scale-[0.98] transition disabled:opacity-40 text-sm"
+            >
+              {loading ? "Blocage…" : "Bloquer ces dates"}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8 animate-fade-up">
