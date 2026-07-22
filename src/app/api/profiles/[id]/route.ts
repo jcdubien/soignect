@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { Profession, Region, TitulaireKind } from "@prisma/client";
+import { stripSensitiveProfile } from "@/lib/publicProfile";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  // Auth requise (audit permissions, section 165) : avant, cette route était ouverte et
+  // renvoyait le Profile BRUT (RPPS/Ordre/adresse/SIRET + facturation + internes de classement)
+  // à quiconque connaissait un ID (exposé dans le feed et les URLs /annonce/[id]).
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+
   const profile = await prisma.profile.findUnique({
     where: { id },
     include: { missions: { where: { isActive: true } } },
@@ -41,7 +49,12 @@ export async function GET(
   if (!profile) {
     return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   }
-  return NextResponse.json(profile);
+
+  // Le propriétaire (et l'admin) voient l'intégralité de leur profil ; un tiers reçoit une
+  // version expurgée des champs sensibles (identité contractuelle, facturation, classement).
+  const isOwner =
+    profile.userId === session.user.id || (session.user as { role?: string }).role === "ADMIN";
+  return NextResponse.json(isOwner ? profile : stripSensitiveProfile(profile));
 }
 
 export async function PATCH(

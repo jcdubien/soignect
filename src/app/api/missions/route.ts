@@ -6,6 +6,7 @@ import { BriqueStatus, MissionType, ProfileType, ZoneGeographique } from "@prism
 import { getCommuneZonage } from "@/lib/communes";
 import { logTraceEvent } from "@/lib/trace";
 import { bioLimitFor } from "@/lib/bio";
+import { stripMissionProfiles } from "@/lib/publicProfile";
 
 export const dynamic = "force-dynamic";
 
@@ -83,7 +84,9 @@ export async function GET(req: NextRequest) {
     take: limit,
   });
 
-  return NextResponse.json(missions);
+  // Expurge les champs sensibles du profil (audit permissions, section 165) — même politique
+  // que /api/feed : identité contractuelle / facturation / classement jamais renvoyées.
+  return NextResponse.json(stripMissionProfiles(missions));
 }
 
 // POST /api/missions — créer une mission

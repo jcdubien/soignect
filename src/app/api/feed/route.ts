@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileType, TitulaireKind, Prisma } from "@prisma/client";
+import { stripMissionProfiles } from "@/lib/publicProfile";
 
 export const dynamic = "force-dynamic";
 
@@ -85,5 +86,7 @@ export async function GET(req: NextRequest) {
     take: limit,
   });
 
-  return NextResponse.json(missions);
+  // Expurge les champs sensibles du profil de chaque annonce (audit permissions, section 165) :
+  // le feed ne doit exposer que les champs d'affichage (nom/photo/bio/région/note…).
+  return NextResponse.json(stripMissionProfiles(missions));
 }
