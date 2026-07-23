@@ -12,6 +12,7 @@ interface MissionSlot {
   title: string;
   startDate: string | null;
   endDate: string | null;
+  minMonths?: number | null; // durée minimale (poste assistant/collaboration, section 179)
   briqueStatus: string;
   missionType: string;
   matchId?: string | null;        // match rattaché (section 149) — présent si période pourvue
@@ -463,6 +464,209 @@ function SlotMatchModal({ slot, onClose, onChanged }: {
   );
 }
 
+// ── Vue ASSISTANT (section 179, Option 1) ──────────────────────────────────────
+// L'assistant cherche un POSTE LONG TERME sans dates : la timeline datée ne le concerne pas.
+// On affiche ses recherches en cartes (type + durée min + candidatures), avec édition légère
+// (titre / type / durée) et suppression — plus d'axe de dates, plus d'empty-state trompeur.
+
+const POST_KIND_LABEL: Record<string, string> = {
+  ASSISTANAT: "Assistanat",
+  COLLABORATION: "Collaboration libérale",
+};
+
+function AssistantEditModal({ slot, onClose, onSaved }: {
+  slot: MissionSlot; onClose: () => void; onSaved: () => void;
+}) {
+  const [title, setTitle] = useState(slot.title);
+  const [kind, setKind] = useState<"ASSISTANAT" | "COLLABORATION">(
+    slot.missionType === "COLLABORATION" ? "COLLABORATION" : "ASSISTANAT",
+  );
+  const [minMonths, setMinMonths] = useState(slot.minMonths ? String(slot.minMonths) : "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    if (busy) return;
+    if (title.trim().length < 3) { setError("Le titre doit faire au moins 3 caractères."); return; }
+    if (!minMonths) { setError("Choisissez une durée minimale."); return; }
+    setBusy(true); setError(null);
+    const res = await fetch(`/api/missions/${slot.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: title.trim(), missionType: kind, minMonths: parseInt(minMonths, 10) }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setError(typeof d?.error === "string" ? d.error : "L'enregistrement a échoué.");
+      setBusy(false);
+      return;
+    }
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 sm:px-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
+        <h3 className="font-bold text-gray-900 text-base mb-4">Modifier ma recherche</h3>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Intitulé</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Type de poste</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["ASSISTANAT", "COLLABORATION"] as const).map((k) => (
+                <button key={k} type="button" onClick={() => setKind(k)}
+                  className={`text-left rounded-xl border px-3 py-2 text-sm transition ${kind === k ? "border-kine-500 bg-kine-50 ring-1 ring-kine-400" : "border-gray-200 hover:border-kine-300"}`}>
+                  {POST_KIND_LABEL[k]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Durée minimale</label>
+            <select value={minMonths} onChange={(e) => setMinMonths(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400">
+              <option value="">À préciser</option>
+              <option value="3">3 mois minimum</option>
+              <option value="6">6 mois minimum</option>
+              <option value="12">12 mois (1 an)</option>
+              <option value="18">18 mois</option>
+              <option value="24">24 mois (2 ans)</option>
+            </select>
+          </div>
+          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+          <div className="flex gap-2 pt-1">
+            <button onClick={onClose} disabled={busy} className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-40">Annuler</button>
+            <button onClick={save} disabled={busy} className="flex-1 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition disabled:opacity-40">{busy ? "…" : "Enregistrer"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssistantDispoView({ profileName, missions, linkedPost }: {
+  profileName: string | null;
+  missions: MissionSlot[];
+  linkedPost?: LinkedPost | null;
+}) {
+  const router = useRouter();
+  const [editSlot, setEditSlot] = useState<MissionSlot | null>(null);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [errorId, setErrorId] = useState<{ id: string; msg: string } | null>(null);
+
+  async function doDelete(id: string) {
+    setBusyId(id); setErrorId(null);
+    const res = await fetch(`/api/missions/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setErrorId({ id, msg: typeof d?.error === "string" ? d.error : "Suppression impossible." });
+      setBusyId(null); setConfirmingId(null);
+      return;
+    }
+    setDeletedIds((prev) => new Set(prev).add(id));
+    setBusyId(null); setConfirmingId(null);
+    router.refresh();
+  }
+
+  const visible = missions.filter((m) => !deletedIds.has(m.id));
+
+  return (
+    <div className="flex flex-col h-full min-h-0 bg-gray-50 overflow-y-auto">
+      {/* Bannière « poste rattaché » (section 153) — identique à la vue remplaçant. */}
+      {linkedPost && (
+        <div className="bg-violet-50 border-b border-violet-200 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-violet-800">
+            👩‍⚕️ Vous êtes actuellement {linkedPost.isCollaboration ? "collaborateur·rice" : "assistant·e"}{linkedPost.cabinetName ? <> chez <strong>{linkedPost.cabinetName}</strong></> : ""} (poste « {linkedPost.label} »).
+          </p>
+          <Link href={`/missions/create?cabinetPostId=${encodeURIComponent(linkedPost.id)}&needType=remplacement`}
+            className="shrink-0 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition">
+            Faire remplacer mon absence →
+          </Link>
+        </div>
+      )}
+
+      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-4">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">Ma recherche de poste</h1>
+          <p className="text-xs text-gray-400">{profileName ?? "Assistant"} · Poste long terme (assistanat / collaboration)</p>
+        </div>
+
+        {visible.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+            <div className="text-4xl mb-2">👩‍⚕️</div>
+            <p className="text-sm font-semibold text-gray-700">Aucune recherche publiée</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">Publiez votre recherche pour être visible des cabinets qui recrutent en longue durée.</p>
+            <Link href="/disponibilites/create" className="inline-block px-4 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition">+ Publier ma recherche</Link>
+          </div>
+        ) : (
+          <>
+            {visible.map((m) => {
+              const isCollab = m.missionType === "COLLABORATION";
+              const pending = m.pendingCount ?? 0;
+              const confirmed = m.confirmedCount ?? 0;
+              const isConfirmed = m.briqueStatus === "CONFIRME" && m.matchId;
+              const err = errorId?.id === m.id ? errorId.msg : null;
+
+              if (confirmingId === m.id) {
+                return (
+                  <div key={m.id} className="bg-red-50 border border-red-100 rounded-2xl p-4">
+                    <p className="text-sm text-gray-700 mb-2">Supprimer <strong>« {m.title} »</strong> ?</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setConfirmingId(null)} disabled={busyId === m.id} className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 disabled:opacity-40">Annuler</button>
+                      <button onClick={() => doDelete(m.id)} disabled={busyId === m.id} className="flex-1 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-40">{busyId === m.id ? "…" : "Supprimer"}</button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold text-gray-800 truncate">{m.title}</h2>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${isCollab ? "bg-violet-100 text-violet-700" : "bg-kine-100 text-kine-700"}`}>{isCollab ? "Collaboration" : "Assistanat"}</span>
+                      <span className="text-[11px] text-gray-400">{m.minMonths ? `≥ ${m.minMonths} mois` : "Durée à préciser"}</span>
+                    </div>
+                  </div>
+
+                  {isConfirmed ? (
+                    <Link href={`/match/${m.matchId}`} className="mt-3 flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition">
+                      🤝 Mise en relation confirmée{m.matchOtherName ? ` avec ${m.matchOtherName}` : ""} →
+                    </Link>
+                  ) : (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Link href={`/annonces?disponibiliteId=${encodeURIComponent(m.id)}`} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${pending > 0 ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-gray-100 text-gray-400"}`}>⏳ {pending} en attente</Link>
+                      <Link href={`/annonces?disponibiliteId=${encodeURIComponent(m.id)}`} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${confirmed > 0 ? "bg-kine-600 text-white hover:bg-kine-700" : "bg-gray-100 text-gray-400"}`}>🤝 {confirmed} confirmée{confirmed > 1 ? "s" : ""}</Link>
+                    </div>
+                  )}
+
+                  {err && <p className="mt-2 text-[11px] text-red-600">{err}</p>}
+
+                  <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-4">
+                    <button onClick={() => setEditSlot(m)} className="text-xs font-semibold text-gray-600 hover:text-kine-700 transition">Modifier</button>
+                    <button onClick={() => { setConfirmingId(m.id); setErrorId(null); }} className="text-xs font-semibold text-gray-400 hover:text-red-600 transition">Supprimer</button>
+                    <div className="ml-auto"><ShareActions path={`/annonce/${m.id}`} title={m.title} /></div>
+                  </div>
+                </div>
+              );
+            })}
+            <Link href="/disponibilites/create" className="block text-center px-4 py-3 border border-dashed border-kine-300 text-kine-700 rounded-2xl text-sm font-bold hover:bg-kine-50 transition">+ Publier une autre recherche</Link>
+          </>
+        )}
+      </div>
+
+      {editSlot && <AssistantEditModal slot={editSlot} onClose={() => setEditSlot(null)} onSaved={() => { setEditSlot(null); router.refresh(); }} />}
+    </div>
+  );
+}
+
 // ── DisponibilitesBoard principal ─────────────────────────────────────────────
 
 export default function DisponibilitesBoard({ profileName, profileType, missions, linkedPost }: Props) {
@@ -545,6 +749,12 @@ export default function DisponibilitesBoard({ profileName, profileType, missions
       suggestedEnd:   endDate.toISOString().slice(0, 10),
     });
   }, [dayWidth, isAssistant]);
+
+  // Assistant (section 179, Option 1) : vue « recherche de poste » sans timeline datée.
+  // Placé après les hooks (règles des Hooks) — la logique timeline ci-dessus reste inerte ici.
+  if (isAssistant) {
+    return <AssistantDispoView profileName={profileName} missions={missions} linkedPost={linkedPost} />;
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-gray-50">

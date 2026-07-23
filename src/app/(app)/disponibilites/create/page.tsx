@@ -93,12 +93,13 @@ export default function CreateDisponibilitePage() {
   // Prérequis de publication explicités (section 165) — évite le bouton « grisé » silencieux :
   // on liste précisément ce qu'il reste à renseigner.
   const missingReqs: string[] = [];
-  if (!form.title.trim())        missingReqs.push("un titre");
-  if (form.zones.length === 0)   missingReqs.push("au moins une zone géographique");
-  if (!bioValid)                 missingReqs.push("une accroche de 40 caractères minimum");
-  if (datesMissing)              missingReqs.push("vos dates de disponibilité (du / au)");
-  if (under90Days)               missingReqs.push("une durée d'au moins 90 jours");
-  if (hasPhoto === false)        missingReqs.push("une photo de profil");
+  if (!form.title.trim())          missingReqs.push("un titre");
+  if (form.zones.length === 0)     missingReqs.push("au moins une zone géographique");
+  if (!bioValid)                   missingReqs.push("une accroche de 40 caractères minimum");
+  if (datesMissing)                missingReqs.push("vos dates de disponibilité (du / au)");
+  if (isAssistant && !form.minMonths) missingReqs.push("une durée minimale (3 mois ou plus)"); // section 179 (C6)
+  if (under90Days)                 missingReqs.push("une durée d'au moins 90 jours");
+  if (hasPhoto === false)          missingReqs.push("une photo de profil");
   const canSubmit = missingReqs.length === 0;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -123,8 +124,11 @@ export default function CreateDisponibilitePage() {
         location: geoLabel,
         zones: form.zones,
         specialties: form.specialties,
-        startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
-        endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
+        // Assistant = poste long terme SANS dates (section 179, Option 1) : on n'envoie jamais de
+        // dates, même si le query en contient (cohérence : une dispo assistant reste sans dates,
+        // pilotée par la durée minimale). Le matching assistant repose sur l'accroche, pas les dates.
+        startDate: isAssistant ? null : (form.startDate ? new Date(form.startDate).toISOString() : null),
+        endDate: isAssistant ? null : (form.endDate ? new Date(form.endDate).toISOString() : null),
         minMonths: form.minMonths ? parseInt(form.minMonths) : null,
         missionType: isAssistant ? postKind : "REMPLACEMENT",
         dateFlexibility: form.dateFlexibility,

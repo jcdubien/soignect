@@ -34,6 +34,7 @@ export default async function DisponibilitesPage() {
       title: true,
       startDate: true,
       endDate: true,
+      minMonths: true, // durée minimale (vue assistant, section 179)
       briqueStatus: true,
       missionType: true,
       // Candidatures reçues (section 162) — mises en relation confirmées sur cette dispo.
@@ -101,6 +102,7 @@ export default async function DisponibilitesPage() {
           title: m.title,
           startDate: m.startDate?.toISOString() ?? null,
           endDate: m.endDate?.toISOString() ?? null,
+          minMonths: m.minMonths,
           briqueStatus: m.briqueStatus,
           missionType: m.missionType,
           matchId: matchByMission.get(m.id)?.matchId ?? null,

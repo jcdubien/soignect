@@ -131,7 +131,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         {/* Badge de statut (section 62) — rôle libéral, teinte bleu marine */}
         <span className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[var(--bleu-marine)]/10 text-[var(--bleu-marine)] border border-[var(--bleu-marine)]/25">
-          {({ TITULAIRE: "Titulaire", REMPLACANT: "Remplaçant", ASSISTANT: "Assistant", COLLABORATEUR: "Collaborateur" } as Record<string, string>)[profileType ?? ""] ?? "Profil"}
+          {({ TITULAIRE: "Titulaire", REMPLACANT: "Remplaçant", ASSISTANT: "Assistant" } as Record<string, string>)[profileType ?? ""] ?? "Profil"}
         </span>
 
         {/* Résumé contextuel — section 21 */}
