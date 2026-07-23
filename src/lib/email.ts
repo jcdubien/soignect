@@ -91,7 +91,7 @@ export async function sendContratEmail(
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0">
-       Un contrat de remplacement a été préparé pour vous. Consultez-le et validez-le.
+       Un contrat a été préparé pour vous. Consultez-le et validez-le.
      </p>`,
     { label: "Voir le contrat", path: `/match/${opts.matchId}` }
   );
@@ -153,18 +153,32 @@ export async function sendBillingTriggeredEmail(
 // consentement email global), coupable séparément depuis /compte.
 export async function sendConsultationEmail(
   to: string,
-  opts: { viewerLabel: string; missionTitle: string | null; optIn: boolean }
+  opts: {
+    viewerLabel: string;
+    listingWord?: string;                 // « annonce » (cabinet) | « disponibilité » (candidat)
+    missionTitle: string | null;
+    optIn: boolean;
+    // CTA direct vers l'annonce/recherche du VISITEUR (section 180) : le destinataire va voir
+    // qui s'intéresse à lui. Repli sur ses propres annonces si le visiteur n'a rien publié.
+    cta?: { label: string; path: string };
+  }
 ): Promise<void> {
   if (!opts.optIn) return;
+  const listingWord = opts.listingWord ?? "annonce";
   const about = opts.missionTitle ? ` « ${escapeHtml(opts.missionTitle)} »` : "";
+  const invite = opts.cta && opts.cta.path.startsWith("/annonce/")
+    ? `<p style="font-size:14px;line-height:1.5;margin:8px 0 0;color:#4b5563">
+         Découvrez son profil et son annonce d'un coup d'œil.
+       </p>`
+    : "";
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0">
-       ${escapeHtml(opts.viewerLabel)} vient de consulter votre annonce${about}.
-     </p>`,
-    { label: "Voir mes annonces", path: "/planning" }
+       ${escapeHtml(opts.viewerLabel)} vient de consulter votre ${listingWord}${about}.
+     </p>${invite}`,
+    opts.cta ?? { label: "Voir mes annonces", path: "/planning" }
   );
-  await sendEmail(to, "Votre annonce a été consultée sur Soignect", html);
+  await sendEmail(to, `Votre ${listingWord} a été consultée sur Soignect`, html);
 }
 
 // ── h) Nouveau message dans une conversation (notif immédiate) ──────────────────

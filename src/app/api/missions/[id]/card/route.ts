@@ -63,28 +63,47 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         data: { eventType: "CARD_CONSULTED", missionId: id, profileId: swiperId, missionType: mission.missionType },
       });
 
-      const owner = await prisma.profile.findUnique({
-        where: { id: mission.profileId },
-        select: { type: true, user: { select: { id: true, email: true, notifyConsultation: true } } },
-      });
+      const [owner, viewerMission] = await Promise.all([
+        prisma.profile.findUnique({
+          where: { id: mission.profileId },
+          select: { type: true, user: { select: { id: true, email: true, notifyConsultation: true } } },
+        }),
+        // Annonce/recherche du VISITEUR (section 180) — la plus récente encore active, pour un
+        // lien direct « aller voir qui s'intéresse à moi ».
+        prisma.mission.findFirst({
+          where: { profileId: swiperId, isActive: true },
+          orderBy: { createdAt: "desc" },
+          select: { id: true },
+        }),
+      ]);
       if (!owner?.user?.email) return;
       const viewerType = (session.user as { profileType?: string }).profileType;
-      const viewerLabel = viewerType === "TITULAIRE" ? "Un cabinet" : "Un remplaçant";
+      const viewerLabel =
+        viewerType === "TITULAIRE" ? "Un cabinet" : viewerType === "ASSISTANT" ? "Un assistant" : "Un remplaçant";
       // Lien + terme adaptés au propriétaire (section 157) : un cabinet a une « annonce »
       // et un Planning ; un candidat a une « disponibilité » et la page /disponibilites.
       const ownerIsCabinet = owner.type === "TITULAIRE";
       const listingWord = ownerIsCabinet ? "annonce" : "disponibilité";
+      // CTA/lien : directement l'annonce du visiteur si elle existe (section 180), sinon repli
+      // sur l'espace du destinataire (comportement historique).
+      const viewerListingPath = viewerMission ? `/annonce/${viewerMission.id}` : null;
+      const linkUrl = viewerListingPath ?? (ownerIsCabinet ? "/planning" : "/disponibilites");
+      const ctaLabel = viewerListingPath
+        ? (viewerType === "TITULAIRE" ? "Voir son annonce →" : "Voir sa recherche →")
+        : "Voir mes annonces";
       // Notification in-app (section 155) — en parallèle de l'email.
       createNotification({
         userId: owner.user.id,
         type: "consultation",
         message: `${viewerLabel} a consulté votre ${listingWord} « ${mission.title} »`,
-        linkUrl: ownerIsCabinet ? "/planning" : "/disponibilites",
+        linkUrl,
       });
       await sendConsultationEmail(owner.user.email, {
         viewerLabel,
+        listingWord,
         missionTitle: mission.title,
         optIn: owner.user.notifyConsultation,
+        cta: { label: ctaLabel, path: linkUrl },
       });
     })().catch(() => {});
   }
