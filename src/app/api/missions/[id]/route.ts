@@ -37,6 +37,9 @@ const updateSchema = z.object({
   endDate: z.string().datetime().optional().nullable(),
   minMonths: z.number().int().min(1).max(24).optional().nullable(),
   isActive: z.boolean().optional(),
+  // Accroche éditable (section 179) — levier de matching de l'assistant. max large ici ; la
+  // limite d'affichage (280 candidat) est portée par l'UI.
+  bioTinder: z.string().max(700).optional().nullable(),
   // Édition complète d'annonce (section CRUD) — pitch, type, flexibilité
   pitch: z.string().max(280).optional().nullable(),
   missionType: z.nativeEnum(MissionType).optional(),

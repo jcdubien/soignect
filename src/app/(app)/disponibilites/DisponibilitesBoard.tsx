@@ -13,6 +13,7 @@ interface MissionSlot {
   startDate: string | null;
   endDate: string | null;
   minMonths?: number | null; // durée minimale (poste assistant/collaboration, section 179)
+  bioTinder?: string | null;  // accroche éditable (vue assistant, section 179)
   briqueStatus: string;
   missionType: string;
   matchId?: string | null;        // match rattaché (section 149) — présent si période pourvue
@@ -482,6 +483,7 @@ function AssistantEditModal({ slot, onClose, onSaved }: {
     slot.missionType === "COLLABORATION" ? "COLLABORATION" : "ASSISTANAT",
   );
   const [minMonths, setMinMonths] = useState(slot.minMonths ? String(slot.minMonths) : "");
+  const [bioTinder, setBioTinder] = useState(slot.bioTinder ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -489,11 +491,12 @@ function AssistantEditModal({ slot, onClose, onSaved }: {
     if (busy) return;
     if (title.trim().length < 3) { setError("Le titre doit faire au moins 3 caractères."); return; }
     if (!minMonths) { setError("Choisissez une durée minimale."); return; }
+    if (bioTinder.trim().length < 40) { setError("L'accroche doit faire au moins 40 caractères."); return; }
     setBusy(true); setError(null);
     const res = await fetch(`/api/missions/${slot.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title.trim(), missionType: kind, minMonths: parseInt(minMonths, 10) }),
+      body: JSON.stringify({ title: title.trim(), missionType: kind, minMonths: parseInt(minMonths, 10), bioTinder: bioTinder.trim() }),
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
@@ -537,6 +540,16 @@ function AssistantEditModal({ slot, onClose, onSaved }: {
               <option value="18">18 mois</option>
               <option value="24">24 mois (2 ans)</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Accroche <span className="text-gray-300">(alimente le matching · 40 car. min)</span>
+            </label>
+            <textarea value={bioTinder} onChange={(e) => { if (e.target.value.length <= 280) setBioTinder(e.target.value); }}
+              rows={3}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-kine-400"
+              placeholder="En une phrase, qui vous êtes et ce que vous recherchez…" />
+            <p className="text-right text-[11px] text-gray-300 mt-0.5">{bioTinder.trim().length}/280</p>
           </div>
           {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
           <div className="flex gap-2 pt-1">
