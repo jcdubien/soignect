@@ -23,10 +23,6 @@ interface Props {
 export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId }: Props) {
   const [trayKey, setTrayKey] = useState(0);
   const [detail, setDetail] = useState<{ mission: DetailMission; relation: MissionRelation } | null>(null);
-  // Vrai quand SwipeStack n'affiche aucune carte (vide/chargement/erreur). Sur mobile on
-  // n'étire alors plus la zone de swipe : les trays remontent juste sous le message
-  // (fini le grand vide). Sur desktop (lg) la colonne garde flex-1 (panneau latéral).
-  const [swipeEmpty, setSwipeEmpty] = useState(true);
 
   // Confirmation de publication (section 163) — bannière de succès après création d'une annonce,
   // pour lever toute ambiguïté même si le feed de candidats est vide à cet instant.
@@ -104,12 +100,14 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
       <LaunchOfferBanner profileType={profileType} profileId={profileId} freeAccessMode={freeAccessMode} />
       <RecentMissionsTray onSelectMission={handleSelectRecent} profileId={profileId} />
 
-      {/* Mobile : colonne (swipe + tray en bande bas). Desktop : deux colonnes (swipe centré + panneau latéral droit). */}
+      {/* Mobile : colonne (swipe + tray en bande bas). Desktop : deux colonnes (swipe centré + panneau latéral droit).
+          La zone swipe reste flex-1 même à l'état vide (section 184) : le message vide se centre dans
+          la zone et la bande « Vos mises en relation / Vos choix » (shrink-0) se dock EN BAS, contre le
+          menu — fini le grand vide gris sous les trays. */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
-        <div className={`${swipeEmpty ? "flex-none lg:flex-1" : "flex-1"} flex flex-col min-h-0`}>
+        <div className="flex-1 flex flex-col min-h-0">
           <SwipeStack
             onSwipeRight={() => setTrayKey(k => k + 1)}
-            onEmptyChange={setSwipeEmpty}
             profileType={profileType}
             profileId={profileId}
             titulaireMissions={titulaireMissions}
