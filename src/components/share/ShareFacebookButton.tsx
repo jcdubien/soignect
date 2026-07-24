@@ -1,15 +1,20 @@
 "use client";
 
-// Bouton "Partager sur Facebook" (section 8) — ouvre la boîte de partage native
-// (sharer), pré-remplie avec l'URL publique de l'annonce. Aucune automatisation.
+// Bouton « Partager sur Facebook » (sections 8 / 139).
+// Utilise le Share Dialog officiel (app_id) → vrai sélecteur de destination
+// (Journal / Story / Groupe / Page). Repli sur sharer.php tant que
+// NEXT_PUBLIC_FACEBOOK_APP_ID n'est pas défini (aucune régression).
+// Rappel Meta : impossible de présélectionner un groupe précis (anti-spam) —
+// l'utilisateur choisit « Groupe » puis cherche le sien dans le sélecteur.
 export default function ShareFacebookButton({ path }: { path: string }) {
   function share() {
     const url = `${window.location.origin}${path}`;
-    window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
+    const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
+    const shareUrl = appId
+      ? `https://www.facebook.com/dialog/share?app_id=${encodeURIComponent(appId)}` +
+        `&display=popup&href=${encodeURIComponent(url)}&redirect_uri=${encodeURIComponent(url)}`
+      : `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+    window.open(shareUrl, "_blank", "noopener,noreferrer,width=600,height=650");
   }
   return (
     <button
