@@ -128,7 +128,20 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
       setVerified(true);
       setVerifyResult(`✓ Vérifié — ${data.nom ?? ""} ${data.profession ? `(${data.profession})` : ""}`.trim());
     } else {
-      setVerifyResult(`✗ ${data.error ?? "Non vérifié"}`);
+      // Pas de faux badge de confiance (section 185) : tout échec retire le badge, pour ne
+      // jamais afficher « VÉRIFIÉ » alors que la vérification réelle n'a pas abouti.
+      setVerified(false);
+      if (res.status === 400) {
+        // Erreur de saisie (format RPPS invalide)
+        setVerifyResult(`✗ ${data.error ?? "Numéro RPPS invalide"}`);
+      } else if (res.ok) {
+        // Réponse ANS définitive : praticien introuvable / inactif
+        setVerifyResult(`✗ ${data.error ?? "RPPS introuvable dans l'annuaire ANS"}`);
+      } else {
+        // Échec d'infrastructure (clé absente / API ANS indisponible) — on n'expose pas le
+        // détail interne à l'utilisateur.
+        setVerifyResult("✗ Vérification ANS indisponible pour le moment — réessayez plus tard.");
+      }
     }
     setVerifying(false);
   }
