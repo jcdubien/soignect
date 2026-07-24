@@ -652,7 +652,8 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
           myProfileType={myProfileType}
           myProfileId={myProfileId}
           isPremium={isPremium}
-          onReassigned={() => { fetchTray(); setSelected(null); }}
+          onReassigned={() => { fetchTray(); /* section 185 : NE PAS fermer la fiche — choisir
+            la mission cible enregistre juste le choix, l'utilisateur continue (annuler, chat…). */ }}
           onClose={() => setSelected(null)}
           onRemoved={(missionId) => {
             // Section 98 — retrait local immédiat de "Vos choix", sans reload
