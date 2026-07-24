@@ -39,7 +39,7 @@ export default async function MatchesPage() {
   });
   const viewerType = (myProfile?.type ?? "REMPLACANT") as ProfileType;
 
-  const matches = await prisma.match.findMany({
+  const allMatches = await prisma.match.findMany({
     where: { OR: [{ profileAId: profileId }, { profileBId: profileId }] },
     include: {
       profileA: true,
@@ -49,6 +49,13 @@ export default async function MatchesPage() {
     },
     orderBy: { createdAt: "desc" },
   });
+
+  // 3e état du cycle de vie (section 183) : une relation dont le contrat est signé des DEUX
+  // côtés SORT de la liste active « Relations » (pour ne pas l'encombrer de relations
+  // finalisées). La donnée n'est PAS supprimée — elle reste accessible via la timeline (brique
+  // confirmée → « Voir la fiche du match »). On filtre sur les signatures (bothSigned) et non
+  // sur status=CONFIRME, qui peut être posé manuellement sans signature (état 2, à conserver).
+  const matches = allMatches.filter((m) => !(m.signatureTitulaireUrl && m.signatureRemplacantUrl));
 
   // M1 — Récupérer les Swipe.affinityScore pour afficher le score 0-100 correct
   const theirMissionIds = matches.map(m => {

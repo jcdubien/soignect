@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { SubscriptionPlan } from "@prisma/client";
 import { hasPremiumAccess } from "@/lib/platform";
+import MatchChatButton from "@/components/chat/MatchChatButton";
 
 export const dynamic = "force-dynamic";
 
@@ -116,14 +117,17 @@ export default async function MatchPage({ params }: Props) {
       {/* ── Actions ── */}
       <div className="flex flex-col gap-3">
 
-        {/* 1. Message — toujours disponible */}
-        <Link
-          href={`/matches?matchId=${match.id}`}
-          className="w-full flex items-center justify-between px-5 py-4 bg-kine-600 text-white rounded-2xl font-semibold shadow hover:bg-kine-700 active:scale-[0.98] transition"
-        >
-          <span>Envoyer un message</span>
-          <span className="text-lg">→</span>
-        </Link>
+        {/* 1. Conversation — INLINE (section 183) : la fiche est un point d'accès complet à
+            elle seule. Une relation signée sort de « Relations » mais reste joignable ici via
+            la timeline (brique confirmée → cette fiche), chat compris — plus de dépendance à
+            la liste /matches. */}
+        <MatchChatButton
+          matchId={match.id}
+          myProfileId={profileId}
+          partner={{ type: theirProfile.type, theirMissionTitle: theirMission?.title ?? null }}
+          aiScore={affinityScore}
+          myType={myProfile.type}
+        />
 
         {/* 2. Contrat PDF — Premium uniquement */}
         {isPremium ? (
