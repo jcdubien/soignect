@@ -7,6 +7,7 @@ import { getCommuneZonage } from "@/lib/communes";
 import { logTraceEvent } from "@/lib/trace";
 import { bioLimitFor } from "@/lib/bio";
 import { stripMissionProfiles } from "@/lib/publicProfile";
+import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest) {
     where: {
       isActive: true,
       id: { notIn: excludeMissionIds },
+      ...NO_ACTIVE_MATCH_FILTER, // section 184 : masque les missions déjà matchées (cf. /api/feed)
       profile: {
         type: { in: oppositeTypes },
         isActive: true,

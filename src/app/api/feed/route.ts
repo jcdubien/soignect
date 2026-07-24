@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileType, TitulaireKind, Prisma } from "@prisma/client";
 import { stripMissionProfiles } from "@/lib/publicProfile";
+import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
     where: {
       isActive: true,
       id: { notIn: excludeMissionIds },
+      ...NO_ACTIVE_MATCH_FILTER,
       profile: profileWhere,
       ...(location ? { location } : {}),
       ...dateFilter,
