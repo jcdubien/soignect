@@ -338,7 +338,7 @@ export default function ContratPage() {
             </label>
             <div className="flex items-center gap-3">
               <input
-                type="range" min={20} max={60} step={5}
+                type="range" min={10} max={60} step={5}
                 value={redevancePct}
                 onChange={e => setRedevancePct(Number(e.target.value))}
                 className="flex-1 accent-kine-600"
