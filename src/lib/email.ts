@@ -119,7 +119,7 @@ export async function sendConversationReminderEmail(
      <p style="font-size:14px;line-height:1.5;margin:0;color:#4b5563;border-left:3px solid #e5e7eb;padding-left:10px">
        « ${excerpt} »
      </p>`,
-    { label: "Répondre", path: `/matches?matchId=${opts.matchId}` }
+    { label: "Répondre", path: `/match/${opts.matchId}?chat=1` }
   );
   await sendEmail(to, "Un message attend votre réponse sur Soignect", html);
 }
@@ -197,7 +197,7 @@ export async function sendNewMessageEmail(
      <p style="font-size:14px;line-height:1.5;margin:0;color:#4b5563;border-left:3px solid #e5e7eb;padding-left:10px">
        « ${excerpt} »
      </p>`,
-    { label: "Répondre", path: `/matches?matchId=${opts.matchId}` }
+    { label: "Répondre", path: `/match/${opts.matchId}?chat=1` }
   );
   await sendEmail(to, "Nouveau message sur Soignect", html);
 }

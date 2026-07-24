@@ -11,10 +11,11 @@ interface Props {
   partner: { type: string; theirMissionTitle?: string | null };
   aiScore: number | null;
   myType?: string;
+  autoOpen?: boolean; // ouvre directement le chat (deep-link notif ?chat=1, section 183)
 }
 
-export default function MatchChatButton({ matchId, myProfileId, partner, aiScore, myType }: Props) {
-  const [open, setOpen] = useState(false);
+export default function MatchChatButton({ matchId, myProfileId, partner, aiScore, myType, autoOpen }: Props) {
+  const [open, setOpen] = useState(!!autoOpen);
 
   return (
     <>

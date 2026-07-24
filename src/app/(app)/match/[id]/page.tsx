@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ chat?: string }>;
 }
 
 function initials(name: string | null | undefined): string {
@@ -30,8 +31,9 @@ function Avatar({ name, photoUrl, size = 16 }: { name?: string | null; photoUrl?
   );
 }
 
-export default async function MatchPage({ params }: Props) {
+export default async function MatchPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { chat } = await searchParams;
   const session = await auth();
   if (!session?.user) return notFound();
 
@@ -127,6 +129,7 @@ export default async function MatchPage({ params }: Props) {
           partner={{ type: theirProfile.type, theirMissionTitle: theirMission?.title ?? null }}
           aiScore={affinityScore}
           myType={myProfile.type}
+          autoOpen={chat === "1"}
         />
 
         {/* 2. Contrat PDF — Premium uniquement */}

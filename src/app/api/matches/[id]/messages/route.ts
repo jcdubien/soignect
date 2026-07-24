@@ -90,7 +90,7 @@ export async function POST(
         userId: rec.user.id,
         type: "message",
         message: `${senderLabel} vous a envoyé un message : « ${parsed.data.content.slice(0, 60)} »`,
-        linkUrl: `/matches?matchId=${id}`,
+        linkUrl: `/match/${id}?chat=1`,
       });
       return sendNewMessageEmail(rec.user.email, {
         senderLabel,
