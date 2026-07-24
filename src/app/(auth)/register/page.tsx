@@ -37,7 +37,8 @@ async function createProfileWithRetry(payload: Record<string, unknown>): Promise
 
 // Item 20 — starters différenciés selon le profil
 const BIO_STARTERS_CANDIDATE = ["Je suis…", "Je cherche…", "J'aspire à…"] as const;
-const BIO_STARTERS_TITULAIRE = ["Je propose…"] as const;
+const BIO_STARTERS_TITULAIRE = ["Je propose…"] as const;           // cabinet libéral (singulier)
+const BIO_STARTERS_STRUCTURE = ["Nous proposons…"] as const;       // établissement employeur (pluriel)
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
@@ -438,7 +439,10 @@ function RegisterForm() {
 
               {/* Boutons starter */}
               <div className="flex gap-2 flex-wrap mb-3">
-                {(profileType === "TITULAIRE" ? BIO_STARTERS_TITULAIRE : BIO_STARTERS_CANDIDATE).map((s) => (
+                {(profileType === "TITULAIRE"
+                    ? (structure ? BIO_STARTERS_STRUCTURE : BIO_STARTERS_TITULAIRE)
+                    : BIO_STARTERS_CANDIDATE
+                  ).map((s) => (
                   <button
                     key={s}
                     type="button"
