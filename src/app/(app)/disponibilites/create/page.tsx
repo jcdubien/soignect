@@ -330,7 +330,7 @@ export default function CreateDisponibilitePage() {
             onFocus={() => setBioFocused(true)}
             onBlur={() => setBioFocused(false)}
             rows={2}
-            className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm bg-white text-gray-800 not-italic placeholder:text-gray-400 placeholder:italic"
+            className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm bg-white text-gray-800 not-italic break-words whitespace-pre-wrap placeholder:text-gray-400 placeholder:italic"
             placeholder={
               isAssistant
                 ? "J'aspire à intégrer un cabinet dynamique en Guadeloupe…"

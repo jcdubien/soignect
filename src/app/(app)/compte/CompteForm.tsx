@@ -369,7 +369,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             value={bioTinder}
             onChange={e => { if (e.target.value.length <= bioLimitFor(profile.type)) setBioTinder(e.target.value); }}
             rows={4}
-            className="w-full px-3 py-2.5 border border-kine-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none"
+            className="w-full px-3 py-2.5 border border-kine-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none break-words whitespace-pre-wrap"
             placeholder={
               profile.type === "TITULAIRE"
                 ? "Cabinet dynamique, patientèle sport et gériatrique, plateau technique complet…"

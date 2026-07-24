@@ -547,7 +547,7 @@ function AssistantEditModal({ slot, onClose, onSaved }: {
             </label>
             <textarea value={bioTinder} onChange={(e) => { if (e.target.value.length <= 280) setBioTinder(e.target.value); }}
               rows={3}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-kine-400"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none break-words whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-kine-400"
               placeholder="En une phrase, qui vous êtes et ce que vous recherchez…" />
             <p className="text-right text-[11px] text-gray-300 mt-0.5">{bioTinder.trim().length}/280</p>
           </div>
