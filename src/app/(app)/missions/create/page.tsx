@@ -22,7 +22,7 @@ const CONFIG = {
     communeLabel:     "Commune du cabinet",
     specialtiesLabel: "Spécialités pratiquées au cabinet",
     pitchTitle:       "En une phrase, ce que vous proposez",
-    pitchStarters:    ["Je recherche…"] as const,
+    pitchStarters:    ["Je propose…"] as const,
     submitLabel:      "Publier le poste →",
   },
   TITULAIRE_EMPLOYEUR: {
@@ -35,7 +35,7 @@ const CONFIG = {
     communeLabel:     "Commune de l'établissement",
     specialtiesLabel: "Spécialités requises",
     pitchTitle:       "En une phrase, ce que vous proposez",
-    pitchStarters:    ["Nous recherchons…"] as const,
+    pitchStarters:    ["Nous proposons…"] as const,
     submitLabel:      "Ouvrir le poste →",
   },
   REMPLACANT: {
@@ -378,7 +378,7 @@ export default function CreateMissionPage() {
             <span className="text-kine-400 font-normal ml-1">({bioLimit} signes · obligatoire)</span>
           </label>
           <p className="text-xs text-kine-600/70">
-            C&apos;est ce texte qui alimente le matching intelligent — décrivez ce que vous recherchez en quelques mots (40 caractères minimum).
+            C&apos;est ce texte qui alimente le matching intelligent — l&apos;essentiel en quelques mots (40 caractères minimum).
           </p>
           <div className="flex gap-2 flex-wrap">
             {cfg.pitchStarters.map((s) => (

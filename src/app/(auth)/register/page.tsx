@@ -37,7 +37,7 @@ async function createProfileWithRetry(payload: Record<string, unknown>): Promise
 
 // Item 20 — starters différenciés selon le profil
 const BIO_STARTERS_CANDIDATE = ["Je suis…", "Je cherche…", "J'aspire à…"] as const;
-const BIO_STARTERS_TITULAIRE = ["Je recherche…"] as const;
+const BIO_STARTERS_TITULAIRE = ["Je propose…"] as const;
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
   return (
