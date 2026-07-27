@@ -171,7 +171,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             href={createHref}
             className="text-xs px-3 py-1.5 bg-kine-600 text-white rounded-lg font-semibold hover:bg-kine-700 transition"
           >
-            + Annonce
+            {/* Terminologie par type (section 195) : le cabinet publie une « annonce », le
+                candidat déclare une « disponibilité ». */}
+            {profileType === "TITULAIRE" ? "+ Annonce" : "+ Disponibilité"}
           </Link>
           {profileType === "TITULAIRE" ? (
             <Link
@@ -265,7 +267,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          <span className="text-[10px] font-semibold">Annonce</span>
+          <span className="text-[10px] font-semibold">{profileType === "TITULAIRE" ? "Annonce" : "Dispo"}</span>
         </Link>
 
         <Link href="/compte" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-gray-500 hover:text-kine-600 transition">
