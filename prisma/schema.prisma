@@ -148,7 +148,7 @@ model Profile {
   secondaryPhotoUrl1 String?
   secondaryPhotoUrl2 String?
   bio      String?     @db.VarChar(300)
-  bioTinder String?    @db.VarChar(280)  // "Je suis / Je cherche / J'aspire à"
+  bioTinder String?    @db.VarChar(700)  // "Je suis / Je cherche / J'aspire à" (700 max côté cabinet, section 123)
 
   // Géographie & profession
   profession           Profession @default(KINESITHERAPEUTE)
@@ -240,7 +240,7 @@ model Mission {
 
   // Phrase libre (280 signes) — ex: "Je recherche un cabinet sport en Guadeloupe"
   pitch     String? @db.VarChar(280)
-  bioTinder String? @db.VarChar(280)  // Bio spécifique à cette annonce
+  bioTinder String? @db.VarChar(700)  // Bio spécifique à cette annonce (700 max côté cabinet, section 123)
 
   // REMPLACANT / TITULAIRE (remplacement) : dates définies
   startDate DateTime?
