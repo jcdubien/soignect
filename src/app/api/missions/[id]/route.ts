@@ -41,7 +41,7 @@ const updateSchema = z.object({
   // limite d'affichage (280 candidat) est portée par l'UI.
   bioTinder: z.string().max(700).optional().nullable(),
   // Édition complète d'annonce (section CRUD) — pitch, type, flexibilité
-  pitch: z.string().max(280).optional().nullable(),
+  pitch: z.string().max(700).optional().nullable(), // aligné POST + colonne (section 186)
   missionType: z.nativeEnum(MissionType).optional(),
   dateFlexibility: z.number().int().min(0).max(4).optional(),
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),

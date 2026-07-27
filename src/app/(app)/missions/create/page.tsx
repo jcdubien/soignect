@@ -277,7 +277,9 @@ export default function CreateMissionPage() {
     });
 
     if (!res.ok) {
-      const data = await res.json();
+      // .catch : une réponse d'erreur non-JSON (ex. 500 brut) ne doit pas crasher le handler
+      // ('Unexpected end of JSON input', section 186) — on retombe sur le message générique.
+      const data = await res.json().catch(() => ({} as { needsPhoto?: boolean; error?: unknown }));
       if (data?.needsPhoto) setHasPhoto(false);
       setError(
         data?.needsPhoto

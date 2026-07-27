@@ -239,7 +239,7 @@ model Mission {
   specialties String[]
 
   // Phrase libre (280 signes) — ex: "Je recherche un cabinet sport en Guadeloupe"
-  pitch     String? @db.VarChar(280)
+  pitch     String? @db.VarChar(700)  // accroche annonce (700 max côté cabinet, section 123/186)
   bioTinder String? @db.VarChar(700)  // Bio spécifique à cette annonce (700 max côté cabinet, section 123)
 
   // REMPLACANT / TITULAIRE (remplacement) : dates définies
