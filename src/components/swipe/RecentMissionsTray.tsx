@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface RecentMission {
   id: string;
@@ -56,6 +56,8 @@ interface Props {
 
 export default function RecentMissionsTray({ onSelectMission, profileId }: Props) {
   const [recent, setRecent] = useState<RecentMission[]>([]);
+  // Évite de revalider en boucle le même jeu d'ids (signature déjà vérifiée).
+  const checkedSig = useRef("");
 
   useEffect(() => {
     // Nettoyage unique de l'ancienne clé non cloisonnée (pollution inter-comptes).
@@ -72,6 +74,33 @@ export default function RecentMissionsTray({ onSelectMission, profileId }: Props
     window.addEventListener("storage", read);
     return () => window.removeEventListener("storage", read);
   }, [profileId]);
+
+  // Masque (et purge) les annonces devenues INACTIVES/supprimées : l'historique est un cache
+  // localStorage qui ignore le statut serveur. Vérification légère sans effet de bord.
+  useEffect(() => {
+    const ids = recent.map((m) => m.id);
+    const sig = ids.join(",");
+    if (ids.length === 0 || sig === checkedSig.current) return;
+    checkedSig.current = sig;
+    let cancelled = false;
+    fetch("/api/missions/active-check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !Array.isArray(d?.activeIds)) return;
+        const active = new Set(d.activeIds as string[]);
+        const filtered = recent.filter((m) => active.has(m.id));
+        if (filtered.length === recent.length) return; // rien d'inactif
+        checkedSig.current = filtered.map((m) => m.id).join(","); // évite un re-check inutile
+        try { localStorage.setItem(recentKey(profileId), JSON.stringify(filtered)); } catch { /* silencieux */ }
+        setRecent(filtered);
+      })
+      .catch(() => { /* réseau KO : on garde l'historique tel quel */ });
+    return () => { cancelled = true; };
+  }, [recent, profileId]);
 
   if (recent.length === 0) return null;
 
