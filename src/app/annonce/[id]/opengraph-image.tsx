@@ -10,11 +10,22 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "Annonce Soignect";
 
-const TYPE_LABEL: Record<string, string> = {
+// Le badge est cadré selon le PROPRIÉTAIRE de l'annonce : un cabinet PROPOSE un poste, un
+// candidat (remplaçant/assistant) SE PROPOSE. Même page /annonce/[id] pour les deux.
+const CABINET_TYPE: Record<string, string> = {
   REMPLACEMENT: "Remplacement",
   ASSISTANAT: "Assistanat · long terme",
   COLLABORATION: "Collaboration libérale",
 };
+const CANDIDAT_TYPE: Record<string, string> = {
+  REMPLACEMENT: "Remplaçant disponible",
+  ASSISTANAT: "Assistant · recherche poste",
+  COLLABORATION: "Collaboration · recherche",
+};
+function badgeLabel(profileType: string | undefined, missionType: string): string {
+  const isCandidate = profileType === "REMPLACANT" || profileType === "ASSISTANT";
+  return (isCandidate ? CANDIDAT_TYPE : CABINET_TYPE)[missionType] ?? missionType;
+}
 
 // Dates « jour seul » stockées à minuit UTC → format en UTC (cf. lib/dates.ts).
 const MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
@@ -42,6 +53,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
       select: {
         title: true, location: true, missionType: true,
         startDate: true, endDate: true, minMonths: true,
+        profile: { select: { type: true } }, // cadre le badge (cabinet propose / candidat se propose)
       },
     })
     .catch(() => null);
@@ -49,7 +61,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   const rawTitle = m?.title ?? "Annonce paramédicale";
   const title = rawTitle.length > 120 ? rawTitle.slice(0, 118).trimEnd() + "…" : rawTitle;
   const location = m?.location ?? "Guadeloupe";
-  const type = m ? (TYPE_LABEL[m.missionType] ?? m.missionType) : "Soignect";
+  const type = m ? badgeLabel(m.profile?.type, m.missionType) : "Soignect";
   const dates = m ? datesLabel(m) : "";
 
   // Police du titre dimensionnée selon la longueur (2 lignes max) → jamais de débordement.
