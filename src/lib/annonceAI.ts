@@ -8,7 +8,7 @@
 // Toute fonction renvoie null en cas d'échec réseau/parse → dégradation gracieuse côté UI.
 
 import { z } from "zod";
-import { COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { COMMUNES_GUADELOUPE, ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
 
 export type AnnonceRole = "cabinet" | "candidat";
 
@@ -81,6 +81,11 @@ export interface ExtractedFields {
   demiJourneesLibres?: number; // 0-10
   repartition?: string; // ex. « cabinet + domicile » — tag affichage
   methode?: string;     // ex. « Mézières, sport » — tag affichage
+  // ── Candidat (disponibilité) : géo en macro-zones + besoins (sémantique « recherche ») ──
+  zones?: string[];            // macro-zones souhaitées (ZoneGeo)
+  rechercheLogement?: boolean; // le candidat cherche un logement
+  rechercheVehicule?: boolean; // le candidat a besoin d'un véhicule
+  ouvertSalariat?: boolean;    // ouvert aux postes salariés
 }
 
 // Schéma de la réponse brute du modèle : chaque champ = { value, evidence } | null.
@@ -101,6 +106,10 @@ const rawExtractionSchema = z.object({
   demiJourneesLibres: fieldWithEvidence,
   repartition: fieldWithEvidence,
   methode: fieldWithEvidence,
+  zones: fieldWithEvidence,
+  rechercheLogement: fieldWithEvidence,
+  rechercheVehicule: fieldWithEvidence,
+  ouvertSalariat: fieldWithEvidence,
 });
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -115,6 +124,25 @@ export async function extractAnnonceFields(text: string, role: AnnonceRole): Pro
   const source = text.trim();
   if (source.length < 10) return {};
 
+  // Bloc de champs adapté au rôle. Commun aux deux + spécifiques cabinet (offre) / candidat (besoins).
+  const commonFields = `  "missionType":       {"value":"REMPLACEMENT|ASSISTANAT|COLLABORATION","evidence":"..."} | null,
+  "startDate":         {"value":"yyyy-mm-dd","evidence":"..."} | null,   // début SEULEMENT si jour+mois+année déterminables sans supposition
+  "endDate":           {"value":"yyyy-mm-dd","evidence":"..."} | null,
+  "minMonths":         {"value":<entier mois>,"evidence":"..."} | null,  // durée minimale (assistanat/collaboration)
+  "methode":           {"value":"<ex: Mézières, sport>","evidence":"..."} | null`;
+  const cabinetFields = `  "commune":           {"value":"<commune de Guadeloupe>","evidence":"..."} | null,
+  "retrocessionRate":  {"value":<entier 0-100>,"evidence":"..."} | null, // % de rétrocession/redevance
+  "caMensuelEstime":   {"value":<entier euros/mois>,"evidence":"..."} | null,
+  "logementPropose":   {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le cabinet PROPOSE un logement
+  "vehiculePropose":   {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le cabinet MET un véhicule à disposition
+  "demiJourneesLibres":{"value":<entier 0-10>,"evidence":"..."} | null,  // demi-journées libres/semaine
+  "repartition":       {"value":"<ex: cabinet + domicile>","evidence":"..."} | null`;
+  const candidatFields = `  "zones":             {"value":[<une ou plusieurs clés parmi : ${ZONE_ORDER.map((z) => `${z} (${ZONE_LABELS[z]})`).join(", ")}>],"evidence":"..."} | null,
+  "rechercheLogement": {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le candidat CHERCHE un logement
+  "rechercheVehicule": {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le candidat a BESOIN d'un véhicule
+  "ouvertSalariat":    {"value":true,"evidence":"..."} | null`;          // true si ouvert aux postes salariés (CDD/CDI/vacation)
+  const fieldsBlock = role === "cabinet" ? `${commonFields},\n${cabinetFields}` : `${commonFields},\n${candidatFields}`;
+
   const system = `Tu es un extracteur d'informations pour une plateforme de mise en relation de kinésithérapeutes en Guadeloupe.
 On te donne une annonce ${role === "cabinet" ? "de cabinet qui recrute" : "d'un remplaçant/assistant qui se propose"}, rédigée en texte libre.
 Tu dois extraire UNIQUEMENT les informations EXPLICITEMENT présentes dans le texte.
@@ -126,18 +154,7 @@ Pour CHAQUE champ non nul, tu dois fournir "evidence" = un extrait VERBATIM (cop
 
 Réponds en JSON avec cette forme exacte (chaque champ = {"value": ..., "evidence": "extrait verbatim"} ou null) :
 {
-  "missionType":       {"value":"REMPLACEMENT|ASSISTANAT|COLLABORATION","evidence":"..."} | null,
-  "startDate":         {"value":"yyyy-mm-dd","evidence":"..."} | null,   // date de début SEULEMENT si jour+mois+année déterminables sans supposition
-  "endDate":           {"value":"yyyy-mm-dd","evidence":"..."} | null,
-  "minMonths":         {"value":<entier mois>,"evidence":"..."} | null,  // durée minimale (assistanat/collaboration)
-  "commune":           {"value":"<commune de Guadeloupe>","evidence":"..."} | null,
-  "retrocessionRate":  {"value":<entier 0-100>,"evidence":"..."} | null, // % de rétrocession/redevance
-  "caMensuelEstime":   {"value":<entier euros/mois>,"evidence":"..."} | null,
-  "logementPropose":   {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si un logement est proposé
-  "vehiculePropose":   {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si un véhicule est proposé
-  "demiJourneesLibres":{"value":<entier 0-10>,"evidence":"..."} | null,  // demi-journées libres par semaine
-  "repartition":       {"value":"<ex: cabinet + domicile>","evidence":"..."} | null,
-  "methode":           {"value":"<ex: Mézières, sport, respiratoire>","evidence":"..."} | null
+${fieldsBlock}
 }
 N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
 
@@ -175,25 +192,40 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
   const mm = acceptedNumber(r.minMonths);
   if (mm !== undefined && mm >= 1 && mm <= 24) out.minMonths = mm;
 
-  const com = accepted(r.commune);
-  if (typeof com === "string") { const m = matchCommune(com); if (m) out.commune = m; }
-
-  const rr = acceptedNumber(r.retrocessionRate);
-  if (rr !== undefined && rr >= 0 && rr <= 100) out.retrocessionRate = rr;
-
-  const ca = acceptedNumber(r.caMensuelEstime);
-  if (ca !== undefined && ca >= 0 && ca <= 1000000) out.caMensuelEstime = ca;
-
-  if (accepted(r.logementPropose) === true) out.logementPropose = true;
-  if (accepted(r.vehiculePropose) === true) out.vehiculePropose = true;
-
-  const dj = acceptedNumber(r.demiJourneesLibres);
-  if (dj !== undefined && dj >= 0 && dj <= 10) out.demiJourneesLibres = dj;
-
-  const rep = accepted(r.repartition);
-  if (typeof rep === "string" && rep.trim()) out.repartition = rep.trim().slice(0, 120);
   const met = accepted(r.methode);
   if (typeof met === "string" && met.trim()) out.methode = met.trim().slice(0, 120);
+
+  if (role === "cabinet") {
+    const com = accepted(r.commune);
+    if (typeof com === "string") { const m = matchCommune(com); if (m) out.commune = m; }
+
+    const rr = acceptedNumber(r.retrocessionRate);
+    if (rr !== undefined && rr >= 0 && rr <= 100) out.retrocessionRate = rr;
+
+    const ca = acceptedNumber(r.caMensuelEstime);
+    if (ca !== undefined && ca >= 0 && ca <= 1000000) out.caMensuelEstime = ca;
+
+    if (accepted(r.logementPropose) === true) out.logementPropose = true;
+    if (accepted(r.vehiculePropose) === true) out.vehiculePropose = true;
+
+    const dj = acceptedNumber(r.demiJourneesLibres);
+    if (dj !== undefined && dj >= 0 && dj <= 10) out.demiJourneesLibres = dj;
+
+    const rep = accepted(r.repartition);
+    if (typeof rep === "string" && rep.trim()) out.repartition = rep.trim().slice(0, 120);
+  } else {
+    // Candidat : géo en macro-zones + besoins (sémantique « recherche »).
+    const zf = r.zones;
+    if (zf && Array.isArray(zf.value) && evidencePresent(zf.evidence, srcNorm)) {
+      const valid = (zf.value as unknown[]).filter(
+        (z): z is ZoneGeo => typeof z === "string" && (ZONE_ORDER as string[]).includes(z),
+      );
+      if (valid.length) out.zones = Array.from(new Set(valid));
+    }
+    if (accepted(r.rechercheLogement) === true) out.rechercheLogement = true;
+    if (accepted(r.rechercheVehicule) === true) out.rechercheVehicule = true;
+    if (accepted(r.ouvertSalariat) === true) out.ouvertSalariat = true;
+  }
 
   return out;
 }

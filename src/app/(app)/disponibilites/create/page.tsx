@@ -63,9 +63,19 @@ export default function CreateDisponibilitePage() {
     rechercheLogement: false,
     rechercheVehicule: false,
     ouvertSalariat: false,
+    rawText: "", // texte libre (refonte saisie texte-libre + extraction IA)
   });
 
   const isAssistant = profileType === "ASSISTANT";
+
+  // ── Assistance IA (refonte saisie) — chaque action = 1 appel serveur explicite ──
+  const [aiBusy, setAiBusy] = useState<null | "extract" | "title" | "redaction" | "optimize">(null);
+  const [aiDegraded, setAiDegraded] = useState(false);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
+  const [optimizeTips, setOptimizeTips] = useState<string[]>([]);
+  const [detectedTags, setDetectedTags] = useState<{ methode?: string }>({});
+  const [extractDone, setExtractDone] = useState(false);
+  const [showManual, setShowManual] = useState(false);
 
   // Mode blocage (section 178) : unifie le « bloquer ces dates » du menu rapide timeline via CE
   // formulaire (au lieu d'un POST direct). Variante compacte Du/Au → mission INDISPONIBLE.
@@ -86,6 +96,11 @@ export default function CreateDisponibilitePage() {
   const [bioFocused, setBioFocused] = useState(false);
   const bioRemaining = Math.max(0, 40 - form.bioTinder.trim().length);
 
+  // Contenu valide = texte libre suffisant (≥40) OU accroche manuelle valide. Le texte libre
+  // devient l'accroche (bioTinder, tronquée à 280 = cap candidat) quand il est renseigné.
+  const rawTextTrim = form.rawText.trim();
+  const contentValid = rawTextTrim.length >= 40 || bioValid;
+
   // Dates requises pour un REMPLAÇANT (section 165) : sans dates, la dispo n'apparaît sur
   // aucun segment de la timeline (les briques exigent startDate ET endDate). L'assistanat
   // n'a pas de champ date ici (durée minimale à la place).
@@ -96,7 +111,7 @@ export default function CreateDisponibilitePage() {
   const missingReqs: string[] = [];
   if (!form.title.trim())          missingReqs.push("un titre");
   if (form.zones.length === 0)     missingReqs.push("au moins une zone géographique");
-  if (!bioValid)                   missingReqs.push("une accroche de 40 caractères minimum");
+  if (!contentValid)               missingReqs.push("une description (texte libre ou accroche, ≥ 40 caractères)");
   if (datesMissing)                missingReqs.push("vos dates de disponibilité (du / au)");
   if (isAssistant && !form.minMonths) missingReqs.push("une durée minimale (3 mois ou plus)"); // section 179 (C6)
   if (under90Days)                 missingReqs.push("une durée d'au moins 90 jours");
@@ -121,7 +136,10 @@ export default function CreateDisponibilitePage() {
       body: JSON.stringify({
         title: form.title,
         description: form.description || undefined,
-        bioTinder: form.bioTinder || undefined,
+        // Le texte libre prime pour l'accroche de matching (tronqué à 280 = cap candidat) ;
+        // le texte complet est conservé dans rawText.
+        bioTinder: (rawTextTrim ? rawTextTrim.slice(0, 280) : form.bioTinder) || undefined,
+        rawText: rawTextTrim || undefined,
         location: geoLabel,
         zones: form.zones,
         specialties: form.specialties,
@@ -151,6 +169,56 @@ export default function CreateDisponibilitePage() {
       return;
     }
     router.push("/annonces");
+  }
+
+  // ── Assistance IA (candidat) ────────────────────────────────────────────────────
+  function applyExtracted(f: Record<string, unknown>) {
+    if (f.missionType === "ASSISTANAT" || f.missionType === "COLLABORATION") setPostKind(f.missionType);
+    setForm((prev) => ({
+      ...prev,
+      ...(typeof f.startDate === "string" ? { startDate: f.startDate } : {}),
+      ...(typeof f.endDate === "string" ? { endDate: f.endDate } : {}),
+      ...(typeof f.minMonths === "number" ? { minMonths: String(f.minMonths) } : {}),
+      ...(Array.isArray(f.zones)
+        ? { zones: (f.zones as unknown[]).filter((z): z is ZoneGeo => typeof z === "string" && (ZONE_ORDER as string[]).includes(z)) }
+        : {}),
+      ...(f.rechercheLogement === true ? { rechercheLogement: true } : {}),
+      ...(f.rechercheVehicule === true ? { rechercheVehicule: true } : {}),
+      ...(f.ouvertSalariat === true ? { ouvertSalariat: true } : {}),
+    }));
+    setDetectedTags({ methode: typeof f.methode === "string" ? f.methode : undefined });
+  }
+
+  async function runAI(action: "extract" | "title" | "redaction" | "optimize") {
+    if (aiBusy) return;
+    setAiBusy(action); setAiDegraded(false); setAiNotice(null);
+    try {
+      const res = await fetch("/api/ai/annonce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, role: "candidat", text: form.rawText }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.degraded) { setAiDegraded(true); return; }
+      if (action === "extract") {
+        applyExtracted(data.fields ?? {});
+        setExtractDone(true);
+        setShowManual(true);
+        const n = Object.keys(data.fields ?? {}).length;
+        setAiNotice(n > 0 ? `${n} information${n > 1 ? "s" : ""} détectée${n > 1 ? "s" : ""} — vérifiez ci-dessous.` : "Aucune information exploitable détectée — complétez à la main.");
+      } else if (action === "title") {
+        if (typeof data.title === "string" && data.title) setForm((p) => ({ ...p, title: data.title }));
+      } else if (action === "redaction") {
+        if (typeof data.text === "string" && data.text) setForm((p) => ({ ...p, rawText: data.text }));
+      } else if (action === "optimize") {
+        setOptimizeTips(Array.isArray(data.suggestions) ? data.suggestions : []);
+        if ((data.suggestions ?? []).length === 0) setAiNotice("Rien à ajouter — votre disponibilité est déjà complète 👍");
+      }
+    } catch {
+      setAiDegraded(true);
+    } finally {
+      setAiBusy(null);
+    }
   }
 
   async function handleBlockSubmit(e: React.FormEvent) {
@@ -264,6 +332,86 @@ export default function CreateDisponibilitePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+
+        {/* ── Refonte saisie : texte libre + assistance IA ── */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-kine-700">
+            {isAssistant ? "Présentez votre projet en toute liberté" : "Décrivez votre disponibilité en toute liberté"}
+            <span className="text-kine-400 font-normal ml-1">— dates, zones, méthodes, logement…</span>
+          </label>
+          <textarea
+            value={form.rawText}
+            onChange={(e) => setForm({ ...form, rawText: e.target.value })}
+            rows={6}
+            maxLength={8000}
+            className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800"
+            placeholder={isAssistant
+              ? "Ex : Kiné diplômé, je recherche un assistanat longue durée sur Grande-Terre à partir de septembre, minimum 12 mois. Formé en thérapie manuelle et sport. Je cherche un logement."
+              : "Ex : Disponible du 1er au 30 septembre sur le Sud Grande-Terre (Sainte-Anne, Le Gosier). Mobile, méthode Mézières et respiratoire. Je recherche un logement et un véhicule."}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => runAI("extract")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
+              className="px-3 py-2 rounded-xl text-xs font-bold bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
+              {aiBusy === "extract" ? "Analyse…" : "✨ Analyser le texte"}
+            </button>
+            <button type="button" onClick={() => runAI("redaction")} disabled={aiBusy !== null}
+              className="px-3 py-2 rounded-xl text-xs font-bold border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+              {aiBusy === "redaction" ? "Rédaction…" : "✍️ Aide à la rédaction"}
+            </button>
+            <button type="button" onClick={() => runAI("optimize")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
+              className="px-3 py-2 rounded-xl text-xs font-bold border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+              {aiBusy === "optimize" ? "Analyse…" : "🚀 Optimiser ma disponibilité"}
+            </button>
+          </div>
+
+          {aiDegraded && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              Assistance IA momentanément indisponible (limite atteinte). Aucun souci : remplissez les champs à la main ci-dessous, la publication reste possible.
+            </p>
+          )}
+          {aiNotice && !aiDegraded && (
+            <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">{aiNotice}</p>
+          )}
+          {optimizeTips.length > 0 && (
+            <div className="rounded-xl bg-kine-50 border border-kine-100 px-3 py-2.5">
+              <p className="text-[11px] font-bold text-kine-700 uppercase tracking-wide mb-1">Suggestions d&apos;ajout</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {optimizeTips.map((t, i) => <li key={i} className="text-xs text-gray-700">{t}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {extractDone && (
+            <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-2">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Ce que j&apos;ai compris</p>
+              <div className="flex flex-wrap gap-1.5">
+                {isAssistant && <span className="px-2 py-0.5 rounded-full bg-kine-100 text-kine-700 text-[11px] font-semibold">{postKind === "COLLABORATION" ? "Collaboration" : "Assistanat"}</span>}
+                {form.zones.length > 0 && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📍 {form.zones.map((z) => ZONE_LABELS[z]).join(", ")}</span>}
+                {form.startDate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📅 {form.startDate}{form.endDate ? ` → ${form.endDate}` : ""}</span>}
+                {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
+                {form.rechercheLogement && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Cherche logement</span>}
+                {form.rechercheVehicule && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Besoin véhicule</span>}
+                {form.ouvertSalariat && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💼 Ouvert salariat</span>}
+                {detectedTags.methode && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.methode}</span>}
+              </div>
+              {missingReqs.length > 0 && (
+                <p className="text-[11px] text-amber-700">À compléter : <strong>{missingReqs.join(", ")}</strong></p>
+              )}
+              <button type="button" onClick={() => runAI("title")} disabled={aiBusy !== null}
+                className="text-[11px] font-semibold text-kine-600 hover:text-kine-700 disabled:opacity-40">
+                {aiBusy === "title" ? "Titre…" : "✨ Proposer un titre"}
+              </button>
+            </div>
+          )}
+
+          <button type="button" onClick={() => setShowManual((s) => !s)}
+            className="text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
+            {showManual ? "Masquer les champs détaillés" : "Vérifier / compléter les champs à la main"}
+          </button>
+        </div>
+
+        {/* ── Formulaire manuel (repli) — masqué par défaut ── */}
+        <div className={showManual ? "space-y-5" : "hidden"}>
 
         {/* Titre */}
         <div>
@@ -507,6 +655,9 @@ export default function CreateDisponibilitePage() {
         </label>
 
         {/* Taux de rétrocession retiré (section 88) — se négocie dans la discussion/le contrat */}
+
+        </div>
+        {/* ── fin du formulaire manuel (repli) ── */}
 
         {/* Avertissement 90j minimum pour les assistants */}
         {under90Days && (
