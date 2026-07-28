@@ -154,6 +154,9 @@ export default function CreateMissionPage() {
     pitchText: "",
     dateFlexibility: 0,
     logementPropose: false,
+    vehiculePropose: false,
+    demiJourneesLibres: "", // demi-journées libres/semaine (feature terrain) — vide = non renseigné
+    caMensuelEstime: "",    // CA mensuel estimé € (feature terrain) — optionnel, vide = non renseigné
   });
 
   // Item 15 — préserver le formulaire lors de la redirection photo obligatoire.
@@ -213,6 +216,9 @@ export default function CreateMissionPage() {
           pitchText: pt,
           dateFlexibility: m.dateFlexibility ?? 0,
           logementPropose: m.logementPropose ?? false,
+          vehiculePropose: m.vehiculePropose ?? false,
+          demiJourneesLibres: m.demiJourneesLibres != null ? String(m.demiJourneesLibres) : "",
+          caMensuelEstime: m.caMensuelEstime != null ? String(m.caMensuelEstime) : "",
         }));
       })
       .catch(() => {});
@@ -267,6 +273,9 @@ export default function CreateMissionPage() {
       missionType: missionTypeMap[needType] ?? "REMPLACEMENT",
       dateFlexibility: form.dateFlexibility,
       logementPropose: form.logementPropose,
+      vehiculePropose: form.vehiculePropose,
+      demiJourneesLibres: form.demiJourneesLibres ? parseInt(form.demiJourneesLibres, 10) : null,
+      caMensuelEstime: form.caMensuelEstime ? parseInt(form.caMensuelEstime, 10) : null,
       ...(isEdit ? {} : { cabinetPostId: cabinetPostId ?? undefined }),
     };
 
@@ -562,6 +571,52 @@ export default function CreateMissionPage() {
           />
           <span className="text-sm text-gray-700">🏠 Logement proposé avec le poste</span>
         </label>
+
+        {/* ── Véhicule proposé (feature terrain) — symétrique du logement, alimente le bonus
+             véhicule du score. Souvent annoncé collé au logement dans les annonces réelles. ── */}
+        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.vehiculePropose}
+            onChange={(e) => setForm({ ...form, vehiculePropose: e.target.checked })}
+            className="w-4 h-4 rounded accent-kine-600"
+          />
+          <span className="text-sm text-gray-700">🚗 Véhicule mis à disposition</span>
+        </label>
+
+        {/* ── Demi-journées libres + CA estimé (feature terrain) — informations affichées sur
+             la fiche annonce (hors score). Critères de qualité de vie annoncés spontanément. ── */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Demi-journées libres <span className="text-gray-400 font-normal">/ sem. (opt.)</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={10}
+              step={1}
+              value={form.demiJourneesLibres}
+              onChange={(e) => setForm({ ...form, demiJourneesLibres: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+              placeholder="Ex : 3"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              CA mensuel estimé <span className="text-gray-400 font-normal">€ (opt.)</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={100}
+              value={form.caMensuelEstime}
+              onChange={(e) => setForm({ ...form, caMensuelEstime: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+              placeholder="Ex : 8000"
+            />
+          </div>
+        </div>
 
         {/* ── Photo obligatoire (item 8) — non requise en édition ── */}
         {!isEdit && hasPhoto === false && (

@@ -16,10 +16,10 @@ const ChatModal = dynamic(() => import("@/components/chat/ChatModal"), { ssr: fa
 type MissionWithProfile = Mission & { profile: Profile };
 
 // Barèmes du détail de score selon le profil de pondération utilisé (section 120).
-const SCORE_WEIGHTS: Record<string, { dates: number; geo: number; bio: number; logement: number; desirability: number }> = {
-  REMPLACEMENT:  { dates: 35, geo: 25, bio: 20, logement: 10, desirability: 10 },
-  COLLABORATION: { dates: 35, geo: 25, bio: 30, logement: 0,  desirability: 10 },
-  ASSISTANAT:    { dates: 15, geo: 20, bio: 50, logement: 0,  desirability: 15 },
+const SCORE_WEIGHTS: Record<string, { dates: number; geo: number; bio: number; logement: number; vehicule: number; desirability: number }> = {
+  REMPLACEMENT:  { dates: 35, geo: 25, bio: 20, logement: 10, vehicule: 10, desirability: 10 },
+  COLLABORATION: { dates: 35, geo: 25, bio: 30, logement: 0,  vehicule: 0,  desirability: 10 },
+  ASSISTANAT:    { dates: 15, geo: 20, bio: 50, logement: 0,  vehicule: 0,  desirability: 15 },
 };
 const SCORE_PROFILE_LABEL: Record<string, string> = { REMPLACEMENT: "Remplacement", COLLABORATION: "Collaboration", ASSISTANAT: "Assistanat" };
 
@@ -177,13 +177,16 @@ function MissionSheet({
                   { key: "dates",        label: "Dates",      max: max.dates },
                   { key: "bio",          label: "Affinité",   max: max.bio },
                   { key: "geo",          label: "Proximité",  max: max.geo },
-                  // Logement uniquement quand il compte (Remplacement) — section 120/126
+                  // Logement/véhicule uniquement quand ils comptent (Remplacement) — section 120/126 + feature terrain
                   ...(max.logement > 0 ? [{ key: "logement", label: "Logement", max: max.logement }] : []),
+                  ...(max.vehicule > 0 ? [{ key: "vehicule", label: "Véhicule", max: max.vehicule }] : []),
                   { key: "desirability", label: "Visibilité", max: max.desirability },
                 ];
+                // 4 composantes (Collab/Assistanat) sur une ligne ; 6 (Remplacement) sur deux lignes de 3.
+                const gridCols = rows.length >= 6 ? "grid-cols-3" : rows.length === 5 ? "grid-cols-5" : "grid-cols-4";
                 return (
                   <>
-                    <div className={`grid gap-1 mt-2 ${rows.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
+                    <div className={`grid gap-1 mt-2 ${gridCols}`}>
                       {rows.map(({ key, label, max }) => {
                         const val = Number(item.scoreDetails?.[key] ?? 0);
                         return (

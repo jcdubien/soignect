@@ -61,6 +61,7 @@ export default function CreateDisponibilitePage() {
     minMonths: "",
     dateFlexibility: 0,
     rechercheLogement: false,
+    rechercheVehicule: false,
     ouvertSalariat: false,
   });
 
@@ -133,6 +134,7 @@ export default function CreateDisponibilitePage() {
         missionType: isAssistant ? postKind : "REMPLACEMENT",
         dateFlexibility: form.dateFlexibility,
         rechercheLogement: form.rechercheLogement,
+        rechercheVehicule: form.rechercheVehicule,
         ouvertSalariat: form.ouvertSalariat,
       }),
     });
@@ -475,6 +477,18 @@ export default function CreateDisponibilitePage() {
             className="w-4 h-4 rounded accent-kine-600"
           />
           <span className="text-sm text-gray-700">🏠 Je recherche un logement</span>
+        </label>
+
+        {/* ── Besoin d'un véhicule (feature terrain) — symétrique du logement, alimente le
+             bonus véhicule du score face aux annonces qui mettent un véhicule à disposition. ── */}
+        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.rechercheVehicule}
+            onChange={(e) => setForm({ ...form, rechercheVehicule: e.target.checked })}
+            className="w-4 h-4 rounded accent-kine-600"
+          />
+          <span className="text-sm text-gray-700">🚗 J&apos;ai besoin d&apos;un véhicule</span>
         </label>
 
         {/* ── Ouverture au salariat (section 154) — opt-in : rend le profil visible/matchable

@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
         zones: swiperMission?.zones ?? [], // macro-zones souhaitées (section 138)
         dateFlexibility: swiperProfile.dateFlexibility,
         rechercheLogement: swiperProfile.rechercheLogement, // section 120
+        rechercheVehicule: swiperProfile.rechercheVehicule, // feature terrain — bonus véhicule
       };
       const missionInput = {
         bioTinder: swipedMission.bioTinder,
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest) {
         dateFlexibility: swipedMission.dateFlexibility,
         missionType: swipedMission.missionType,     // section 120 — profil de pondération
         logementPropose: swipedMission.logementPropose, // section 120 — bonus logement
+        vehiculePropose: swipedMission.vehiculePropose, // feature terrain — bonus véhicule
       };
       try {
         // Rate-limit DeepSeek (section 165) : au-delà du plafond, on saute l'appel API et le

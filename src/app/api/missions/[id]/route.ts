@@ -18,6 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       id: true, profileId: true, title: true, location: true, zones: true, specialties: true,
       startDate: true, endDate: true, minMonths: true, pitch: true,
       missionType: true, dateFlexibility: true, cabinetPostId: true,
+      logementPropose: true, vehiculePropose: true, demiJourneesLibres: true, caMensuelEstime: true,
     },
   });
   if (!mission) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
@@ -44,6 +45,12 @@ const updateSchema = z.object({
   pitch: z.string().max(700).optional().nullable(), // aligné POST + colonne (section 186)
   missionType: z.nativeEnum(MissionType).optional(),
   dateFlexibility: z.number().int().min(0).max(4).optional(),
+  // Avantages matériels + qualité de vie éditables (aligne logement/véhicule, feature terrain).
+  // Passent par ...rest → colonnes Mission. rechercheVehicule reste une préférence du Profile.
+  logementPropose: z.boolean().optional(),
+  vehiculePropose: z.boolean().optional(),
+  demiJourneesLibres: z.number().int().min(0).max(10).optional().nullable(),
+  caMensuelEstime: z.number().int().min(0).max(1000000).optional().nullable(),
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),
   statusNote: z.string().max(200).optional().nullable(),
   statusUpdatedAt: z.string().datetime().optional(),

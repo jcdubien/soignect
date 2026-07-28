@@ -17,6 +17,8 @@ export interface AffinityInput {
   missionType?: string;        // porté par la Mission (REMPLACEMENT | ASSISTANAT | COLLABORATION)
   logementPropose?: boolean;   // Mission (annonce cabinet) : logement proposé
   rechercheLogement?: boolean; // Profil remplaçant : recherche un logement
+  vehiculePropose?: boolean;   // Mission (annonce cabinet) : véhicule mis à disposition (feature terrain)
+  rechercheVehicule?: boolean; // Profil remplaçant : besoin d'un véhicule
 }
 
 export interface AffinityResult {
@@ -27,17 +29,21 @@ export interface AffinityResult {
     geo: number;
     bio: number;
     logement: number;
+    vehicule: number;
     desirability: number;
   };
 }
 
 // Deux profils de pondération (total 100), sélectionnés par Mission.type (section 120).
 // Remplacement et Collaboration partagent le même profil ; Assistanat a le sien.
-type WeightProfile = { dates: number; geo: number; bio: number; logement: number; desirability: number };
-// 3 profils (section 120 corrigé + 126). Logement UNIQUEMENT en Remplacement (0 ailleurs).
-const WEIGHTS_REMPLACEMENT:  WeightProfile = { dates: 35, geo: 25, bio: 20, logement: 10, desirability: 10 };
-const WEIGHTS_COLLABORATION: WeightProfile = { dates: 35, geo: 25, bio: 30, logement: 0,  desirability: 10 };
-const WEIGHTS_ASSISTANAT:    WeightProfile = { dates: 15, geo: 20, bio: 50, logement: 0,  desirability: 15 };
+type WeightProfile = { dates: number; geo: number; bio: number; logement: number; vehicule: number; desirability: number };
+// 3 profils (section 120 corrigé + 126). Logement/véhicule UNIQUEMENT en Remplacement (0 ailleurs).
+// Véhicule = bonus symétrique du logement (feature terrain). Le total peut atteindre 110 si un
+// candidat cherche ET logement ET véhicule et que l'annonce propose les deux → clampé à 100 plus bas
+// (voir computeAffinityScore) pour ne pas modifier le barème logement existant.
+const WEIGHTS_REMPLACEMENT:  WeightProfile = { dates: 35, geo: 25, bio: 20, logement: 10, vehicule: 10, desirability: 10 };
+const WEIGHTS_COLLABORATION: WeightProfile = { dates: 35, geo: 25, bio: 30, logement: 0,  vehicule: 0,  desirability: 10 };
+const WEIGHTS_ASSISTANAT:    WeightProfile = { dates: 15, geo: 20, bio: 50, logement: 0,  vehicule: 0,  desirability: 15 };
 
 function weightsFor(missionType?: string): { w: WeightProfile; label: string } {
   if (missionType === "ASSISTANAT")    return { w: WEIGHTS_ASSISTANAT,    label: "ASSISTANAT" };
@@ -174,11 +180,18 @@ export async function computeAffinityScore(
   // Bonus logement binaire, UNIQUEMENT en Remplacement (w.logement=0 pour Collab/Assistanat) :
   // plein si l'annonce propose un logement ET le remplaçant en cherche.
   const logement = (mission.logementPropose && swiper.rechercheLogement) ? w.logement : 0;
+  // Bonus véhicule symétrique (feature terrain) : plein si l'annonce met un véhicule à disposition
+  // ET le remplaçant en a besoin. Même structure binaire que le logement.
+  const vehicule = (mission.vehiculePropose && swiper.rechercheVehicule) ? w.vehicule : 0;
+
+  // Clamp à 100 : logement + véhicule peuvent cumuler jusqu'à 20 pts en Remplacement ; on borne
+  // le total au barème /100 sans toucher au calcul du logement (details bruts conservés).
+  const total = Math.min(100, dates + geo + bio + logement + vehicule + desirability);
 
   return {
-    total: dates + geo + bio + logement + desirability,
+    total,
     weightProfile: label,
-    details: { dates, geo, bio, logement, desirability },
+    details: { dates, geo, bio, logement, vehicule, desirability },
   };
 }
 

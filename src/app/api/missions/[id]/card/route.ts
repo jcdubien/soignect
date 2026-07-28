@@ -19,6 +19,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
       minMonths: true, missionType: true, bioTinder: true, profileId: true,
+      demiJourneesLibres: true, caMensuelEstime: true, // feature terrain — affichage fiche
+
       profile: {
         select: {
           name: true, type: true, photoUrl: true,

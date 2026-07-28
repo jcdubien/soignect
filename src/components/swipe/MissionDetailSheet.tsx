@@ -17,6 +17,8 @@ export interface DetailMission {
   endDate?: Date | string | null;
   minMonths?: number | null;
   bioTinder?: string | null;
+  demiJourneesLibres?: number | null; // feature terrain — affichage fiche
+  caMensuelEstime?: number | null;    // feature terrain — affichage fiche (optionnel)
   profile: {
     name: string | null;
     type: string;
@@ -202,6 +204,22 @@ export default function MissionDetailSheet({
           <p className="mt-3 text-sm text-kine-700 italic border-l-2 border-kine-400 pl-3 bg-kine-50 rounded-r-xl py-2 pr-2">
             {bioText}
           </p>
+        )}
+
+        {/* Qualité de vie / revenu (feature terrain) — affichés seulement si renseignés (hors score). */}
+        {(mission.demiJourneesLibres != null || mission.caMensuelEstime != null) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {mission.demiJourneesLibres != null && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-1">
+                🗓️ {mission.demiJourneesLibres} demi-journée{mission.demiJourneesLibres > 1 ? "s" : ""} libre{mission.demiJourneesLibres > 1 ? "s" : ""}/sem.
+              </span>
+            )}
+            {mission.caMensuelEstime != null && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-1">
+                💶 CA estimé ~ {mission.caMensuelEstime.toLocaleString("fr-FR")} €/mois
+              </span>
+            )}
+          </div>
         )}
 
         {isKnownCommune && (

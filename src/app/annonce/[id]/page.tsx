@@ -37,6 +37,7 @@ async function getMission(id: string) {
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
       minMonths: true, missionType: true, pitch: true, bioTinder: true,
+      demiJourneesLibres: true, caMensuelEstime: true, // feature terrain — affichage fiche
       createdAt: true, updatedAt: true,
       profile: { select: { profession: true, name: true, region: true, titulaireKind: true } },
     },
@@ -144,6 +145,22 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
           <h1 className="text-xl font-bold text-gray-900 leading-tight">{m.title}</h1>
           <p className="text-sm text-gray-500 mt-1">📍 {m.location}</p>
           <p className="text-sm text-gray-500 mt-0.5">📅 {periodLabel(m)}</p>
+
+          {/* Qualité de vie / revenu (feature terrain) — affichés si renseignés */}
+          {(m.demiJourneesLibres != null || m.caMensuelEstime != null) && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {m.demiJourneesLibres != null && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-1">
+                  🗓️ {m.demiJourneesLibres} demi-journée{m.demiJourneesLibres > 1 ? "s" : ""} libre{m.demiJourneesLibres > 1 ? "s" : ""}/sem.
+                </span>
+              )}
+              {m.caMensuelEstime != null && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-1">
+                  💶 CA estimé ~ {m.caMensuelEstime.toLocaleString("fr-FR")} €/mois
+                </span>
+              )}
+            </div>
+          )}
 
           {teaser && (
             <p className="mt-4 text-sm text-gray-700 italic border-l-2 border-kine-300 pl-3">{teaser}</p>

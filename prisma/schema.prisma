@@ -188,6 +188,10 @@ model Profile {
   // bonus logement du score d'affinité (match binaire avec Mission.logementPropose).
   rechercheLogement Boolean @default(false)
 
+  // Besoin d'un véhicule (feature terrain) — symétrique de rechercheLogement : signal du
+  // remplaçant pour le bonus véhicule du score (match binaire avec Mission.vehiculePropose).
+  rechercheVehicule Boolean @default(false)
+
   // Ouverture aux postes salariés (section 154) — REMPLACANT/ASSISTANT qui accepte aussi
   // les contrats salariés (CDD/CDI/Stage/Vacation) publiés par les comptes STRUCTURE.
   // Défaut false = le candidat ne voit pas / n'est pas visible pour le salariat (opt-in).
@@ -274,6 +278,18 @@ model Mission {
   // Logement proposé avec l'annonce (section 120) — bonus logement du score d'affinité
   // (match binaire avec Profile.rechercheLogement du remplaçant).
   logementPropose Boolean @default(false)
+
+  // Véhicule mis à disposition avec l'annonce (feature terrain, annonces réelles) — bonus
+  // véhicule du score, symétrique de logementPropose (match binaire avec Profile.rechercheVehicule).
+  vehiculePropose Boolean @default(false)
+
+  // Demi-journées libres par semaine (feature terrain) — critère qualité de vie annoncé
+  // spontanément par les titulaires. Affichage seul (hors score). Cap UI 0-10.
+  demiJourneesLibres Int?
+
+  // CA mensuel estimé en euros (feature terrain) — publié spontanément par certains titulaires.
+  // Optionnel, affichage seul. Alimentera plus tard le calculateur de revenu net (B4).
+  caMensuelEstime Int?
 
   // Lien Planning Board (section 28)
   cabinetPostId String?
