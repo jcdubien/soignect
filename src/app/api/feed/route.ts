@@ -88,7 +88,26 @@ export async function GET(req: NextRequest) {
     take: limit,
   });
 
+  // Nombre de candidats/annonces DISPONIBLES que l'utilisateur a DÉJÀ VUS (swipés) — mêmes
+  // filtres que le feed (type, match actif, gating, zone/dates), mais uniquement les déjà-swipés.
+  // Permet à l'UI de distinguer « aucun candidat n'existe » de « vous les avez déjà tous vus »
+  // (l'état vide contredisait la réalité, section 1). Compté seulement si l'utilisateur a swipé.
+  const seenAvailable = excludeMissionIds.length
+    ? await prisma.mission.count({
+        where: {
+          isActive: true,
+          id: { in: excludeMissionIds },
+          ...NO_ACTIVE_MATCH_FILTER,
+          profile: profileWhere,
+          ...(location ? { location } : {}),
+          ...dateFilter,
+        },
+      })
+    : 0;
+
   // Expurge les champs sensibles du profil de chaque annonce (audit permissions, section 165) :
   // le feed ne doit exposer que les champs d'affichage (nom/photo/bio/région/note…).
-  return NextResponse.json(stripMissionProfiles(missions));
+  return NextResponse.json(stripMissionProfiles(missions), {
+    headers: { "x-feed-seen-available": String(seenAvailable) },
+  });
 }

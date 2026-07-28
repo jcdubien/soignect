@@ -426,6 +426,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   const [missions,         setMissions]         = useState<MissionWithProfile[]>([]);
   const [loading,          setLoading]           = useState(true);
   const [feedError,        setFeedError]         = useState(false);
+  // Candidats/annonces DISPONIBLES déjà vus (swipés) — renvoyé par le feed (header). Distingue
+  // « aucun candidat n'existe » de « vous les avez déjà tous vus » dans l'état vide (section 1).
+  const [seenAvailable,    setSeenAvailable]     = useState(0);
   const [swiping,          setSwiping]           = useState(false);
   const [match,            setMatch]             = useState<MatchData | null>(null);
   const [filter,           setFilter]            = useState<MissionFilter>("ALL");
@@ -503,6 +506,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
         setFeedError(true);
         return;
       }
+      const seenHdr = r.headers.get("x-feed-seen-available");
+      if (seenHdr != null) setSeenAvailable(parseInt(seenHdr, 10) || 0);
       const data = await r.json();
       if (!Array.isArray(data)) {
         console.error("[SwipeStack] feed response is not an array:", data);
@@ -679,17 +684,21 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
     // (encore) de candidats à swiper — surtout PAS l'absence de son annonce. On le rassure.
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-10">
-        <span className="text-6xl">{isTitulaire ? "👀" : "🌊"}</span>
+        <span className="text-6xl">{filter !== "ALL" ? "🔍" : isTitulaire ? (seenAvailable > 0 ? "✅" : "👀") : "🌊"}</span>
         <p className="text-gray-500 font-semibold">
           {filter !== "ALL"
             ? `Aucune annonce "${FILTER_LABELS[filter]}" pour le moment`
             : isTitulaire
-            ? "Aucun candidat à afficher pour l'instant"
+            ? (seenAvailable > 0
+                ? "Vous avez déjà vu tous les candidats disponibles"
+                : "Aucun candidat disponible pour le moment")
             : "Plus d'annonces pour le moment"}
         </p>
         <p className="text-gray-400 text-sm max-w-xs">
           {isTitulaire
-            ? "Votre annonce est bien en ligne et visible. Revenez bientôt, ou consultez vos candidatures depuis « Annonces actives » (en haut)."
+            ? (seenAvailable > 0
+                ? `Vous avez parcouru ${seenAvailable} profil${seenAvailable > 1 ? "s" : ""} actuellement disponible${seenAvailable > 1 ? "s" : ""}. De nouveaux candidats apparaîtront ici dès leur inscription — retrouvez ceux qui vous intéressent dans « Vos mises en relation ».`
+                : "Votre annonce est bien en ligne et visible. Dès qu'un candidat correspond, il apparaît ici.")
             : "Revenez plus tard, ou publiez vos disponibilités pour être visible des cabinets."}
         </p>
         {filter !== "ALL" && (
