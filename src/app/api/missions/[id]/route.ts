@@ -19,6 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       startDate: true, endDate: true, minMonths: true, pitch: true,
       missionType: true, dateFlexibility: true, cabinetPostId: true,
       logementPropose: true, vehiculePropose: true, demiJourneesLibres: true, caMensuelEstime: true,
+      retrocessionRate: true, rawText: true,
     },
   });
   if (!mission) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
@@ -51,6 +52,8 @@ const updateSchema = z.object({
   vehiculePropose: z.boolean().optional(),
   demiJourneesLibres: z.number().int().min(0).max(10).optional().nullable(),
   caMensuelEstime: z.number().int().min(0).max(1000000).optional().nullable(),
+  retrocessionRate: z.number().int().min(0).max(100).optional().nullable(), // (ré)introduit dans le parcours cabinet
+  rawText: z.string().max(8000).optional().nullable(),                       // texte libre de l'annonce
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),
   statusNote: z.string().max(200).optional().nullable(),
   statusUpdatedAt: z.string().datetime().optional(),

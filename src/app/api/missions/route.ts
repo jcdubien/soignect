@@ -31,6 +31,7 @@ const createMissionSchema = z.object({
   rechercheVehicule: z.boolean().optional(), // dispo remplaçant : besoin d'un véhicule (→ Profile)
   demiJourneesLibres: z.number().int().min(0).max(10).optional().nullable(),      // affichage seul (hors score)
   caMensuelEstime: z.number().int().min(0).max(1000000).optional().nullable(),    // affichage seul, optionnel
+  rawText: z.string().max(8000).optional().nullable(),                            // texte libre de l'annonce (refonte saisie)
   ouvertSalariat: z.boolean().optional(),    // dispo candidat : ouvert au salariat (→ Profile, section 154)
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),
   cabinetPostId: z.string().optional().nullable(),
@@ -108,7 +109,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, demiJourneesLibres, caMensuelEstime, ouvertSalariat, briqueStatus, cabinetPostId } = parsed.data;
+  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, demiJourneesLibres, caMensuelEstime, rawText, ouvertSalariat, briqueStatus, cabinetPostId } = parsed.data;
 
   // Photo de profil obligatoire pour publier une annonce/disponibilité (ferme la brèche
   // rétroactive : un profil créé avant l'onboarding-photo pouvait publier sans photo).
@@ -224,6 +225,7 @@ export async function POST(req: NextRequest) {
       vehiculePropose: vehiculePropose ?? false,
       demiJourneesLibres: demiJourneesLibres ?? null,
       caMensuelEstime: caMensuelEstime ?? null,
+      rawText: rawText ?? null,
       briqueStatus: briqueStatus ?? BriqueStatus.RECHERCHE,
       cabinetPostId: cabinetPostId ?? null,
     },

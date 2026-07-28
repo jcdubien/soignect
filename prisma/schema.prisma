@@ -291,6 +291,11 @@ model Mission {
   // Optionnel, affichage seul. Alimentera plus tard le calculateur de revenu net (B4).
   caMensuelEstime Int?
 
+  // Texte libre de l'annonce (refonte saisie texte-libre + extraction IA) — source de vérité
+  // rédigée par l'utilisateur. Les champs structurés (dates, commune, taux, CA…) en sont
+  // extraits puis CONFIRMÉS. TEXT (sans limite) : une annonce riche dépasse le cap 700 du pitch.
+  rawText String? @db.Text
+
   // Lien Planning Board (section 28)
   cabinetPostId String?
   cabinetPost   CabinetPost? @relation("PostMissions", fields: [cabinetPostId], references: [id])

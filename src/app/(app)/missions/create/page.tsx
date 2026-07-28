@@ -157,7 +157,20 @@ export default function CreateMissionPage() {
     vehiculePropose: false,
     demiJourneesLibres: "", // demi-journées libres/semaine (feature terrain) — vide = non renseigné
     caMensuelEstime: "",    // CA mensuel estimé € (feature terrain) — optionnel, vide = non renseigné
+    retrocessionRate: "",   // taux de rétrocession % — (ré)introduit dans le parcours cabinet
+    rawText: "",            // texte libre de l'annonce (refonte saisie texte-libre)
   });
+
+  // ── Assistance IA (refonte saisie) — chaque action = 1 appel serveur explicite ──
+  const [aiBusy, setAiBusy] = useState<null | "extract" | "title" | "redaction" | "optimize">(null);
+  const [aiDegraded, setAiDegraded] = useState(false);      // plafond DeepSeek atteint → repli manuel
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
+  const [optimizeTips, setOptimizeTips] = useState<string[]>([]);
+  const [detectedTags, setDetectedTags] = useState<{ repartition?: string; methode?: string }>({});
+  const [extractDone, setExtractDone] = useState(false);
+  // Repli manuel : formulaire champ-par-champ. Masqué par défaut en création (parcours texte-libre
+  // d'abord), ouvert en édition (on modifie des champs précis).
+  const [showManual, setShowManual] = useState(false);
 
   // Item 15 — préserver le formulaire lors de la redirection photo obligatoire.
   // Le brouillon est sauvegardé en localStorage avant d'aller sur /compte, puis
@@ -219,7 +232,10 @@ export default function CreateMissionPage() {
           vehiculePropose: m.vehiculePropose ?? false,
           demiJourneesLibres: m.demiJourneesLibres != null ? String(m.demiJourneesLibres) : "",
           caMensuelEstime: m.caMensuelEstime != null ? String(m.caMensuelEstime) : "",
+          retrocessionRate: m.retrocessionRate != null ? String(m.retrocessionRate) : "",
+          rawText: m.rawText ?? "",
         }));
+        setShowManual(true); // édition = accès direct aux champs
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -238,6 +254,20 @@ export default function CreateMissionPage() {
   const [pitchFocused, setPitchFocused] = useState(false);
   const pitchRemaining = Math.max(0, 40 - pitchCombined.length);
 
+  // Contenu valide = texte libre suffisant (≥40) OU accroche manuelle valide. Le texte libre
+  // devient l'accroche (pitch) de matching quand il est renseigné.
+  const rawTextTrim = form.rawText.trim();
+  const contentValid = rawTextTrim.length >= 40 || pitchValid;
+
+  // Hard-gate publication (parcours texte-libre) : type + contenu + commune + dates (remplacement).
+  // Ces champs restent STRUCTURÉS et confirmés ; l'IA ne fait que pré-remplir. Taux/CA non bloquants.
+  const missingRequired: string[] = [];
+  if (profileType === "TITULAIRE" && !needType) missingRequired.push("le type de poste");
+  if (!form.title.trim())                        missingRequired.push("un titre");
+  if (!form.location)                            missingRequired.push("la commune");
+  if (!contentValid)                             missingRequired.push("une description (≥ 40 caractères)");
+  if (needType === "remplacement" && (!form.startDate || !form.endDate)) missingRequired.push("les dates de début et de fin");
+
   const showDates =
     profileType === "REMPLACANT" ||
     (profileType === "TITULAIRE" && needType === "remplacement");
@@ -251,8 +281,12 @@ export default function CreateMissionPage() {
     setLoading(true);
     setError("");
 
+    // Accroche de matching : le texte libre prime (tronqué à 700 = cap colonne pitch/bioTinder) ;
+    // sinon repli sur l'accroche manuelle starter + texte.
     const pitchFull =
-      form.pitchStarter && form.pitchText.trim()
+      rawTextTrim
+        ? rawTextTrim.slice(0, 700)
+        : form.pitchStarter && form.pitchText.trim()
         ? `${form.pitchStarter} ${form.pitchText.trim()}`
         : null;
 
@@ -276,6 +310,8 @@ export default function CreateMissionPage() {
       vehiculePropose: form.vehiculePropose,
       demiJourneesLibres: form.demiJourneesLibres ? parseInt(form.demiJourneesLibres, 10) : null,
       caMensuelEstime: form.caMensuelEstime ? parseInt(form.caMensuelEstime, 10) : null,
+      retrocessionRate: form.retrocessionRate ? parseInt(form.retrocessionRate, 10) : null,
+      rawText: rawTextTrim || null,
       ...(isEdit ? {} : { cabinetPostId: cabinetPostId ?? undefined }),
     };
 
@@ -309,6 +345,65 @@ export default function CreateMissionPage() {
     router.push(`/annonces?published=1&pid=${encodeURIComponent(publishedId)}&pt=${encodeURIComponent(form.title)}`);
   }
 
+  // ── Assistance IA ────────────────────────────────────────────────────────────────
+  const NEED_FROM_TYPE: Record<string, NeedType> = {
+    REMPLACEMENT: "remplacement", ASSISTANAT: "assistant", COLLABORATION: "collaboration",
+  };
+
+  // Applique l'extraction : ne REMPLIT que les champs réellement extraits (jamais d'écrasement
+  // par une valeur vide — l'IA n'invente rien, on ne détruit rien non plus).
+  function applyExtracted(f: Record<string, unknown>) {
+    if (typeof f.missionType === "string" && NEED_FROM_TYPE[f.missionType]) setNeedType(NEED_FROM_TYPE[f.missionType]);
+    setForm((prev) => ({
+      ...prev,
+      ...(typeof f.startDate === "string" ? { startDate: f.startDate } : {}),
+      ...(typeof f.endDate === "string" ? { endDate: f.endDate } : {}),
+      ...(typeof f.minMonths === "number" ? { minMonths: String(f.minMonths) } : {}),
+      ...(typeof f.commune === "string" ? { location: f.commune } : {}),
+      ...(typeof f.retrocessionRate === "number" ? { retrocessionRate: String(f.retrocessionRate) } : {}),
+      ...(typeof f.caMensuelEstime === "number" ? { caMensuelEstime: String(f.caMensuelEstime) } : {}),
+      ...(typeof f.demiJourneesLibres === "number" ? { demiJourneesLibres: String(f.demiJourneesLibres) } : {}),
+      ...(f.logementPropose === true ? { logementPropose: true } : {}),
+      ...(f.vehiculePropose === true ? { vehiculePropose: true } : {}),
+    }));
+    setDetectedTags({
+      repartition: typeof f.repartition === "string" ? f.repartition : undefined,
+      methode: typeof f.methode === "string" ? f.methode : undefined,
+    });
+  }
+
+  async function runAI(action: "extract" | "title" | "redaction" | "optimize") {
+    if (aiBusy) return;
+    setAiBusy(action); setAiDegraded(false); setAiNotice(null);
+    try {
+      const res = await fetch("/api/ai/annonce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, role: "cabinet", text: form.rawText }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.degraded) { setAiDegraded(true); return; }
+      if (action === "extract") {
+        applyExtracted(data.fields ?? {});
+        setExtractDone(true);
+        setShowManual(true); // on ouvre les champs pour vérification/complétion
+        const n = Object.keys(data.fields ?? {}).length;
+        setAiNotice(n > 0 ? `${n} information${n > 1 ? "s" : ""} détectée${n > 1 ? "s" : ""} — vérifiez ci-dessous.` : "Aucune information exploitable détectée — complétez à la main.");
+      } else if (action === "title") {
+        if (typeof data.title === "string" && data.title) setForm((p) => ({ ...p, title: data.title }));
+      } else if (action === "redaction") {
+        if (typeof data.text === "string" && data.text) setForm((p) => ({ ...p, rawText: data.text }));
+      } else if (action === "optimize") {
+        setOptimizeTips(Array.isArray(data.suggestions) ? data.suggestions : []);
+        if ((data.suggestions ?? []).length === 0) setAiNotice("Rien à ajouter — votre annonce est déjà complète 👍");
+      }
+    } catch {
+      setAiDegraded(true);
+    } finally {
+      setAiBusy(null);
+    }
+  }
+
   // Limite BioTinder différenciée (section 123) : cabinet 700, remplaçant 280.
   const bioLimit = bioLimitFor(profileType);
   const maxPitchText = form.pitchStarter ? bioLimit - form.pitchStarter.length - 1 : bioLimit;
@@ -334,6 +429,92 @@ export default function CreateMissionPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+
+        {/* ── Refonte saisie : texte libre + assistance IA (cabinet uniquement) ── */}
+        {profileType === "TITULAIRE" && (
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-kine-700">
+              Décrivez votre besoin en toute liberté
+              <span className="text-kine-400 font-normal ml-1">— dates, commune, taux, logement, ambiance…</span>
+            </label>
+            <textarea
+              value={form.rawText}
+              onChange={(e) => setForm({ ...form, rawText: e.target.value })}
+              rows={6}
+              maxLength={8000}
+              className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800"
+              placeholder={"Ex : Cabinet à Sainte-Anne cherche remplaçant à partir du 1er septembre pour 3 semaines. Rétro 25%, CA ~8000€/mois. Logement et voiture à disposition. Ambiance familiale, 3 demi-journées libres par semaine, patientèle variée."}
+            />
+            {/* Boutons d'assistance — chacun = 1 appel IA explicite (jamais à la frappe) */}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => runAI("extract")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
+                {aiBusy === "extract" ? "Analyse…" : "✨ Analyser le texte"}
+              </button>
+              <button type="button" onClick={() => runAI("redaction")} disabled={aiBusy !== null}
+                className="px-3 py-2 rounded-xl text-xs font-bold border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+                {aiBusy === "redaction" ? "Rédaction…" : "✍️ Aide à la rédaction"}
+              </button>
+              <button type="button" onClick={() => runAI("optimize")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
+                className="px-3 py-2 rounded-xl text-xs font-bold border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+                {aiBusy === "optimize" ? "Analyse…" : "🚀 Optimiser mon annonce"}
+              </button>
+            </div>
+
+            {aiDegraded && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                Assistance IA momentanément indisponible (limite atteinte). Aucun souci : remplissez les champs à la main ci-dessous, la publication reste possible.
+              </p>
+            )}
+            {aiNotice && !aiDegraded && (
+              <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">{aiNotice}</p>
+            )}
+            {optimizeTips.length > 0 && (
+              <div className="rounded-xl bg-kine-50 border border-kine-100 px-3 py-2.5">
+                <p className="text-[11px] font-bold text-kine-700 uppercase tracking-wide mb-1">Suggestions d&apos;ajout</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  {optimizeTips.map((t, i) => <li key={i} className="text-xs text-gray-700">{t}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {/* Résumé compact « ce que j'ai compris » + champs manquants requis */}
+            {extractDone && (
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-2">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Ce que j&apos;ai compris</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {needType && <span className="px-2 py-0.5 rounded-full bg-kine-100 text-kine-700 text-[11px] font-semibold">{needTypeLabels[needType as keyof typeof needTypeLabels] ?? needType}</span>}
+                  {form.location && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📍 {form.location}</span>}
+                  {form.startDate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📅 {form.startDate}{form.endDate ? ` → ${form.endDate}` : ""}</span>}
+                  {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
+                  {form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Rétro {form.retrocessionRate}%</span>}
+                  {form.caMensuelEstime && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.caMensuelEstime}€/mois</span>}
+                  {form.demiJourneesLibres && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗓️ {form.demiJourneesLibres} dj/sem.</span>}
+                  {form.logementPropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Logement</span>}
+                  {form.vehiculePropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Véhicule</span>}
+                  {detectedTags.repartition && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.repartition}</span>}
+                  {detectedTags.methode && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.methode}</span>}
+                </div>
+                {missingRequired.length > 0 && (
+                  <p className="text-[11px] text-amber-700">À compléter : <strong>{missingRequired.join(", ")}</strong></p>
+                )}
+                <button type="button" onClick={() => runAI("title")} disabled={aiBusy !== null}
+                  className="text-[11px] font-semibold text-kine-600 hover:text-kine-700 disabled:opacity-40">
+                  {aiBusy === "title" ? "Titre…" : "✨ Proposer un titre"}
+                </button>
+              </div>
+            )}
+
+            {/* Repli manuel : accès complet au formulaire champ-par-champ */}
+            <button type="button" onClick={() => setShowManual((s) => !s)}
+              className="text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
+              {showManual ? "Masquer les champs détaillés" : "Vérifier / compléter les champs à la main"}
+            </button>
+          </div>
+        )}
+
+        {/* ── Formulaire manuel (repli) — masqué par défaut côté cabinet en création ── */}
+        <div className={showManual || profileType !== "TITULAIRE" ? "space-y-5" : "hidden"}>
 
         {/* ── Sélecteur de besoin (TITULAIRE uniquement) ── */}
         {profileType === "TITULAIRE" && (
@@ -618,6 +799,26 @@ export default function CreateMissionPage() {
           </div>
         </div>
 
+        {/* ── Taux de rétrocession (structuré — peut atterrir dans le contrat) ── */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Taux de rétrocession <span className="text-gray-400 font-normal">% (opt.)</span>
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={1}
+            value={form.retrocessionRate}
+            onChange={(e) => setForm({ ...form, retrocessionRate: e.target.value })}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+            placeholder="Ex : 25"
+          />
+        </div>
+
+        </div>
+        {/* ── fin du formulaire manuel (repli) ── */}
+
         {/* ── Photo obligatoire (item 8) — non requise en édition ── */}
         {!isEdit && hasPhoto === false && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-center justify-between gap-3">
@@ -636,6 +837,16 @@ export default function CreateMissionPage() {
           <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{error}</p>
         )}
 
+        {/* Prérequis manquants (garde-gate) — explicite pourquoi la publication est bloquée */}
+        {!loading && missingRequired.length > 0 && (
+          <p className="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+            Pour publier, il reste à renseigner : <strong>{missingRequired.join(", ")}</strong>.
+            {profileType === "TITULAIRE" && !showManual && (
+              <button type="button" onClick={() => setShowManual(true)} className="ml-1 underline font-semibold text-kine-700">Ouvrir les champs</button>
+            )}
+          </p>
+        )}
+
         <div className="flex gap-3 pt-1">
           <Link
             href={isEdit ? "/planning" : "/annonces"}
@@ -645,7 +856,7 @@ export default function CreateMissionPage() {
           </Link>
           <button
             type="submit"
-            disabled={loading || !form.title || !form.location || !pitchValid || !!under90Days || (!isEdit && hasPhoto === false)}
+            disabled={loading || missingRequired.length > 0 || !!under90Days || (!isEdit && hasPhoto === false)}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
             {loading ? (isEdit ? "Enregistrement…" : "Publication…") : isEdit ? "Enregistrer les modifications" : cfg.submitLabel}
