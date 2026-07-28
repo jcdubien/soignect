@@ -19,7 +19,9 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 function fmt(d: Date | null | undefined): string | null {
-  return d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
+  // timeZone UTC : dates « jour seul » stockées à minuit UTC (sinon décalage d'un jour selon
+  // le fuseau du serveur/lecteur). Voir lib/dates.ts.
+  return d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }) : null;
 }
 
 function periodLabel(m: { startDate: Date | null; endDate: Date | null; minMonths: number | null }): string {

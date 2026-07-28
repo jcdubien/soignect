@@ -1,6 +1,9 @@
 // Formatage de dates unifié (fr-FR) — source unique pour les surfaces PRODUIT
 // (cartes de swipe, fiches, modales, planning, sélecteurs). Objectif : la même date
 // s'affiche toujours pareil, quel que soit l'écran.
+// IMPORTANT : les dates « jour seul » (dispo, annonce, poste) sont stockées à minuit UTC
+// (créées via new Date('YYYY-MM-DD').toISOString()). Il FAUT donc les formater en UTC,
+// sinon un fuseau négatif (ex. Guadeloupe UTC−4) affiche la veille : 10 août → « 9 août ».
 // NB : les tables admin, les contrats PDF (format légal long) et les prompts IA gardent
 // volontairement leur propre format.
 
@@ -13,13 +16,13 @@ function parse(d: Date | string | null | undefined): Date | null {
 /** "31 juil." — compact, sans année (cartes, fiches, header, sélecteur). */
 export function fmtDay(d: Date | string | null | undefined): string | null {
   const x = parse(d);
-  return x ? x.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : null;
+  return x ? x.toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" }) : null;
 }
 
 /** "31 juil. 2026" — avec année (modales de confirmation, planning). */
 export function fmtDayYear(d: Date | string | null | undefined): string | null {
   const x = parse(d);
-  return x ? x.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
+  return x ? x.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : null;
 }
 
 /**

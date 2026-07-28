@@ -729,7 +729,9 @@ export default function DisponibilitesBoard({ profileName, profileType, missions
   // Fenêtre mobile ~6 mois
   const mWin = mobileWindow(ZOOM_DAYS[zoom]);
   const mpct = (d: Date) => pctIn(d, mWin.start, mWin.end);
-  const fmtShort = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" });
+  // timeZone UTC : dates « jour seul » stockées à minuit UTC — sinon décalage d'un jour en
+  // fuseau négatif (Guadeloupe UTC−4). Voir lib/dates.ts.
+  const fmtShort = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" });
 
   // Bandeau d'alerte remplaçant (section 47) — période ouverte (Disponible, sans
   // match) qui commence dans ≤ 90 jours. Calcul client sur les données présentes.

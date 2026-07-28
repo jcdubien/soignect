@@ -283,7 +283,9 @@ function dayOffset(d: Date): number {
 
 function fmtDate(d: Date | string | null): string {
   if (!d) return "";
-  return new Date(d as string).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" });
+  // timeZone UTC : les dates « jour seul » sont stockées à minuit UTC ; sans ça, un fuseau
+  // négatif (Guadeloupe UTC−4) affiche la veille (10 août → « 9 août »). Voir lib/dates.ts.
+  return new Date(d as string).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" });
 }
 
 interface MonthLabel { monthShort: string; year: string; isYearStart: boolean; offset: number; index: number }
@@ -833,9 +835,9 @@ function UncoveredChoiceModal({
         <div className="bg-gray-50 rounded-xl p-3 mb-5 text-sm text-gray-600">
           <p className="text-xs text-gray-400 mb-1">Période suggérée</p>
           <p className="font-medium">
-            {new Date(modal.suggestedStart).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+            {new Date(modal.suggestedStart).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}
             {" → "}
-            {new Date(modal.suggestedEnd).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+            {new Date(modal.suggestedEnd).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}
           </p>
         </div>
 
