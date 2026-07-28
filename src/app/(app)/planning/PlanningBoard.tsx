@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/md3/Button";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import ShareActions from "@/components/share/ShareActions";
+import { TYPE_LABEL } from "../ActiveAnnoncesList";
 import { notPast, nextDay } from "@/lib/dates";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -1749,7 +1750,7 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
 
 // ── PlanningBoard principal ────────────────────────────────────────────────────
 
-export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMissions }: Props) {
+export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinkedMissions, selfMissions }: Props) {
   const router = useRouter();
   const [zoom, setZoom]         = useState<Zoom>("quarter");
   const [panel, setPanel]       = useState<Panel>(null);
@@ -2231,6 +2232,70 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, selfMis
             </div>
           </div>
           </>
+          )}
+
+          {/* ── Annonces non rattachées à un poste (section 187) — créées via « + Annonce »
+              sans cible sur la timeline (cabinetPostId = null). Sans cette section, elles
+              étaient chargées côté serveur (unlinkedMissions) mais JAMAIS rendues : invisibles
+              sur le Planning et donc impossibles à partager (le partage vivait uniquement dans
+              le menu « Gérer ce poste » d'une brique de la timeline). ── */}
+          {unlinkedMissions.length > 0 && (
+            <div className="flex-shrink-0 border-t border-gray-100 bg-white px-3 sm:px-4 py-3 max-h-56 overflow-y-auto">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">
+                Annonces non rattachées à un poste
+              </p>
+              <div className="space-y-2">
+                {unlinkedMissions.map((m) => {
+                  const start = toDate(m.startDate), end = toDate(m.endDate);
+                  return (
+                    <div key={m.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{m.title}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        <span className="inline-block px-1.5 py-0.5 rounded-full bg-[var(--ambre)]/20 text-[#8a5a00] text-[10px] font-bold mr-1.5">
+                          {TYPE_LABEL[m.missionType] ?? m.missionType}
+                        </span>
+                        {start && end ? `${fmtDate(start)} → ${fmtDate(end)}` : "Sans dates"}
+                      </p>
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/annonces?disponibiliteId=${encodeURIComponent(m.id)}`)}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-kine-600 text-white hover:bg-kine-700 transition"
+                        >
+                          Voir les mises en relation →
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/missions/create?editId=${encodeURIComponent(m.id)}`)}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold border border-gray-200 text-gray-700 hover:bg-white transition"
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmModal({
+                            title: "Annuler cette annonce",
+                            body: `L'annonce « ${m.title} » sera définitivement supprimée. Cette action est irréversible.`,
+                            onConfirm: async () => {
+                              setConfirmModal(null);
+                              await fetch(`/api/missions/${m.id}`, { method: "DELETE" });
+                              router.refresh();
+                            },
+                          })}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold border border-red-200 text-red-600 hover:bg-red-50 transition"
+                        >
+                          Annuler l&apos;annonce
+                        </button>
+                      </div>
+                      <div className="mt-2.5 pt-2.5 border-t border-gray-100">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Partager cette annonce</p>
+                        <ShareActions path={`/annonce/${m.id}`} title={m.title} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           {/* Légende */}

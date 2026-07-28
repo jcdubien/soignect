@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ShareActions from "@/components/share/ShareActions";
 
 export interface ActiveMission {
   id: string;
@@ -35,6 +36,10 @@ export default function ActiveAnnoncesList({
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<{ id: string; msg: string } | null>(null);
+  // Partage inline (section 187) — le partage n'était accessible que via le menu « Gérer ce
+  // poste » d'une brique de la timeline ; une annonce non rattachée à un poste (créée via
+  // « + Annonce ») restait impartageable. On l'expose ici pour TOUTE annonce active.
+  const [sharingId, setSharingId] = useState<string | null>(null);
 
   async function doDelete(id: string) {
     setBusyId(id);
@@ -94,7 +99,8 @@ export default function ActiveAnnoncesList({
         }
 
         return (
-          <div key={m.id} className="flex items-stretch hover:bg-gray-50 transition">
+          <div key={m.id}>
+          <div className="flex items-stretch hover:bg-gray-50 transition">
             {/* Titre/type/commune → édition (inchangé, section 141) */}
             <Link
               href={`/missions/create?editId=${m.id}`}
@@ -136,6 +142,24 @@ export default function ActiveAnnoncesList({
               </button>
             </div>
 
+            {/* Partager cette annonce (section 187) — repli inline, accessible pour toute
+                annonce active y compris non rattachée à un poste */}
+            <button
+              type="button"
+              onClick={() => setSharingId((cur) => (cur === m.id ? null : m.id))}
+              title="Partager cette annonce"
+              aria-label="Partager cette annonce"
+              aria-expanded={sharingId === m.id}
+              className={`shrink-0 w-9 flex items-center justify-center transition ${
+                sharingId === m.id ? "text-kine-600" : "text-gray-300 hover:text-kine-600"
+              }`}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+            </button>
+
             {/* Suppression rapide (section 163) — icône discrète + confirmation inline */}
             <button
               type="button"
@@ -149,6 +173,13 @@ export default function ActiveAnnoncesList({
                 <line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />
               </svg>
             </button>
+          </div>
+          {/* Panneau de partage inline (section 187) */}
+          {sharingId === m.id && (
+            <div className="px-4 pb-3 pt-1 bg-gray-50 border-b border-gray-100">
+              <ShareActions path={`/annonce/${m.id}`} title={m.title} />
+            </div>
+          )}
           </div>
         );
       })}
