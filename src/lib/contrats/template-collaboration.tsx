@@ -30,9 +30,18 @@ const S = StyleSheet.create({
   pageNum: { position: "absolute", bottom: 12, right: 55, fontSize: 7.5, color: "#aaa" },
 });
 
+// Horodatage de génération (contient l'heure) — fuseau local du serveur, inchangé.
 function fmtDate(iso: string | null): string {
   if (!iso) return "[date à compléter]";
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+// Dates « jour seul » (période du contrat) stockées à minuit UTC — formatées en UTC, sinon
+// décalage d'un jour en fuseau négatif (Guadeloupe UTC−4). Voir lib/dates.ts. Un contrat est
+// un document légal : le jour doit être exact.
+function fmtDateUTC(iso: string | null): string {
+  if (!iso) return "[date à compléter]";
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
 
 const LEGAL_MENTION =
@@ -95,7 +104,7 @@ export function buildCollaborationPdf(data: ContractDataCollaboration) {
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 3 — Durée</Text>
           <Text style={S.body}>
-            Le présent contrat est conclu pour une durée de {dureeStr} à compter du {fmtDate(startDate)}.
+            Le présent contrat est conclu pour une durée de {dureeStr} à compter du {fmtDateUTC(startDate)}.
           </Text>
           {periodeEssai && (
             <Text style={[S.body, { marginTop: 3, fontFamily: "Helvetica-Oblique" }]}>
