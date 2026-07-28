@@ -409,7 +409,7 @@ export default function CreateMissionPage() {
   const maxPitchText = form.pitchStarter ? bioLimit - form.pitchStarter.length - 1 : bioLimit;
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-8 animate-fade-up">
+    <div className={`${profileType === "TITULAIRE" ? "max-w-lg lg:max-w-5xl" : "max-w-lg"} mx-auto px-4 py-8 animate-fade-up`}>
       {/* En-tête */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
@@ -430,7 +430,11 @@ export default function CreateMissionPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
 
-        {/* ── Refonte saisie : texte libre + assistance IA (cabinet uniquement) ── */}
+        {/* ── Grille 2 colonnes sur desktop (section 2) : à gauche le texte libre + l'assistance,
+            à droite l'extraction + les champs structurés éditables. Empilé sur mobile. ── */}
+        <div className={profileType === "TITULAIRE" ? "lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0" : ""}>
+
+        {/* ── Colonne GAUCHE : texte libre + assistance IA (cabinet uniquement) ── */}
         {profileType === "TITULAIRE" && (
           <div className="space-y-3">
             <label className="block text-sm font-semibold text-kine-700">
@@ -478,43 +482,46 @@ export default function CreateMissionPage() {
               </div>
             )}
 
-            {/* Résumé compact « ce que j'ai compris » + champs manquants requis */}
-            {extractDone && (
-              <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-2">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Ce que j&apos;ai compris</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {needType && <span className="px-2 py-0.5 rounded-full bg-kine-100 text-kine-700 text-[11px] font-semibold">{needTypeLabels[needType as keyof typeof needTypeLabels] ?? needType}</span>}
-                  {form.location && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📍 {form.location}</span>}
-                  {form.startDate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📅 {form.startDate}{form.endDate ? ` → ${form.endDate}` : ""}</span>}
-                  {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
-                  {form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Rétro {form.retrocessionRate}%</span>}
-                  {form.caMensuelEstime && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.caMensuelEstime}€/mois</span>}
-                  {form.demiJourneesLibres && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗓️ {form.demiJourneesLibres} dj/sem.</span>}
-                  {form.logementPropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Logement</span>}
-                  {form.vehiculePropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Véhicule</span>}
-                  {detectedTags.repartition && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.repartition}</span>}
-                  {detectedTags.methode && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.methode}</span>}
-                </div>
-                {missingRequired.length > 0 && (
-                  <p className="text-[11px] text-amber-700">À compléter : <strong>{missingRequired.join(", ")}</strong></p>
-                )}
-                <button type="button" onClick={() => runAI("title")} disabled={aiBusy !== null}
-                  className="text-[11px] font-semibold text-kine-600 hover:text-kine-700 disabled:opacity-40">
-                  {aiBusy === "title" ? "Titre…" : "✨ Proposer un titre"}
-                </button>
-              </div>
-            )}
-
-            {/* Repli manuel : accès complet au formulaire champ-par-champ */}
+            {/* Repli manuel (mobile) : révèle les champs détaillés en dessous. Sur desktop les
+                champs sont toujours affichés dans la colonne de droite → toggle masqué (lg:hidden). */}
             <button type="button" onClick={() => setShowManual((s) => !s)}
-              className="text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
+              className="lg:hidden text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
               {showManual ? "Masquer les champs détaillés" : "Vérifier / compléter les champs à la main"}
             </button>
           </div>
         )}
 
-        {/* ── Formulaire manuel (repli) — masqué par défaut côté cabinet en création ── */}
-        <div className={showManual || profileType !== "TITULAIRE" ? "space-y-5" : "hidden"}>
+        {/* ── Colonne DROITE (desktop) / repli (mobile) : « ce que j'ai compris » + champs
+            structurés éditables. Toujours visible sur desktop (lg:block) ; sur mobile, révélée
+            après extraction (showManual passe à true) ou via le toggle. ── */}
+        <div className={profileType !== "TITULAIRE" ? "space-y-5" : `space-y-5 ${showManual ? "" : "hidden lg:block"}`}>
+
+        {/* Résumé compact « ce que j'ai compris » + champs manquants requis (en tête de colonne) */}
+        {profileType === "TITULAIRE" && extractDone && (
+          <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-2">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Ce que j&apos;ai compris</p>
+            <div className="flex flex-wrap gap-1.5">
+              {needType && <span className="px-2 py-0.5 rounded-full bg-kine-100 text-kine-700 text-[11px] font-semibold">{needTypeLabels[needType as keyof typeof needTypeLabels] ?? needType}</span>}
+              {form.location && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📍 {form.location}</span>}
+              {form.startDate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📅 {form.startDate}{form.endDate ? ` → ${form.endDate}` : ""}</span>}
+              {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
+              {form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Rétro {form.retrocessionRate}%</span>}
+              {form.caMensuelEstime && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.caMensuelEstime}€/mois</span>}
+              {form.demiJourneesLibres && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗓️ {form.demiJourneesLibres} dj/sem.</span>}
+              {form.logementPropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Logement</span>}
+              {form.vehiculePropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Véhicule</span>}
+              {detectedTags.repartition && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.repartition}</span>}
+              {detectedTags.methode && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.methode}</span>}
+            </div>
+            {missingRequired.length > 0 && (
+              <p className="text-[11px] text-amber-700">À compléter : <strong>{missingRequired.join(", ")}</strong></p>
+            )}
+            <button type="button" onClick={() => runAI("title")} disabled={aiBusy !== null}
+              className="text-[11px] font-semibold text-kine-600 hover:text-kine-700 disabled:opacity-40">
+              {aiBusy === "title" ? "Titre…" : "✨ Proposer un titre"}
+            </button>
+          </div>
+        )}
 
         {/* ── Sélecteur de besoin (TITULAIRE uniquement) ── */}
         {profileType === "TITULAIRE" && (
@@ -817,7 +824,10 @@ export default function CreateMissionPage() {
         </div>
 
         </div>
-        {/* ── fin du formulaire manuel (repli) ── */}
+        {/* ── fin colonne droite ── */}
+
+        </div>
+        {/* ── fin grille 2 colonnes ── */}
 
         {/* ── Photo obligatoire (item 8) — non requise en édition ── */}
         {!isEdit && hasPhoto === false && (
