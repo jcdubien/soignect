@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { BriqueStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { logTraceEvent } from "@/lib/trace";
 import ShareActions from "@/components/share/ShareActions";
@@ -33,7 +34,9 @@ function periodLabel(m: { startDate: Date | null; endDate: Date | null; minMonth
 
 async function getMission(id: string) {
   return prisma.mission.findFirst({
-    where: { id, isActive: true },
+    // Une INDISPONIBLE (« Dates bloquées ») est un marqueur de calendrier privé : jamais
+    // accessible en page publique → traitée comme introuvable (notFound côté appelants).
+    where: { id, isActive: true, briqueStatus: { not: BriqueStatus.INDISPONIBLE } },
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
       minMonths: true, missionType: true, pitch: true, bioTinder: true,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ProfileType, TitulaireKind, Prisma } from "@prisma/client";
+import { ProfileType, TitulaireKind, Prisma, BriqueStatus } from "@prisma/client";
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 
@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
   const missions = await prisma.mission.findMany({
     where: {
       isActive: true,
+      briqueStatus: { not: BriqueStatus.INDISPONIBLE }, // « Dates bloquées » = pas une offre
       id: { notIn: excludeMissionIds },
       ...NO_ACTIVE_MATCH_FILTER,
       profile: profileWhere,
@@ -96,6 +97,7 @@ export async function GET(req: NextRequest) {
     ? await prisma.mission.count({
         where: {
           isActive: true,
+          briqueStatus: { not: BriqueStatus.INDISPONIBLE },
           id: { in: excludeMissionIds },
           ...NO_ACTIVE_MATCH_FILTER,
           profile: profileWhere,

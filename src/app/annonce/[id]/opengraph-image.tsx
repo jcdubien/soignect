@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/prisma";
+import { BriqueStatus } from "@prisma/client";
 
 // Image de partage Open Graph générée dynamiquement par annonce (section 158) — 1200×630.
 // Priorité aux 3 infos essentielles pour un candidat qui scrolle (mobile) : TYPE, DATES, COMMUNE.
@@ -49,7 +50,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   const { id } = await params;
   const m = await prisma.mission
     .findFirst({
-      where: { id, isActive: true },
+      where: { id, isActive: true, briqueStatus: { not: BriqueStatus.INDISPONIBLE } },
       select: {
         title: true, location: true, missionType: true,
         startDate: true, endDate: true, minMonths: true,

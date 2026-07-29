@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { BriqueStatus } from "@prisma/client";
 import { sendConsultationEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 
@@ -18,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     where: { id },
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
-      minMonths: true, missionType: true, bioTinder: true, profileId: true,
+      minMonths: true, missionType: true, bioTinder: true, profileId: true, briqueStatus: true,
       demiJourneesLibres: true, caMensuelEstime: true, // feature terrain — affichage fiche
 
       profile: {
@@ -30,6 +31,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
   if (!mission) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
+  // Une INDISPONIBLE (« Dates bloquées ») n'est jamais une annonce consultable → 404 (comme
+  // supprimée) ; le RecentMissionsTray la purge alors de l'historique.
+  if (mission.briqueStatus === BriqueStatus.INDISPONIBLE) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
   const swipe = await prisma.swipe.findUnique({
     where: { swiperId_swipedMissionId: { swiperId, swipedMissionId: id } },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { BriqueStatus } from "@prisma/client";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,9 @@ export async function POST(req: NextRequest) {
   if (parsed.data.ids.length === 0) return NextResponse.json({ activeIds: [] });
 
   const rows = await prisma.mission.findMany({
-    where: { id: { in: parsed.data.ids }, isActive: true },
+    // Une INDISPONIBLE (« Dates bloquées ») est active en base mais n'est PAS une annonce
+    // consultable — marqueur de calendrier privé. On l'exclut donc des « actifs » consultables.
+    where: { id: { in: parsed.data.ids }, isActive: true, briqueStatus: { not: BriqueStatus.INDISPONIBLE } },
     select: { id: true },
   });
   return NextResponse.json({ activeIds: rows.map((r) => r.id) });
