@@ -438,8 +438,8 @@ export default function CreateMissionPage() {
         {profileType === "TITULAIRE" && (
           <div className="space-y-3">
             <label className="block text-sm font-semibold text-kine-700">
-              Décrivez votre besoin en toute liberté
-              <span className="text-kine-400 font-normal ml-1">— dates, commune, taux, logement, ambiance…</span>
+              Décrivez votre besoin en toute liberté{" "}
+              <span className="text-kine-400 font-normal">— dates, commune, taux, logement, ambiance…</span>
             </label>
             <textarea
               value={form.rawText}

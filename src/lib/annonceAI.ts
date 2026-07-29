@@ -273,7 +273,8 @@ export async function optimizeAnnonce(text: string, role: AnnonceRole): Promise<
   if (source.length < 10) return [];
   const roleGuidance =
     role === "cabinet"
-      ? `Côté cabinet, ce qui rend une annonce attractive et que les meilleures annonces contiennent : logement, véhicule, demi-journées libres, plateau technique/équipement, ambiance d'équipe, chiffre d'affaires estimé, taux de rétrocession, répartition cabinet/domicile.`
+      ? `Côté cabinet, ce qui rend une annonce attractive et que les meilleures annonces contiennent : logement, véhicule, demi-journées libres, plateau technique/équipement, ambiance d'équipe, chiffre d'affaires estimé, taux de rétrocession, répartition cabinet/domicile.
+PRIORITÉ ABSOLUE : si le CHIFFRE D'AFFAIRES ESTIMÉ et/ou le TAUX DE RÉTROCESSION sont absents du texte, propose-les EN PREMIER, avec un argument concret pour le candidat (ex : « Ajoutez votre CA estimé et le taux de rétrocession : le candidat peut se projeter financièrement, et les annonces qui les indiquent reçoivent plus de candidatures. »). Ils restent facultatifs — c'est une incitation, jamais une obligation.`
       : `Côté candidat, ce qui le sécurise et évite les oublis : disponibilités précises (dates), mobilité/zones, méthodes pratiquées, attentes sur le taux, logement/véhicule recherchés, expérience.`;
   const system = `Tu analyses une annonce ${role === "cabinet" ? "de cabinet" : "de candidat"} kiné en Guadeloupe et proposes 1 à 3 AJOUTS concrets et actionnables qui MANQUENT dans le texte. ${roleGuidance}
 Ne suggère que ce qui est réellement absent. Sois concret (pas de généralité). Formulation courte, à l'impératif.

@@ -336,8 +336,8 @@ export default function CreateDisponibilitePage() {
         {/* ── Refonte saisie : texte libre + assistance IA ── */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-kine-700">
-            {isAssistant ? "Présentez votre projet en toute liberté" : "Décrivez votre disponibilité en toute liberté"}
-            <span className="text-kine-400 font-normal ml-1">— dates, zones, méthodes, logement…</span>
+            {isAssistant ? "Présentez votre projet en toute liberté" : "Décrivez votre disponibilité en toute liberté"}{" "}
+            <span className="text-kine-400 font-normal">— dates, zones, méthodes, logement…</span>
           </label>
           <textarea
             value={form.rawText}
