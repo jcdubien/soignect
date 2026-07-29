@@ -88,7 +88,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
         </div>
 
         <h1 className="text-center text-xl font-black text-gray-900 mb-0.5">
-          Match confirmé
+          Mise en relation confirmée
         </h1>
         <p className="text-center text-gray-400 text-sm mb-4">
           {theirProfile.name ?? "Profil"} et vous êtes compatibles

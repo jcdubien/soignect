@@ -31,14 +31,14 @@ export async function POST(req: NextRequest) {
 
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match || (match.profileAId !== raterId && match.profileBId !== raterId)) {
-    return NextResponse.json({ error: "Match introuvable ou accès interdit" }, { status: 403 });
+    return NextResponse.json({ error: "Mise en relation introuvable ou accès interdit" }, { status: 403 });
   }
 
   // ratedId DOIT être la contre-partie de CE match (audit #3) : sinon un membre du match pouvait
   // noter un profil tiers arbitraire en l'attachant à son match → pollution du ratingAvg/classement.
   const otherPartyId = match.profileAId === raterId ? match.profileBId : match.profileAId;
   if (ratedId !== otherPartyId) {
-    return NextResponse.json({ error: "Vous ne pouvez évaluer que l'autre partie de ce match." }, { status: 403 });
+    return NextResponse.json({ error: "Vous ne pouvez évaluer que l'autre partie de cette mise en relation." }, { status: 403 });
   }
 
   const scores = [scorePonctualite, scoreQualiteSoins, scoreDossierPatient, scoreCommunication].filter(Boolean) as number[];

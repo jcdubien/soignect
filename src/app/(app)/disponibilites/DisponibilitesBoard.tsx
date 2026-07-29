@@ -414,13 +414,13 @@ function SlotMatchModal({ slot, onClose, onChanged }: {
                 href={`/match/${slot.matchId}`}
                 className="w-full py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold text-center hover:bg-kine-700 transition"
               >
-                Voir la fiche du match →
+                Voir la mise en relation →
               </Link>
               <button
                 onClick={() => setConfirming(true)}
                 className="w-full py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition"
               >
-                Supprimer ce match
+                Annuler la mise en relation
               </button>
               <button
                 onClick={onClose}

@@ -118,7 +118,7 @@ export async function DELETE(
   // l'annulation de match dédiée (section 145/149) qui notifie l'autre partie et resync le poste.
   if (mission.briqueStatus === "CONFIRME") {
     return NextResponse.json(
-      { error: "Cette période est liée à un contrat confirmé. Utilisez « Supprimer ce match » pour l'annuler." },
+      { error: "Cette période est liée à un contrat confirmé. Utilisez « Annuler la mise en relation » pour l'annuler." },
       { status: 409 }
     );
   }

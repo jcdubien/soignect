@@ -1179,7 +1179,7 @@ function CancelMatchButton({ matchId, otherName, onCancelled }: {
         onClick={() => setConfirming(true)}
         className="w-full py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition"
       >
-        Supprimer ce match
+        Annuler la mise en relation
       </button>
     );
   }
@@ -1442,7 +1442,7 @@ function SidePanel({
             href={`/match/${match.id}`}
             className="w-full py-3 bg-kine-600 text-white rounded-xl text-sm font-bold text-center hover:bg-kine-700 transition"
           >
-            Voir la fiche du match →
+            Voir la mise en relation →
           </Link>
         )}
         {isFinished && match && (
