@@ -121,7 +121,7 @@ export default async function MatchesPage() {
   }[type] ?? { label: type, badge: "bg-gray-100 text-gray-600", emoji: "👤" });
 
   return (
-    <div className="max-w-xl mx-auto w-full px-4 py-6 animate-fade-up">
+    <div className="max-w-4xl mx-auto w-full px-4 py-6 animate-fade-up">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-800">
           Mes mises en relation
@@ -160,7 +160,8 @@ export default async function MatchesPage() {
                 <span className="text-gray-400 transition-transform group-open:rotate-90">▸</span>
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{g.label} ({groupItems.length})</span>
               </summary>
-              <div className="space-y-4">
+              {/* Grille 2 colonnes sur desktop (refonte layout) — exploite la largeur ; 1 col mobile */}
+              <div className="grid sm:grid-cols-2 gap-4">
           {groupItems.map((m) => {
             const tc    = typeConfig(m.otherProfile.type);
             const score = m.affinityScore !== null ? Math.round(m.affinityScore) : null;
@@ -175,7 +176,7 @@ export default async function MatchesPage() {
                 <div className="p-4 flex items-center gap-4">
                   <div className="relative w-14 h-14 rounded-2xl overflow-hidden bg-gradient-to-br from-kine-200 to-kine-400 flex-shrink-0 shadow-sm">
                     {m.otherProfile.photoUrl ? (
-                      <Image src={m.otherProfile.photoUrl} alt="Photo" fill className="object-cover" />
+                      <Image src={m.otherProfile.photoUrl} alt="Photo" fill className="object-cover" unoptimized />
                     ) : (
                       <div className="flex items-center justify-center h-full text-2xl">{tc.emoji}</div>
                     )}

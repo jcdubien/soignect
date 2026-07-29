@@ -74,7 +74,10 @@ export default async function MatchPage({ params, searchParams }: Props) {
   });
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-8 flex flex-col gap-6">
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* 2 colonnes sur desktop (refonte layout, section 2) : résumé du match à gauche,
+          actions (chat, contrat) à droite. Empilé sur mobile. */}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
 
       {/* ── En-tête ── */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
@@ -161,8 +164,10 @@ export default async function MatchPage({ params, searchParams }: Props) {
         {/* Recommandation retirée (section 78/79) — la notation vivra dans un
             système dédié post-mission, séparé de cet écran de mise en relation. */}
       </div>
+      {/* fin grille 2 colonnes */}
+      </div>
 
-      <Link href="/annonces" className="text-center text-sm text-gray-400 hover:text-kine-600 transition">
+      <Link href="/annonces" className="block text-center text-sm text-gray-400 hover:text-kine-600 transition mt-6">
         ← Retour aux annonces
       </Link>
     </div>

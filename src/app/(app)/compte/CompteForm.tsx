@@ -159,7 +159,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       {/* ── Ma photo ── */}
       <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Ma photo</h2>
