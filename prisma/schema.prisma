@@ -560,3 +560,18 @@ model PlatformConfig {
   enforceContractProfile Boolean @default(false)
   updatedAt      DateTime @updatedAt
 }
+
+// Invitation par email à rejoindre Soignect + rattachement auto à un poste (section 187).
+// Permet à un titulaire d'inviter un FUTUR assistant (sans compte) : le rattachement se fait
+// à la finalisation de l'inscription via /register?inviteToken=<token>.
+model PosteInvitation {
+  id            String   @id @default(cuid())
+  cabinetPostId String
+  invitedEmail  String
+  token         String   @unique
+  status        String   @default("PENDING") // PENDING | USED | EXPIRED
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime
+
+  @@index([invitedEmail])
+}

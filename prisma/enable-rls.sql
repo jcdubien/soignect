@@ -32,3 +32,4 @@ ALTER TABLE "public"."_prisma_migrations" ENABLE ROW LEVEL SECURITY;
 -- CommuneAPL : données publiques de référence (APL par commune). RLS déjà activée
 -- avec une policy de lecture publique — laissée telle quelle (lecture anon OK).
 ALTER TABLE "public"."CommuneAPL"        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."PosteInvitation"   ENABLE ROW LEVEL SECURITY;

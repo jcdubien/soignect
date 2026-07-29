@@ -1,6 +1,6 @@
 // Assistance IA à la saisie d'annonce (refonte texte-libre). SERVEUR UNIQUEMENT — appelle
 // DeepSeek. Trois usages distincts, chacun déclenché par une action explicite de l'utilisateur :
-//   1. extractAnnonceFields  — extrait les champs structurés du texte (ZÉRO invention)
+//   1. extractAnnonceFields  — extrait les champs structurés + l'accroche de carte (ZÉRO invention)
 //   2. proposeAnnonceTitle    — propose un titre court et accrocheur
 //   3. redactionHelp          — étoffe le texte à partir des annonces passées de l'utilisateur
 //   4. optimizeAnnonce        — 1 à 3 ajouts concrets manquants, adaptés au rôle
@@ -63,12 +63,52 @@ function evidencePresent(evidence: unknown, sourceNorm: string): boolean {
   return sourceNorm.includes(norm(evidence));
 }
 
+// ── Garde-fou anti-invention de l'accroche ───────────────────────────────────────
+// L'accroche est le SEUL champ extrait qui n'est pas une copie verbatim : c'est une
+// CONDENSATION en une phrase du texte de l'utilisateur. Elle ne peut donc pas passer par le
+// contrôle d'evidence. On applique à la place deux règles :
+//   1. aucun nombre absent du texte source (un taux ou un CA inventé est interdit) ;
+//   2. le vocabulaire porteur de sens vient majoritairement du texte (pas d'argument ajouté).
+const ACCROCHE_STOPWORDS = new Set([
+  "notre", "votre", "leurs", "nous", "vous", "dans", "avec", "pour", "sans", "chez", "cette",
+  "celui", "celle", "entre", "aussi", "toute", "toutes", "tous", "plus", "moins", "tres",
+  "bien", "etre", "avoir", "faire", "sommes", "suis", "propose", "proposons", "recherche",
+  "recherchons", "cherche", "cherchons", "disponible", "poste", "cabinet", "kinesitherapeute",
+  "kine", "guadeloupe",
+]);
+function accrocheIsFaithful(accroche: string, sourceNorm: string): boolean {
+  const a = norm(accroche);
+  // 1. Chiffres : tout nombre de l'accroche doit exister tel quel dans le texte.
+  const nums = a.match(/\d+/g) ?? [];
+  if (nums.some((n) => !sourceNorm.includes(n))) return false;
+  // 2. Vocabulaire : ≥ 60 % des mots significatifs présents dans le texte (comparaison par
+  //    préfixe pour tolérer les accords/conjugaisons, accents déjà retirés par norm()).
+  const words = a.split(/[^a-z0-9]+/).filter((w) => w.length >= 5 && !ACCROCHE_STOPWORDS.has(w));
+  if (words.length === 0) return true;
+  const known = words.filter((w) => sourceNorm.includes(w.slice(0, w.length - 2))).length;
+  return known / words.length >= 0.6;
+}
+
+// Nettoie et borne l'accroche : guillemets/points parasites retirés, troncature sur un mot
+// entier (jamais au milieu d'un mot) au cap du rôle.
+function cleanAccroche(raw: string, limit: number): string {
+  let s = raw.replace(/\s+/g, " ").trim().replace(/^["'«»\s]+|["'«»\s]+$/g, "");
+  if (s.length > limit) {
+    s = s.slice(0, limit);
+    const cut = s.lastIndexOf(" ");
+    if (cut > limit * 0.6) s = s.slice(0, cut);
+    s = s.replace(/[\s,;:]+$/, "");
+  }
+  return s;
+}
+
 // ── 1. Extraction stricte ────────────────────────────────────────────────────────
 
 // Résultat d'extraction : uniquement les champs RÉELLEMENT présents dans le texte. Tout champ
 // absent est omis (jamais inventé). Les dates sont en yyyy-mm-dd. `repartition`/`methode` sont
 // des tags d'affichage (non persistés en colonne).
 export interface ExtractedFields {
+  accroche?: string; // phrase de carte de swipe, CONDENSÉE du texte (jamais un ajout créatif)
   missionType?: "REMPLACEMENT" | "ASSISTANAT" | "COLLABORATION";
   startDate?: string; // yyyy-mm-dd
   endDate?: string;   // yyyy-mm-dd
@@ -94,6 +134,12 @@ const fieldWithEvidence = z
   .nullable()
   .optional();
 const rawExtractionSchema = z.object({
+  // Seul champ hors format {value, evidence} : une phrase libre (condensation). On tolère
+  // quand même la forme objet, au cas où le modèle applique le gabarit commun.
+  accroche: z
+    .union([z.string(), z.object({ value: z.string().nullable().optional() })])
+    .nullable()
+    .optional(),
   missionType: fieldWithEvidence,
   startDate: fieldWithEvidence,
   endDate: fieldWithEvidence,
@@ -120,9 +166,18 @@ function matchCommune(raw: string): string | undefined {
   return COMMUNES_GUADELOUPE.find((c) => norm(c) === n || norm(c).includes(n) || n.includes(norm(c)));
 }
 
-export async function extractAnnonceFields(text: string, role: AnnonceRole): Promise<ExtractedFields | null> {
+// `bioLimit` = cap de l'accroche du rôle (700 cabinet / 280 candidat, cf. lib/bio).
+export async function extractAnnonceFields(
+  text: string,
+  role: AnnonceRole,
+  bioLimit = 280,
+): Promise<ExtractedFields | null> {
   const source = text.trim();
   if (source.length < 10) return {};
+
+  // Cible de longueur de l'accroche : bornée par le cap du rôle, mais on vise court —
+  // c'est une phrase de carte de swipe, pas un résumé.
+  const accrocheTarget = Math.min(bioLimit, 220);
 
   // Bloc de champs adapté au rôle. Commun aux deux + spécifiques cabinet (offre) / candidat (besoins).
   const commonFields = `  "missionType":       {"value":"REMPLACEMENT|ASSISTANAT|COLLABORATION","evidence":"..."} | null,
@@ -142,6 +197,9 @@ export async function extractAnnonceFields(text: string, role: AnnonceRole): Pro
   "rechercheVehicule": {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le candidat a BESOIN d'un véhicule
   "ouvertSalariat":    {"value":true,"evidence":"..."} | null`;          // true si ouvert aux postes salariés (CDD/CDI/vacation)
   const fieldsBlock = role === "cabinet" ? `${commonFields},\n${cabinetFields}` : `${commonFields},\n${candidatFields}`;
+  // L'accroche (carte de swipe) est extraite DANS LE MÊME APPEL : l'utilisateur ne saisit plus
+  // qu'une seule zone de texte, l'accroche en est une condensation qu'il pourra corriger.
+  const accrocheField = `  "accroche": "<une seule phrase, ${accrocheTarget} caractères max>" | null`;
 
   const system = `Tu es un extracteur d'informations pour une plateforme de mise en relation de kinésithérapeutes en Guadeloupe.
 On te donne une annonce ${role === "cabinet" ? "de cabinet qui recrute" : "d'un remplaçant/assistant qui se propose"}, rédigée en texte libre.
@@ -152,13 +210,20 @@ Un taux de rétrocession ou un chiffre d'affaires inventé finirait dans un cont
 
 Pour CHAQUE champ non nul, tu dois fournir "evidence" = un extrait VERBATIM (copié mot pour mot depuis le texte) qui justifie la valeur. Sans extrait verbatim, mets null.
 
-Réponds en JSON avec cette forme exacte (chaque champ = {"value": ..., "evidence": "extrait verbatim"} ou null) :
+SEULE EXCEPTION — le champ "accroche" : c'est une phrase libre, pas une copie. Tu CONDENSES en UNE phrase courte et percutante ce que la personne a écrit, pour l'afficher sur sa carte d'annonce. Contraintes :
+- ${role === "cabinet" ? "écrite du point de vue du cabinet" : "écrite à la première personne, du point de vue du candidat"}, ton naturel, sans guillemets ;
+- ${accrocheTarget} caractères maximum, une seule phrase ;
+- AUCUNE promesse, AUCUN argument, AUCUN chiffre qui ne figure pas déjà dans le texte : tu condenses, tu n'ajoutes rien ;
+- si le texte est trop pauvre pour en tirer une phrase, mets null.
+
+Réponds en JSON avec cette forme exacte (chaque champ sauf "accroche" = {"value": ..., "evidence": "extrait verbatim"} ou null) :
 {
+${accrocheField},
 ${fieldsBlock}
 }
 N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
 
-  const parsedRaw = await deepseekJSON(system, source, 900);
+  const parsedRaw = await deepseekJSON(system, source, 1000);
   if (parsedRaw === null) return null; // échec réseau/parse → l'appelant gère la dégradation
   const safe = rawExtractionSchema.safeParse(parsedRaw);
   if (!safe.success) return {};
@@ -180,6 +245,15 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
     if (!Number.isFinite(n)) return undefined;
     return srcNorm.includes(String(n)) ? n : undefined;
   };
+
+  // Accroche : condensation → contrôlée par accrocheIsFaithful (pas d'evidence possible).
+  // Rejetée en silence si elle ajoute un chiffre ou un argument absent du texte ; l'UI
+  // retombe alors sur la saisie manuelle, jamais de blocage.
+  const rawAcc = typeof r.accroche === "string" ? r.accroche : r.accroche?.value ?? null;
+  if (typeof rawAcc === "string") {
+    const acc = cleanAccroche(rawAcc, bioLimit);
+    if (acc.length >= 20 && accrocheIsFaithful(acc, srcNorm)) out.accroche = acc;
+  }
 
   const mt = accepted(r.missionType);
   if (mt === "REMPLACEMENT" || mt === "ASSISTANAT" || mt === "COLLABORATION") out.missionType = mt;

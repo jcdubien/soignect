@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
+import { BIO_LIMIT_TITULAIRE, BIO_LIMIT_DEFAULT } from "@/lib/bio";
 import {
   extractAnnonceFields,
   proposeAnnonceTitle,
@@ -40,7 +41,10 @@ export async function POST(req: NextRequest) {
   try {
     switch (action) {
       case "extract": {
-        const fields = await extractAnnonceFields(text, role as AnnonceRole);
+        // L'accroche fait partie de l'extraction (fusion des deux zones de saisie) : son cap
+        // suit la limite du rôle — cabinet 700, candidat 280 (lib/bio, section 123).
+        const bioLimit = role === "cabinet" ? BIO_LIMIT_TITULAIRE : BIO_LIMIT_DEFAULT;
+        const fields = await extractAnnonceFields(text, role as AnnonceRole, bioLimit);
         if (fields === null) return NextResponse.json({ degraded: true }); // échec réseau → repli
         await recordDeepSeekCall(profileId);
         return NextResponse.json({ fields });

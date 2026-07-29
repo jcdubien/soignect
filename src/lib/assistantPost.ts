@@ -75,6 +75,14 @@ export async function attachAssistantPostForMatch(matchId: string): Promise<void
   }
 }
 
+// Rattachement DIRECT d'un compte assistant à un poste (invitation par email, section 187) —
+// sans passer par un match. Détache d'abord d'un poste précédent (unicité linkedUserId).
+// Utilisé par la finalisation d'inscription via inviteToken. Ne touche pas /link (compte existant).
+export async function linkAssistantToPost(userId: string, cabinetPostId: string): Promise<void> {
+  await prisma.cabinetPost.updateMany({ where: { linkedUserId: userId }, data: { linkedUserId: null } });
+  await prisma.cabinetPost.update({ where: { id: cabinetPostId }, data: { linkedUserId: userId } });
+}
+
 // Détachement lié à un match (point 3) — appelé à l'annulation de match (section 145).
 // Détache le poste du cabinet concerné rattaché à l'assistant de ce match.
 export async function detachAssistantPostForMatch(match: {

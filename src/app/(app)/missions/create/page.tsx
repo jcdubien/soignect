@@ -22,7 +22,6 @@ const CONFIG = {
     communeLabel:     "Commune du cabinet",
     specialtiesLabel: "Spécialités pratiquées au cabinet",
     pitchTitle:       "En une phrase, ce que vous proposez",
-    pitchStarters:    ["Je propose…"] as const,
     submitLabel:      "Publier le poste →",
   },
   TITULAIRE_EMPLOYEUR: {
@@ -35,7 +34,6 @@ const CONFIG = {
     communeLabel:     "Commune de l'établissement",
     specialtiesLabel: "Spécialités requises",
     pitchTitle:       "En une phrase, ce que vous proposez",
-    pitchStarters:    ["Nous proposons…"] as const,
     submitLabel:      "Ouvrir le poste →",
   },
   REMPLACANT: {
@@ -48,7 +46,6 @@ const CONFIG = {
     communeLabel:     "Commune ou zone souhaitée",
     specialtiesLabel: "Mes spécialités",
     pitchTitle:       "En une phrase, qui vous êtes",
-    pitchStarters:    ["Je suis…", "Je recherche…", "J'aspire à…"] as const,
     submitLabel:      "Publier ma disponibilité →",
   },
   ASSISTANT: {
@@ -61,7 +58,6 @@ const CONFIG = {
     communeLabel:     "Commune ou zone souhaitée",
     specialtiesLabel: "Mes spécialités",
     pitchTitle:       "En une phrase, votre projet",
-    pitchStarters:    ["J'aspire à…", "Je suis…", "Je recherche…"] as const,
     submitLabel:      "Publier ma recherche →",
   },
 } as const;
@@ -150,8 +146,7 @@ export default function CreateMissionPage() {
     startDate: searchParams.get("startDate") ?? "",
     endDate: searchParams.get("endDate") ?? "",
     minMonths: "",
-    pitchStarter: "" as string,
-    pitchText: "",
+    accroche: "",           // accroche de la carte de swipe — EXTRAITE du texte libre, éditable
     dateFlexibility: 0,
     logementPropose: false,
     vehiculePropose: false,
@@ -209,14 +204,6 @@ export default function CreateMissionPage() {
           m.missionType === "COLLABORATION" ? "collaboration" : "remplacement";
         setNeedType(nt);
         if (m.cabinetPostId) setCabinetPostId(m.cabinetPostId);
-        // Sépare l'accroche stockée "starter texte" en starter + texte (best-effort)
-        const allStarters = Object.values(CONFIG).flatMap((c) => [...c.pitchStarters]);
-        let ps = "";
-        let pt = (m.pitch ?? "") as string;
-        for (const s of allStarters) {
-          if (pt.startsWith(s)) { ps = s; pt = pt.slice(s.length).trimStart(); break; }
-        }
-        if (!ps && pt) ps = cfg.pitchStarters[0]; // fallback : rend l'accroche éditable
         setForm((prev) => ({
           ...prev,
           title: m.title ?? "",
@@ -225,8 +212,9 @@ export default function CreateMissionPage() {
           startDate: m.startDate ? String(m.startDate).slice(0, 10) : "",
           endDate: m.endDate ? String(m.endDate).slice(0, 10) : "",
           minMonths: m.minMonths ? String(m.minMonths) : "",
-          pitchStarter: ps,
-          pitchText: pt,
+          // L'accroche vit désormais sur bioTinder (carte de swipe + score) ; pitch reste
+          // alimenté en parallèle et sert de repli pour les annonces antérieures.
+          accroche: (m.bioTinder ?? m.pitch ?? "") as string,
           dateFlexibility: m.dateFlexibility ?? 0,
           logementPropose: m.logementPropose ?? false,
           vehiculePropose: m.vehiculePropose ?? false,
@@ -248,16 +236,20 @@ export default function CreateMissionPage() {
   const needs90Days = needType === "assistant";
   const under90Days = needs90Days && missionDays !== null && missionDays < 90;
 
-  // Accroche 280 signes OBLIGATOIRE — min 40 caractères (section 71 / 88)
-  const pitchCombined = `${form.pitchStarter ? form.pitchStarter + " " : ""}${form.pitchText.trim()}`.trim();
-  const pitchValid = pitchCombined.length >= 40;
-  const [pitchFocused, setPitchFocused] = useState(false);
-  const pitchRemaining = Math.max(0, 40 - pitchCombined.length);
+  // Limite d'accroche différenciée (section 123) : cabinet 700, remplaçant 280.
+  const bioLimit = bioLimitFor(profileType);
 
-  // Contenu valide = texte libre suffisant (≥40) OU accroche manuelle valide. Le texte libre
-  // devient l'accroche (pitch) de matching quand il est renseigné.
+  // Accroche : min 40 caractères (section 71 / 88). Elle n'est plus saisie de zéro — elle est
+  // proposée par l'analyse du texte libre, puis éditable ici.
+  const accrocheTrim = form.accroche.trim();
+  const accrocheValid = accrocheTrim.length >= 40;
+  const [accrocheFocused, setAccrocheFocused] = useState(false);
+  const accrocheRemaining = Math.max(0, 40 - accrocheTrim.length);
+
+  // Contenu valide = texte libre suffisant (≥40) OU accroche valide. Sans accroche saisie ni
+  // extraite (IA indisponible), le texte libre en tient lieu — la publication n'est jamais bloquée.
   const rawTextTrim = form.rawText.trim();
-  const contentValid = rawTextTrim.length >= 40 || pitchValid;
+  const contentValid = rawTextTrim.length >= 40 || accrocheValid;
 
   // Hard-gate publication (parcours texte-libre) : type + contenu + commune + dates (remplacement).
   // Ces champs restent STRUCTURÉS et confirmés ; l'IA ne fait que pré-remplir. Taux/CA non bloquants.
@@ -281,14 +273,15 @@ export default function CreateMissionPage() {
     setLoading(true);
     setError("");
 
-    // Accroche de matching : le texte libre prime (tronqué à 700 = cap colonne pitch/bioTinder) ;
-    // sinon repli sur l'accroche manuelle starter + texte.
-    const pitchFull =
-      rawTextTrim
-        ? rawTextTrim.slice(0, 700)
-        : form.pitchStarter && form.pitchText.trim()
-        ? `${form.pitchStarter} ${form.pitchText.trim()}`
-        : null;
+    // Accroche de matching : l'accroche (extraite du texte puis validée/corrigée) prime ;
+    // à défaut — IA indisponible et champ laissé vide — repli sur le texte libre tronqué au
+    // cap de la colonne (700). Écrite sur pitch ET bioTinder : la carte de swipe et le score
+    // DeepSeek lisent bioTinder, la fiche annonce publique lit pitch.
+    const pitchFull = accrocheTrim
+      ? accrocheTrim.slice(0, bioLimit)
+      : rawTextTrim
+      ? rawTextTrim.slice(0, bioLimit)
+      : null;
 
     const missionTypeMap: Record<string, string> = {
       remplacement: "REMPLACEMENT",
@@ -304,6 +297,7 @@ export default function CreateMissionPage() {
       endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
       minMonths: form.minMonths ? parseInt(form.minMonths) : null,
       pitch: pitchFull,
+      bioTinder: pitchFull,
       missionType: missionTypeMap[needType] ?? "REMPLACEMENT",
       dateFlexibility: form.dateFlexibility,
       logementPropose: form.logementPropose,
@@ -356,6 +350,8 @@ export default function CreateMissionPage() {
     if (typeof f.missionType === "string" && NEED_FROM_TYPE[f.missionType]) setNeedType(NEED_FROM_TYPE[f.missionType]);
     setForm((prev) => ({
       ...prev,
+      // Accroche proposée (condensation du texte) — l'utilisateur la corrige, il ne l'écrit plus.
+      ...(typeof f.accroche === "string" && f.accroche.trim() ? { accroche: f.accroche } : {}),
       ...(typeof f.startDate === "string" ? { startDate: f.startDate } : {}),
       ...(typeof f.endDate === "string" ? { endDate: f.endDate } : {}),
       ...(typeof f.minMonths === "number" ? { minMonths: String(f.minMonths) } : {}),
@@ -403,10 +399,6 @@ export default function CreateMissionPage() {
       setAiBusy(null);
     }
   }
-
-  // Limite BioTinder différenciée (section 123) : cabinet 700, remplaçant 280.
-  const bioLimit = bioLimitFor(profileType);
-  const maxPitchText = form.pitchStarter ? bioLimit - form.pitchStarter.length - 1 : bioLimit;
 
   return (
     <div className={`${profileType === "TITULAIRE" ? "max-w-lg lg:max-w-5xl" : "max-w-lg"} mx-auto px-4 py-8 animate-fade-up`}>
@@ -570,72 +562,41 @@ export default function CreateMissionPage() {
           />
         </div>
 
-        {/* ── Phrase clé (pitch) ── */}
-        <div className="bg-kine-50 rounded-2xl p-4 space-y-3 border border-kine-100">
+        {/* ── Accroche : champ EXTRAIT du texte libre (fusion des deux zones de saisie) ──
+             Plus de saisie à part : « Analyser le texte » la propose, l'utilisateur la corrige.
+             Si l'IA est indisponible, elle reste saisissable à la main — jamais bloquante. */}
+        <div className="bg-kine-50 rounded-2xl p-4 space-y-2 border border-kine-100">
           <label className="block text-sm font-semibold text-kine-700">
             {cfg.pitchTitle}
-            <span className="text-kine-400 font-normal ml-1">({bioLimit} signes · obligatoire)</span>
+            <span className="text-kine-400 font-normal ml-1">({bioLimit} signes)</span>
           </label>
           <p className="text-xs text-kine-600/70">
-            C&apos;est ce texte qui alimente le matching intelligent — l&apos;essentiel en quelques mots (40 caractères minimum).
+            {form.accroche
+              ? "Proposée à partir de votre texte — modifiez-la librement. C'est elle qui s'affiche sur votre carte et alimente le matching."
+              : "Cliquez sur « ✨ Analyser le texte » : l'accroche est tirée de votre description. Vous pouvez aussi l'écrire ici."}
           </p>
-          <div className="flex gap-2 flex-wrap">
-            {cfg.pitchStarters.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() =>
-                  setForm((prev) => ({
-                    ...prev,
-                    pitchStarter: prev.pitchStarter === s ? "" : s,
-                    pitchText: prev.pitchStarter === s ? "" : prev.pitchText,
-                  }))
-                }
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                  form.pitchStarter === s
-                    ? "bg-kine-600 text-white border-kine-600"
-                    : "bg-white text-kine-700 border-kine-300 hover:border-kine-500"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+          <textarea
+            value={form.accroche}
+            onChange={(e) => {
+              if (e.target.value.length <= bioLimit) setForm({ ...form, accroche: e.target.value });
+            }}
+            onFocus={() => setAccrocheFocused(true)}
+            onBlur={() => setAccrocheFocused(false)}
+            rows={3}
+            className="w-full py-2.5 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800 not-italic break-words whitespace-pre-wrap placeholder:text-gray-400 placeholder:italic"
+            placeholder="Ex : Cabinet familial à Sainte-Anne, patientèle variée, logement et véhicule à disposition."
+          />
+          <div className="flex justify-end items-center min-h-[16px]">
+            {!accrocheValid ? (
+              (accrocheFocused || accrocheTrim.length > 0) && (
+                <span className="text-xs text-amber-600 mr-auto">
+                  40 caractères minimum ({accrocheRemaining} restant{accrocheRemaining > 1 ? "s" : ""}) — sinon votre texte libre sera utilisé
+                </span>
+              )
+            ) : (
+              <span className="text-xs text-gray-300">{form.accroche.length}/{bioLimit}</span>
+            )}
           </div>
-          {form.pitchStarter && (
-            <div>
-              {/* Starter affiché comme label AU-DESSUS du textarea (section 144) — plus
-                  d'overlay absolu qui se superposait au texte saisi. */}
-              <p className="text-xs text-kine-600 font-semibold mb-1 px-1 select-none">
-                {form.pitchStarter}
-              </p>
-              <div>
-                <textarea
-                  value={form.pitchText}
-                  onChange={(e) => {
-                    if (e.target.value.length <= maxPitchText)
-                      setForm({ ...form, pitchText: e.target.value });
-                  }}
-                  onFocus={() => setPitchFocused(true)}
-                  onBlur={() => setPitchFocused(false)}
-                  rows={3}
-                  className="w-full py-2.5 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm bg-white text-gray-800 not-italic placeholder:text-gray-400 placeholder:italic"
-                  placeholder="…complétez en quelques mots"
-                />
-              </div>
-              <div className="flex justify-end items-center mt-0.5 min-h-[16px]">
-                {!pitchValid ? (
-                  // Message MINIMUM (40 requis) — masqué tant qu'aucune interaction
-                  (pitchFocused || form.pitchText.length > 0) && (
-                    <span className="text-xs text-amber-600 mr-auto">
-                      40 caractères minimum requis ({pitchRemaining} restant{pitchRemaining > 1 ? "s" : ""})
-                    </span>
-                  )
-                ) : (
-                  <span className="text-xs text-gray-300">{form.pitchStarter.length + 1 + form.pitchText.length}/{bioLimit}</span>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ── Commune ── */}

@@ -246,3 +246,25 @@ export async function sendRelationCancelledEmail(
     html
   );
 }
+
+// ── j) Invitation à rejoindre Soignect pour se rattacher à un poste (section 187) ──────────────
+// Transactionnel (le destinataire est explicitement invité, pas de compte donc pas d'opt-in) :
+// toujours envoyé. Lien /register?inviteToken=… → rattachement auto à la finalisation.
+export async function sendPosteInvitationEmail(
+  to: string,
+  opts: { cabinetName: string | null; postLabel: string; token: string }
+): Promise<void> {
+  const who = opts.cabinetName ? escapeHtml(opts.cabinetName) : "Un cabinet";
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       <strong>${who}</strong> vous invite à rejoindre Soignect pour le poste
+       « ${escapeHtml(opts.postLabel)} ».
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0">
+       Créez votre compte en quelques minutes : vous serez automatiquement rattaché·e à ce poste.
+     </p>`,
+    { label: "Créer mon compte →", path: `/register?inviteToken=${encodeURIComponent(opts.token)}` }
+  );
+  await sendEmail(to, `Invitation à rejoindre Soignect — poste « ${opts.postLabel} »`, html);
+}

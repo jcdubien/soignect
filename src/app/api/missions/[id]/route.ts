@@ -16,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     where: { id },
     select: {
       id: true, profileId: true, title: true, location: true, zones: true, specialties: true,
-      startDate: true, endDate: true, minMonths: true, pitch: true,
+      startDate: true, endDate: true, minMonths: true, pitch: true, bioTinder: true,
       missionType: true, dateFlexibility: true, cabinetPostId: true,
       logementPropose: true, vehiculePropose: true, demiJourneesLibres: true, caMensuelEstime: true,
       retrocessionRate: true, rawText: true,

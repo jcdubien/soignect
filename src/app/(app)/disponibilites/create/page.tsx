@@ -28,7 +28,8 @@ export default function CreateDisponibilitePage() {
   // Photo de profil obligatoire pour publier (ferme la brèche — cohérent avec le serveur)
   const profileId = (session?.user as { profileId?: string })?.profileId;
   const [hasPhoto, setHasPhoto] = useState<boolean | null>(null);
-  const [bioPrefilled, setBioPrefilled] = useState(false);
+  const [bioPrefilled, setBioPrefilled] = useState(false); // accroche reprise du profil
+  const [bioFromText, setBioFromText] = useState(false);   // accroche extraite du texte libre
   useEffect(() => {
     if (!profileId) return;
     fetch(`/api/profiles/${profileId}`)
@@ -36,7 +37,8 @@ export default function CreateDisponibilitePage() {
       .then((p) => {
         setHasPhoto(Boolean(p?.photoUrl));
         // Reco n°3 (audit UX) : pré-remplir l'accroche avec la bio du profil (saisie à
-        // l'inscription) pour éviter une re-saisie. N'écrase jamais une saisie en cours.
+        // l'inscription) pour éviter une re-saisie. N'écrase jamais une saisie en cours ;
+        // l'analyse du texte libre, elle, remplace cette valeur par une accroche extraite.
         const profileBio = (p?.bioTinder ?? "").trim();
         if (profileBio) {
           setForm((prev) => (prev.bioTinder.trim() === "" ? { ...prev, bioTinder: profileBio } : prev));
@@ -91,13 +93,14 @@ export default function CreateDisponibilitePage() {
     : null;
   const under90Days = isAssistant && missionDays !== null && missionDays < 90;
 
-  // Accroche 280 signes OBLIGATOIRE — min 40 caractères (section 71 / 88)
+  // Accroche 280 signes — min 40 caractères (section 71 / 88). Elle n'est plus saisie de zéro :
+  // « Analyser le texte » la propose à partir du texte libre, l'utilisateur la corrige.
   const bioValid = form.bioTinder.trim().length >= 40;
   const [bioFocused, setBioFocused] = useState(false);
   const bioRemaining = Math.max(0, 40 - form.bioTinder.trim().length);
 
-  // Contenu valide = texte libre suffisant (≥40) OU accroche manuelle valide. Le texte libre
-  // devient l'accroche (bioTinder, tronquée à 280 = cap candidat) quand il est renseigné.
+  // Contenu valide = texte libre suffisant (≥40) OU accroche valide. Sans accroche (IA
+  // indisponible et champ vide), le texte libre en tient lieu — publication jamais bloquée.
   const rawTextTrim = form.rawText.trim();
   const contentValid = rawTextTrim.length >= 40 || bioValid;
 
@@ -136,9 +139,10 @@ export default function CreateDisponibilitePage() {
       body: JSON.stringify({
         title: form.title,
         description: form.description || undefined,
-        // Le texte libre prime pour l'accroche de matching (tronqué à 280 = cap candidat) ;
-        // le texte complet est conservé dans rawText.
-        bioTinder: (rawTextTrim ? rawTextTrim.slice(0, 280) : form.bioTinder) || undefined,
+        // Accroche de matching : l'accroche (extraite du texte puis validée/corrigée) prime ;
+        // à défaut, repli sur le texte libre tronqué au cap candidat (280). Le texte complet
+        // est conservé dans rawText.
+        bioTinder: (form.bioTinder.trim() || rawTextTrim.slice(0, 280)) || undefined,
         rawText: rawTextTrim || undefined,
         location: geoLabel,
         zones: form.zones,
@@ -174,8 +178,13 @@ export default function CreateDisponibilitePage() {
   // ── Assistance IA (candidat) ────────────────────────────────────────────────────
   function applyExtracted(f: Record<string, unknown>) {
     if (f.missionType === "ASSISTANAT" || f.missionType === "COLLABORATION") setPostKind(f.missionType);
+    const accroche = typeof f.accroche === "string" ? f.accroche.trim() : "";
+    if (accroche) { setBioPrefilled(false); setBioFromText(true); }
     setForm((prev) => ({
       ...prev,
+      // Accroche proposée (condensation du texte) — remplace le pré-remplissage venu du profil,
+      // l'analyse est une action explicite de l'utilisateur. Reste éditable.
+      ...(typeof f.accroche === "string" && f.accroche.trim() ? { bioTinder: f.accroche.slice(0, 280) } : {}),
       ...(typeof f.startDate === "string" ? { startDate: f.startDate } : {}),
       ...(typeof f.endDate === "string" ? { endDate: f.endDate } : {}),
       ...(typeof f.minMonths === "number" ? { minMonths: String(f.minMonths) } : {}),
@@ -457,18 +466,26 @@ export default function CreateDisponibilitePage() {
           </div>
         )}
 
-        {/* Bio Tinder — phrase accrocheuse */}
+        {/* Accroche — champ EXTRAIT du texte libre (fusion des deux zones de saisie).
+            Plus de re-saisie : « Analyser le texte » la propose, l'utilisateur la corrige.
+            Si l'IA est indisponible, elle reste saisissable à la main — jamais bloquante. */}
         <div className="bg-kine-50 rounded-2xl p-4 border border-kine-100">
           <label className="block text-sm font-semibold text-kine-700 mb-1">
             En une phrase, qui vous êtes
-            <span className="text-kine-400 font-normal ml-1">(280 signes · obligatoire)</span>
+            <span className="text-kine-400 font-normal ml-1">(280 signes)</span>
           </label>
           <p className="text-xs text-kine-600/70 mb-2">
-            C&apos;est ce texte qui alimente le matching intelligent — présentez-vous en quelques mots (40 caractères minimum).
+            {form.bioTinder
+              ? "C'est cette phrase qui s'affiche sur votre carte et alimente le matching — modifiez-la librement."
+              : "Cliquez sur « ✨ Analyser le texte » : l'accroche est tirée de votre description. Vous pouvez aussi l'écrire ici."}
           </p>
-          {bioPrefilled && (
+          {bioFromText ? (
             <p className="text-xs text-emerald-600 mb-2">
-              ✓ Repris de votre profil — modifiable pour cette annonce.
+              ✓ Tirée de votre texte — reformulez-la si besoin.
+            </p>
+          ) : bioPrefilled && (
+            <p className="text-xs text-emerald-600 mb-2">
+              ✓ Reprise de votre profil — modifiable pour cette annonce.
             </p>
           )}
           <textarea
@@ -492,7 +509,7 @@ export default function CreateDisponibilitePage() {
               // Message MINIMUM (40 requis) — masqué tant que le champ est vide et non focus
               (bioFocused || form.bioTinder.length > 0) && (
                 <span className="text-xs text-amber-600 mr-auto">
-                  40 caractères minimum requis ({bioRemaining} restant{bioRemaining > 1 ? "s" : ""})
+                  40 caractères minimum ({bioRemaining} restant{bioRemaining > 1 ? "s" : ""}) — sinon votre texte libre sera utilisé
                 </span>
               )
             ) : (

@@ -1,14 +1,17 @@
 # ROADMAP Soignect — Vue chronologique et dépendances
 
 > Document de pilotage, séparé du PRODUCT_SPEC.md. Le spec contient le détail 
-> de chaque décision (sections 99-122) ; ce document répond à une seule 
-> question à chaque instant : **où en est-on, et qu'est-ce qui vient après ?**
+> de chaque décision (voir PRODUCT_SPEC.md — sections 99 à 171 et au-delà, 
+> c'est la partie vivante du document, cf. avertissement de lecture en tête 
+> de ce fichier) ; ce document répond à une seule question à chaque instant : 
+> **où en est-on, et qu'est-ce qui vient après ?**
 >
 > Mise à jour : chaque fois qu'un sprint est clos ou qu'une décision est prise, 
 > ce fichier doit être régénéré pour refléter l'état réel. Ne pas laisser 
 > dériver — c'est le garde-fou contre l'oubli.
 >
-> **Dernière mise à jour : 21/07/2026** (sprints 154-162 + consolidation parcours).
+> Pour la vue opérationnelle court terme (sprints datés, protocole de 
+> délégation Sonnet/Opus/Jean-Charles), voir PLAN_PASSATION_SPRINTS.md.
 
 ---
 
@@ -223,9 +226,9 @@ remplacer mon absence" fonctionne. C'est le seul point non vérifié
 en conditions réelles à ce jour.
 ```
 
-### Sprint 3.y — Consolidation post-audit (156 à 162) ✅ CLOS (20-21/07)
+### Sprint 3.y — Consolidation post-audit (156 à 161) ✅ CLOS (20/07)
 ```
-Volume important de sprints entre le 19/07 et le 21/07, en 
+Volume important de sprints entre le 19/07 et le 20/07, en 
 continuité directe du Sprint 3 (correctifs post-lancement) :
 
 ✅ 156 — Vue centralisée messages (déjà construite, confirmée) + 
@@ -251,25 +254,6 @@ continuité directe du Sprint 3 (correctifs post-lancement) :
    candidat associé : partage de disponibilité, compteur de 
    candidatures reçues, wording collaborateur/assistant corrigé — 
    le candidat a désormais la même boîte à outils que le cabinet.
-✅ 162 — Partage d'annonce accessible DANS l'app (menu gestion 
-   Planning : copier le lien + partage natif Android/iPhone + FB, 
-   composant ShareActions mutualisé) — plus seulement sur la page 
-   publique. Symétrisé côté candidat (partage de disponibilité).
-✅ AUDIT DE CONSOLIDATION DES PARCOURS (21/07) : revue complète de 
-   la symétrie des 4 acteurs (cabinet, structure, remplaçant, 
-   assistant/collaborateur). 3 asymétries corrigées (partage, 
-   compteur candidatures, wording) + 1 bug juridique majeur 
-   neutralisé (contrat salarié, cas A). Cœur du produit jugé 
-   cohérent et symétrique (inscription→swipe→match→chat→signature→
-   notifications).
-
-Points connus restants, NON bloquants :
-- Templates de contrat salarié (CDD/CDI) : volontairement absents, 
-  contrat de travail établi hors plateforme (choix assumé cas A).
-- Wording page publique « candidater » légèrement inadapté quand un 
-  cabinet consulte une disponibilité candidat (cosmétique).
-- Opt-out notifications grossier (emailOptIn global + 
-  notifyConsultation) — pas de coupure par type ni d'opt-out in-app.
 
 Point non vérifié en conditions réelles, toujours signalé comme 
 seul vrai bloquant avant diffusion WhatsApp large : le rattachement 
@@ -277,7 +261,7 @@ assistant↔poste end-to-end (section 153/154).
 ```
 Dépendance : Sprint 3 (bêta en cours).
 
-### Sprint 3.x — Méthode de collecte de patterns étendue 🟢 MÉTHODE VALIDÉE
+
 ```
 Réutiliser la méthode de confrontation offre/demande (sections 
 117-118quater du spec) sur les retours réels bêta, en complément 
@@ -382,36 +366,36 @@ Prérequis avant tout développement :
 
 ```
 🎉 PHASE 1 TERMINÉE (17/07). 🚧 PHASE 2 (BÊTA) TRÈS ACTIVE — volume 
-de travail important (sections 139 à 162), incluant 2 découvertes 
+de travail important (sections 139 à 171), incluant 2 découvertes 
 critiques du même ordre (bug inscription Assistant section 152, 
-bug contrat salarié section 161) — toutes deux neutralisées. Audit 
-de consolidation des parcours effectué (21/07) : cœur symétrique.
+bug contrat salarié section 161) — toutes deux neutralisées.
 
+⚠️ DEPUIS LE 21/07, LA PLANIFICATION OPÉRATIONNELLE DÉTAILLÉE EST 
+TENUE DANS PLAN_PASSATION_SPRINTS.md — ce tableau ci-dessous reste 
+une vue résumée, mais PLAN_PASSATION_SPRINTS.md fait foi en cas de 
+divergence (il est plus récent et plus précis, notamment sur la 
+sécurité pré-diffusion et le séquençage par semaine).
+
+Résumé du Sprint 0 (porte de la bêta, voir le plan pour le détail) :
 1. TESTER END-TO-END le rattachement assistant↔poste (section 153) 
-   avant diffusion large au groupe WhatsApp — SEUL point non 
-   vérifié en conditions réelles à ce jour (signer un contrat 
-   assistanat de test, vérifier l'apparition du poste, vérifier le 
-   bouton "Faire remplacer mon absence")
-2. Une fois ce test concluant → diffuser largement au groupe 
-   WhatsApp beta en toute confiance — le produit est maintenant 
-   symétrique entre cabinet/structure/remplaçant/assistant sur 
-   tout le cœur de parcours (inscription → swipe → match → chat → 
-   signature → notifications → partage → candidatures)
-3. Continuer à traiter les retours réels au fil de l'eau (pattern 
-   bien rodé : capture d'écran → diagnostic → prompt → 
-   vérification → documentation)
-4. Ne rien engager sur Phase 4/5/Cession avant que Phase 2-3 
-   soient largement digérées — toujours le principal risque de 
-   dispersion identifié par Jean-Charles lui-même
+   — SEUL point produit non vérifié en conditions réelles à ce jour
+2. Envoyer les 2 bugs bloquants déjà rédigés (bouton "Publier mes 
+   disponibilités" grisé §168/169, badges candidatures inopérants 
+   §164)
+3. Sécurité pré-diffusion (rate limiting DeepSeek, audit permissions, 
+   Sentry/feedback) — voir PLAN_PASSATION_SPRINTS.md section 0.3
+4. INPI + domaine soignect.fr (actions manuelles Jean-Charles)
+5. → Une fois tout coché : DIFFUSION WHATSAPP LARGE
+6. Ne rien engager sur Phase 4/5/Cession avant que Phase 2-3 soient 
+   largement digérées
 
-POINTS EN ATTENTE, NON BLOQUANTS :
-- Section 149 (photo Wikipédia illustrative + relief visuel texte 
-  annonce) — esthétique
-- Section 139 (Share Dialog Facebook, App ID) — reporté, attend 
-  l'accès de Jean-Charles à Facebook Developers
-- Wording "candidater" sur page publique dispo candidat (section 
-  161) — mineur, cosmétique
-- Décision différée : vrais templates PDF CDD/CDI si besoin un 
-  jour (section 161, chantier séparé, pas urgent — le blocage 
-  actuel est sûr)
+POINTS EN ATTENTE, NON BLOQUANTS (repris en Sprint 2-4 du plan) :
+- Section 149 (photo Wikipédia + relief visuel texte annonce)
+- Section 139 (Share Dialog Facebook) — attend accès JC
+- Wording "candidater" page publique dispo candidat (section 161)
+- Champs éditables in-app clauses contrat (section 166)
+- Partage WhatsApp texte pré-rempli (section 167)
+- Templates PDF CDD/CDI (section 161) — différé, pas urgent
 ```
+
+---
