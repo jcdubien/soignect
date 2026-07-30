@@ -318,7 +318,11 @@ function buildCreateHref(opts: { postType: string; postId: string; postLabel?: s
   const params = new URLSearchParams();
   // #2 — ne jamais proposer une date de début passée pour une nouvelle annonce
   // (ex. « successeur » démarrant à la fin d'un poste déjà terminé). Saisie manuelle libre.
-  if (opts.start) params.set("startDate", notPast(opts.start));
+  // Poste VIDE : aucune date suggérée n'existe (pas de mission de référence) — on retombe sur
+  // aujourd'hui plutôt que de n'envoyer aucun startDate. Sans lui, l'annonce se créait sans
+  // date de début et n'apparaissait sur aucune ligne du planning. Valeur toujours modifiable.
+  const start = opts.start || new Date().toISOString().slice(0, 10);
+  params.set("startDate", notPast(start));
   // Pas d'endDate pour assistant/collaboration (durée = minMonths ; un endDate court
   // ferait échouer la validation 90 jours côté serveur).
   if (opts.end && needType === "remplacement") params.set("endDate", opts.end);
