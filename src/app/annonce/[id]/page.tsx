@@ -6,12 +6,9 @@ import { BriqueStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { logTraceEvent } from "@/lib/trace";
 import ShareActions from "@/components/share/ShareActions";
+import { appBaseUrl as baseUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
-
-function baseUrl(): string {
-  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://soignect.vercel.app";
-}
 
 const TYPE_LABEL: Record<string, string> = {
   REMPLACEMENT: "Remplacement",

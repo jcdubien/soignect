@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 import { sendEmail } from "@/lib/email";
+import { appBaseUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,7 @@ export async function POST(req: NextRequest) {
     data: { resetToken: token, resetTokenExpiry: expiry },
   });
 
-  const baseUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+  const resetUrl = `${appBaseUrl()}/reset-password?token=${token}`;
 
   if (!process.env.RESEND_API_KEY) {
     console.warn(`[forgot-password] RESEND_API_KEY absente — email NON envoyé. Lien de réinitialisation : ${resetUrl}`);

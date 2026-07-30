@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { appBaseUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,9 @@ export async function POST(req: NextRequest) {
   const Stripe = (await import("stripe")).default;
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  // Ne lisait que NEXTAUTH_URL : poser AUTH_URL seule renvoyait le client sur localhost
+  // après paiement. Passe par la source unique (lib/appUrl).
+  const baseUrl = appBaseUrl();
 
   try {
     const checkoutSession = await stripe.checkout.sessions.create({

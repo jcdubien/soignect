@@ -1,11 +1,8 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
+import { appBaseUrl as baseUrl } from "@/lib/appUrl";
 
 export const dynamic = "force-dynamic";
-
-function baseUrl(): string {
-  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://soignect.vercel.app";
-}
 
 // Sitemap dynamique (section 158) — pages publiques statiques + toutes les annonces actives,
 // mis à jour automatiquement (force-dynamic, re-généré à la demande).

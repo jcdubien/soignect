@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import * as Sentry from "@sentry/nextjs";
+import { appBaseUrl } from "@/lib/appUrl";
 
 // ── Configuration ────────────────────────────────────────────────────────────
 // Expéditeur pilotable par variable d'environnement : Resend REFUSE tout envoi depuis un
@@ -9,9 +10,7 @@ import * as Sentry from "@sentry/nextjs";
 const FROM  = process.env.EMAIL_FROM ?? "Soignect <onboarding@resend.dev>";
 const BRAND = "#0B3D5C"; // lagon profond — bouton principal
 
-function baseUrl(): string {
-  return process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-}
+const baseUrl = appBaseUrl;
 
 // ── Layout sobre commun (fond blanc, logo, bouton, mention légale) ─────────────
 function layout(bodyHtml: string, cta?: { label: string; path: string }): string {
