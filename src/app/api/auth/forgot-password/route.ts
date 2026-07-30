@@ -59,8 +59,16 @@ export async function POST(req: NextRequest) {
       </div>
     `;
 
-  await sendEmail(user.email, "Réinitialisation de votre mot de passe — Soignect", html);
-  console.log(`[forgot-password] email de réinitialisation envoyé à ${user.email}`);
+  // Ne JAMAIS logger « envoyé » sans vérifier : ce log affirmait le succès même quand Resend
+  // refusait l'envoi, ce qui a masqué la panne du 30/07 pendant trois jours.
+  const sent = await sendEmail(user.email, "Réinitialisation de votre mot de passe — Soignect", html);
+  if (sent) {
+    console.log(`[forgot-password] email de réinitialisation envoyé à ${user.email}`);
+  } else {
+    // Le jeton est valide en base : un admin peut débloquer manuellement même sans email.
+    console.error(`[forgot-password] ÉCHEC d'envoi à ${user.email} — jeton créé, email non parti`);
+  }
 
+  // Réponse inchangée (200 quoi qu'il arrive) : ne pas révéler l'existence du compte.
   return NextResponse.json({ ok: true });
 }

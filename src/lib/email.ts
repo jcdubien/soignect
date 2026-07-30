@@ -1,9 +1,12 @@
 import { Resend } from "resend";
+import * as Sentry from "@sentry/nextjs";
 
 // ── Configuration ────────────────────────────────────────────────────────────
-// onboarding@resend.dev : expéditeur de test Resend (fonctionne sans domaine vérifié).
-// À remplacer par noreply@soignect.fr une fois le domaine vérifié dans Resend.
-const FROM  = "Soignect <onboarding@resend.dev>";
+// Expéditeur pilotable par variable d'environnement : Resend REFUSE tout envoi depuis un
+// domaine non vérifié (« Domain is not verified »), y compris son propre onboarding@resend.dev.
+// Dès que soignect.fr est vérifié dans Resend, poser EMAIL_FROM="Soignect <noreply@soignect.fr>"
+// dans Vercel suffit — aucun redéploiement de code nécessaire.
+const FROM  = process.env.EMAIL_FROM ?? "Soignect <onboarding@resend.dev>";
 const BRAND = "#0B3D5C"; // lagon profond — bouton principal
 
 function baseUrl(): string {
@@ -35,17 +38,36 @@ function layout(bodyHtml: string, cta?: { label: string; path: string }): string
   </div>`;
 }
 
-// ── Envoi bas niveau — fire-and-forget (ne lève jamais d'erreur) ───────────────
-export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+// ── Envoi bas niveau — ne lève jamais, mais REMONTE toujours l'échec ───────────
+// Renvoie true si Resend a accepté l'envoi, false sinon. Les appelants restent en
+// fire-and-forget ; seul l'appelant qui logge un succès doit tester le retour.
+//
+// Piège corrigé (panne du 30/07) : le SDK Resend ne LÈVE PAS sur refus de l'API — il renvoie
+// { data: null, error }. Le try/catch précédent n'était donc jamais déclenché et l'objet error
+// partait à la poubelle : domaine non vérifié, quota dépassé ou clé invalide restaient
+// totalement invisibles. On teste désormais `error` explicitement, et tout échec part dans Sentry.
+export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) {
     console.warn("[email] RESEND_API_KEY non configurée — envoi ignoré");
-    return;
+    Sentry.captureMessage("[email] RESEND_API_KEY absente — aucun email n'est envoyé", "warning");
+    return false;
   }
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({ from: FROM, to, subject, html });
+    const { error } = await resend.emails.send({ from: FROM, to, subject, html });
+    if (error) {
+      console.error(`[email] refus Resend (${error.name}): ${error.message}`);
+      Sentry.captureException(new Error(`[email] refus Resend (${error.name}): ${error.message}`), {
+        // Pas de destinataire dans les extras : donnée personnelle, hors de Sentry.
+        extra: { subject, from: FROM, statusCode: error.statusCode },
+      });
+      return false;
+    }
+    return true;
   } catch (e) {
     console.error("[email] échec d'envoi:", e);
+    Sentry.captureException(e, { extra: { subject, from: FROM } });
+    return false;
   }
 }
 

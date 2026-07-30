@@ -18,10 +18,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email },
-          include: { profile: true },
-        });
+        // Recherche insensible à la casse et aux espaces parasites. La saisie brute échouait
+        // silencieusement (« identifiants invalides » avec le bon mot de passe) dès qu'un
+        // gestionnaire de mots de passe, un copier-coller ou un clavier mobile ajoutait une
+        // majuscule ou une espace — alors que forgot-password et check-email normalisent déjà.
+        const raw = parsed.data.email.trim();
+        const normalized = raw.toLowerCase();
+        const user =
+          (await prisma.user.findUnique({ where: { email: normalized }, include: { profile: true } })) ??
+          // Repli pour un compte historique enregistré avec des majuscules (aucun aujourd'hui,
+          // mais la recherche ne doit pas régresser pour lui).
+          (raw !== normalized
+            ? await prisma.user.findUnique({ where: { email: raw }, include: { profile: true } })
+            : null);
         if (!user) return null;
 
         const valid = await compare(parsed.data.password, user.passwordHash);

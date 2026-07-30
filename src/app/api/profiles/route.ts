@@ -32,7 +32,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email, password, type, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, acceptedTerms } = parsed.data;
+  const { email: rawEmail, password, type, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, acceptedTerms } = parsed.data;
+  // Email normalisé à la source : la connexion, check-email et forgot-password comparent tous
+  // en minuscules. Enregistrer une saisie capitalisée créait un compte que son propriétaire ne
+  // pouvait plus retrouver — et un doublon possible face à un compte déjà existant.
+  const email = rawEmail.toLowerCase().trim();
   // Ne persiste la nature que pour un titulaire ; sinon on laisse le défaut (CABINET).
   const kind = type === "TITULAIRE" ? titulaireKind : undefined;
 
