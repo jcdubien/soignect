@@ -77,6 +77,8 @@ export default function CreateDisponibilitePage() {
   const [optimizeTips, setOptimizeTips] = useState<string[]>([]);
   const [detectedTags, setDetectedTags] = useState<{ methode?: string }>({});
   const [extractDone, setExtractDone] = useState(false);
+  // Texte libre tel qu'il était avant la dernière reformulation — null = rien à annuler.
+  const [rawTextBeforeRedaction, setRawTextBeforeRedaction] = useState<string | null>(null);
   const [showManual, setShowManual] = useState(false);
 
   // Mode blocage (section 178) : unifie le « bloquer ces dates » du menu rapide timeline via CE
@@ -221,7 +223,11 @@ export default function CreateDisponibilitePage() {
       } else if (action === "title") {
         if (typeof data.title === "string" && data.title) setForm((p) => ({ ...p, title: data.title }));
       } else if (action === "redaction") {
-        if (typeof data.text === "string" && data.text) setForm((p) => ({ ...p, rawText: data.text }));
+        if (typeof data.text === "string" && data.text) {
+          // Mémorise le texte AVANT écrasement pour rendre la reformulation annulable.
+          setRawTextBeforeRedaction(form.rawText);
+          setForm((p) => ({ ...p, rawText: data.text }));
+        }
       } else if (action === "optimize") {
         setOptimizeTips(Array.isArray(data.suggestions) ? data.suggestions : []);
         if ((data.suggestions ?? []).length === 0) setAiNotice("Rien à ajouter — votre disponibilité est déjà complète 👍");
@@ -361,20 +367,42 @@ export default function CreateDisponibilitePage() {
               ? "Ex : Kiné diplômé, je recherche un assistanat longue durée sur Grande-Terre à partir de septembre, minimum 12 mois. Formé en thérapie manuelle et sport. Je cherche un logement."
               : "Ex : Disponible du 1er au 30 septembre sur le Sud Grande-Terre (Sainte-Anne, Le Gosier). Mobile, méthode Mézières et respiratoire. Je recherche un logement et un véhicule."}
           />
-          <div className="flex flex-wrap gap-2">
+          {/* Libellés décrivant le RÉSULTAT, pas l'action, avec une ligne d'aide indiquant
+              ce qui change : les champs, le texte, ou rien. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <button type="button" onClick={() => runAI("extract")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
-              className="px-3 py-2 rounded-xl text-xs font-bold bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
-              {aiBusy === "extract" ? "Analyse…" : "✨ Analyser le texte"}
+              className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
+              <span className="text-xs font-bold">{aiBusy === "extract" ? "Analyse…" : "✨ Remplir les champs"}</span>
+              <span className="text-[10px] font-normal opacity-80 leading-snug">dates, zones, accroche… extraits de votre texte</span>
             </button>
             <button type="button" onClick={() => runAI("redaction")} disabled={aiBusy !== null}
-              className="px-3 py-2 rounded-xl text-xs font-bold border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
-              {aiBusy === "redaction" ? "Rédaction…" : "✍️ Aide à la rédaction"}
+              className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+              <span className="text-xs font-bold">{aiBusy === "redaction" ? "Rédaction…" : "✍️ Reformuler mon texte"}</span>
+              <span className="text-[10px] font-normal opacity-70 leading-snug">réécrit ci-dessus, vous pourrez annuler</span>
             </button>
             <button type="button" onClick={() => runAI("optimize")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
-              className="px-3 py-2 rounded-xl text-xs font-bold border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
-              {aiBusy === "optimize" ? "Analyse…" : "🚀 Optimiser ma disponibilité"}
+              className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+              <span className="text-xs font-bold">{aiBusy === "optimize" ? "Analyse…" : "🚀 Qu'est-ce qui manque ?"}</span>
+              <span className="text-[10px] font-normal opacity-70 leading-snug">suggestions d&apos;ajouts, rien n&apos;est modifié</span>
             </button>
           </div>
+
+          {/* Annulation de la reformulation — seul geste destructif du formulaire. */}
+          {rawTextBeforeRedaction !== null && (
+            <div className="flex items-center gap-2 text-xs bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              <span className="text-amber-800">Votre texte a été reformulé.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setForm((p) => ({ ...p, rawText: rawTextBeforeRedaction }));
+                  setRawTextBeforeRedaction(null);
+                }}
+                className="ml-auto shrink-0 font-bold text-amber-900 underline hover:text-amber-950"
+              >
+                Annuler la reformulation
+              </button>
+            </div>
+          )}
 
           {aiDegraded && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
