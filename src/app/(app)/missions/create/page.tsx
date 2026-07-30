@@ -244,6 +244,9 @@ export default function CreateMissionPage() {
   const accrocheTrim = form.accroche.trim();
   const accrocheValid = accrocheTrim.length >= 40;
   const [accrocheFocused, setAccrocheFocused] = useState(false);
+  // Révèle le champ accroche sans passer par l'IA (budget épuisé, analyse indisponible, ou
+  // simple préférence). Tant qu'il est faux et l'accroche vide, aucune seconde zone d'écriture.
+  const [showAccrocheManual, setShowAccrocheManual] = useState(false);
   const accrocheRemaining = Math.max(0, 40 - accrocheTrim.length);
 
   // Contenu valide = texte libre suffisant (≥40) OU accroche valide. Sans accroche saisie ni
@@ -573,8 +576,24 @@ export default function CreateMissionPage() {
         </div>
 
         {/* ── Accroche : champ EXTRAIT du texte libre (fusion des deux zones de saisie) ──
-             Plus de saisie à part : « Analyser le texte » la propose, l'utilisateur la corrige.
-             Si l'IA est indisponible, elle reste saisissable à la main — jamais bloquante. */}
+             Le textarea n'apparaît QUE s'il a du contenu (extraction faite) ou si l'utilisateur
+             demande explicitement à l'écrire. Un textarea vide affiché en permanence redonnait
+             exactement la friction que cette refonte supprime : deux zones d'écriture côte à côte.
+             Repli : le lien ci-dessous reste toujours accessible, et à défaut d'accroche c'est le
+             texte libre tronqué qui alimente la carte — la publication n'est jamais bloquée. */}
+        {!form.accroche && !showAccrocheManual ? (
+          <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+            <span className="font-semibold text-gray-600">Accroche de la carte</span> — tirée de
+            votre texte par «&nbsp;✨ Analyser le texte&nbsp;».{" "}
+            <button
+              type="button"
+              onClick={() => setShowAccrocheManual(true)}
+              className="underline font-semibold text-kine-700 hover:text-kine-800"
+            >
+              L&apos;écrire à la main
+            </button>
+          </p>
+        ) : (
         <div className="bg-kine-50 rounded-2xl p-4 space-y-2 border border-kine-100">
           <label className="block text-sm font-semibold text-kine-700">
             {cfg.pitchTitle}
@@ -583,7 +602,7 @@ export default function CreateMissionPage() {
           <p className="text-xs text-kine-600/70">
             {form.accroche
               ? "Proposée à partir de votre texte — modifiez-la librement. C'est elle qui s'affiche sur votre carte et alimente le matching."
-              : "Cliquez sur « ✨ Analyser le texte » : l'accroche est tirée de votre description. Vous pouvez aussi l'écrire ici."}
+              : "C'est elle qui s'affiche sur votre carte et alimente le matching."}
           </p>
           <textarea
             value={form.accroche}
@@ -608,6 +627,7 @@ export default function CreateMissionPage() {
             )}
           </div>
         </div>
+        )}
 
         {/* ── Commune ── */}
         <div>
