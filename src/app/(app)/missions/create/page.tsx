@@ -435,6 +435,26 @@ export default function CreateMissionPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
 
+        {/* ── Titre — TOUT EN HAUT, pleine largeur, hors de la grille deux colonnes ──
+             Premier élément que l'utilisateur a en tête, et champ obligatoire : le laisser
+             dans la colonne droite le reléguait sous le texte libre sur mobile (et derrière
+             le repli « champs détaillés »). « ✨ Proposer un titre » le remplit toujours
+             automatiquement après analyse. */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {cfg.titleLabel}
+          </label>
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            maxLength={100}
+            required
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+            placeholder={cfg.titlePlaceholder}
+          />
+        </div>
+
         {/* ── Grille 2 colonnes sur desktop (section 2) : à gauche le texte libre + l'assistance,
             à droite l'extraction + les champs structurés éditables. Empilé sur mobile. ── */}
         <div className={profileType === "TITULAIRE" ? "lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0" : ""}>
@@ -558,22 +578,6 @@ export default function CreateMissionPage() {
             </div>
           </div>
         )}
-
-        {/* ── Titre ── */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {cfg.titleLabel}
-          </label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            maxLength={100}
-            required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-            placeholder={cfg.titlePlaceholder}
-          />
-        </div>
 
         {/* ── Accroche : champ EXTRAIT du texte libre (fusion des deux zones de saisie) ──
              Le textarea n'apparaît QUE s'il a du contenu (extraction faite) ou si l'utilisateur

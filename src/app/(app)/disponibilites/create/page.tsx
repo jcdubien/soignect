@@ -345,6 +345,30 @@ export default function CreateDisponibilitePage() {
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
 
+        {/* ── Titre — TOUT EN HAUT, hors du repli « champs détaillés » ──
+             C'est le premier élément que l'utilisateur a en tête, et il est obligatoire :
+             le laisser dans le bloc replié le rendait invisible par défaut sur mobile,
+             alors qu'il bloque la publication. « ✨ Proposer un titre » (après analyse)
+             continue de le remplir automatiquement. */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {isAssistant ? "Mon projet en quelques mots" : "Titre de mon annonce"}
+          </label>
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            maxLength={100}
+            required
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+            placeholder={
+              isAssistant
+                ? "Ex : Recherche CDI kiné sport · Guadeloupe à partir de septembre"
+                : "Ex : Disponible juillet-août · Pointe-à-Pitre et alentours"
+            }
+          />
+        </div>
+
         {/* ── Refonte saisie : texte libre + assistance IA ── */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-kine-700">
@@ -424,26 +448,6 @@ export default function CreateDisponibilitePage() {
 
         {/* ── Formulaire manuel (repli) — masqué par défaut ── */}
         <div className={showManual ? "space-y-5" : "hidden"}>
-
-        {/* Titre */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {isAssistant ? "Mon projet en quelques mots" : "Titre de mon annonce"}
-          </label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            maxLength={100}
-            required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-            placeholder={
-              isAssistant
-                ? "Ex : Recherche CDI kiné sport · Guadeloupe à partir de septembre"
-                : "Ex : Disponible juillet-août · Pointe-à-Pitre et alentours"
-            }
-          />
-        </div>
 
         {/* Type de poste recherché (section 154) — un profil ASSISTANT peut viser un
             assistanat OU une collaboration libérale (patientèle propre). */}
