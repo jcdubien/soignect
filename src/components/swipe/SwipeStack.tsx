@@ -876,13 +876,16 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
         {displayMissions.length > 0 && (
           <>
             {/* Mobile : rappel discret du geste — sans bouton, l'affordance doit être écrite
-                quelque part. Mentionne aussi le tap, qui ouvre la fiche (et ses décisions). */}
-            <p className="lg:hidden text-center text-[11px] text-gray-400 pb-3 shrink-0">
-              Glissez la carte — à gauche pour passer, à droite si vous êtes intéressé·e.
-              Touchez-la pour ouvrir la fiche.
+                quelque part. Mentionne aussi le tap, qui ouvre la fiche (et ses décisions).
+                mt-5 obligatoire : les cartes de la pile sont translatées jusqu'à 22px vers le
+                bas et pivotées, elles débordent du conteneur et recouvraient ce texte. */}
+            <p className="lg:hidden text-center text-[11px] leading-snug text-gray-400 mt-5 pb-3 px-4 shrink-0">
+              Glissez à gauche pour passer, à droite si vous êtes intéressé·e —
+              touchez la carte pour ouvrir la fiche.
             </p>
 
-            <div className="hidden lg:flex flex-col items-center gap-1.5 py-3 shrink-0">
+            {/* Même débordement de pile côté desktop : mt-4 en plus du py-3. */}
+            <div className="hidden lg:flex flex-col items-center gap-1.5 mt-4 py-3 shrink-0">
               <div className="flex items-center justify-center gap-3">
                 <button
                   onClick={() => doSwipe("LEFT")}
