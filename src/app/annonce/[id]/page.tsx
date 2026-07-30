@@ -33,7 +33,11 @@ async function getMission(id: string) {
   return prisma.mission.findFirst({
     // Une INDISPONIBLE (« Dates bloquées ») est un marqueur de calendrier privé : jamais
     // accessible en page publique → traitée comme introuvable (notFound côté appelants).
-    where: { id, isActive: true, briqueStatus: { not: BriqueStatus.INDISPONIBLE } },
+    // Une annonce publique est une annonce EN RECHERCHE. Les autres statuts — absence, congés,
+    // présence, indisponibilité — sont des lignes de planning, pas des offres : les exposer
+    // publiait l'agenda personnel du praticien (page HTTP 200 + carte de partage à son nom).
+    // Même règle que le sitemap (sitemap.ts) ; l'ancien filtre n'excluait qu'INDISPONIBLE.
+    where: { id, isActive: true, briqueStatus: BriqueStatus.RECHERCHE },
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
       minMonths: true, missionType: true, pitch: true, bioTinder: true,

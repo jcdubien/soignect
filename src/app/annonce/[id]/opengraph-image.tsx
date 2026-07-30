@@ -50,7 +50,9 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   const { id } = await params;
   const m = await prisma.mission
     .findFirst({
-      where: { id, isActive: true, briqueStatus: { not: BriqueStatus.INDISPONIBLE } },
+      // Même règle que la page publique et le sitemap : seules les annonces EN RECHERCHE
+      // ont une image de partage. Sinon on générait une carte Facebook pour des congés.
+      where: { id, isActive: true, briqueStatus: BriqueStatus.RECHERCHE },
       select: {
         title: true, location: true, missionType: true,
         startDate: true, endDate: true, minMonths: true,
