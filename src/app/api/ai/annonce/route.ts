@@ -22,6 +22,9 @@ const bodySchema = z.object({
   action: z.enum(["extract", "title", "redaction", "optimize"]),
   role: z.enum(["cabinet", "candidat"]).default("cabinet"),
   text: z.string().max(8000).default(""),
+  // Informations déjà renseignées côté client (champs extraits ou saisis) — permet à
+  // « Qu'est-ce qui manque ? » de ne pas suggérer ce qui est déjà là.
+  known: z.array(z.string().max(80)).max(20).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const { action, role, text } = parsed.data;
+  const { action, role, text, known } = parsed.data;
 
   // Dégradation gracieuse : au-delà du plafond DeepSeek, on ne bloque rien — l'UI bascule sur
   // le formulaire manuel. On répond 200 avec { degraded:true } (pas une erreur).
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ text: improved });
       }
       case "optimize": {
-        const suggestions = await optimizeAnnonce(text, role as AnnonceRole);
+        const suggestions = await optimizeAnnonce(text, role as AnnonceRole, known ?? []);
         if (suggestions === null) return NextResponse.json({ degraded: true });
         await recordDeepSeekCall(profileId);
         return NextResponse.json({ suggestions });

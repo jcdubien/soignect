@@ -186,7 +186,7 @@ export async function extractAnnonceFields(
   "minMonths":         {"value":<entier mois>,"evidence":"..."} | null,  // durée minimale (assistanat/collaboration)
   "methode":           {"value":"<ex: Mézières, sport>","evidence":"..."} | null`;
   const cabinetFields = `  "commune":           {"value":"<commune de Guadeloupe>","evidence":"..."} | null,
-  "retrocessionRate":  {"value":<entier 0-100>,"evidence":"..."} | null, // % de rétrocession/redevance
+  "retrocessionRate":  {"value":<entier 0-100>,"evidence":"..."} | null, // CONVENTION IMPÉRATIVE : pour un REMPLACEMENT, la part que le REMPLAÇANT CONSERVE (« 75/25 » → 75) ; pour un ASSISTANAT ou une COLLABORATION, la redevance REVERSÉE AU CABINET (« 75/25 » → 25). C'est ce chiffre qui ira au contrat.
   "caMensuelEstime":   {"value":<entier euros/mois>,"evidence":"..."} | null,
   "logementPropose":   {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le cabinet PROPOSE un logement
   "vehiculePropose":   {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le cabinet MET un véhicule à disposition
@@ -342,17 +342,31 @@ Réponds en JSON : {"text":"annonce améliorée"}.`;
 
 // ── 4. Optimisation (suggestions d'ajouts concrets, adaptées au rôle) ────────────────
 
-export async function optimizeAnnonce(text: string, role: AnnonceRole): Promise<string[] | null> {
+// `known` = libellés des informations DÉJÀ renseignées (champs extraits ou saisis côté client).
+// Sans cette liste, le modèle suggérait d'ajouter le CA, le véhicule ou l'ambiance alors qu'ils
+// figuraient noir sur blanc dans le texte — constaté sur une annonce réelle où les 3 suggestions
+// portaient sur des éléments présents.
+export async function optimizeAnnonce(
+  text: string,
+  role: AnnonceRole,
+  known: string[] = [],
+): Promise<string[] | null> {
   const source = text.trim();
   if (source.length < 10) return [];
+  const knownList = known.map((k) => k.trim()).filter(Boolean).slice(0, 20);
+  const knownBlock = knownList.length
+    ? `\n\nDÉJÀ RENSEIGNÉ — ne suggère JAMAIS d'ajouter ces informations, elles sont acquises :\n${knownList.map((k) => `- ${k}`).join("\n")}`
+    : "";
   const roleGuidance =
     role === "cabinet"
       ? `Côté cabinet, ce qui rend une annonce attractive et que les meilleures annonces contiennent : logement, véhicule, demi-journées libres, plateau technique/équipement, ambiance d'équipe, chiffre d'affaires estimé, taux de rétrocession, répartition cabinet/domicile.
-PRIORITÉ ABSOLUE : si le CHIFFRE D'AFFAIRES ESTIMÉ et/ou le TAUX DE RÉTROCESSION sont absents du texte, propose-les EN PREMIER, avec un argument concret pour le candidat (ex : « Ajoutez votre CA estimé et le taux de rétrocession : le candidat peut se projeter financièrement, et les annonces qui les indiquent reçoivent plus de candidatures. »). Ils restent facultatifs — c'est une incitation, jamais une obligation.`
+Le chiffre d'affaires estimé et le taux de rétrocession sont les deux informations qui pèsent le plus : si — ET SEULEMENT SI — ils sont absents à la fois du texte et de la liste « déjà renseigné », propose-les en premier, avec un argument concret pour le candidat. Ils restent facultatifs : c'est une incitation, jamais une obligation.`
       : `Côté candidat, ce qui le sécurise et évite les oublis : disponibilités précises (dates), mobilité/zones, méthodes pratiquées, attentes sur le taux, logement/véhicule recherchés, expérience.`;
   const system = `Tu analyses une annonce ${role === "cabinet" ? "de cabinet" : "de candidat"} kiné en Guadeloupe et proposes 1 à 3 AJOUTS concrets et actionnables qui MANQUENT dans le texte. ${roleGuidance}
-Ne suggère que ce qui est réellement absent. Sois concret (pas de généralité). Formulation courte, à l'impératif.
-Réponds en JSON : {"suggestions":["...","..."]} (0 à 3 éléments).`;
+RÈGLE ABSOLUE : relis le texte avant chaque suggestion. Si l'information y figure — même en abrégé, même en style télégraphique (« clim », « logé », « 75/25 », « ca 8000 »), même formulée négativement (« véhicule non fourni » = l'information EST donnée) — alors elle n'est PAS manquante : ne la suggère pas.
+Mieux vaut renvoyer 0 suggestion qu'une suggestion portant sur quelque chose de déjà écrit.
+Sois concret (pas de généralité). Formulation courte, à l'impératif.
+Réponds en JSON : {"suggestions":["...","..."]} (0 à 3 éléments).${knownBlock}`;
   const parsed = await deepseekJSON(system, source, 300);
   if (parsed === null) return null;
   const safe = z.object({ suggestions: z.array(z.string()) }).safeParse(parsed);

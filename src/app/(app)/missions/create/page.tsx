@@ -383,6 +383,24 @@ export default function CreateMissionPage() {
     });
   }
 
+  // Informations déjà renseignées — transmises à « Qu'est-ce qui manque ? » pour qu'il ne
+  // suggère pas d'ajouter ce qui figure déjà dans le formulaire.
+  function knownFields(): string[] {
+    const k: string[] = [];
+    if (form.location) k.push(`commune : ${form.location}`);
+    if (form.startDate) k.push(`date de début : ${form.startDate}`);
+    if (form.endDate) k.push(`date de fin : ${form.endDate}`);
+    if (form.minMonths) k.push(`durée minimale : ${form.minMonths} mois`);
+    if (form.retrocessionRate) k.push(`taux de rétrocession : ${form.retrocessionRate}%`);
+    if (form.caMensuelEstime) k.push(`chiffre d'affaires estimé : ${form.caMensuelEstime} €/mois`);
+    if (form.demiJourneesLibres) k.push(`demi-journées libres : ${form.demiJourneesLibres}/semaine`);
+    if (form.logementPropose) k.push("logement proposé");
+    if (form.vehiculePropose) k.push("véhicule mis à disposition");
+    if (detectedTags.repartition) k.push(`répartition : ${detectedTags.repartition}`);
+    if (detectedTags.methode) k.push(`méthodes : ${detectedTags.methode}`);
+    return k;
+  }
+
   async function runAI(action: "extract" | "title" | "redaction" | "optimize") {
     if (aiBusy) return;
     setAiBusy(action); setAiDegraded(false); setAiNotice(null);
@@ -390,7 +408,10 @@ export default function CreateMissionPage() {
       const res = await fetch("/api/ai/annonce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, role: "cabinet", text: form.rawText }),
+        body: JSON.stringify({
+          action, role: "cabinet", text: form.rawText,
+          ...(action === "optimize" ? { known: knownFields() } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.degraded) { setAiDegraded(true); return; }

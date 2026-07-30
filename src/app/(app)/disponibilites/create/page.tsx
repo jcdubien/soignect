@@ -203,6 +203,20 @@ export default function CreateDisponibilitePage() {
     setDetectedTags({ methode: typeof f.methode === "string" ? f.methode : undefined });
   }
 
+  // Informations déjà renseignées — évite que « Qu'est-ce qui manque ? » suggère du déjà-là.
+  function knownFields(): string[] {
+    const k: string[] = [];
+    if (form.zones.length) k.push(`zones : ${form.zones.map((z) => ZONE_LABELS[z]).join(", ")}`);
+    if (form.startDate) k.push(`disponible à partir du ${form.startDate}`);
+    if (form.endDate) k.push(`jusqu'au ${form.endDate}`);
+    if (form.minMonths) k.push(`durée minimale : ${form.minMonths} mois`);
+    if (form.rechercheLogement) k.push("recherche un logement");
+    if (form.rechercheVehicule) k.push("besoin d'un véhicule");
+    if (form.ouvertSalariat) k.push("ouvert au salariat");
+    if (detectedTags.methode) k.push(`méthodes : ${detectedTags.methode}`);
+    return k;
+  }
+
   async function runAI(action: "extract" | "title" | "redaction" | "optimize") {
     if (aiBusy) return;
     setAiBusy(action); setAiDegraded(false); setAiNotice(null);
@@ -210,7 +224,10 @@ export default function CreateDisponibilitePage() {
       const res = await fetch("/api/ai/annonce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, role: "candidat", text: form.rawText }),
+        body: JSON.stringify({
+          action, role: "candidat", text: form.rawText,
+          ...(action === "optimize" ? { known: knownFields() } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.degraded) { setAiDegraded(true); return; }
