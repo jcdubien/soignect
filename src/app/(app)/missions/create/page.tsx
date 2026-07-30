@@ -482,7 +482,7 @@ export default function CreateMissionPage() {
                 Libellés décrivant le RÉSULTAT, pas l'action : « Analyser » et « Optimiser »
                 sonnaient pareil et rien n'indiquait lequel modifiait quoi. La ligne d'aide
                 sous chacun dit ce qui change : les champs, le texte, ou rien. */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button type="button" onClick={() => runAI("extract")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
                 className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
                 <span className="text-xs font-bold">{aiBusy === "extract" ? "Analyse…" : "✨ Remplir les champs"}</span>
@@ -497,6 +497,13 @@ export default function CreateMissionPage() {
                 className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
                 <span className="text-xs font-bold">{aiBusy === "optimize" ? "Analyse…" : "🚀 Qu'est-ce qui manque ?"}</span>
                 <span className="text-[10px] font-normal opacity-70 leading-snug">suggestions d&apos;ajouts, rien n&apos;est modifié</span>
+              </button>
+              {/* Regroupé ici avec les autres assistances : il était isolé dans l'encart
+                  « ce que j'ai compris » et n'apparaissait qu'après extraction. */}
+              <button type="button" onClick={() => runAI("title")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
+                className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+                <span className="text-xs font-bold">{aiBusy === "title" ? "Titre…" : "✨ Proposer un titre"}</span>
+                <span className="text-[10px] font-normal opacity-70 leading-snug">remplit l&apos;intitulé du poste ci-dessous</span>
               </button>
             </div>
 
@@ -579,10 +586,6 @@ export default function CreateMissionPage() {
             {missingRequired.length > 0 && (
               <p className="text-[11px] text-amber-700">À compléter : <strong>{missingRequired.join(", ")}</strong></p>
             )}
-            <button type="button" onClick={() => runAI("title")} disabled={aiBusy !== null}
-              className="text-[11px] font-semibold text-kine-600 hover:text-kine-700 disabled:opacity-40">
-              {aiBusy === "title" ? "Titre…" : "✨ Proposer un titre"}
-            </button>
           </div>
         )}
 
