@@ -48,8 +48,10 @@ function datesLabel(m: { startDate: Date | null; endDate: Date | null; minMonths
 
 export default async function OgImage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const m = await prisma.mission
-    .findFirst({
+
+  let m;
+  try {
+    m = await prisma.mission.findFirst({
       // Même règle que la page publique et le sitemap : seules les annonces EN RECHERCHE
       // ont une image de partage. Sinon on générait une carte Facebook pour des congés.
       where: { id, isActive: true, briqueStatus: BriqueStatus.RECHERCHE },
@@ -58,14 +60,22 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
         startDate: true, endDate: true, minMonths: true,
         profile: { select: { type: true } }, // cadre le badge (cabinet propose / candidat se propose)
       },
-    })
-    .catch(() => null);
+    });
+  } catch {
+    // Panne base : surtout PAS 404 — les caches sociaux (Facebook, LinkedIn) retiennent
+    // longtemps un 404 et l'aperçu resterait cassé pour une annonce pourtant valide.
+    // 503 = temporaire, le scraper réessaiera.
+    return new Response("Image de partage temporairement indisponible", { status: 503 });
+  }
 
-  const rawTitle = m?.title ?? "Annonce paramédicale";
-  const title = rawTitle.length > 120 ? rawTitle.slice(0, 118).trimEnd() + "…" : rawTitle;
-  const location = m?.location ?? "Guadeloupe";
-  const type = m ? badgeLabel(m.profile?.type, m.missionType) : "Soignect";
-  const dates = m ? datesLabel(m) : "";
+  // Pas d'annonce publique → pas d'image de partage. On renvoie 404 plutôt qu'une carte
+  // générique, pour rester cohérent avec /annonce/[id] qui renvoie notFound().
+  if (!m) return new Response("Not found", { status: 404 });
+
+  const title = m.title.length > 120 ? m.title.slice(0, 118).trimEnd() + "…" : m.title;
+  const location = m.location;
+  const type = badgeLabel(m.profile?.type, m.missionType);
+  const dates = datesLabel(m);
 
   // Police du titre dimensionnée selon la longueur (2 lignes max) → jamais de débordement.
   const titleSize = title.length <= 26 ? 70 : title.length <= 46 ? 58 : title.length <= 72 ? 48 : 40;
