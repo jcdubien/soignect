@@ -413,6 +413,24 @@ export default function CreateMissionPage() {
     }
   }
 
+  // Champ titre — défini une fois, rendu à un seul endroit selon la mise en page :
+  // sous le texte libre (colonne gauche, cabinet), ou en tête des champs si cette colonne
+  // n'existe pas (assistant en mode couverture). Jamais les deux.
+  const titleField = (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{cfg.titleLabel}</label>
+      <input
+        type="text"
+        value={form.title}
+        onChange={(e) => setForm({ ...form, title: e.target.value })}
+        maxLength={100}
+        required
+        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+        placeholder={cfg.titlePlaceholder}
+      />
+    </div>
+  );
+
   return (
     <div className={`${profileType === "TITULAIRE" ? "max-w-lg lg:max-w-5xl" : "max-w-lg"} mx-auto px-4 py-8 animate-fade-up`}>
       {/* En-tête */}
@@ -434,26 +452,6 @@ export default function CreateMissionPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-
-        {/* ── Titre — TOUT EN HAUT, pleine largeur, hors de la grille deux colonnes ──
-             Premier élément que l'utilisateur a en tête, et champ obligatoire : le laisser
-             dans la colonne droite le reléguait sous le texte libre sur mobile (et derrière
-             le repli « champs détaillés »). « ✨ Proposer un titre » le remplit toujours
-             automatiquement après analyse. */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {cfg.titleLabel}
-          </label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            maxLength={100}
-            required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-            placeholder={cfg.titlePlaceholder}
-          />
-        </div>
 
         {/* ── Grille 2 colonnes sur desktop (section 2) : à gauche le texte libre + l'assistance,
             à droite l'extraction + les champs structurés éditables. Empilé sur mobile. ── */}
@@ -513,6 +511,11 @@ export default function CreateMissionPage() {
               className="lg:hidden text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
               {showManual ? "Masquer les champs détaillés" : "Vérifier / compléter les champs à la main"}
             </button>
+
+            {/* Titre — juste APRÈS le texte libre, et hors du repli. Après, pour ne pas
+                accueillir l'utilisateur par un champ manuel : la refonte veut qu'il écrive
+                d'abord. Hors du repli, car le titre est OBLIGATOIRE et bloque la publication. */}
+            {titleField}
           </div>
         )}
 
@@ -520,6 +523,10 @@ export default function CreateMissionPage() {
             structurés éditables. Toujours visible sur desktop (lg:block) ; sur mobile, révélée
             après extraction (showManual passe à true) ou via le toggle. ── */}
         <div className={profileType !== "TITULAIRE" ? "space-y-5" : `space-y-5 ${showManual ? "" : "hidden lg:block"}`}>
+
+        {/* Hors cabinet (assistant en mode couverture) : pas de colonne gauche, donc le titre
+            n'a pas été rendu au-dessus — on le place ici, en tête des champs. */}
+        {profileType !== "TITULAIRE" && titleField}
 
         {/* Résumé compact « ce que j'ai compris » + champs manquants requis (en tête de colonne) */}
         {profileType === "TITULAIRE" && extractDone && (
