@@ -854,10 +854,21 @@ export default function CreateMissionPage() {
           </div>
         </div>
 
-        {/* ── Taux de rétrocession (structuré — peut atterrir dans le contrat) ── */}
+        {/* ── Taux de rétrocession / redevance (structuré — atterrit dans le contrat) ──
+             Le SENS de ce pourcentage s'inverse selon le type de poste, exactement comme sur
+             la page contrat (match/[id]/contrat) :
+               • remplacement           → part que le REMPLAÇANT conserve (contrat : « le
+                 remplaçant percevra X% des honoraires »), usuellement 50-90
+               • assistanat/collaboration → part que l'assistant REVERSE au cabinet, usuellement 10-60
+             Le libellé figé « Taux de rétrocession » avec le placeholder « Ex : 25 » invitait à
+             saisir la part du cabinet : un remplacement à 75/25 se retrouvait contractualisé à
+             25% pour le remplaçant. */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Taux de rétrocession <span className="text-gray-400 font-normal">% (opt.)</span>
+            {needType === "remplacement"
+              ? "Taux de rétrocession pour le remplaçant"
+              : "Redevance versée au cabinet"}{" "}
+            <span className="text-gray-400 font-normal">% (opt.)</span>
           </label>
           <input
             type="number"
@@ -867,8 +878,13 @@ export default function CreateMissionPage() {
             value={form.retrocessionRate}
             onChange={(e) => setForm({ ...form, retrocessionRate: e.target.value })}
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-            placeholder="Ex : 25"
+            placeholder={needType === "remplacement" ? "Ex : 75" : "Ex : 25"}
           />
+          <p className="text-xs text-gray-400 mt-1">
+            {needType === "remplacement"
+              ? "Part des honoraires que le remplaçant conserve — c'est ce chiffre qui figurera au contrat. Un « 75/25 » se saisit 75."
+              : "Part des honoraires que l'assistant reverse au cabinet — c'est ce chiffre qui figurera au contrat."}
+          </p>
         </div>
 
         </div>
