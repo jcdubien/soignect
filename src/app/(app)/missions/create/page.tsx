@@ -259,8 +259,18 @@ export default function CreateMissionPage() {
   if (!form.location)                            missingRequired.push("la commune");
   if (!contentValid)                             missingRequired.push("une description (≥ 40 caractères)");
   if (needType === "remplacement" && (!form.startDate || !form.endDate)) missingRequired.push("les dates de début et de fin");
+  // Annonce rattachée à un poste du Planning : sans date de début, la brique ne se place sur
+  // aucune ligne. On le dit AVANT publication plutôt que de laisser partir une annonce fantôme.
+  if (cabinetPostId && needType !== "remplacement" && !form.startDate) missingRequired.push("la date de prise de poste");
 
-  const showDates =
+  // La date de DÉBUT est toujours nécessaire : c'est elle qui positionne la brique sur la
+  // timeline du Planning (MissionBrick renvoie null sans startDate). Elle était masquée pour
+  // assistanat/collaboration — l'annonce partait alors sans date, était publiée sans erreur,
+  // et n'apparaissait jamais sur la ligne du poste (constaté sur 3 annonces en base).
+  const showStartDate = profileType === "REMPLACANT" || profileType === "TITULAIRE";
+  // La date de FIN n'a de sens qu'en remplacement : assistanat/collaboration sont bornés par
+  // la durée minimale (minMonths), et un endDate court ferait échouer la validation 90 jours.
+  const showEndDate =
     profileType === "REMPLACANT" ||
     (profileType === "TITULAIRE" && needType === "remplacement");
 
@@ -628,15 +638,20 @@ export default function CreateMissionPage() {
           </div>
         )}
 
-        {/* ── Dates (REMPLAÇANT ou TITULAIRE-remplacement) ── */}
-        {showDates && (
+        {/* ── Dates — le DÉBUT est demandé pour tous les types (il place la brique sur la
+             timeline) ; la FIN uniquement en remplacement. ── */}
+        {showStartDate && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {profileType === "TITULAIRE" ? "Période de remplacement" : "Mes dates de disponibilité"}
+              {profileType !== "TITULAIRE"
+                ? "Mes dates de disponibilité"
+                : showEndDate
+                ? "Période de remplacement"
+                : "Date de prise de poste"}
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={showEndDate ? "grid grid-cols-2 gap-3" : ""}>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Du</label>
+                <label className="block text-xs text-gray-400 mb-1">{showEndDate ? "Du" : "À partir du"}</label>
                 <input
                   type="date"
                   value={form.startDate}
@@ -644,22 +659,29 @@ export default function CreateMissionPage() {
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Au</label>
-                <input
-                  type="date"
-                  value={form.endDate}
-                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                  min={form.startDate}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-                />
-              </div>
+              {showEndDate && (
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Au</label>
+                  <input
+                    type="date"
+                    value={form.endDate}
+                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                    min={form.startDate}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                  />
+                </div>
+              )}
             </div>
+            {!showEndDate && (
+              <p className="text-xs text-gray-400 mt-1">
+                Sans cette date, l&apos;annonce n&apos;apparaîtra pas sur la ligne du poste dans votre planning.
+              </p>
+            )}
           </div>
         )}
 
-        {/* ── Flexibilité dates ── */}
-        {showDates && (
+        {/* ── Flexibilité dates — porte sur une période, donc remplacement uniquement ── */}
+        {showEndDate && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Flexibilité sur les dates

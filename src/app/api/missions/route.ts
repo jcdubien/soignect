@@ -154,6 +154,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Une annonce rattachée à un poste du Planning DOIT avoir une date de début : c'est elle
+  // qui positionne la brique sur la ligne du poste (MissionBrick ne rend rien sans startDate).
+  // Sans cette garde, un assistanat sans date était publié sans erreur puis restait invisible
+  // sur le planning — le titulaire croyait sa publication perdue.
+  if (effectiveBrique === BriqueStatus.RECHERCHE && cabinetPostId && !startDate) {
+    return NextResponse.json(
+      { error: "Renseignez la date de prise de poste : sans elle, l'annonce n'apparaîtrait pas sur votre planning." },
+      { status: 422 }
+    );
+  }
+
   if (effectiveMissionType === MissionType.ASSISTANAT && startDate && endDate) {
     const dureeJours = Math.floor((endDate.getTime() - startDate.getTime()) / 86400000);
     if (dureeJours < 90) {
