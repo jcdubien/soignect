@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { X, Heart } from "lucide-react";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import { fmtDay } from "@/lib/dates";
 import { zoneOfCommune } from "@/lib/communes";
@@ -148,28 +147,28 @@ export default function MissionDetailSheet({
         </div>
       );
     }
-    // Jamais swipée → décider directement ici
+    // Jamais swipée → décider directement ici. Contrôles TEXTUELS sobres, alignés sur le
+    // carrousel : plus de FAB ronds ✕/♥. C'est aussi le chemin sans geste directionnel sur
+    // mobile, où la carte ne porte plus de boutons.
     return (
       <div className="mt-5">
         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2 text-center">Votre décision</p>
-        <div className="flex items-center justify-center gap-10">
+        <div className="flex items-center justify-center gap-3">
           <button
             type="button"
             onClick={() => handleSwipe("LEFT")}
             disabled={swiping}
-            aria-label="Passer"
-            className="shrink-0 w-14 h-14 rounded-full bg-white border border-gray-200 text-gray-500 shadow-md hover:bg-red-50 hover:text-red-500 hover:border-red-200 active:scale-90 transition disabled:opacity-40 flex items-center justify-center"
+            className="md3-ripple flex-1 max-w-[170px] px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition disabled:opacity-40"
           >
-            <X size={26} strokeWidth={2} />
+            Passer
           </button>
           <button
             type="button"
             onClick={() => handleSwipe("RIGHT")}
             disabled={swiping}
-            aria-label="Intéressé"
-            className="shrink-0 w-14 h-14 rounded-full bg-[#0B3D5C] text-white shadow-lg hover:bg-[#0e4d73] active:scale-90 transition disabled:opacity-40 flex items-center justify-center"
+            className="md3-ripple flex-1 max-w-[170px] px-5 py-2.5 rounded-lg border border-[#0B3D5C]/30 text-sm font-semibold text-[#0B3D5C] hover:bg-[#0B3D5C]/[0.06] transition disabled:opacity-40"
           >
-            <Heart size={24} strokeWidth={2} fill="currentColor" />
+            Intéressé
           </button>
         </div>
         {actionError && (

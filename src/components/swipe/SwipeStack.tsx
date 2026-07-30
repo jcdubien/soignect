@@ -10,7 +10,6 @@ import {
 } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { X, Heart } from "lucide-react";
 import { Mission, MissionType, Profile } from "@prisma/client";
 import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
@@ -634,6 +633,23 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
     else if (ox < -100) doSwipe("LEFT");
   }
 
+  // ── Raccourcis clavier ← / → (desktop) ──────────────────────────────────────
+  // N'existaient pas : ils complètent les contrôles textuels et donnent un chemin
+  // 100 % clavier. Neutralisés pendant une saisie, une modale de match, la fiche
+  // détaillée ouverte, ou une animation de carte en cours.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (match || detailMission || swiping) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
+      e.preventDefault();
+      doSwipe(e.key === "ArrowRight" ? "RIGHT" : "LEFT");
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [doSwipe, match, detailMission, swiping]);
+
   // ── Cas TITULAIRE sans missions actives ─────────────────────────────────────
   if (isTitulaire && titulaireMissions && titulaireMissions.length === 0) {
     return (
@@ -727,9 +743,18 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
         {match && <MatchModal match={match} onClose={() => setMatch(null)} />}
       </AnimatePresence>
 
-      {/* Fiche détaillée (bottom sheet, section 4) */}
+      {/* Fiche détaillée (bottom sheet, section 4).
+          Accessibilité (WCAG 2.5.1, « Pointer Gestures ») : sans les boutons du carrousel, le
+          glissement — un geste directionnel — serait le SEUL moyen de décider sur mobile. La
+          fiche s'ouvre au simple tap sur la carte et porte donc les deux décisions : chemin
+          complet pour qui ne peut pas (ou ne veut pas) faire le geste. */}
       {detailMission && (
-        <MissionDetailSheet mission={detailMission} onClose={() => setDetailMission(null)} />
+        <MissionDetailSheet
+          mission={detailMission}
+          onClose={() => setDetailMission(null)}
+          relation={{ swipeDirection: null, matchId: null }}
+          onSwipe={async (direction) => { setDetailMission(null); await doSwipe(direction); }}
+        />
       )}
 
       <div className="flex-1 flex flex-col min-h-0 select-none">
@@ -842,28 +867,44 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           </motion.div>
         </div>
 
-        {/* ── Boutons Pass / Intérêt — FAB Material 3 (section 8) ── */}
+        {/* ── Décision ────────────────────────────────────────────────────────────
+             Mobile : aucun bouton — le geste seul (gauche = passer, droite = intéressé).
+             Les deux gros FAB ronds ✕/♥ donnaient une couleur « application de rencontre »
+             qui ne colle pas à un outil professionnel.
+             Desktop : pas de geste naturel à la souris → deux contrôles TEXTUELS sobres,
+             doublés des raccourcis clavier ← / →. ── */}
         {displayMissions.length > 0 && (
-          <div className="flex items-center justify-center gap-10 sm:gap-14 py-3 shrink-0">
-            {/* PASS — outlined FAB : fond clair, contour subtil, icône grise → rouge doux */}
-            <button
-              onClick={() => doSwipe("LEFT")}
-              disabled={swiping}
-              aria-label="Passer"
-              className="shrink-0 w-16 h-16 rounded-full bg-white border border-gray-200 text-gray-500 shadow-md hover:bg-red-50 hover:text-red-500 hover:border-red-200 active:scale-90 transition disabled:opacity-40 flex items-center justify-center"
-            >
-              <X size={30} strokeWidth={2} />
-            </button>
-            {/* INTÉRESSÉ — filled FAB : fond plein marque (#0B3D5C), icône blanche */}
-            <button
-              onClick={() => doSwipe("RIGHT")}
-              disabled={swiping}
-              aria-label="Intéressé"
-              className="shrink-0 w-16 h-16 rounded-full bg-[#0B3D5C] text-white shadow-lg hover:bg-[#0e4d73] active:scale-90 transition disabled:opacity-40 flex items-center justify-center"
-            >
-              <Heart size={28} strokeWidth={2} fill="currentColor" />
-            </button>
-          </div>
+          <>
+            {/* Mobile : rappel discret du geste — sans bouton, l'affordance doit être écrite
+                quelque part. Mentionne aussi le tap, qui ouvre la fiche (et ses décisions). */}
+            <p className="lg:hidden text-center text-[11px] text-gray-400 pb-3 shrink-0">
+              Glissez la carte — à gauche pour passer, à droite si vous êtes intéressé·e.
+              Touchez-la pour ouvrir la fiche.
+            </p>
+
+            <div className="hidden lg:flex flex-col items-center gap-1.5 py-3 shrink-0">
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={() => doSwipe("LEFT")}
+                  disabled={swiping}
+                  className="md3-ripple min-w-[128px] px-5 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition disabled:opacity-40"
+                >
+                  Passer
+                </button>
+                <button
+                  onClick={() => doSwipe("RIGHT")}
+                  disabled={swiping}
+                  className="md3-ripple min-w-[128px] px-5 py-2 rounded-lg border border-[#0B3D5C]/30 text-sm font-semibold text-[#0B3D5C] hover:bg-[#0B3D5C]/[0.06] transition disabled:opacity-40"
+                >
+                  Intéressé
+                </button>
+              </div>
+              <p className="text-[11px] text-gray-400">
+                Raccourcis clavier : <kbd className="font-sans">←</kbd> passer ·{" "}
+                <kbd className="font-sans">→</kbd> intéressé
+              </p>
+            </div>
+          </>
         )}
       </div>
     </>
