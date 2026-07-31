@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { BriqueStatus, MissionType, MatchStatus } from "@prisma/client";
+import { sendPeriodRemovedEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -71,29 +72,41 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
-  // Garde-fou aligné sur DELETE /api/missions/[id] : une période engagée avec quelqu'un ne se
-  // supprime pas ici. La suppression efface les Match sans prévenir personne — l'autre partie
-  // verrait sa mise en relation disparaître sans explication. L'annulation de mise en relation,
-  // elle, notifie. On refuse donc et on y renvoie.
-  // Les matchs éteints (DECLINE / EXPIRE) n'engagent plus personne : ils ne bloquent pas.
-  const matchActif = await prisma.match.findFirst({
-    where: {
-      OR: [{ missionAId: missionId }, { missionBId: missionId }],
-      status: { in: [MatchStatus.EN_ATTENTE, MatchStatus.DISCUSSION, MatchStatus.CONFIRME] },
-    },
-    select: { status: true },
+  // Un match CONFIRMÉ peut porter un contrat signé : sa rupture est une autre démarche, qui
+  // passe par « Annuler la mise en relation » (annulation du contrat, détachement du poste,
+  // resync des timelines). On refuse ici, comme le fait DELETE /api/missions/[id].
+  const matchConfirme = await prisma.match.findFirst({
+    where: { OR: [{ missionAId: missionId }, { missionBId: missionId }], status: MatchStatus.CONFIRME },
+    select: { id: true },
   });
-  if (matchActif) {
+  if (matchConfirme) {
     return NextResponse.json(
-      {
-        error:
-          matchActif.status === MatchStatus.CONFIRME
-            ? "Cette absence est liée à une mise en relation confirmée. Utilisez « Annuler la mise en relation » : l'autre partie sera prévenue."
-            : "Cette absence est liée à une mise en relation en cours. Utilisez « Annuler la mise en relation » avant de la supprimer : l'autre partie sera prévenue.",
-      },
+      { error: "Cette absence est liée à une mise en relation confirmée. Utilisez « Annuler la mise en relation » : le contrat sera annulé et l'autre partie prévenue." },
       { status: 409 }
     );
   }
+
+  // Destinataires à prévenir : les mises en relation ENGAGÉES, c'est-à-dire en DISCUSSION.
+  // Les EN_ATTENTE ne le sont pas — personne n'a encore répondu, un email serait du bruit.
+  // DECLINE / EXPIRE n'engagent plus personne. On collecte AVANT la suppression, sinon les
+  // Match n'existent plus.
+  const matchsEngages = await prisma.match.findMany({
+    where: { OR: [{ missionAId: missionId }, { missionBId: missionId }], status: MatchStatus.DISCUSSION },
+    select: { profileAId: true, profileBId: true },
+  });
+  const autresProfils = Array.from(
+    new Set(matchsEngages.map((m) => (m.profileAId === profileId ? m.profileBId : m.profileAId)))
+  );
+  const destinataires = autresProfils.length
+    ? await prisma.user.findMany({
+        where: { profile: { id: { in: autresProfils } } },
+        select: { email: true, emailOptIn: true },
+      })
+    : [];
+  const [moi, periode] = await Promise.all([
+    prisma.profile.findUnique({ where: { id: profileId }, select: { name: true } }),
+    prisma.mission.findUnique({ where: { id: missionId }, select: { startDate: true, endDate: true } }),
+  ]);
 
   // Nettoyage des dépendances AVANT suppression, comme le fait déjà DELETE /api/missions/[id].
   // Sans ça, un seul Swipe reçu suffisait à faire échouer le delete sur contrainte de clé
@@ -104,5 +117,27 @@ export async function DELETE(req: NextRequest) {
     prisma.match.deleteMany({ where: { OR: [{ missionAId: missionId }, { missionBId: missionId }] } }),
     prisma.mission.delete({ where: { id: missionId } }),
   ]);
-  return NextResponse.json({ ok: true });
+
+  // Notification après suppression réussie (fire-and-forget, comme l'annulation de match) :
+  // « le cabinet a retiré cette période ». Ton neutre — le destinataire n'a rien fait de mal,
+  // le besoin a simplement disparu.
+  if (destinataires.length) {
+    const fmt = (d: Date | null) =>
+      d ? d.toISOString().slice(0, 10).split("-").reverse().join("/") : null;
+    const libelle =
+      periode?.startDate && periode?.endDate
+        ? `${fmt(periode.startDate)} → ${fmt(periode.endDate)}`
+        : null;
+    await Promise.all(
+      destinataires.map((u) =>
+        sendPeriodRemovedEmail(u.email, {
+          optIn: u.emailOptIn,
+          cabinetName: moi?.name ?? null,
+          periode: libelle,
+        })
+      )
+    );
+  }
+
+  return NextResponse.json({ ok: true, notifies: destinataires.length });
 }

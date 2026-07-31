@@ -268,6 +268,31 @@ export async function sendRelationCancelledEmail(
   );
 }
 
+// ── i bis) Période retirée par le cabinet ─────────────────────────────────────────
+// Distinct de l'annulation de mise en relation : ici personne n'a rompu la relation, le
+// cabinet a simplement retiré la période de son planning (congé annulé, dates revues).
+// Le destinataire n'a rien fait de mal — le ton doit le refléter.
+export async function sendPeriodRemovedEmail(
+  to: string,
+  opts: { optIn: boolean; cabinetName?: string | null; periode?: string | null }
+): Promise<void> {
+  if (!opts.optIn) return;
+  const who = opts.cabinetName ? escapeHtml(opts.cabinetName) : "Le cabinet";
+  const quand = opts.periode ? ` (${escapeHtml(opts.periode)})` : "";
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       <strong>${who}</strong> a retiré cette période${quand} de son planning.
+       La mise en relation qui s'y rapportait n'a donc plus d'objet.
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0">
+       Rien ne vous est reproché : le besoin a simplement disparu. D'autres postes sont en ligne.
+     </p>`,
+    { label: "Voir les annonces", path: "/annonces" }
+  );
+  await sendEmail(to, "Une période a été retirée — Soignect", html);
+}
+
 // ── j) Invitation à rejoindre Soignect pour se rattacher à un poste (section 187) ──────────────
 // Transactionnel (le destinataire est explicitement invité, pas de compte donc pas d'opt-in) :
 // toujours envoyé. Lien /register?inviteToken=… → rattachement auto à la finalisation.
