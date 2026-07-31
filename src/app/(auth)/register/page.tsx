@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
@@ -66,7 +66,13 @@ export default function RegisterPage() {
 
 function RegisterForm() {
   const router = useRouter();
-  const rawReturnTo = useSearchParams().get("return_to");
+  const searchParams = useSearchParams();
+  const rawReturnTo = searchParams.get("return_to");
+  // Invitation à rejoindre un poste (section 187) : le lien reçu par email porte un token.
+  // Il était généré et résolu, mais AUCUN écran ne le consommait — l'invité·e s'inscrivait
+  // sans jamais être rattaché·e, et l'invitation restait PENDING pour toujours.
+  const inviteToken = searchParams.get("inviteToken");
+  const [invite, setInvite] = useState<{ cabinetName: string | null; postLabel: string; invitedEmail: string } | null>(null);
   const returnTo = rawReturnTo && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//") ? rawReturnTo : null;
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
@@ -80,6 +86,21 @@ function RegisterForm() {
 
   // Step 2
   const [email, setEmail] = useState("");
+
+  // Résolution du token : pré-remplit l'email invité et affiche le contexte (cabinet, poste).
+  // Un token invalide ou expiré n'empêche PAS de s'inscrire — on n'enferme personne dehors,
+  // le rattachement échouera simplement en silence côté serveur.
+  useEffect(() => {
+    if (!inviteToken) return;
+    fetch(`/api/poste-invitations/${encodeURIComponent(inviteToken)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d?.valid) return;
+        setInvite({ cabinetName: d.cabinetName, postLabel: d.postLabel, invitedEmail: d.invitedEmail });
+        setEmail((prev) => prev || d.invitedEmail);
+      })
+      .catch(() => {});
+  }, [inviteToken]);
   // Item 21 — vérification email en temps réel
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   async function checkEmail() {
@@ -138,6 +159,7 @@ function RegisterForm() {
         phoneCountry,
         emailOptIn,
         acceptedTerms, // consentement légal enregistré (section 150)
+        inviteToken: inviteToken ?? undefined, // rattachement automatique au poste invité
       });
     } catch {
       setError("Problème de connexion. Vérifiez votre réseau et réessayez.");
@@ -202,6 +224,19 @@ function RegisterForm() {
           {/* ── ÉCRAN 1 : Qui êtes-vous ? ── */}
           {step === 1 && (
             <>
+              {/* Contexte de l'invitation — sans lui, l'invité·e arrive sur une inscription
+                  ordinaire et ne comprend pas pourquoi son email est déjà rempli. */}
+              {invite && (
+                <div className="mb-5 rounded-xl bg-kine-50 border border-kine-100 px-4 py-3">
+                  <p className="text-sm text-kine-800">
+                    <strong>{invite.cabinetName ?? "Un cabinet"}</strong> vous invite à rejoindre
+                    le poste «&nbsp;{invite.postLabel}&nbsp;».
+                  </p>
+                  <p className="text-xs text-kine-600/80 mt-1">
+                    Vous y serez rattaché·e automatiquement à la fin de votre inscription.
+                  </p>
+                </div>
+              )}
               <h2 className="text-xl font-bold text-gray-800 mb-2">Je suis…</h2>
               <p className="text-gray-400 text-sm mb-6">Choisissez votre profil pour commencer</p>
 
