@@ -368,7 +368,7 @@ function PostMenu({
   onEditAnnonce: () => void;  // Cas 2 UPDATE — formulaire de création en mode édition
 }) {
   const { mission, post } = dropdown;
-  const [step, setStep] = useState<"menu" | "presence" | "preavis" | "modifier" | "renommer" | "annuler_annonce">("menu");
+  const [step, setStep] = useState<"menu" | "presence" | "preavis" | "modifier" | "renommer" | "annuler_annonce" | "retour">("menu");
   const [busy, setBusy] = useState(false);
 
   // Cas 2 (section CRUD annonce) — une annonce est active sur la période cliquée :
@@ -444,6 +444,19 @@ function PostMenu({
         startDate: new Date(eStart).toISOString(),
         endDate: computeModifierEnd(),
       }),
+    });
+    onDone();
+  }
+
+  // Retour en arrière depuis une annonce en ligne : la période passe en FERME — « je ne
+  // cherche plus personne ». Distinct de submitFermer, dont le toggle renvoie vers CONFIRME.
+  async function submitFermerPeriode() {
+    if (!mission || busy) return;
+    setBusy(true);
+    await fetch(`/api/missions/${mission.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ briqueStatus: "FERME" }),
     });
     onDone();
   }
@@ -578,6 +591,13 @@ function PostMenu({
             <Button variant="outlined" onClick={onEditAnnonce} className="w-full !py-2.5">
               Modifier l&apos;annonce
             </Button>
+            {/* Retour en arrière (section 188) — pendant manquant de la fusion : une fois la
+                période publiée, rien ne permettait d'y renoncer sans passer par l'annulation
+                de l'annonce, qui n'est pas la même intention. On pose la question au lieu de
+                trancher : fermer la période, ou retravailler la proposition pour plus tard. */}
+            <Button variant="text" onClick={() => setStep("retour")} className="w-full !py-2 !text-gray-600 hover:!bg-gray-50">
+              ↩ Je ne cherche plus pour cette période
+            </Button>
             {/* Partager l'annonce (section 159) — copier le lien + partage natif Android/iPhone
                 + Facebook. Le lien mène à la page publique /annonce/[id] (garde auth/inscription). */}
             {mission && (
@@ -653,6 +673,27 @@ function PostMenu({
               <Button variant="text" onClick={() => setStep("menu")} className="flex-1 !py-2.5 !text-gray-500">Retour</Button>
               <Button onClick={submitRenommer} disabled={busy || !newLabel.trim()} className="flex-1 !py-2.5">Renommer</Button>
             </div>
+          </div>
+        )}
+
+        {/* ── Étape retour en arrière (section 188) ── */}
+        {step === "retour" && (
+          <div className="flex flex-col gap-3">
+            <div>
+              <h3 className="font-bold text-gray-900 text-base leading-tight">Vous ne cherchez plus pour cette période ?</h3>
+              <p className="text-xs text-gray-400 mt-1">
+                Votre annonce est en ligne. Que voulez-vous en faire ?
+              </p>
+            </div>
+            <Button variant="outlined" onClick={submitFermerPeriode} disabled={busy} className="w-full !py-2.5">
+              Fermer la période
+              <span className="block text-[11px] font-normal opacity-70">plus de recherche, plus d&apos;alerte</span>
+            </Button>
+            <Button variant="outlined" onClick={onEditAnnonce} className="w-full !py-2.5">
+              Modifier la proposition
+              <span className="block text-[11px] font-normal opacity-70">elle reste en ligne pour un match plus tard</span>
+            </Button>
+            <Button variant="text" onClick={() => setStep("menu")} className="w-full !py-2 !text-gray-500">Retour</Button>
           </div>
         )}
 
