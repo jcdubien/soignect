@@ -2008,10 +2008,18 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
           onClose={() => setDropdown(null)}
           onPoserAnnonce={() => {
             const m = dropdown.mission;
+            const post = dropdown.post;
+            setDropdown(null);
+            // FUSION (section 188) : sur le siège du détenteur, une absence déclarée EST la
+            // période à pourvoir. Publier une annonce dessus la TRANSFORME (elle passe en
+            // RECHERCHE) au lieu d'empiler une seconde brique sur les mêmes dates.
+            if (post.isOwnerSeat && m && m.briqueStatus.startsWith("ABSENT")) {
+              router.push(`/missions/create?editId=${encodeURIComponent(m.id)}`);
+              return;
+            }
             const s = m ? (toDate(m.startDate)?.toISOString().slice(0, 10) ?? "") : (dropdown.suggestedStart ?? "");
             const e = m ? (toDate(m.endDate)?.toISOString().slice(0, 10) ?? "") : (dropdown.suggestedEnd ?? "");
-            setDropdown(null);
-            router.push(buildCreateHref({ postType: dropdown.post.postType, postId: dropdown.post.id, postLabel: dropdown.post.label, start: s, end: e }));
+            router.push(buildCreateHref({ postType: post.postType, postId: post.id, postLabel: post.label, start: s, end: e }));
           }}
           onDetail={() => {
             const m = dropdown.mission;

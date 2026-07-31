@@ -17,6 +17,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     select: {
       id: true, profileId: true, title: true, location: true, zones: true, specialties: true,
       startDate: true, endDate: true, minMonths: true, pitch: true, bioTinder: true,
+      // briqueStatus : le formulaire d'édition doit savoir s'il édite une ABSENCE — publier
+      // une annonce dessus la fait passer en RECHERCHE (fusion, section 188).
+      briqueStatus: true,
       missionType: true, dateFlexibility: true, cabinetPostId: true,
       logementPropose: true, vehiculePropose: true, demiJourneesLibres: true, caMensuelEstime: true,
       retrocessionRate: true, rawText: true,

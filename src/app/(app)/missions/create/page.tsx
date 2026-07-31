@@ -163,6 +163,9 @@ export default function CreateMissionPage() {
   const [optimizeTips, setOptimizeTips] = useState<string[]>([]);
   const [detectedTags, setDetectedTags] = useState<{ repartition?: string; methode?: string }>({});
   const [extractDone, setExtractDone] = useState(false);
+  // On édite une absence pour la transformer en annonce (fusion, section 188) : à
+  // l'enregistrement, la période passe d'ABSENT_* à RECHERCHE.
+  const [editingAbsence, setEditingAbsence] = useState(false);
   // Texte libre tel qu'il était avant la dernière reformulation — null = rien à annuler.
   const [rawTextBeforeRedaction, setRawTextBeforeRedaction] = useState<string | null>(null);
   // Repli manuel : formulaire champ-par-champ. Masqué par défaut en création (parcours texte-libre
@@ -224,7 +227,15 @@ export default function CreateMissionPage() {
           caMensuelEstime: m.caMensuelEstime != null ? String(m.caMensuelEstime) : "",
           retrocessionRate: m.retrocessionRate != null ? String(m.retrocessionRate) : "",
           rawText: m.rawText ?? "",
+          // Le titre d'une absence (« Congés ») n'est pas un titre d'annonce : on repart
+          // d'un champ vide plutôt que de laisser publier « Congés » comme intitulé.
+          ...(typeof m.briqueStatus === "string" && m.briqueStatus.startsWith("ABSENT") ? { title: "" } : {}),
         }));
+        // Fusion (section 188) : on édite une ABSENCE pour la transformer en annonce. La
+        // période devient RECHERCHE à l'enregistrement — pas de seconde brique créée.
+        if (typeof m.briqueStatus === "string" && m.briqueStatus.startsWith("ABSENT")) {
+          setEditingAbsence(true);
+        }
         setShowManual(true); // édition = accès direct aux champs
       })
       .catch(() => {});
@@ -321,6 +332,9 @@ export default function CreateMissionPage() {
       caMensuelEstime: form.caMensuelEstime ? parseInt(form.caMensuelEstime, 10) : null,
       retrocessionRate: form.retrocessionRate ? parseInt(form.retrocessionRate, 10) : null,
       rawText: rawTextTrim || null,
+      // Transformation d'une absence en annonce : la période cesse d'être « absent sans
+      // rien de prévu » et devient une recherche — c'est ce qui éteint l'alerte.
+      ...(editingAbsence ? { briqueStatus: "RECHERCHE" } : {}),
       ...(isEdit ? {} : { cabinetPostId: cabinetPostId ?? undefined }),
     };
 
