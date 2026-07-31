@@ -810,6 +810,7 @@ function UncoveredChoiceModal({
   onCreateMission,
   onClosePost,
   onDeleteAbsence,
+  onEditAbsenceDates,
   onClose,
 }: {
   modal: UncoveredChoiceState;
@@ -817,9 +818,48 @@ function UncoveredChoiceModal({
   onCreateMission: () => void;
   onClosePost: () => void;
   onDeleteAbsence: () => void;
+  onEditAbsenceDates: (startDate: string, endDate: string) => void;
   onClose: () => void;
 }) {
   const createLabel = isEmployeur ? "Oui, ouvrir un poste" : "Oui, créer une annonce";
+  // Édition des dates d'une absence déjà déclarée : aucun écran ne le permettait — le menu
+  // « modifier » (avec ses champs de date) n'est atteignable que depuis un POSTE, jamais depuis
+  // la ligne titulaire. Une correction de dates semblait enregistrée sans jamais l'être.
+  const [editing, setEditing] = useState(false);
+  const [eStart, setEStart] = useState(modal.suggestedStart);
+  const [eEnd, setEEnd] = useState(modal.suggestedEnd);
+  const datesValid = !!eStart && !!eEnd && eEnd >= eStart;
+
+  if (editing) {
+    return (
+      <BottomSheet open onClose={onClose} zClass="z-[60]">
+        <div className="p-6 flex flex-col gap-3">
+          <h3 className="font-bold text-gray-900 text-base">Modifier les dates de l&apos;absence</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Du</label>
+              <input type="date" value={eStart} onChange={(e) => setEStart(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Au</label>
+              <input type="date" value={eEnd} min={eStart || undefined} onChange={(e) => setEEnd(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+            </div>
+          </div>
+          {!datesValid && (eStart || eEnd) && (
+            <p className="text-xs text-amber-600">La date de fin doit être postérieure à la date de début.</p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <Button variant="text" onClick={() => setEditing(false)} className="flex-1 !py-2.5 !text-gray-500">Retour</Button>
+            <Button onClick={() => onEditAbsenceDates(eStart, eEnd)} disabled={!datesValid} className="flex-1 !py-2.5">
+              Enregistrer
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
+    );
+  }
 
   return (
     <BottomSheet open onClose={onClose} zClass="z-[60]">
@@ -851,9 +891,14 @@ function UncoveredChoiceModal({
             Non, fermer cette période
           </Button>
           {modal.absenceMissionId && (
-            <Button variant="outlined" onClick={onDeleteAbsence} className="w-full !py-2.5 !border-[#1B3A5C]/30 !text-[#1B3A5C] hover:!bg-[#1B3A5C]/5">
-              ↩ Je serai finalement présent — supprimer cette absence
-            </Button>
+            <>
+              <Button variant="outlined" onClick={() => setEditing(true)} className="w-full !py-2.5 !border-[#1B3A5C]/30 !text-[#1B3A5C] hover:!bg-[#1B3A5C]/5">
+                📅 Modifier les dates de cette absence
+              </Button>
+              <Button variant="outlined" onClick={onDeleteAbsence} className="w-full !py-2.5 !border-[#1B3A5C]/30 !text-[#1B3A5C] hover:!bg-[#1B3A5C]/5">
+                ↩ Je serai finalement présent — supprimer cette absence
+              </Button>
+            </>
           )}
           <Button variant="text" onClick={onClose} className="w-full !py-2 !text-gray-400 hover:!bg-gray-50">Annuler</Button>
         </div>
@@ -1890,6 +1935,31 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
     router.refresh();
   }
 
+  // Modification des dates d'une absence existante. PATCH /api/missions/[id] : la mission
+  // appartient au profil courant, la route l'autorise. router.refresh() derrière, comme pour
+  // la création et la suppression — sinon la timeline garderait l'ancienne longueur.
+  async function handleEditAbsenceDates(missionId: string, startDate: string, endDate: string) {
+    setUncoveredChoice(null);
+    const res = await fetch(`/api/missions/${missionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        startDate: new Date(startDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
+      }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setConfirmModal({
+        title: "Modification impossible",
+        body: typeof d?.error === "string" ? d.error : "Les nouvelles dates n'ont pas pu être enregistrées.",
+        onConfirm: () => setConfirmModal(null),
+      });
+      return;
+    }
+    router.refresh();
+  }
+
   // Bandeau d'alerte — calcul client au chargement (section 47).
   // Postes actifs dont la 1ère zone non couverte tombe dans ≤ 90 jours.
   const alertList = allRows
@@ -2020,6 +2090,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
             router.push(buildCreateHref({ postType: post.postType, postId: post.id, postLabel: post.label, start: suggestedStart, end: suggestedEnd }));
           }}
           onDeleteAbsence={() => { if (uncoveredChoice.absenceMissionId) handleDeleteAbsence(uncoveredChoice.absenceMissionId); }}
+          onEditAbsenceDates={(s, e) => { if (uncoveredChoice.absenceMissionId) handleEditAbsenceDates(uncoveredChoice.absenceMissionId, s, e); }}
           onClosePost={() => {
             const post = uncoveredChoice.post;
             setUncoveredChoice(null);
