@@ -26,7 +26,12 @@ export default async function PlanningPage() {
 
   // Charger tous les postes + leurs missions actives + matchs associés
   const posts = await prisma.cabinetPost.findMany({
-    where: { cabinetId: profileId },
+    // Le siège du détenteur du compte (section 188) existe en base depuis la phase 1, mais la
+    // ligne titulaire est encore rendue par SelfTimelineRow. Sans cette exclusion, le siège
+    // s'affichait EN PLUS : 6ᵉ ligne vide en doublon, compteur faussé, et fausse alerte
+    // « non couvert » sur une période que le titulaire occupe. À retirer en phase 2, quand
+    // SelfTimelineRow disparaîtra au profit de cette ligne.
+    where: { cabinetId: profileId, isOwnerSeat: false },
     include: {
       // Compte assistant rattaché (section 153) — pour afficher le lien + le bouton détacher.
       linkedUser: { select: { id: true, email: true, profile: { select: { name: true } } } },
