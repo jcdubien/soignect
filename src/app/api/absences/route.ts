@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { BriqueStatus, MissionType } from "@prisma/client";
+import { BriqueStatus, MissionType, MatchStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +69,30 @@ export async function DELETE(req: NextRequest) {
   const mission = await prisma.mission.findUnique({ where: { id: missionId }, select: { profileId: true } });
   if (!mission || mission.profileId !== profileId) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+  }
+
+  // Garde-fou aligné sur DELETE /api/missions/[id] : une période engagée avec quelqu'un ne se
+  // supprime pas ici. La suppression efface les Match sans prévenir personne — l'autre partie
+  // verrait sa mise en relation disparaître sans explication. L'annulation de mise en relation,
+  // elle, notifie. On refuse donc et on y renvoie.
+  // Les matchs éteints (DECLINE / EXPIRE) n'engagent plus personne : ils ne bloquent pas.
+  const matchActif = await prisma.match.findFirst({
+    where: {
+      OR: [{ missionAId: missionId }, { missionBId: missionId }],
+      status: { in: [MatchStatus.EN_ATTENTE, MatchStatus.DISCUSSION, MatchStatus.CONFIRME] },
+    },
+    select: { status: true },
+  });
+  if (matchActif) {
+    return NextResponse.json(
+      {
+        error:
+          matchActif.status === MatchStatus.CONFIRME
+            ? "Cette absence est liée à une mise en relation confirmée. Utilisez « Annuler la mise en relation » : l'autre partie sera prévenue."
+            : "Cette absence est liée à une mise en relation en cours. Utilisez « Annuler la mise en relation » avant de la supprimer : l'autre partie sera prévenue.",
+      },
+      { status: 409 }
+    );
   }
 
   // Nettoyage des dépendances AVANT suppression, comme le fait déjà DELETE /api/missions/[id].
