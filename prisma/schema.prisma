@@ -508,6 +508,16 @@ model CabinetPost {
   isActive     Boolean   @default(true)
   missions     Mission[] @relation("PostMissions")
 
+  // Siège du titulaire lui-même — sa propre ligne de planning (section 188).
+  // Avant, le titulaire n'avait AUCUN poste : ses congés étaient des Mission marquées
+  // isSelfPresence, un objet qui est une Mission mais que chaque consommateur devait penser
+  // à exclure. Oublis constatés : congés publiquement consultables, cartes de partage
+  // générées, congés swipables dans le feed, suppression bloquée par le swipe ainsi créé.
+  // Avec un vrai poste, une absence redevient une période normale : FERME (off) ou
+  // RECHERCHE (annonce en ligne) — les filtres existants sur briqueStatus suffisent.
+  // Un seul par cabinet, créé automatiquement, non supprimable.
+  isOwnerSeat  Boolean   @default(false)
+
   // Compte ASSISTANT rattaché à ce poste (section 153) — double casquette employeur/employé.
   // @unique : un compte User ne peut être rattaché qu'à UN SEUL poste à la fois (les NULL
   // multiples sont autorisés en Postgres). Null = poste géré uniquement par le titulaire.
