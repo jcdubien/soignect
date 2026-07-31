@@ -74,6 +74,10 @@ export async function GET(req: NextRequest) {
     where: {
       isActive: true,
       briqueStatus: { not: BriqueStatus.INDISPONIBLE }, // « Dates bloquées » = pas une offre
+      // Les absences du titulaire (congés, présence) ne sont pas des offres non plus : elles
+      // étaient pourtant swipables, un candidat s'est vu proposer une annonce « Congés ».
+      // C'est aussi ce qui créait des Swipe sur une absence, bloquant ensuite sa suppression.
+      isSelfPresence: false,
       id: { notIn: excludeMissionIds },
       ...NO_ACTIVE_MATCH_FILTER,
       profile: profileWhere,

@@ -1970,7 +1970,18 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
   // Item 1 — "Je serai finalement présent" : supprime l'absence isSelfPresence
   async function handleDeleteAbsence(missionId: string) {
     setUncoveredChoice(null);
-    await fetch(`/api/absences?id=${encodeURIComponent(missionId)}`, { method: "DELETE" });
+    const res = await fetch(`/api/absences?id=${encodeURIComponent(missionId)}`, { method: "DELETE" });
+    // La réponse n'était pas testée : un échec serveur passait inaperçu, l'absence restait
+    // affichée et l'utilisateur croyait l'avoir supprimée.
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setConfirmModal({
+        title: "Suppression impossible",
+        body: typeof d?.error === "string" ? d.error : "Cette absence n'a pas pu être supprimée. Réessayez.",
+        onConfirm: () => setConfirmModal(null),
+      });
+      return;
+    }
     router.refresh();
   }
 

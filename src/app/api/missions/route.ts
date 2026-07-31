@@ -71,6 +71,8 @@ export async function GET(req: NextRequest) {
   const missions = await prisma.mission.findMany({
     where: {
       isActive: true,
+      // Même règle que /api/feed : une absence du titulaire n'est pas une offre à swiper.
+      isSelfPresence: false,
       id: { notIn: excludeMissionIds },
       ...NO_ACTIVE_MATCH_FILTER, // section 184 : masque les missions déjà matchées (cf. /api/feed)
       profile: {

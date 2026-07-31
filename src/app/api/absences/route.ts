@@ -71,6 +71,14 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
-  await prisma.mission.delete({ where: { id: missionId } });
+  // Nettoyage des dépendances AVANT suppression, comme le fait déjà DELETE /api/missions/[id].
+  // Sans ça, un seul Swipe reçu suffisait à faire échouer le delete sur contrainte de clé
+  // étrangère (Swipe.swipedMission et Match.missionA/B n'ont pas de onDelete cascade) : la route
+  // renvoyait 500 et le client, qui ne testait pas la réponse, laissait l'absence en place.
+  await prisma.$transaction([
+    prisma.swipe.deleteMany({ where: { swipedMissionId: missionId } }),
+    prisma.match.deleteMany({ where: { OR: [{ missionAId: missionId }, { missionBId: missionId }] } }),
+    prisma.mission.delete({ where: { id: missionId } }),
+  ]);
   return NextResponse.json({ ok: true });
 }
