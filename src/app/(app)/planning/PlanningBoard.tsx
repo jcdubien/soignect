@@ -1022,11 +1022,12 @@ function TimelineRow({
         style={{ width: labelWidth }}
       >
         <div className="min-w-0">
-          <span className="text-xs font-semibold text-gray-700 truncate block">
-            {post.label}
-            {/* Siège du détenteur du compte : son nom, avec la mention à côté. */}
+          {/* Siège du détenteur : son nom, mention « titulaire » en dessous — à côté, elle
+              était mangée par la troncature du nom dans une colonne étroite. */}
+          <span className="min-w-0">
+            <span className="text-xs font-semibold text-gray-700 truncate block">{post.label}</span>
             {post.isOwnerSeat && (
-              <span className="ml-1.5 font-normal text-[10px] uppercase tracking-wide text-gray-400">titulaire</span>
+              <span className="block text-[10px] uppercase tracking-wide text-gray-400 leading-tight">titulaire</span>
             )}
           </span>
           {!post.isActive && !isSelf && (
@@ -1048,6 +1049,19 @@ function TimelineRow({
           style={{ width: totalWidth, height: "100%" }}
           onClick={isSelf ? undefined : (e) => { if (e.target === e.currentTarget) onPostMenuClick(post); }}
         >
+          {/* Siège du détenteur : fond « Présence » sur toute la ligne. Sa présence est
+              implicite — sans ce fond, une ligne sans absence apparaissait vide, ce qui se
+              lit comme un poste vacant alors que c'est l'inverse. Les briques d'absence et
+              les zones non couvertes se posent par-dessus. */}
+          {post.isOwnerSeat && (
+            <div
+              className="absolute top-1 bottom-1 left-0 rounded-[6px] bg-[var(--bleu-marine)] text-white flex items-center px-2 pointer-events-none"
+              style={{ width: totalWidth }}
+            >
+              <span className="text-[11px] font-medium sticky left-2">Présence</span>
+            </div>
+          )}
+
           {/* Segments NON_COUVERT calculés entre les missions */}
           {!isSelf && post.isActive && now.getTime() < RANGE_END.getTime() &&
             (post.isOwnerSeat ? computeOwnerSeatGaps(post.missions) : computeUncoveredGaps(post.missions)).map((gap, gi) => {
