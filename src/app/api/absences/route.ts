@@ -35,22 +35,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Dates invalides." }, { status: 400 });
   }
 
-  const profile = await prisma.profile.findUnique({
-    where: { id: profileId },
-    select: { name: true },
+  // L'absence se pose sur le SIÈGE du détenteur du compte (section 188) : c'est une période
+  // de sa ligne de planning, plus un objet à part. Créé à la volée si absent (compte antérieur
+  // à la reprise, ou cabinet créé avant que l'inscription ne le pose).
+  const profile = await prisma.profile.findUnique({ where: { id: profileId }, select: { name: true } });
+  let seat = await prisma.cabinetPost.findFirst({
+    where: { cabinetId: profileId, isOwnerSeat: true },
+    select: { id: true },
   });
+  if (!seat) {
+    seat = await prisma.cabinetPost.create({
+      data: {
+        cabinetId: profileId, label: profile?.name ?? "Titulaire",
+        postType: "TITULAIRE", isOwnerSeat: true, noticeMonths: 0,
+      },
+      select: { id: true },
+    });
+  }
 
   const mission = await prisma.mission.create({
     data: {
       profileId,
+      cabinetPostId: seat.id,
       title,
-      location: profile?.name ?? "cabinet",
+      // Plus le nom du praticien : une absence n'a pas de commune, et ce champ finissait
+      // affiché en « LIEU » sur des surfaces publiques.
+      location: "",
       specialties: [],
       startDate: start,
       endDate:   end,
       missionType: MissionType.REMPLACEMENT,
       briqueStatus: absenceType,
-      isSelfPresence: true,
     },
   });
 

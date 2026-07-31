@@ -65,6 +65,16 @@ export async function DELETE(
   if (!post) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   if (post.cabinetId !== session.user.profileId) return NextResponse.json({ error: "Interdit" }, { status: 403 });
 
+  // Le siège du détenteur du compte (section 188) est sa propre ligne de planning : il n'a pas
+  // de sens sans lui et ne se retire pas. Pour ne plus apparaître, il suffit de fermer ses
+  // périodes — le siège vide signifie simplement « présent ».
+  if (post.isOwnerSeat) {
+    return NextResponse.json(
+      { error: "Votre propre ligne de planning ne peut pas être supprimée." },
+      { status: 409 }
+    );
+  }
+
   await prisma.cabinetPost.delete({ where: { id } });
   return NextResponse.json({ deleted: true });
 }

@@ -42,6 +42,9 @@ interface PostData {
   noticeMonths: number;
   isActive: boolean;
   missions: MissionData[];
+  // Siège du détenteur du compte (section 188) : rendu comme un poste ordinaire, mais présence
+  // implicite (voir computeOwnerSeatGaps) et non supprimable.
+  isOwnerSeat?: boolean;
   // Compte ASSISTANT rattaché à ce poste (section 153) — null si géré uniquement par le titulaire.
   linkedUserId?: string | null;
   linkedUser?: { id: string; email: string; profile: { name: string | null } | null } | null;
@@ -56,23 +59,12 @@ interface UnlinkedMission {
   briqueStatus: string;
 }
 
-interface SelfMission {
-  id: string;
-  title: string;
-  startDate: Date | string | null;
-  endDate: Date | string | null;
-  briqueStatus: string;
-  matchesA: MatchInfo[];
-  matchesB: MatchInfo[];
-}
-
 interface Props {
   posts: PostData[];
   profileId: string;
   cabinetName: string;
   isEmployeur: boolean;
   unlinkedMissions: UnlinkedMission[];
-  selfMissions: SelfMission[];
 }
 
 // ── Constantes de la timeline ──────────────────────────────────────────────────
@@ -116,53 +108,24 @@ const BRIQUE_STATUS: Record<string, { bg: string; text: string; label: string }>
 
 // ── Segment helpers ────────────────────────────────────────────────────────────
 
-type SelfSegment =
-  | { kind: "presence"; start: Date; end: Date }
-  | { kind: "absence"; mission: SelfMission; start: Date; end: Date; covered: boolean };
 
-function computeSelfSegments(selfMissions: SelfMission[]): SelfSegment[] {
-  const sorted = [...selfMissions]
-    .filter(m => toDate(m.startDate) && toDate(m.endDate))
-    .sort((a, b) => toDate(a.startDate)!.getTime() - toDate(b.startDate)!.getTime());
 
-  const segments: SelfSegment[] = [];
-  let cursor = RANGE_START;
-
-  for (const m of sorted) {
-    const mStart = toDate(m.startDate)!;
-    const mEnd   = toDate(m.endDate)!;
-    if (mEnd <= RANGE_START || mStart >= RANGE_END) continue;
-    const segStart = mStart < RANGE_START ? RANGE_START : mStart;
-    const segEnd   = mEnd   > RANGE_END   ? RANGE_END   : mEnd;
-    if (cursor < segStart) segments.push({ kind: "presence", start: cursor, end: segStart });
-    const covered = m.matchesA.length > 0 || m.matchesB.length > 0;
-    segments.push({ kind: "absence", mission: m, start: segStart, end: segEnd, covered });
-    if (segEnd > cursor) cursor = segEnd;
-  }
-  if (cursor < RANGE_END) segments.push({ kind: "presence", start: cursor, end: RANGE_END });
-  return segments;
-}
-
-// La ligne titulaire n'a pas de CabinetPost : une annonce publiée pour couvrir son propre congé
-// est créée SANS cabinetPostId (buildCreateHref exclut explicitement postId === "self"), donc
-// rien ne la relie à la ligne. Faute de lien formel, on la repère par RECOUVREMENT DE DATES :
-// une annonce active, non rattachée et EN RECHERCHE qui chevauche l'absence est presque
-// certainement la recherche de remplacement pour cette absence.
-// Déduction, pas certitude : une annonce sans rapport qui chevauche produira le même indicateur.
-function findSearchOverlapping(
-  unlinked: UnlinkedMission[],
-  start: Date,
-  end: Date,
-): UnlinkedMission | null {
-  return (
-    unlinked.find((m) => {
-      if (m.briqueStatus !== "RECHERCHE") return false;
-      const s = toDate(m.startDate);
-      const e = toDate(m.endDate);
-      if (!s || !e) return false;
-      return s <= end && e >= start;
-    }) ?? null
-  );
+// Sur le SIÈGE DU DÉTENTEUR (section 188), la logique s'inverse : sa présence est implicite,
+// il ne la déclare pas. Aucune période ne veut donc PAS dire « poste vacant » mais « il est là ».
+// Un trou n'existe que dans une absence déclarée à laquelle rien n'a encore été opposé :
+//   ABSENT_* → il est parti et rien n'est prévu        → alerte
+//   RECHERCHE → une annonce est en ligne               → pas d'alerte (il a agi)
+//   FERME     → « je ne cherche personne »             → pas d'alerte (choix explicite)
+//   CONFIRME  → quelqu'un couvre                       → pas d'alerte
+// Même esprit que les postes ordinaires, où une brique quelconque supprime le trou.
+function computeOwnerSeatGaps(missions: MissionData[]): { start: Date; end: Date }[] {
+  const now = new Date();
+  return missions
+    .filter((m) => m.briqueStatus.startsWith("ABSENT"))
+    .map((m) => ({ start: toDate(m.startDate), end: toDate(m.endDate) ?? RANGE_END }))
+    .filter((g): g is { start: Date; end: Date } => g.start !== null && g.end > now)
+    .map((g) => ({ start: g.start < now ? now : g.start, end: g.end > RANGE_END ? RANGE_END : g.end }))
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
 function computeUncoveredGaps(missions: MissionData[]): { start: Date; end: Date }[] {
@@ -1059,7 +1022,13 @@ function TimelineRow({
         style={{ width: labelWidth }}
       >
         <div className="min-w-0">
-          <span className="text-xs font-semibold text-gray-700 truncate block">{post.label}</span>
+          <span className="text-xs font-semibold text-gray-700 truncate block">
+            {post.label}
+            {/* Siège du détenteur du compte : son nom, avec la mention à côté. */}
+            {post.isOwnerSeat && (
+              <span className="ml-1.5 font-normal text-[10px] uppercase tracking-wide text-gray-400">titulaire</span>
+            )}
+          </span>
           {!post.isActive && !isSelf && (
             <span className="text-[9px] text-gray-400 font-medium">Fermé</span>
           )}
@@ -1069,7 +1038,7 @@ function TimelineRow({
       {/* Piste — toute la zone (y compris le vide) ouvre le menu du poste (section 156) :
           avant, seuls le label/les briques/les gaps répondaient, la zone sable vide était
           inerte → les postes semblaient « non cliquables ». Un clic sur une brique/un gap garde
-          son handler propre (target !== currentTarget). Pas pour la ligne titulaire (SelfTimelineRow). */}
+          son handler propre (target !== currentTarget). */}
       <div
         className={`relative flex-1 overflow-hidden bg-[var(--sable-chaud)] ${isSelf ? "" : "cursor-pointer"}`}
         onClick={isSelf ? undefined : (e) => { if (e.target === e.currentTarget) onPostMenuClick(post); }}
@@ -1081,7 +1050,7 @@ function TimelineRow({
         >
           {/* Segments NON_COUVERT calculés entre les missions */}
           {!isSelf && post.isActive && now.getTime() < RANGE_END.getTime() &&
-            computeUncoveredGaps(post.missions).map((gap, gi) => {
+            (post.isOwnerSeat ? computeOwnerSeatGaps(post.missions) : computeUncoveredGaps(post.missions)).map((gap, gi) => {
               const gLeft  = Math.max(dayOffset(gap.start), 0) * dayWidth;
               const gRight = Math.min(dayOffset(gap.end), TOTAL_DAYS) * dayWidth;
               const gWidth = gRight - gLeft;
@@ -1132,104 +1101,6 @@ function TimelineRow({
 
 // ── Ligne titulaire segmentée ──────────────────────────────────────────────────
 
-function SelfTimelineRow({
-  selfMissions, unlinkedMissions, cabinetName, dayWidth, totalWidth, todayOffset, labelWidth,
-  onPresenceClick, onAbsenceClick,
-}: {
-  selfMissions: SelfMission[];
-  unlinkedMissions: UnlinkedMission[];
-  cabinetName: string;
-  dayWidth: number;
-  totalWidth: number;
-  todayOffset: number;
-  labelWidth: number;
-  onPresenceClick: (start: string, end: string) => void;
-  onAbsenceClick: (mission: SelfMission) => void;
-}) {
-  const segments = computeSelfSegments(selfMissions);
-
-  return (
-    <div className="flex border-b border-gray-100" style={{ height: TRACK_HEIGHT }}>
-      <div
-        className="shrink-0 sticky left-0 z-20 flex items-center px-2 sm:px-3 border-r border-gray-100 bg-gray-50"
-        style={{ width: labelWidth }}
-      >
-        <span className="text-xs font-semibold text-gray-700 truncate block">{cabinetName} (titulaire)</span>
-      </div>
-      <div className="relative flex-1 overflow-hidden bg-[var(--sable-chaud)]">
-        <div className="relative" style={{ width: totalWidth, height: "100%" }}>
-          {segments.map((seg, i) => {
-            const left  = Math.max(dayOffset(seg.start), 0) * dayWidth;
-            const right = Math.min(dayOffset(seg.end), TOTAL_DAYS) * dayWidth;
-            const w = right - left;
-            if (w <= 0) return null;
-
-            if (seg.kind === "presence") {
-              const openPresence = () => onPresenceClick(
-                seg.start.toISOString().slice(0, 10),
-                seg.end.toISOString().slice(0, 10)
-              );
-              return (
-                <div
-                  key={i}
-                  role="button"
-                  tabIndex={0}
-                  className="absolute top-1 bottom-1 bg-[var(--bleu-marine)] text-white rounded-[6px] flex items-center px-2 cursor-pointer select-none overflow-hidden transition-[filter,box-shadow] duration-200 hover:brightness-95 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] focus-visible:ring-offset-1"
-                  style={{ left, width: Math.max(w, 24) }}
-                  onClick={openPresence}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPresence(); } }}
-                  title="Présence — cliquez pour déclarer une absence"
-                >
-                  {Math.max(w, 24) >= 40 && (
-                    <span className="text-[11px] font-medium truncate">Présence</span>
-                  )}
-                </div>
-              );
-            }
-
-            // Recherche en cours pour cette absence (repérée par recouvrement de dates) —
-            // seulement si l'absence n'est pas déjà couverte par un match.
-            const search = seg.covered ? null : findSearchOverlapping(unlinkedMissions, seg.start, seg.end);
-            const st = seg.covered
-              ? BRIQUE_STATUS["CONFIRME"]
-              : search
-              ? BRIQUE_STATUS["RECHERCHE"]
-              : BRIQUE_STATUS["NON_COUVERT"];
-            const typeLabel = BRIQUE_STATUS[seg.mission.briqueStatus]?.label ?? "Absent";
-            const displayLabel = seg.covered
-              ? `Couvert · ${typeLabel}`
-              : search
-              ? `Recrutement · ${typeLabel}`
-              : typeLabel;
-
-            return (
-              <div
-                key={i}
-                role="button"
-                tabIndex={0}
-                className={`absolute top-1 bottom-1 ${st.bg} ${st.text} rounded-[6px] flex items-center px-2 cursor-pointer select-none overflow-hidden transition-[filter,box-shadow] duration-200 hover:brightness-95 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] focus-visible:ring-offset-1`}
-                style={{ left, width: Math.max(w, 24) }}
-                onClick={() => onAbsenceClick(seg.mission)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbsenceClick(seg.mission); } }}
-                title={
-                  search
-                    ? `${displayLabel} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)} — annonce en ligne : « ${search.title} »`
-                    : `${displayLabel} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)}`
-                }
-              >
-                {Math.max(w, 24) >= 40 && (
-                  <span className="text-[11px] font-medium truncate">{displayLabel}</span>
-                )}
-              </div>
-            );
-          })}
-          {/* Ligne aujourd'hui — lagon profond, pulsation douce (section 46) */}
-          <div className="planning-today-line absolute top-0 bottom-0 w-px bg-[var(--lagon-profond)] z-10 pointer-events-none" style={{ left: todayOffset }} />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Annulation sécurisée d'un match confirmé (section 149/145) — symétrique au menu
 // disponibilité. Deux temps : confirmation explicite + avertissement conséquences, puis
@@ -1840,7 +1711,7 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
 
 // ── PlanningBoard principal ────────────────────────────────────────────────────
 
-export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinkedMissions, selfMissions }: Props) {
+export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinkedMissions }: Props) {
   const router = useRouter();
   const [zoom, setZoom]         = useState<Zoom>("quarter");
   const [panel, setPanel]       = useState<Panel>(null);
@@ -1937,35 +1808,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
 
   const allRows: PostData[] = posts;
 
-  function handlePresenceSegmentClick(start: string, end: string) {
-    setDropdown(null);
-    setPanel({ type: "declare_absence", suggestedStart: start, suggestedEnd: end });
-  }
 
-  function handleAbsenceSegmentClick(mission: SelfMission) {
-    setDropdown(null);
-    setPanel(null);
-    const covered = mission.matchesA.length > 0 || mission.matchesB.length > 0;
-    if (covered) {
-      const fakeSelfPost: PostData = {
-        id: "self", label: `${cabinetName} (titulaire)`,
-        postType: "REMPLACEMENT_REGULIER", noticeMonths: 0, isActive: true, missions: [],
-      };
-      const mData: MissionData = {
-        ...mission, isActive: true, missionType: "REMPLACEMENT",
-        statusUpdatedAt: null, statusNote: null,
-      };
-      setPanel({ type: "covered", mission: mData, post: fakeSelfPost });
-    } else {
-      const suggestedStart = toDate(mission.startDate)?.toISOString().slice(0, 10) ?? "";
-      const suggestedEnd   = toDate(mission.endDate)?.toISOString().slice(0, 10) ?? "";
-      const fakeSelfPost: PostData = {
-        id: "self", label: `${cabinetName} (titulaire)`,
-        postType: "REMPLACEMENT_REGULIER", noticeMonths: 0, isActive: true, missions: [],
-      };
-      setUncoveredChoice({ post: fakeSelfPost, suggestedStart, suggestedEnd, absenceMissionId: mission.id });
-    }
-  }
 
   // Item 1 — "Je serai finalement présent" : supprime l'absence isSelfPresence
   async function handleDeleteAbsence(missionId: string) {
@@ -2015,7 +1858,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
   const alertList = allRows
     .filter(p => p.isActive)
     .map(p => {
-      const gaps = computeUncoveredGaps(p.missions);
+      const gaps = p.isOwnerSeat ? computeOwnerSeatGaps(p.missions) : computeUncoveredGaps(p.missions);
       if (gaps.length === 0) return null;
       const soonest = gaps.reduce((min, g) => (g.start < min ? g.start : min), gaps[0].start);
       return { post: p, days: daysUntil(soonest) };
@@ -2039,39 +1882,11 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
   const mWin = mobileWindow(ZOOM_DAYS[zoom]);
   const mpct = (d: Date) => pctIn(d, mWin.start, mWin.end);
   const todayPct = mpct(new Date());
-  const selfBricks: MobileBrick[] = computeSelfSegments(selfMissions).map((seg, i) => {
-    const l = mpct(seg.start), w = mpct(seg.end) - mpct(seg.start);
-    if (seg.kind === "presence") {
-      return {
-        key: `p${i}`, leftPct: l, widthPct: w,
-        colorCls: "bg-[var(--bleu-marine)] text-white", label: "Présence",
-        title: "Présence — cliquez pour déclarer une absence",
-        onClick: () => handlePresenceSegmentClick(seg.start.toISOString().slice(0, 10), seg.end.toISOString().slice(0, 10)),
-      };
-    }
-    // Même repérage qu'en vue desktop : annonce EN RECHERCHE chevauchant l'absence.
-    const search = seg.covered ? null : findSearchOverlapping(unlinkedMissions, seg.start, seg.end);
-    const st = seg.covered
-      ? BRIQUE_STATUS["CONFIRME"]
-      : search
-      ? BRIQUE_STATUS["RECHERCHE"]
-      : BRIQUE_STATUS["NON_COUVERT"];
-    const typeLabel = BRIQUE_STATUS[seg.mission.briqueStatus]?.label ?? "Absent";
-    const label = seg.covered ? `Couvert · ${typeLabel}` : search ? `Recrutement · ${typeLabel}` : typeLabel;
-    return {
-      key: `p${i}`, leftPct: l, widthPct: w,
-      colorCls: `${st.bg} ${st.text}`, label,
-      title: search
-        ? `${label} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)} — annonce en ligne : « ${search.title} »`
-        : `${typeLabel} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)}`,
-      onClick: () => handleAbsenceSegmentClick(seg.mission),
-    };
-  });
   function buildPostBricks(post: PostData): MobileBrick[] {
     const bricks: MobileBrick[] = [];
     const now = new Date();
     if (post.isActive && now.getTime() < RANGE_END.getTime()) {
-      computeUncoveredGaps(post.missions).forEach((gap, gi) => {
+      (post.isOwnerSeat ? computeOwnerSeatGaps(post.missions) : computeUncoveredGaps(post.missions)).forEach((gap, gi) => {
         const w = mpct(gap.end) - mpct(gap.start);
         if (w <= 0) return;
         const u = uncoveredUrgency(gap.start);
@@ -2214,7 +2029,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
           <h1 className="text-base sm:text-lg font-bold text-gray-900">Mon Planning</h1>
           {/* +1 : le titulaire lui-même occupe un poste (sa ligne est affichée dans le planning),
               en plus des CabinetPost de l'équipe. */}
-          <p className="text-xs text-gray-400 truncate">{posts.length + 1} poste{posts.length + 1 !== 1 ? "s" : ""} · {cabinetName}</p>
+          <p className="text-xs text-gray-400 truncate">{posts.length} poste{posts.length !== 1 ? "s" : ""} · {cabinetName}</p>
         </div>
 
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
@@ -2267,7 +2082,6 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
               <p className="text-[11px] text-gray-400 text-center">
                 Vue {ZOOM_LABELS[zoom]} · {fmtDate(mWin.start)} → {fmtDate(mWin.end)}
               </p>
-              <MobilePostCard label={`${cabinetName} (titulaire)`} bricks={selfBricks} todayPct={todayPct} />
               {allRows.map(post => (
                 <MobilePostCard key={post.id} label={post.label} bricks={buildPostBricks(post)} todayPct={todayPct} onLabelClick={() => openPostMenu(post)} />
               ))}
@@ -2326,17 +2140,6 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
             }}
           >
             <div style={{ minWidth: totalWidth + labelWidth }}>
-              <SelfTimelineRow
-                selfMissions={selfMissions}
-                unlinkedMissions={unlinkedMissions}
-                cabinetName={cabinetName}
-                dayWidth={dayWidth}
-                totalWidth={totalWidth}
-                todayOffset={todayOff}
-                labelWidth={labelWidth}
-                onPresenceClick={handlePresenceSegmentClick}
-                onAbsenceClick={handleAbsenceSegmentClick}
-              />
               {allRows.map(post => (
                 <TimelineRow
                   key={post.id}

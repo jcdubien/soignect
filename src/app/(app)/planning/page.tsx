@@ -26,12 +26,7 @@ export default async function PlanningPage() {
 
   // Charger tous les postes + leurs missions actives + matchs associés
   const posts = await prisma.cabinetPost.findMany({
-    // Le siège du détenteur du compte (section 188) existe en base depuis la phase 1, mais la
-    // ligne titulaire est encore rendue par SelfTimelineRow. Sans cette exclusion, le siège
-    // s'affichait EN PLUS : 6ᵉ ligne vide en doublon, compteur faussé, et fausse alerte
-    // « non couvert » sur une période que le titulaire occupe. À retirer en phase 2, quand
-    // SelfTimelineRow disparaîtra au profit de cette ligne.
-    where: { cabinetId: profileId, isOwnerSeat: false },
+    where: { cabinetId: profileId },
     include: {
       // Compte assistant rattaché (section 153) — pour afficher le lien + le bouton détacher.
       linkedUser: { select: { id: true, email: true, profile: { select: { name: true } } } },
@@ -52,7 +47,8 @@ export default async function PlanningPage() {
         },
       },
     },
-    orderBy: { createdAt: "asc" },
+    // Le siège du détenteur en tête : c'est SA ligne, elle reste en haut du planning.
+    orderBy: [{ isOwnerSeat: "desc" }, { createdAt: "asc" }],
   });
 
   // Récupérer les missions du cabinet non encore liées à un poste (hors absences)
@@ -63,25 +59,6 @@ export default async function PlanningPage() {
     select: { id: true, title: true, startDate: true, endDate: true, missionType: true, briqueStatus: true },
   });
 
-  // Récupérer les vacances déclarées du titulaire (isSelfPresence=true)
-  const selfMissions = await prisma.mission.findMany({
-    where: { profileId, isSelfPresence: true, isActive: true },
-    include: {
-      matchesA: {
-        include: {
-          profileB: { select: { id: true, name: true, type: true } },
-          missionB: { select: { title: true, startDate: true, endDate: true } },
-        },
-      },
-      matchesB: {
-        include: {
-          profileA: { select: { id: true, name: true, type: true } },
-          missionA: { select: { title: true, startDate: true, endDate: true } },
-        },
-      },
-    },
-    orderBy: { startDate: "asc" },
-  });
 
   return (
     <PlanningBoard
@@ -90,7 +67,6 @@ export default async function PlanningPage() {
       cabinetName={profile?.name ?? "Mon cabinet"}
       isEmployeur={profile?.isEmployeur ?? false}
       unlinkedMissions={unlinkedMissions}
-      selfMissions={selfMissions}
     />
   );
 }
