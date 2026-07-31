@@ -53,7 +53,9 @@ export default async function PlanningPage() {
   // Récupérer les missions du cabinet non encore liées à un poste (hors absences)
   const unlinkedMissions = await prisma.mission.findMany({
     where: { profileId, cabinetPostId: null, isActive: true, isSelfPresence: false },
-    select: { id: true, title: true, startDate: true, endDate: true, missionType: true },
+    // briqueStatus : sert à repérer les annonces EN RECHERCHE qui couvrent une absence du
+    // titulaire, pour l'afficher sur sa ligne (elles n'ont pas de cabinetPostId à quoi se lier).
+    select: { id: true, title: true, startDate: true, endDate: true, missionType: true, briqueStatus: true },
   });
 
   // Récupérer les vacances déclarées du titulaire (isSelfPresence=true)

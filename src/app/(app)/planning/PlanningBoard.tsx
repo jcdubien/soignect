@@ -53,6 +53,7 @@ interface UnlinkedMission {
   startDate: Date | string | null;
   endDate: Date | string | null;
   missionType: string;
+  briqueStatus: string;
 }
 
 interface SelfMission {
@@ -140,6 +141,28 @@ function computeSelfSegments(selfMissions: SelfMission[]): SelfSegment[] {
   }
   if (cursor < RANGE_END) segments.push({ kind: "presence", start: cursor, end: RANGE_END });
   return segments;
+}
+
+// La ligne titulaire n'a pas de CabinetPost : une annonce publiée pour couvrir son propre congé
+// est créée SANS cabinetPostId (buildCreateHref exclut explicitement postId === "self"), donc
+// rien ne la relie à la ligne. Faute de lien formel, on la repère par RECOUVREMENT DE DATES :
+// une annonce active, non rattachée et EN RECHERCHE qui chevauche l'absence est presque
+// certainement la recherche de remplacement pour cette absence.
+// Déduction, pas certitude : une annonce sans rapport qui chevauche produira le même indicateur.
+function findSearchOverlapping(
+  unlinked: UnlinkedMission[],
+  start: Date,
+  end: Date,
+): UnlinkedMission | null {
+  return (
+    unlinked.find((m) => {
+      if (m.briqueStatus !== "RECHERCHE") return false;
+      const s = toDate(m.startDate);
+      const e = toDate(m.endDate);
+      if (!s || !e) return false;
+      return s <= end && e >= start;
+    }) ?? null
+  );
 }
 
 function computeUncoveredGaps(missions: MissionData[]): { start: Date; end: Date }[] {
@@ -1110,10 +1133,11 @@ function TimelineRow({
 // ── Ligne titulaire segmentée ──────────────────────────────────────────────────
 
 function SelfTimelineRow({
-  selfMissions, cabinetName, dayWidth, totalWidth, todayOffset, labelWidth,
+  selfMissions, unlinkedMissions, cabinetName, dayWidth, totalWidth, todayOffset, labelWidth,
   onPresenceClick, onAbsenceClick,
 }: {
   selfMissions: SelfMission[];
+  unlinkedMissions: UnlinkedMission[];
   cabinetName: string;
   dayWidth: number;
   totalWidth: number;
@@ -1163,9 +1187,20 @@ function SelfTimelineRow({
               );
             }
 
-            const st = seg.covered ? BRIQUE_STATUS["CONFIRME"] : BRIQUE_STATUS["NON_COUVERT"];
+            // Recherche en cours pour cette absence (repérée par recouvrement de dates) —
+            // seulement si l'absence n'est pas déjà couverte par un match.
+            const search = seg.covered ? null : findSearchOverlapping(unlinkedMissions, seg.start, seg.end);
+            const st = seg.covered
+              ? BRIQUE_STATUS["CONFIRME"]
+              : search
+              ? BRIQUE_STATUS["RECHERCHE"]
+              : BRIQUE_STATUS["NON_COUVERT"];
             const typeLabel = BRIQUE_STATUS[seg.mission.briqueStatus]?.label ?? "Absent";
-            const displayLabel = seg.covered ? `Couvert · ${typeLabel}` : typeLabel;
+            const displayLabel = seg.covered
+              ? `Couvert · ${typeLabel}`
+              : search
+              ? `Recrutement · ${typeLabel}`
+              : typeLabel;
 
             return (
               <div
@@ -1176,7 +1211,11 @@ function SelfTimelineRow({
                 style={{ left, width: Math.max(w, 24) }}
                 onClick={() => onAbsenceClick(seg.mission)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbsenceClick(seg.mission); } }}
-                title={`${displayLabel} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)}`}
+                title={
+                  search
+                    ? `${displayLabel} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)} — annonce en ligne : « ${search.title} »`
+                    : `${displayLabel} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)}`
+                }
               >
                 {Math.max(w, 24) >= 40 && (
                   <span className="text-[11px] font-medium truncate">{displayLabel}</span>
@@ -1999,12 +2038,21 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
         onClick: () => handlePresenceSegmentClick(seg.start.toISOString().slice(0, 10), seg.end.toISOString().slice(0, 10)),
       };
     }
-    const st = seg.covered ? BRIQUE_STATUS["CONFIRME"] : BRIQUE_STATUS["NON_COUVERT"];
+    // Même repérage qu'en vue desktop : annonce EN RECHERCHE chevauchant l'absence.
+    const search = seg.covered ? null : findSearchOverlapping(unlinkedMissions, seg.start, seg.end);
+    const st = seg.covered
+      ? BRIQUE_STATUS["CONFIRME"]
+      : search
+      ? BRIQUE_STATUS["RECHERCHE"]
+      : BRIQUE_STATUS["NON_COUVERT"];
     const typeLabel = BRIQUE_STATUS[seg.mission.briqueStatus]?.label ?? "Absent";
+    const label = seg.covered ? `Couvert · ${typeLabel}` : search ? `Recrutement · ${typeLabel}` : typeLabel;
     return {
       key: `p${i}`, leftPct: l, widthPct: w,
-      colorCls: `${st.bg} ${st.text}`, label: seg.covered ? `Couvert · ${typeLabel}` : typeLabel,
-      title: `${typeLabel} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)}`,
+      colorCls: `${st.bg} ${st.text}`, label,
+      title: search
+        ? `${label} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)} — annonce en ligne : « ${search.title} »`
+        : `${typeLabel} · ${fmtDate(seg.mission.startDate)} → ${fmtDate(seg.mission.endDate)}`,
       onClick: () => handleAbsenceSegmentClick(seg.mission),
     };
   });
@@ -2269,6 +2317,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
             <div style={{ minWidth: totalWidth + labelWidth }}>
               <SelfTimelineRow
                 selfMissions={selfMissions}
+                unlinkedMissions={unlinkedMissions}
                 cabinetName={cabinetName}
                 dayWidth={dayWidth}
                 totalWidth={totalWidth}
