@@ -1,8 +1,11 @@
 // Reprise de données — siège du titulaire (section 188).
 //
-// Crée, pour chaque profil TITULAIRE, son propre poste de planning (isOwnerSeat), puis y
-// rattache ses absences existantes (missions isSelfPresence). Après ce script, la ligne du
-// titulaire est un CabinetPost comme les autres et n'a plus besoin du flag isSelfPresence.
+// Crée, pour chaque COMPTE cabinet (profil de type TITULAIRE), le siège de son détenteur
+// (isOwnerSeat), puis y rattache ses absences existantes (missions isSelfPresence).
+// Vocabulaire : un compte cabinet n'est pas « un titulaire » — un cabinet peut en compter
+// plusieurs. Ce script ne crée que le siège du DÉTENTEUR DU COMPTE ; les éventuels
+// co-titulaires restent des postes ordinaires.
+// Après ce script, cette ligne est un CabinetPost comme les autres, sans flag isSelfPresence.
 //
 // IDEMPOTENT : rejouable sans effet de bord — un siège déjà présent n'est pas recréé, une
 // absence déjà rattachée n'est pas retouchée.
@@ -30,18 +33,18 @@ async function retry(fn, label) {
 async function main() {
   console.log(APPLY ? "MODE APPLIQUÉ — écriture en base\n" : "SIMULATION — aucune écriture (ajouter --apply)\n");
 
-  const titulaires = await retry(
+  const comptes = await retry(
     () => prisma.profile.findMany({
       where: { type: "TITULAIRE" },
       select: { id: true, name: true },
       orderBy: { createdAt: "asc" },
     }),
-    "lecture des profils",
+    "lecture des comptes cabinet",
   );
 
   let seatsCrees = 0, absencesRattachees = 0;
 
-  for (const p of titulaires) {
+  for (const p of comptes) {
     const nom = p.name ?? "Titulaire";
 
     let seat = await retry(
@@ -50,7 +53,7 @@ async function main() {
     );
 
     if (!seat) {
-      console.log(`  + siège à créer pour « ${nom} »`);
+      console.log(`  + siège à créer pour le compte « ${nom} »`);
       if (APPLY) {
         seat = await retry(
           () => prisma.cabinetPost.create({
@@ -71,7 +74,7 @@ async function main() {
       }
       seatsCrees++;
     } else {
-      console.log(`  = siège déjà présent pour « ${nom} »`);
+      console.log(`  = siège déjà présent pour le compte « ${nom} »`);
     }
 
     // Rattachement des absences non encore rattachées.
@@ -97,7 +100,7 @@ async function main() {
   }
 
   console.log(
-    `\n${titulaires.length} titulaire(s) · ${seatsCrees} siège(s) ${APPLY ? "créé(s)" : "à créer"} · ` +
+    `\n${comptes.length} compte(s) cabinet · ${seatsCrees} siège(s) ${APPLY ? "créé(s)" : "à créer"} · ` +
     `${absencesRattachees} absence(s) ${APPLY ? "rattachée(s)" : "à rattacher"}`,
   );
   if (!APPLY) console.log("Relancer avec --apply pour écrire.");

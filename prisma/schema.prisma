@@ -508,8 +508,14 @@ model CabinetPost {
   isActive     Boolean   @default(true)
   missions     Mission[] @relation("PostMissions")
 
-  // Siège du titulaire lui-même — sa propre ligne de planning (section 188).
-  // Avant, le titulaire n'avait AUCUN poste : ses congés étaient des Mission marquées
+  // Siège du TITULAIRE DU COMPTE — sa propre ligne de planning (section 188).
+  // Attention au vocabulaire : ce siège est celui du détenteur du compte cabinet, pas
+  // « du titulaire » au sens générique. Un cabinet peut compter plusieurs titulaires ;
+  // les autres sont des postes ordinaires (PostType.TITULAIRE / ASSOCIE). Le modèle ne
+  // sait pas encore représenter un co-titulaire disposant de droits sur le cabinet —
+  // sujet ouvert (statut différencié / administrateur de cabinet).
+  //
+  // Avant, le détenteur du compte n'avait AUCUN poste : ses congés étaient des Mission marquées
   // isSelfPresence, un objet qui est une Mission mais que chaque consommateur devait penser
   // à exclure. Oublis constatés : congés publiquement consultables, cartes de partage
   // générées, congés swipables dans le feed, suppression bloquée par le swipe ainsi créé.
