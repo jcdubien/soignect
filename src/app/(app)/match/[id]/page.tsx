@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SubscriptionPlan } from "@prisma/client";
 import { hasPremiumAccess } from "@/lib/platform";
 import MatchChatButton from "@/components/chat/MatchChatButton";
+import MatchScoreBlock from "@/components/matches/MatchScoreBlock";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,17 @@ export default async function MatchPage({ params, searchParams }: Props) {
               />
             </div>
           </>
+        )}
+
+        {/* Compatibilité du couple d'annonces — calculable à la demande. Sans ce déclencheur,
+            un score jamais calculé (ou remis à zéro après réaffectation) le restait à vie :
+            la seule branche de scoring de l'API n'était atteignable par aucun écran. */}
+        {match.missionA && match.missionB && (
+          <MatchScoreBlock
+            matchId={match.id}
+            initialScore={match.aiScore}
+            initialFactors={match.aiFactors as { availability: number; location: number; specialties: number; bio: number } | null}
+          />
         )}
 
         {theirMission && (

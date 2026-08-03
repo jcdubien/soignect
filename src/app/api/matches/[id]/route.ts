@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { computeMatchScore } from "@/lib/deepseek";
 import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
-import { MatchStatus } from "@prisma/client";
+import { MatchStatus, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -51,12 +51,21 @@ export async function PATCH(
     if (!mission || mission.profileId !== viewerId) {
       return NextResponse.json({ error: "Mission invalide" }, { status: 400 });
     }
-    // On met à jour le côté du match correspondant à l'utilisateur
+    // On met à jour le côté du match correspondant à l'utilisateur. Le score portait sur
+    // l'ANCIEN couple d'annonces : le conserver le ferait passer pour l'évaluation du
+    // nouveau. On le remet à « non calculé », charge à l'utilisateur de le relancer.
     const data = viewerId === profileAId ? { missionAId: targetMissionId } : { missionBId: targetMissionId };
-    await prisma.match.update({ where: { id }, data });
-    return NextResponse.json({ ok: true, targetMissionId });
+    // Prisma.DbNull : mettre la colonne Json à NULL en base (null tout court y est refusé —
+    // il désignerait la valeur JSON `null`, qui passerait pour un score enregistré).
+    await prisma.match.update({ where: { id }, data: { ...data, aiScore: null, aiFactors: Prisma.DbNull } });
+    return NextResponse.json({ ok: true, targetMissionId, rescoreNeeded: true });
   }
 
+  // Calcul de la compatibilité du couple d'annonces. Déclencheur EXPLICITE : la branche
+  // n'était atteignable qu'avec un corps de requête vide, que personne n'envoyait — les deux
+  // appelants côté client postent toujours un status ou un targetMissionId. Le scoring était
+  // donc du code mort, et un Match.aiScore à null le restait indéfiniment. Le corps vide reste
+  // accepté pour ne rien casser.
   if (!match.missionA || !match.missionB) {
     return NextResponse.json({ error: "Missions manquantes pour le scoring" }, { status: 422 });
   }
