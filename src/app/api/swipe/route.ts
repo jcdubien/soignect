@@ -17,6 +17,51 @@ const swipeSchema = z.object({
   targetMissionId: z.string().optional(), // TITULAIRE's active chip mission
 });
 
+type Periode = { startDate: Date | null; endDate: Date | null };
+
+// Recouvrement en jours entre deux périodes. null quand l'une des deux n'est pas bornée
+// (annonce ouverte : « dès août », minMonths seul) : absence d'information, pas incompatibilité.
+function overlapDays(a: Periode, b: Periode): number | null {
+  if (!a.startDate || !a.endDate || !b.startDate || !b.endDate) return null;
+  const start = Math.max(a.startDate.getTime(), b.startDate.getTime());
+  const end   = Math.min(a.endDate.getTime(),   b.endDate.getTime());
+  return Math.max(0, Math.round((end - start) / 86_400_000));
+}
+
+// Écart en jours entre deux périodes disjointes (0 si elles se touchent ou se recouvrent).
+function gapDays(a: Periode, b: Periode): number {
+  if (!a.startDate || !a.endDate || !b.startDate || !b.endDate) return Number.MAX_SAFE_INTEGER;
+  const ecart = a.startDate > b.endDate
+    ? a.startDate.getTime() - b.endDate.getTime()
+    : b.startDate.getTime() - a.endDate.getTime();
+  return Math.max(0, Math.round(ecart / 86_400_000));
+}
+
+// Parmi les annonces que l'autre partie a retenues, celle qui correspond vraiment à la période
+// visée, par ordre de préférence :
+//   0. recouvrement réel — le plus large gagne ;
+//   1. annonce non datée (« dès août », minMonths seul) : rien ne la contredit ;
+//   2. dates disjointes mais annonce encore à venir ou en cours — l'écart le plus faible ;
+//   3. annonce déjà passée : jamais retenue tant qu'il existe autre chose. Lier une nouvelle
+//      mise en relation à une annonce périmée n'a aucun sens, or c'est exactement ce que
+//      donnait le repli « la plus récemment swipée ».
+// À égalité, la plus récente (liste triée par date décroissante, tri stable).
+function pickBestReciprocal<T extends { swipedMission: Periode }>(
+  swipes: T[],
+  cible: Periode,
+  maintenant: Date = new Date(),
+): T | null {
+  if (swipes.length === 0) return null;
+  const classes = swipes.map((s) => {
+    const o = overlapDays(s.swipedMission, cible);
+    const perimee = !!s.swipedMission.endDate && s.swipedMission.endDate < maintenant;
+    const rang = o === null ? 1 : o > 0 ? 0 : perimee ? 3 : 2;
+    return { s, rang, recouvrement: o ?? 0, ecart: gapDays(s.swipedMission, cible) };
+  });
+  classes.sort((x, y) => x.rang - y.rang || y.recouvrement - x.recouvrement || x.ecart - y.ecart);
+  return classes[0].s;
+}
+
 // Désirabilité en POURCENTAGE 0-100 (section 126). Appliquée ensuite proportionnellement
 // au créneau Désirabilité du profil de pondération (10 pts Remplacement/Collab, 15 Assistanat).
 function getDesirabilityPercent(profile: {
@@ -178,13 +223,22 @@ export async function POST(req: NextRequest) {
       reciprocalMissionFilter = { swipedMissionId: { in: myMissions.map((m) => m.id) } };
     }
 
-    const reciprocalSwipe = await prisma.swipe.findFirst({
+    // Une même personne peut avoir retenu PLUSIEURS de mes annonces. Prendre la première
+    // venue (findFirst, sans tri) liait la mise en relation à une annonce dont la période
+    // n'avait parfois rien à voir avec celle du candidat — constaté en prod : une dispo
+    // 7 sept → 7 oct appariée à une annonce 14 déc → 17 janv, deux périodes disjointes.
+    // Le match partait donc sur un malentendu de dates. On retient l'annonce qui recouvre
+    // le mieux la période visée ; à défaut d'information de dates, la plus récente.
+    const reciprocalSwipes = await prisma.swipe.findMany({
       where: {
         swiperId: swipedMission.profileId,
         ...reciprocalMissionFilter,
         direction: SwipeDirection.RIGHT,
       },
+      include: { swipedMission: { select: { startDate: true, endDate: true } } },
+      orderBy: { createdAt: "desc" },
     });
+    const reciprocalSwipe = pickBestReciprocal(reciprocalSwipes, swipedMission);
 
     if (reciprocalSwipe) {
       const profileAId = swiperId < swipedMission.profileId ? swiperId : swipedMission.profileId;

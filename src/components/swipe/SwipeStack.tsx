@@ -417,6 +417,19 @@ function Card({
   );
 }
 
+// Annonce présélectionnée dans le sélecteur au chargement. La plus ancienne (ordre de
+// création) pouvait être PÉRIMÉE : le feed filtre alors les candidats sur des dates
+// révolues et ne remonte plus personne, alors que des candidats attendent sur les autres
+// annonces. On présélectionne donc la première annonce encore d'actualité — sans date de
+// fin, ou dont la fin n'est pas passée — et on ne retombe sur la première que si toutes
+// sont expirées.
+function defaultMissionId(missions?: TitulaireMission[]): string | null {
+  if (!missions || missions.length === 0) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const live = missions.find((m) => !m.endDate || new Date(m.endDate) >= today);
+  return (live ?? missions[0]).id;
+}
+
 // ── SwipeStack principal ───────────────────────────────────────────────────────
 export default function SwipeStack({ onSwipeRight, profileType, titulaireMissions, initialMissionId, profileId, onEmptyChange }: SwipeStackProps) {
   const isTitulaire = profileType === "TITULAIRE";
@@ -432,7 +445,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   const [match,            setMatch]             = useState<MatchData | null>(null);
   const [filter,           setFilter]            = useState<MissionFilter>("ALL");
   const [activeMissionId,  setActiveMissionId]   = useState<string | null>(
-    initialMissionId ?? titulaireMissions?.[0]?.id ?? null
+    initialMissionId ?? defaultMissionId(titulaireMissions)
   );
   // Skip the mission-switch effect on initial mount — initial fetch is handled by the [fetchFeed] effect
   const missionSwitchMounted = useRef(false);
@@ -695,10 +708,12 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
     );
   }
 
-  if (displayMissions.length === 0) {
-    // État vide contextualisé et rassurant (section 163). Côté titulaire, un feed vide = pas
-    // (encore) de candidats à swiper — surtout PAS l'absence de son annonce. On le rassure.
-    return (
+  // État vide contextualisé et rassurant (section 163). Côté titulaire, un feed vide = pas
+  // (encore) de candidats à swiper — surtout PAS l'absence de son annonce. On le rassure.
+  // Il est rendu DANS la mise en page, pas à sa place : en sortant tôt, on emportait aussi le
+  // sélecteur d'annonce et les filtres. Le titulaire dont l'annonce présélectionnée ne
+  // remontait personne se retrouvait enfermé — plus un seul contrôle pour en changer.
+  const emptyState = (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-10">
         <span className="text-6xl">{filter !== "ALL" ? "🔍" : isTitulaire ? (seenAvailable > 0 ? "✅" : "👀") : "🌊"}</span>
         <p className="text-gray-500 font-semibold">
@@ -732,8 +747,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           {isTitulaire ? "+ Publier une annonce" : "+ Publier une disponibilité"}
         </a>
       </div>
-    );
-  }
+  );
 
   const stack = displayMissions.slice(0, 3);
 
@@ -790,6 +804,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             Desktop : `lg:w-[480px]` (largeur DÉFINIE) et non `lg:max-w-[480px]` — car `lg:mx-auto`
             désactive le stretch flex, et les cartes étant en `absolute inset-0` (0 largeur en flux),
             un simple max-width laissait le conteneur s'effondrer à 0 → carrousel desktop vide. */}
+        {stack.length === 0 ? emptyState : (
         <div className="relative flex-1 mx-4 mt-2 mb-4 min-h-0 lg:w-[480px] lg:mx-auto">
           {/* Cartes du fond */}
           {stack.slice(1).reverse().map((mission, ri) => {
@@ -866,6 +881,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             </motion.div>
           </motion.div>
         </div>
+        )}
 
         {/* ── Décision ────────────────────────────────────────────────────────────
              Mobile : aucun bouton — le geste seul (gauche = passer, droite = intéressé).
