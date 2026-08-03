@@ -40,8 +40,9 @@ export async function POST(req: NextRequest) {
   // Rate-limit DeepSeek (section 165) — au-delà du plafond, aucun score n'est calculé.
   const budgetOk = await checkDeepSeekBudget(myProfileId);
   const result = await computeMatchScore(
-    { profileType: missionA.profile.type, bio: missionA.profile.bio, ...missionA },
-    { profileType: missionB.profile.type, bio: missionB.profile.bio, ...missionB },
+    // bioTinder après le spread : l'accroche de l'annonce, à défaut celle du profil (section 157).
+    { profileType: missionA.profile.type, bio: missionA.profile.bio, ...missionA, bioTinder: missionA.bioTinder ?? missionA.profile.bioTinder },
+    { profileType: missionB.profile.type, bio: missionB.profile.bio, ...missionB, bioTinder: missionB.bioTinder ?? missionB.profile.bioTinder },
     { skipDeepSeek: !budgetOk }
   );
   if (budgetOk) void recordDeepSeekCall(myProfileId);

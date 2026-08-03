@@ -219,6 +219,10 @@ export interface ScoringData {
   profileType: string;
   bio?: string | null;
   pitch?: string | null;
+  // L'accroche est le champ que les utilisateurs remplissent réellement — le scoring l'ignorait
+  // et ne lisait que pitch/bio, souvent vides des deux côtés. Il évaluait donc deux annonces
+  // sans texte, et le modèle rendait un verdict nul faute de matière.
+  bioTinder?: string | null;
   specialties?: string[];
   startDate?: Date | null;
   endDate?: Date | null;
@@ -248,25 +252,30 @@ export async function computeMatchScore(
     return "non précisée";
   };
 
+  // Le texte est pris LÀ OÙ IL EST : l'accroche d'abord, qui est le champ réellement rempli.
+  const presentation = (d: ScoringData) =>
+    d.pitch ?? d.bioTinder ?? d.bio ?? "non renseignée";
+
+  const bloc = (d: ScoringData, nom: string) => `Annonce ${nom} (${d.profileType}):
+- Présentation: ${presentation(d)}
+- Spécialités: ${(d.specialties ?? []).join(", ") || "non renseignées"}
+- Disponibilité: ${describeAvailability(d)}
+- Localisation: ${d.location ?? "non renseignée"}`;
+
+  // Le gabarit de réponse ne doit PAS contenir de valeurs plausibles : donné avec des 0.0, il
+  // était recopié tel quel dès que les annonces manquaient de texte — tous les scores sortaient
+  // à zéro, verdict apparemment motivé mais qui n'évaluait rien. Des marqueurs <…> forcent le
+  // modèle à produire ses propres nombres.
   const prompt = `Tu es un moteur de matching pour kinésithérapeutes en Guadeloupe.
-Évalue la compatibilité entre deux annonces et retourne UNIQUEMENT un JSON valide.
+Évalue la compatibilité entre ces deux annonces.
 
-Annonce A (${a.profileType}):
-- Phrase clé: ${a.pitch ?? "non renseignée"}
-- Bio: ${a.bio ?? "non renseignée"}
-- Spécialités: ${(a.specialties ?? []).join(", ") || "non renseignées"}
-- Disponibilité: ${describeAvailability(a)}
-- Localisation: ${a.location ?? "non renseignée"}
+${bloc(a, "A")}
 
-Annonce B (${b.profileType}):
-- Phrase clé: ${b.pitch ?? "non renseignée"}
-- Bio: ${b.bio ?? "non renseignée"}
-- Spécialités: ${(b.specialties ?? []).join(", ") || "non renseignées"}
-- Disponibilité: ${describeAvailability(b)}
-- Localisation: ${b.location ?? "non renseignée"}
+${bloc(b, "B")}
 
-Retourne ce JSON et rien d'autre (valeurs entre 0.0 et 1.0):
-{"score":0.0,"factors":{"availability":0.0,"location":0.0,"specialties":0.0,"bio":0.0}}`;
+Réponds UNIQUEMENT par un objet JSON de cette forme, en remplaçant chaque <…> par ta propre
+évaluation (nombre entre 0.0 et 1.0). N'utilise pas les valeurs de l'exemple :
+{"score":<compatibilité globale>,"factors":{"availability":<recouvrement des périodes>,"location":<proximité géographique>,"specialties":<adéquation des spécialités>,"bio":<adéquation des profils>}}`;
 
   const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",

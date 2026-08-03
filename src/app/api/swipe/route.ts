@@ -270,8 +270,9 @@ export async function POST(req: NextRequest) {
             // reste indéfini (colonne null), plutôt qu'un chiffre inventé qui ferait verdict.
             const budgetOk = await checkDeepSeekBudget(swiperId);
             const result = await computeMatchScore(
-              { profileType: profileA.type, bio: profileA.bio, ...(missionA ?? {}) },
-              { profileType: profileB.type, bio: profileB.bio, ...(missionB ?? {}) },
+              // bioTinder après le spread : l'accroche de l'annonce, à défaut celle du profil (section 157).
+              { profileType: profileA.type, bio: profileA.bio, ...(missionA ?? {}), bioTinder: missionA?.bioTinder ?? profileA.bioTinder },
+              { profileType: profileB.type, bio: profileB.bio, ...(missionB ?? {}), bioTinder: missionB?.bioTinder ?? profileB.bioTinder },
               { skipDeepSeek: !budgetOk }
             );
             if (result) {
