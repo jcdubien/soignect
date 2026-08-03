@@ -61,7 +61,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Missions manquantes pour le scoring" }, { status: 422 });
   }
 
-  // Rate-limit DeepSeek (section 165) — repli neutre si plafond atteint.
+  // Rate-limit DeepSeek (section 165) — au-delà du plafond, aucun score n'est calculé.
   const budgetOk = await checkDeepSeekBudget(session.user.profileId as string);
   const result = await computeMatchScore(
     { profileType: match.missionA.profile.type, bio: match.missionA.profile.bio, ...match.missionA },
@@ -70,10 +70,15 @@ export async function PATCH(
   );
   if (budgetOk) void recordDeepSeekCall(session.user.profileId as string);
 
+  // Rien calculé : on ne remplace pas un score existant par un chiffre de remplissage.
+  if (!result) {
+    return NextResponse.json({ aiScore: match.aiScore, aiFactors: match.aiFactors, scored: false });
+  }
+
   const updated = await prisma.match.update({
     where: { id },
     data: { aiScore: result.score, aiFactors: result.factors },
   });
 
-  return NextResponse.json({ aiScore: updated.aiScore, aiFactors: updated.aiFactors });
+  return NextResponse.json({ aiScore: updated.aiScore, aiFactors: updated.aiFactors, scored: true });
 }

@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  // Rate-limit DeepSeek (section 165) — repli neutre si plafond atteint.
+  // Rate-limit DeepSeek (section 165) — au-delà du plafond, aucun score n'est calculé.
   const budgetOk = await checkDeepSeekBudget(myProfileId);
   const result = await computeMatchScore(
     { profileType: missionA.profile.type, bio: missionA.profile.bio, ...missionA },
@@ -45,5 +45,6 @@ export async function POST(req: NextRequest) {
     { skipDeepSeek: !budgetOk }
   );
   if (budgetOk) void recordDeepSeekCall(myProfileId);
-  return NextResponse.json(result);
+  // 200 avec score null : l'appelant doit pouvoir dire « non évalué », pas afficher un 0.
+  return NextResponse.json(result ?? { score: null, factors: null, scored: false });
 }

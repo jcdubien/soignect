@@ -205,6 +205,11 @@ export interface MatchFactors {
   [key: string]: number; // compatibilité Prisma Json field
 }
 
+// Score et facteurs sur 0-100, comme computeAffinityScore et comme tout ce que l'interface
+// affiche. Le modèle, lui, répond sur 0.0-1.0 : la conversion se fait ici, une fois, au lieu
+// d'être oubliée par chaque appelant. Match.aiScore a longtemps stocké du 0-1 brut, si bien
+// qu'un 0,72 s'affichait « 1 » après arrondi — l'interface a fini par contourner le champ
+// partout au profit de Swipe.affinityScore.
 export interface MatchScore {
   score: number;
   factors: MatchFactors;
@@ -225,12 +230,12 @@ export async function computeMatchScore(
   a: ScoringData,
   b: ScoringData,
   options?: { skipDeepSeek?: boolean }
-): Promise<MatchScore> {
-  // Repli budget (rate-limit section 165) : score neutre sans appel API. Évite aussi le throw
-  // historique de cette fonction quand on veut juste éviter la dépense.
-  if (options?.skipDeepSeek) {
-    return { score: 0.5, factors: { availability: 0.5, location: 0.5, specialties: 0.5, bio: 0.5 } };
-  }
+): Promise<MatchScore | null> {
+  // Repli budget (rate-limit section 165) : pas d'appel API, donc PAS de score. On renvoie
+  // null — « inconnu » — et non un chiffre neutre inventé. Le repli précédent (0.5 sur une
+  // échelle 0-1) devenait un score stocké, impossible à distinguer d'une vraie évaluation :
+  // un couple non évalué s'affichait comme un couple médiocre.
+  if (options?.skipDeepSeek) return null;
 
   const formatDate = (d?: Date | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
@@ -290,5 +295,23 @@ Retourne ce JSON et rien d'autre (valeurs entre 0.0 et 1.0):
   const content = data.choices[0]?.message?.content;
   if (!content) throw new Error("DeepSeek returned empty content");
 
-  return JSON.parse(content) as MatchScore;
+  // Réponse du modèle : 0.0-1.0. On la valide avant de la croire — une valeur hors bornes
+  // signale une réponse mal formée, pas une compatibilité nulle. Mieux vaut lever (l'appelant
+  // laissera le score à « inconnu ») que d'enregistrer un zéro qui a l'air d'un verdict.
+  const brut = JSON.parse(content) as { score?: unknown; factors?: Record<string, unknown> };
+  const enPourcent = (v: unknown, champ: string): number => {
+    if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 1) {
+      throw new Error(`DeepSeek: ${champ} hors bornes 0-1 (${JSON.stringify(v)})`);
+    }
+    return Math.round(v * 100);
+  };
+  return {
+    score: enPourcent(brut.score, "score"),
+    factors: {
+      availability: enPourcent(brut.factors?.availability, "factors.availability"),
+      location:     enPourcent(brut.factors?.location,     "factors.location"),
+      specialties:  enPourcent(brut.factors?.specialties,  "factors.specialties"),
+      bio:          enPourcent(brut.factors?.bio,          "factors.bio"),
+    },
+  };
 }

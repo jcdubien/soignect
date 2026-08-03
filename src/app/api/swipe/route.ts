@@ -266,15 +266,18 @@ export async function POST(req: NextRequest) {
             : await prisma.mission.findUnique({ where: { id: reciprocalSwipe.swipedMissionId } });
 
           try {
-            // Rate-limit DeepSeek (section 165) — même politique de repli neutre.
+            // Rate-limit DeepSeek (section 165) — au-delà du plafond, pas d'appel : le score
+            // reste indéfini (colonne null), plutôt qu'un chiffre inventé qui ferait verdict.
             const budgetOk = await checkDeepSeekBudget(swiperId);
             const result = await computeMatchScore(
               { profileType: profileA.type, bio: profileA.bio, ...(missionA ?? {}) },
               { profileType: profileB.type, bio: profileB.bio, ...(missionB ?? {}) },
               { skipDeepSeek: !budgetOk }
             );
-            aiScore   = result.score;
-            aiFactors = result.factors;
+            if (result) {
+              aiScore   = result.score;
+              aiFactors = result.factors;
+            }
             if (budgetOk) void recordDeepSeekCall(swiperId, swipedMission.missionType);
           } catch (err) {
             console.error("[DeepSeek] Erreur calcul score match:", err);

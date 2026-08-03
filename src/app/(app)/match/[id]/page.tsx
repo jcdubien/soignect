@@ -58,7 +58,9 @@ export default async function MatchPage({ params, searchParams }: Props) {
   const theirProfile  = isA ? match.profileB : match.profileA;
   const theirMission  = isA ? match.missionB : match.missionA;
 
-  // M1 — Score affinité depuis Swipe (0-100), pas Match.aiScore (0-1)
+  // M1 — Score affinité depuis Swipe : c'est celui du lecteur, calculé au moment où il s'est
+  // prononcé. Match.aiScore évalue le couple d'annonces et vaut null tant qu'il n'a pas été
+  // calculé ; les deux sont désormais sur 0-100 (l'échelle 0-1 de Match.aiScore est corrigée).
   const theirMissionId = isA ? match.missionBId : match.missionAId;
   const mySwipe = theirMissionId
     ? await prisma.swipe.findFirst({
