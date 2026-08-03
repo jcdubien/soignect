@@ -6,11 +6,15 @@ import AnnoncesClient from "./AnnoncesClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function AnnoncesPage({ searchParams }: { searchParams: Promise<{ missionId?: string; disponibiliteId?: string }> }) {
+// `missionId` = MA mission active à présélectionner dans le sélecteur (chip titulaire).
+// `card` = fiche d'un TIERS à ouvrir directement en bottom sheet, avec statut et décision
+// (arrivée depuis une notification / la page publique d'une annonce). Les deux sont distincts :
+// passer un id de tiers en `missionId` ne ferait que casser le sélecteur.
+export default async function AnnoncesPage({ searchParams }: { searchParams: Promise<{ missionId?: string; disponibiliteId?: string; card?: string }> }) {
   const session = await auth();
   const profileId   = (session?.user as { profileId?: string })?.profileId ?? null;
   const profileType = (session?.user as { profileType?: string })?.profileType ?? "REMPLACANT";
-  const { missionId: initialMissionId, disponibiliteId } = await searchParams;
+  const { missionId: initialMissionId, disponibiliteId, card: cardMissionId } = await searchParams;
 
   // Statut Premium (item 8) — gating du bouton "Envoyer un contrat" dans le tray.
   // Prend en compte le mode lancement gratuit (section 2).
@@ -62,6 +66,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
       titulaireMissions={titulaireMissions}
       initialMissionId={initialMissionId}
       disponibiliteId={disponibiliteId}
+      cardMissionId={cardMissionId}
     />
   );
 }

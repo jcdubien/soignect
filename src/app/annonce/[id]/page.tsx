@@ -43,7 +43,7 @@ async function getMission(id: string) {
       minMonths: true, missionType: true, pitch: true, bioTinder: true,
       demiJourneesLibres: true, caMensuelEstime: true, // feature terrain — affichage fiche
       createdAt: true, updatedAt: true,
-      profile: { select: { profession: true, name: true, region: true, titulaireKind: true } },
+      profile: { select: { profession: true, name: true, region: true, titulaireKind: true, type: true } },
     },
   });
 }
@@ -125,6 +125,9 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
   });
 
   const type = TYPE_LABEL[m.missionType] ?? m.missionType;
+  // Un cabinet publie une « annonce », un candidat une « recherche » (section 157) : le
+  // vocabulaire et le CTA suivent le propriétaire de la fiche, pas le lecteur.
+  const ownerIsCabinet = m.profile.type === "TITULAIRE";
   // Accroche tronquée (1-2 lignes) visible sans compte
   const teaserSrc = (m.pitch ?? m.bioTinder ?? "").trim();
   const teaser = teaserSrc.length > 120 ? teaserSrc.slice(0, 120).trimEnd() + "…" : teaserSrc;
@@ -177,11 +180,16 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
               Cabinet, présentation complète et mise en relation réservés aux membres.
             </p>
             {isLoggedIn ? (
+              // Membre connecté → on ouvre DIRECTEMENT la fiche décisionnelle de cette annonce
+              // (?card=<id>), pas le flux générique. Sans ce deep link, une notification de
+              // consultation menait ici puis relâchait le lecteur dans /annonces : la fiche
+              // visée n'y est pas forcément (filtre de dates du chip sélectionné), donc aucun
+              // moyen de se prononcer — pas de bouton, pas de match possible.
               <Link
-                href="/annonces"
+                href={`/annonces?card=${m.id}`}
                 className="mt-3 inline-block w-full py-3 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition"
               >
-                Voir et répondre à l&apos;annonce →
+                {ownerIsCabinet ? "Voir et répondre à l'annonce →" : "Voir la recherche et se positionner →"}
               </Link>
             ) : (
               <div className="mt-3 flex flex-col gap-2">

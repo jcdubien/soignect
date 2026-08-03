@@ -97,12 +97,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       const ctaLabel = viewerListingPath
         ? (viewerType === "TITULAIRE" ? "Voir son annonce →" : "Voir sa recherche →")
         : "Voir mes annonces";
-      // Notification in-app (section 155) — en parallèle de l'email.
+      // Notification in-app (section 155) — en parallèle de l'email. Le destinataire est
+      // connecté par construction : on l'envoie directement sur la fiche DÉCISIONNELLE du
+      // visiteur (?card=), pas sur la page publique. Celle-ci ne sait que présenter l'annonce
+      // et renvoyait vers le flux générique — d'où une notification sans issue : on voyait la
+      // recherche de l'intéressé sans pouvoir se prononcer. L'email, lui, garde le lien public
+      // (son lecteur peut être déconnecté) et propose ce deep link une fois la session ouverte.
       createNotification({
         userId: owner.user.id,
         type: "consultation",
         message: `${viewerLabel} a consulté votre ${listingWord} « ${mission.title} »`,
-        linkUrl,
+        linkUrl: viewerMission ? `/annonces?card=${viewerMission.id}` : linkUrl,
       });
       await sendConsultationEmail(owner.user.email, {
         viewerLabel,

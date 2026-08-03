@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import SwipeStack from "@/components/swipe/SwipeStack";
@@ -18,9 +18,10 @@ interface Props {
   titulaireMissions: TitulaireMission[];
   initialMissionId?: string;
   disponibiliteId?: string;
+  cardMissionId?: string;
 }
 
-export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId }: Props) {
+export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId, cardMissionId }: Props) {
   const [trayKey, setTrayKey] = useState(0);
   const [detail, setDetail] = useState<{ mission: DetailMission; relation: MissionRelation } | null>(null);
 
@@ -32,20 +33,33 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
   const publishedId = searchParams.get("pid") ?? "";
   const [showPublished, setShowPublished] = useState(justPublished);
 
-  // Clic sur une annonce récente → même fiche détaillée (bottom sheet) que l'icône "i",
-  // enrichie du statut réel de l'utilisateur (swipe / mise en relation).
-  const handleSelectRecent = useCallback(async (rm: RecentMission) => {
+  // Ouverture de la fiche détaillée (bottom sheet) d'une annonce donnée, enrichie du statut
+  // réel de l'utilisateur (swipe / mise en relation) — donc porteuse des décisions.
+  const openCard = useCallback(async (missionId: string, opts?: { forgetIfGone?: boolean }) => {
     try {
-      const r = await fetch(`/api/missions/${rm.id}/card`);
+      const r = await fetch(`/api/missions/${missionId}/card`);
       if (!r.ok) {
         // Annonce supprimée/introuvable → on la retire de l'historique pour ne plus la proposer.
-        if (r.status === 404) removeRecentMission(rm.id, profileId);
+        if (r.status === 404 && opts?.forgetIfGone) removeRecentMission(missionId, profileId);
         return;
       }
       const d = await r.json();
       setDetail({ mission: d.mission, relation: d.relation });
     } catch { /* silencieux */ }
   }, [profileId]);
+
+  // Clic sur une annonce récente → même fiche que l'icône "i".
+  const handleSelectRecent = useCallback((rm: RecentMission) => {
+    void openCard(rm.id, { forgetIfGone: true });
+  }, [openCard]);
+
+  // Arrivée avec ?card=<id> (notification de consultation → page publique → « Voir la
+  // recherche et se positionner ») : on ouvre cette fiche précise. Elle n'a pas à être dans
+  // le feed du moment — le filtre de dates du chip sélectionné l'en écarte souvent, et le
+  // lecteur se retrouvait alors sans aucun moyen de se prononcer.
+  useEffect(() => {
+    if (cardMissionId) void openCard(cardMissionId);
+  }, [cardMissionId, openCard]);
 
   // Swipe depuis le bottom sheet (annonce jamais traitée) — enregistrement normal.
   const handleSheetSwipe = useCallback(async (direction: "LEFT" | "RIGHT") => {
