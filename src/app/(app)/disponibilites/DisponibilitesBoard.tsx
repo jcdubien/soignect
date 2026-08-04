@@ -27,6 +27,79 @@ interface LinkedPost {
   label: string;
   cabinetName: string | null;
   isCollaboration?: boolean; // wording « collaborateur » vs « assistant » (section 162)
+  // Remplacements publiés SUR ce poste — ils appartiennent au cabinet, donc invisibles dans
+  // « mes disponibilités » qui filtre sur profileId. Sans eux, l'assistant publiait une
+  // couverture et ne la retrouvait nulle part (constaté en conditions réelles).
+  couvertures?: {
+    id: string;
+    title: string;
+    startDate: string | null;
+    endDate: string | null;
+    briqueStatus: string;
+    relations: number;
+  }[];
+}
+
+// Bloc « couverture de mon absence » — la contrepartie visible du bouton « Faire remplacer
+// mon absence ». Publier sans jamais revoir ce qu'on a publié, c'est ce qui poussait à
+// republier ; d'où aussi le garde anti-doublon côté API.
+function CouverturesPoste({ post, onRetire }: { post: LinkedPost; onRetire: (id: string) => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const items = post.couvertures ?? [];
+  if (items.length === 0) return null;
+
+  const jour = (d: string | null) =>
+    d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" }) : "?";
+
+  async function retirer(id: string) {
+    if (busy) return;
+    setBusy(id); setErreur(null);
+    try {
+      const res = await fetch(`/api/missions/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setErreur(typeof d?.error === "string" ? d.error : "Le retrait a échoué.");
+        setBusy(null);
+        return;
+      }
+      onRetire(id);
+    } catch {
+      setErreur("Erreur réseau."); setBusy(null);
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto w-full px-4 pt-4">
+      <div className="bg-white rounded-2xl border border-violet-200 shadow-sm p-4">
+        <p className="text-sm font-bold text-gray-900 mb-0.5">Couverture de mon absence</p>
+        <p className="text-xs text-gray-400 mb-3">
+          Publiée sur le poste « {post.label} ». Visible par les remplaçants et sur le planning du cabinet.
+        </p>
+        <div className="space-y-2">
+          {items.map((c) => (
+            <div key={c.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">{c.title}</p>
+                <p className="text-xs text-gray-400">
+                  {jour(c.startDate)} → {jour(c.endDate)}
+                  {c.relations > 0 && <> · <span className="font-semibold text-emerald-600">{c.relations} mise{c.relations > 1 ? "s" : ""} en relation</span></>}
+                </p>
+              </div>
+              <button
+                onClick={() => retirer(c.id)}
+                disabled={busy === c.id}
+                className="shrink-0 text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-40"
+              >
+                {busy === c.id ? "…" : "Retirer"}
+              </button>
+            </div>
+          ))}
+        </div>
+        {erreur && <p className="mt-2 text-xs text-red-600">{erreur}</p>}
+      </div>
+    </div>
+  );
 }
 
 interface Props {
@@ -573,6 +646,7 @@ function AssistantDispoView({ profileName, missions, linkedPost }: {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<{ id: string; msg: string } | null>(null);
+  const [, setCouverturesRetirees] = useState<Set<string>>(new Set());
 
   async function doDelete(id: string) {
     setBusyId(id); setErrorId(null);
@@ -604,6 +678,8 @@ function AssistantDispoView({ profileName, missions, linkedPost }: {
           </Link>
         </div>
       )}
+
+      {linkedPost && <CouverturesPoste post={linkedPost} onRetire={(id) => { setCouverturesRetirees(prev => new Set(prev).add(id)); router.refresh(); }} />}
 
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-4">
         <div>
@@ -855,6 +931,8 @@ export default function DisponibilitesBoard({ profileName, profileType, missions
           </Link>
         </div>
       )}
+
+      {linkedPost && <CouverturesPoste post={linkedPost} onRetire={() => router.refresh()} />}
 
       {/* ── En-tête ── */}
       <div className="bg-white border-b border-gray-100 px-3 sm:px-4 py-3 flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0">

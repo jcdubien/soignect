@@ -114,7 +114,21 @@ export async function DELETE(
   const mission = await prisma.mission.findUnique({ where: { id } });
   if (!mission) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
-  if (mission.profileId !== session.user.profileId && session.user.role !== "ADMIN") {
+  // L'assistant rattaché au poste peut RETIRER le remplacement qu'il a publié pour couvrir son
+  // absence — symétrique du droit de le publier (POST, section 153 point 4). La mission
+  // appartient au cabinet, si bien que le garde de propriété le lui refusait : il pouvait créer
+  // une demande de couverture sans jamais pouvoir l'annuler (403 constaté en conditions réelles).
+  // Restreint au REMPLACEMENT, comme à la publication : il ne touche pas aux postes long terme.
+  let assistantDuPoste = false;
+  if (mission.cabinetPostId && mission.missionType === MissionType.REMPLACEMENT) {
+    const poste = await prisma.cabinetPost.findUnique({
+      where: { id: mission.cabinetPostId },
+      select: { linkedUserId: true },
+    });
+    assistantDuPoste = !!poste?.linkedUserId && poste.linkedUserId === session.user.id;
+  }
+
+  if (mission.profileId !== session.user.profileId && session.user.role !== "ADMIN" && !assistantDuPoste) {
     return NextResponse.json({ error: "Interdit" }, { status: 403 });
   }
 

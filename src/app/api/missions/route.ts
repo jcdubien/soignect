@@ -207,6 +207,37 @@ export async function POST(req: NextRequest) {
       // La mission appartient au cabinet → apparaît dans son Planning, swipeable par les remplaçants.
       ownerProfileId = post.cabinetId;
     }
+
+    // Anti-doublon de couverture : titulaire ET assistant rattaché peuvent tous deux publier
+    // un remplacement sur le même poste, sans se voir l'un l'autre. Deux annonces concurrentes
+    // pour la même absence, c'est deux remplaçants recrutés pour une seule place. On refuse
+    // quand une annonce de remplacement ACTIVE couvre déjà une période qui se chevauche.
+    // Limité au REMPLACEMENT : un assistanat long terme et un remplacement ponctuel se
+    // chevauchent légitimement (c'est même le cas nominal — on couvre l'absence du titulaire).
+    if (effectiveMissionType === MissionType.REMPLACEMENT && startDate && endDate) {
+      const doublon = await prisma.mission.findFirst({
+        where: {
+          cabinetPostId,
+          isActive: true,
+          missionType: MissionType.REMPLACEMENT,
+          briqueStatus: BriqueStatus.RECHERCHE,
+          startDate: { lte: endDate },
+          endDate:   { gte: startDate },
+        },
+        select: { id: true, title: true, startDate: true, endDate: true },
+      });
+      if (doublon) {
+        const jour = (d: Date | null) =>
+          d ? d.toISOString().slice(0, 10).split("-").reverse().join("/") : "?";
+        return NextResponse.json(
+          {
+            error: `Une annonce de remplacement couvre déjà cette période sur ce poste : « ${doublon.title} » (${jour(doublon.startDate)} → ${jour(doublon.endDate)}). Modifiez-la ou retirez-la plutôt que d'en publier une seconde.`,
+            duplicateMissionId: doublon.id,
+          },
+          { status: 409 }
+        );
+      }
+    }
   }
 
   // Derive zonage from commune — only meaningful for ASSISTANAT/COLLABORATION

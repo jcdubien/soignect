@@ -81,7 +81,21 @@ export default async function DisponibilitesPage() {
   const userId = session.user.id as string;
   const linkedPost = await prisma.cabinetPost.findFirst({
     where: { linkedUserId: userId },
-    select: { id: true, label: true, postType: true, cabinet: { select: { name: true } } },
+    select: {
+      id: true, label: true, postType: true, cabinet: { select: { name: true } },
+      // Couvertures publiées SUR ce poste. Elles appartiennent au cabinet (voir api/missions),
+      // donc la requête « mes missions » ci-dessus, qui filtre sur profileId, ne les voit pas :
+      // l'assistant ne retrouvait nulle part le remplacement qu'il venait lui-même de publier.
+      // On les charge par le RATTACHEMENT, comme le fait le Planning du titulaire.
+      missions: {
+        where: { isActive: true, missionType: "REMPLACEMENT" },
+        orderBy: { startDate: "asc" },
+        select: {
+          id: true, title: true, startDate: true, endDate: true, briqueStatus: true,
+          _count: { select: { matchesA: true, matchesB: true } },
+        },
+      },
+    },
   });
 
   const regionLabel: Record<string, string> = {
@@ -114,6 +128,14 @@ export default async function DisponibilitesPage() {
         };
       })}
       linkedPost={linkedPost ? {
+        couvertures: linkedPost.missions.map(m => ({
+          id: m.id,
+          title: m.title,
+          startDate: m.startDate?.toISOString() ?? null,
+          endDate: m.endDate?.toISOString() ?? null,
+          briqueStatus: m.briqueStatus,
+          relations: m._count.matchesA + m._count.matchesB,
+        })),
         id: linkedPost.id,
         label: linkedPost.label,
         cabinetName: linkedPost.cabinet?.name ?? null,
