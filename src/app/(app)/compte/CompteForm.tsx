@@ -42,6 +42,8 @@ interface ProfileData {
   secondaryPhotoUrl2: string | null;
   isEmployeur: boolean;
   titulaireKind: TitulaireKind;
+  // Ouverture au salariat (section 154) — porte le gating du feed dans les DEUX sens.
+  ouvertSalariat: boolean;
   // Identité contractuelle (section 150) — injectée dans le PDF de contrat
   rpps: string | null;
   numeroOrdre: string | null;
@@ -72,6 +74,12 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   const [siret, setSiret]         = useState(profile.siret ?? "");
   const [kind, setKind] = useState<TitulaireKind>(profile.titulaireKind);
   const isStructure = profile.type === "TITULAIRE" && kind === "STRUCTURE";
+  // Réglage candidat : ouverture aux postes salariés. Il n'était modifiable qu'à la création
+  // d'une NOUVELLE disponibilité — un candidat déjà inscrit ne pouvait donc plus l'activer
+  // sans tout republier. Résultat mesuré : 0 candidat opté sur 8, et le feed salarié aveugle
+  // dans les deux sens (api/feed) — l'établissement ne voyait personne, personne ne le voyait.
+  const isCandidat = profile.type === "REMPLACANT" || profile.type === "ASSISTANT";
+  const [ouvertSalariat, setOuvertSalariat] = useState(profile.ouvertSalariat ?? false);
 
   // Notifications (section 50-51)
   const initPhone = splitE164(profile.user?.phone, profile.user?.phoneCountry);
@@ -111,6 +119,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         phoneCountry,
         emailOptIn,
         notifyConsultation,
+        ...(isCandidat ? { ouvertSalariat } : {}),
       }),
     });
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
@@ -455,6 +464,34 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
           </button>
         </label>
       </section>
+
+      {/* ── Ouverture au salariat (candidat) ──
+           Réglage de RECHERCHE, pas de notification : il décide de ce que le candidat voit et
+           de qui le voit. Modifiable ici à tout moment, sans republier de disponibilité. */}
+      {isCandidat && (
+        <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Type de postes recherchés</h2>
+          <label className="flex items-center justify-between cursor-pointer gap-3">
+            <span className="text-sm text-gray-700">
+              💼 Je suis aussi ouvert·e aux postes salariés
+              <span className="block text-xs text-gray-400">
+                CDD, CDI, stage, vacation. Vous verrez alors les offres des établissements
+                (EHPAD, clinique, SSR…) et ils vous verront. Sans cette option, vous ne voyez
+                que les cabinets libéraux.
+              </span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={ouvertSalariat}
+              onClick={() => setOuvertSalariat(v => !v)}
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${ouvertSalariat ? "bg-[#1B3A5C]" : "bg-[#E0E0E0]"}`}
+            >
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${ouvertSalariat ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          </label>
+        </section>
+      )}
 
       {/* ── Abonnement ── */}
       <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">

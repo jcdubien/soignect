@@ -20,6 +20,10 @@ const updateSchema = z.object({
   // ou par un admin (/api/admin/profiles/[id]).
   isEmployeur: z.boolean().optional(),
   titulaireKind: z.nativeEnum(TitulaireKind).optional(),
+  // Ouverture au salariat (section 154) : réglable depuis « Mon compte », plus seulement à la
+  // création d'une disponibilité. Le feed la lit sur le Profile à chaque requête — l'effet est
+  // donc immédiat, sans republication.
+  ouvertSalariat: z.boolean().optional(),
   // Identité contractuelle (section 150) — portée par le Profile, injectée dans le PDF
   rpps: z.string().max(20).nullable().optional(),
   numeroOrdre: z.string().max(30).nullable().optional(),

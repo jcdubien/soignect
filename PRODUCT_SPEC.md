@@ -1028,3 +1028,984 @@ avant toute décision de correction. Voir point 2 de la section
 "RÉCUPÉRATION D'UNE CONVERSATION ANTÉRIEURE" ci-dessus pour le détail 
 de la contrainte (article R.4321-99).
 ```
+
+---
+
+## BUGS PLANNING TITULAIRE — 29/07 (deux constats sur meme capture)
+
+### 1. Modification dates absence non repercutee sur timeline
+
+```
+Clic sur segment "Conge" (ligne titulaire), modification des dates 
+(17/08 -> 31/08), aucune mise a jour visuelle de la timeline apres 
+enregistrement. A verifier : enregistrement reel en base vs probleme 
+de rendu/cache client.
+```
+
+### 2. Aucun statut d'annonce visible sur la ligne titulaire pour son propre conge
+
+```
+Une annonce "Pointe-Noire, remplacement kine aout" existe (liee au 
+conge de Jean-Charles) mais apparait seulement dans "ANNONCES NON 
+RATTACHEES A UN POSTE", sans superposition visuelle sur la ligne 
+"Jean-Charles DUBIEN (titulaire)" - contrairement aux postes 
+d'equipe (Matheo) ou le statut de recrutement s'affiche bien en 
+couche sur la timeline. A verifier si voulu ou oubli de couverture.
+```
+
+### Statut
+
+```
+🟡 Deux prompts rédigés, en attente d envoi.
+```
+
+---
+
+## CLARIFICATION — Aucune action de match directe depuis notification de consultation (29/07)
+
+### Constat
+
+```
+Clic sur notif "Un remplacant a consulte votre annonce" -> atterrit 
+sur la page de l'annonce/dispo du remplacant (voulu, section 182) 
+mais aucune action de match directe visible - juste "Voir et 
+repondre a l'annonce ->". Cas concret : le remplacant (Julien 
+Morisot) avait explicitement SWIPE interesse sur cette mission, pas 
+juste consulte - Jean-Charles s'attend a pouvoir reciprocer 
+directement et n'y arrive pas.
+```
+
+### Extension du 29/07 — même logique appliquée au canal email
+
+```
+Jean-Charles a etendu la meme observation au declenchement de 
+l'EMAIL (pas seulement la notification in-app) : l'email actuel 
+("Votre annonce a ete consultee") se declenche sur simple 
+consultation, pas sur manifestation d'interet reelle (swipe). Meme 
+question posee : ne faudrait-il pas declencher l'email specifiquement 
+quand la personne swipe "interessee", avec un lien menant vers 
+l'action de reciprocite plutot que vers sa recherche/son profil ?
+
+Fusionne dans le meme prompt que la clarification in-app (meme 
+evenement declencheur probable, les deux canaux doivent evoluer 
+ensemble).
+```
+
+### Généralisation du 29/07 — principe de symétrie bidirectionnelle
+
+```
+Jean-Charles a pose le principe general qui sous-tend tout ce prompt : 
+il y a TOUJOURS une annonce qui appartient a quelqu'un, et EN FACE 
+une manifestation d'interet d'un tiers sur CETTE annonce precise - 
+jamais deux annonces qu'on ferait matcher l'une contre l'autre. Ce 
+principe doit s'appliquer SYMETRIQUEMENT dans les deux sens du 
+matching :
+- Cabinet publie un poste -> candidat swipe dessus -> le cabinet 
+  reagit a l'interet sur SA propre annonce
+- Candidat publie une disponibilite -> cabinet swipe dessus -> le 
+  candidat reagit a l'interet sur SA propre disponibilite (meme 
+  mecanique, pas une implementation separee)
+```
+
+### Statut
+
+```
+🟡 Prompt de clarification+feature rédigé (in-app ET email, dans 
+les deux sens du matching), en attente d envoi.
+```
+
+---
+
+## CLARIFICATION — Robustesse du match automatique en cas d'interet simultane (29/07)
+
+### Question posée
+
+```
+Si un cabinet et un candidat swipent "interesse" l'un sur l'autre a 
+peu pres au meme moment, le match automatique se cree-t-il de facon 
+fiable dans tous les cas, y compris en cas de quasi-simultaneite 
+(risque de concurrence/race condition) ? Les deux parties sont-elles 
+bien notifiees dans tous les cas ?
+```
+
+### Statut
+
+```
+🟡 Prompt de verification rédigé, en attente d envoi. Question de 
+solidite posee en amont, pas un bug constate.
+```
+
+---
+
+## RAPPORT D'ACTIVITÉ OPUS — 28/07 → 03/08 (5 jours, 37 commits)
+
+> ⚠️ Reçu le 03/08, alors que le suivi ci-dessus s'était arrêté au 
+> 29/07 (Sprint 0.5). Beaucoup de prompts déjà cumulés dans 
+> PROMPTS_EN_ATTENTE.md ont été traités en parallèle, hors du canal 
+> de suivi habituel. Réconciliation faite ci-dessous.
+
+### 🔴 DEUX POINTS CRITIQUES À RETENIR
+
+```
+1. LE TAUX DE RÉTROCESSION AFFICHAIT L'INVERSE DE SA VALEUR AU 
+   CONTRAT (corrigé le 29-30/07). Pendant la fenêtre où ce bug 
+   existait, un cabinet et un remplaçant ont pu voir un pourcentage 
+   different de celui réellement écrit dans leur contrat PDF.
+   ⚠️ ACTION REQUISE : demander à Opus de dater precisement la 
+   fenetre du bug et de verifier s'il y a un ecart entre ce que les 
+   parties croient avoir accepte et ce que le contrat dit, pour tout 
+   contrat signe sur cette periode.
+
+2. AGENDA PRIVÉ EXPOSÉ PUBLIQUEMENT (corrigé le 30/07) — toute ligne 
+   de planning (absence, congé, présence) avait sa PROPRE PAGE 
+   PUBLIQUE en HTTP 200, avec carte de partage nominative. 
+   Maintenant : seules les annonces EN RECHERCHE sont publiques ; 
+   l'image OG renvoie 404 hors annonce publique ; source unique pour 
+   l'URL publique (lib/appUrl) sur emails/Stripe/sitemap.
+```
+
+### Réconciliation avec PROMPTS_EN_ATTENTE.md — prompts résolus
+
+```
+✅ B1 (design carrousel swipe mobile / textuel desktop) — fait
+✅ B6 (fusion bioTinder + texte libre) — fait, avec 3 itérations sur 
+   la place du titre avant stabilisation
+✅ A4 (unification vocabulaire "mises en relation") — fait, + 
+   "compte cabinet" plutôt que "titulaire" (au-delà de ce qui était 
+   demandé, cohérent)
+✅ B9 (modification dates absence non répercutée sur timeline) — fait
+✅ B10 (statut annonce absent sur ligne titulaire pour son propre 
+   congé) — fait
+✅ Login jcdubien@gmail.com (Sprint 0.5, urgence #3) — cause 
+   probable identifiée : normalisation email à la connexion (casse/
+   espaces parasites faisaient échouer un mot de passe correct). 
+   Corrige aussi les emails Resend en échec silencieux (le SDK ne 
+   lève pas d'erreur sur refus) — possiblement liés à l'échec 
+   d'emails de réinitialisation signalé par Jean-Charles.
+🟡 B12 (match depuis notification consultation) — DIAGNOSTIC ET FIX 
+   FAITS, PAS ENCORE COMMITÉS, en attente de vérification live. 
+   Cause réelle : 3 verrous en série, pas juste un bouton manquant 
+   (voir détail technique ci-dessous). Nouveau paramètre ?card=<id> 
+   introduit, distinct de missionId. Julien MORISOT a swipé RIGHT 
+   sur 3 annonces de Jean-Charles — le match est prêt à se produire 
+   dès qu'un "Intéressé" réciproque est donné.
+```
+
+### Détail technique B12 (pour mémoire, une fois vérifié)
+
+```
+1. La notif menait à /annonce/<id> (page publique SEO) — sait 
+   présenter, pas décider. Son seul CTA menait vers /annonces SANS 
+   l'identifiant : cible perdue en route.
+2. Le paramètre ?missionId= existant servait à tout autre chose 
+   (présélection de LA PROPRE mission active de l'utilisateur dans 
+   un sélecteur de chips) — y passer l'id d'un tiers aurait cassé ce 
+   sélecteur, pas ouvert sa fiche.
+3. Le feed appliquait un filtre de chevauchement de dates avec le 
+   chip sélectionné (souvent une annonce périmée par défaut) — la 
+   cible n'avait aucune chance d'apparaître dans le flux, même en 
+   cherchant manuellement.
+
+Fix : nouveau paramètre ?card=<id>, ouvre directement la fiche 
+décisionnelle (MissionDetailSheet, Passer/Intéressé) hors feed, sans 
+subir les filtres de dates. Libellé du CTA adapté au type de 
+propriétaire de la fiche.
+```
+
+### Autres travaux notables (28/07-30/07)
+
+```
+- Planning : refonte du "siège du titulaire" en poste ordinaire 
+  (migration cabinet_post_owner_seat, 2 phases avec garde-fou 
+  intermédiaire) — les co-titulaires traités comme des assistants
+- Fusion absence/annonce : publier sur une absence la transforme ; 
+  gestion du retour en arrière sur une période publiée
+- Suppression d'absence : refus si engagée dans une mise en 
+  relation ; notification de l'autre partie au retrait d'une période
+- Correction de "Qu'est-ce qui manque ?" qui réclamait des infos 
+  déjà saisies
+- Layouts desktop deux colonnes généralisés (création annonce, 
+  matches, match, compte employeur) — au-delà du seul écran de 
+  création initialement demandé
+- Texte d'aide mobile recouvert par la pile de cartes — corrigé
+```
+
+### ⚠️ POINT À RÉCONCILIER — PRODUCT_SPEC.md réécrit par Opus le 30/07
+
+```
+Le rapport indique que Claude Code a réécrit le PRODUCT_SPEC.md du 
+DÉPÔT (le vrai fichier, dans le code) "de fond en comble" le 30/07 : 
+audit prod, vision des points d'entrée, bugs Sentry, fondations 
+retrouvées. Ce document-ci (tenu dans cette conversation) a 
+continué en parallèle, avec notamment la reconstitution des 
+fondations marketing d'origine (section dédiée plus haut).
+
+RISQUE DE DIVERGENCE : deux versions de PRODUCT_SPEC.md existent 
+peut-être maintenant — celle du dépôt (réécrite par Opus, avec accès 
+à l'historique git réel) et celle-ci (avec le contenu reconstitué de 
+la conversation antérieure retrouvée). À réconcilier : demander à 
+Opus de partager sa version du PRODUCT_SPEC.md pour comparaison, 
+avant que Sonnet ne travaille sur une version incomplète.
+```
+
+### Suggestion d'Opus retenue
+
+```
+"Passe systématique sur chaque notification a-t-elle une action au 
+bout ?" — les notifs message/match/signature pointent vers /matches 
+et /match/<id>/contrat, a priori saines mais non vérifiées 
+formellement. Bon réflexe après la découverte du bug B12 (même 
+famille : notification qui alerte sans donner prise) — à ajouter au 
+Sprint 1.
+```
+
+---
+
+## SESSION LIVE — Vérification des correctifs B12 + suivi déploiement (03/08)
+
+### Sécurité — action immédiate demandée
+
+```
+🔴 Un fine-grained token GitHub (droits ecriture sur le depot) a ete 
+colle en clair dans la conversation avec Jean-Charles pour configurer 
+git push local pour Claude Code. RÉVOCATION URGENTE DEMANDÉE tant 
+que le token reste visible dans l'historique de conversation. 
+Statut de revocation non confirme au moment de cette note.
+```
+
+### État du déploiement en cours
+
+```
+Push confirme (70c8544..6ef253a). Build Vercel identifie 
+(oD5_95tzooi7PPOti3L2B) reste inchange apres ~10 min - plus une 
+simple latence, investigation en cours cote tableau de bord Vercel.
+
+Piste cron ecartee avec preuve (vercel.json ne declare qu'un cron 
+journalier 0 9 * * *, autorise sur le plan Hobby) - pas la cause du 
+blocage.
+```
+
+### Déjà vérifié, indépendant du déploiement
+
+```
+✅ Réparation du match en base CONFIRMÉE en prod : la fiche affiche 
+desormais la bonne annonce (Kine Pointe-Noire, remplacant aout, 25% 
+retrocession) au lieu de l'annonce de decembre. Le pourcentage 
+affiche (23%) vient bien de Swipe.affinityScore (Match.aiScore reste 
+a null) - coherent avec le correctif attendu.
+```
+
+### Reste à vérifier une fois le déploiement en ligne
+
+```
+1. Notif -> action (B12) : la notification de consultation doit 
+   ouvrir directement la fiche de Julien avec Passer/Interesse, sans 
+   passer par la page publique
+2. Feed sans issue : le selecteur d'annonces doit rester affiche 
+   meme quand le feed ne remonte personne, presélection ne doit plus 
+   tomber sur une annonce perimee (2025)
+3. Appariement : le match repare (aiScore a null, annonce d'aout) se 
+   recalcule sur la bonne periode
+```
+
+---
+
+## REFONTE DU SCORING — 03/08 (5 commits, deux vagues)
+
+### Vague 1 — commit 979ccd8, trois chantiers de fond
+
+```
+1. DÉSIRABILITÉ RETIRÉE DU SCORE (pesait 10-15/100), déplacée dans 
+   L'ORDRE DU FEED, avec disclosure explicite en langage clair : "les 
+   comptes abonnés, partenaires et zones prioritaires apparaissent en 
+   premier. Le score de compatibilité, lui, ne dépend d'aucun 
+   abonnement." Bug corrigé au passage : le tri SQL ne lisait que la 
+   colonne brute desirabilityScore, ignorant le plan d'abonnement, le 
+   statut fondateur (isFounding) et les arbitrages admin.
+   
+   COHÉRENT avec l'intention d'origine retrouvée (section fondations, 
+   "positionnement discret du cabinet de Jean-Charles" prévu dès la 
+   genèse) - separer proprement la desirabilité du score de matching 
+   la rend plus honnete sans la supprimer.
+
+2. AFFICHAGE QUALITATIF au lieu de chiffré côté utilisateur - "Dates 
+   compatibles", "Secteur voisin", "Profils proches", colorés selon 
+   niveau. Le barème chiffré RESTE affiché aux ADMINS uniquement - 
+   c'est ce qui a permis de diagnostiquer le bug du score a zero le 
+   jour meme.
+
+3. SCOREUR UNIQUE - computeMatchScore et la route /api/ai/score 
+   supprimés (consolidation). Match.aiScore = instantané du score de 
+   compatibilité au moment de la mise en relation. Le recalcul 
+   emprunte la MEME formule que le feed et les swipes. Barèmes 
+   centralisés dans lib/compatibilite, partagés calcul/affichage - 
+   élimine le risque de duplication serveur/interface.
+```
+
+### ⚠️ DÉCISION EN SUSPENS — répartition des points libérés par la désirabilité
+
+```
+Opus a tranché SEUL (signalé comme tel, à valider) : les 10-15 
+points libérés sont allés aux DATES et à la GÉOGRAPHIE, pas aux 
+PROFILS. Raison invoquée : la composante Profils dépend du modèle 
+IA, qui vient de démontrer qu'il peut s'effondrer silencieusement à 
+zéro (voir vague 2 ci-dessous) - renforcer son poids amplifierait ce 
+risque.
+
+⚠️ TENSION AVEC LE PRINCIPE PRODUIT CONFIRMÉ LE 29/07 (section 
+"modèle de matching, option B") : le modèle du produit repose sur 
+l'intérêt porté à un PROFIL COMPLET (pas un accord logistique pur) - 
+dans cette philosophie, Profils est censé être LE différenciateur. 
+Diminuer relativement son poids va à contre-courant de ce principe.
+
+ARBITRAGE NON TRANCHÉ, les deux arguments sont valables :
+- POUR renforcer Profils : cohérence avec la philosophie produit 
+  (option B, confirmée)
+- CONTRE renforcer Profils : fragilité démontrée du scoreur IA (peut 
+  retourner 0 silencieusement)
+
+Note : en Assistanat, Profils pèse encore 55/100 (repartition 
+différente selon le type de mission, à confirmer si volontaire).
+
+À TRANCHER PAR JEAN-CHARLES.
+```
+
+### Vague 2 — commit 3c3018e, deux signalements corrigés
+
+```
+1. CARTE DE PARTAGE RECADRÉE — l'image 1200×630 alignait son contenu 
+   à gauche sur toute la largeur, alors que les messageries/
+   navigator.share recadrent en carré centré (les 630px du milieu) - 
+   marque/badge/début du titre tombaient hors cadre. Corrigé : 
+   contenu dans une zone de sécurité centrée de 600px. Vérifié en 
+   générant l'image réelle de l'annonce d'août puis en la découpant 
+   en carré (pas supposé).
+
+2. FAUX STATUT "COUVERT" (vert) sur une annonce ayant une mise en 
+   relation EN_ATTENTE (pas confirmée) — 
+   PlanningBoard.tsx:345 traitait N'IMPORTE QUEL match (quel que soit 
+   son statut) comme couvrant le poste. Une simple conversation en 
+   cours peignait le planning en vert, affirmant une couverture sur 
+   la foi d'un échange, pas d'un accord. Corrigé : seule une mise en 
+   relation CONFIRME couvre le poste desormais.
+
+MÊME FAMILLE que le reste de la session (rapport 28/07-03/08) : "un 
+affichage qui affirme plus que ce qu'il sait."
+```
+
+### Statut
+
+```
+5 commits en prod (979ccd8 + 3c3018e). Point en suspens : arbitrage 
+de repartition des points (dates/geo vs profils) a trancher par 
+Jean-Charles. Test de controle DeepSeek (couple bien-note) en cours, 
+resultat attendu.
+```
+
+---
+
+## AUDIT DEMANDÉ — Chaîne titulaire→assistant→remplaçant, double visibilité timeline (03/08)
+
+### Scénario à auditer
+
+```
+1. Titulaire recrute assistant (contrat signe)
+2. Assistant a compte autonome, rattache au poste
+3. Assistant recherche a son tour un remplacant ("Faire remplacer 
+   mon absence")
+4. QUESTION : ce remplacement apparait-il EN MEME TEMPS sur (a) la 
+   timeline personnelle de l'assistant et (b) la timeline composee 
+   du titulaire (ligne du poste correspondant) ?
+```
+
+### Statut
+
+```
+🟡 Prompt d'audit complet rédigé (conditions reelles, pas relecture 
+de code seule), en attente d envoi. Touche des zones deja fragiles 
+(rattachement poste-assistant, synchronisation timelines - cf B5, 
+B9, B10).
+```
+
+---
+
+## VISION STRATÉGIQUE — Au-delà du SaaS : donnée, MCP, et l'avenir du commerce numérique (03/08)
+
+### Thèse de Jean-Charles
+
+```
+La mode SaaS (interface web classique) a encore 2-3 ans devant elle 
+pour generer du revenu, mais l'evolution vers des agents IA (via 
+MCP notamment) va commoditiser la couche interface. Ce qui restera 
+rare et monnayable : la DONNEE et le rapport donnee/recherche - 
+savoir quoi interroger pour obtenir une reponse utile sur un marche 
+precis. Question posee : comment penser Soignect des maintenant dans 
+cette logique, sans attendre que le changement soit acte ?
+```
+
+### Ce qui existe déjà et va dans ce sens (sans avoir été nommé ainsi)
+
+```
+TraceEvent (construit depuis le debut du projet) accumule deja un 
+historique territorial - qui remplace ou, quand, a quel taux, quels 
+postes restent vacants combien de temps. C'est deja, de facto, la 
+construction d'un actif donnee, pense a l'origine pour le "Soignect 
+Observatoire" (produit institutionnel ARS/CGSS deja identifie tres 
+tot dans le projet). La reflexion de Jean-Charles rejoint et 
+generalise quelque chose deja engage, sans lien explicite fait 
+jusqu'ici entre les deux.
+```
+
+### Action concrète proposée — serveur MCP léger
+
+```
+Le MCP (Model Context Protocol) est le protocole par lequel un agent 
+IA interroge un service externe - c'est litteralement le mecanisme 
+par lequel cette conversation elle-meme fonctionne avec des outils 
+tiers. Si la these est juste, la vraie preparation n'est pas 
+philosophique mais TECHNIQUE ET PEU COUTEUSE : exposer les 
+capacites de Soignect (chercher une annonce, publier une 
+disponibilite, verifier un statut de match) via un serveur MCP, en 
+parallele de l'interface web.
+
+Faisabilite : toutes les routes API existent deja (les memes 
+routes /api/* qui servent l'interface web) - un serveur MCP est 
+essentiellement un habillage different autour de ce qui tourne deja, 
+pas une reconstruction. Cout d'implementation faible relativement a 
+la valeur strategique de positionnement.
+
+STATUT : idee capturee, PAS construite maintenant (regle du gel), 
+mais identifiee comme le chantier le plus concret et le moins couteux 
+si Jean-Charles veut avancer sur cette reflexion au-dela de la pure 
+theorie. Candidat naturel pour une session dediee en Phase 3, une 
+fois la beta stabilisee.
+```
+
+### Limite légale à poser dès maintenant sur la donnée
+
+```
+Monnayable proprement : PATTERNS AGREGES ET ANONYMISES uniquement - 
+taux de remplissage par zone, delai moyen avant match, saisonnalite 
+des tensions, taux de retrocession moyens par secteur.
+
+JAMAIS directement monnayable sans consentement RGPD specifique : 
+donnees individuelles (RPPS, comportement d'un candidat precis).
+
+DISCIPLINE A ADOPTER DES MAINTENANT : construire l'habitude 
+d'agreger/anonymiser a la source (dans la conception des futures 
+requetes/exports), plutot que de devoir retravailler retroactivement 
+plus tard un historique de donnees individuelles accumule sans cette 
+precaution.
+```
+
+### ✅ DÉCISION DU 03/08 — orientation adoptée MAINTENANT, pas différée
+
+```
+Jean-Charles précise : ce n'est PAS une reflexion pour plus tard, 
+c'est L'ORIENTATION A PRENDRE DES MAINTENANT. Reformulation explicite 
+de la mission du produit :
+
+Soignect n'est PAS "un Uber du remplacement" (une marketplace de 
+matching, point final). C'est un FOURNISSEUR DE RESSOURCES ET 
+D'INTELLIGENCE SUR LES RESSOURCES DE SANTE. 
+
+L'INTERLOCUTEUR INITIAL (celui qui utilise le produit au quotidien) 
+: le remplacant, le cabinet - c'est le moteur de collecte.
+L'INTERLOCUTEUR DE DESTINATION A TERME : les grandes organisations 
+de sante - hopitaux, CPTS, recruteurs institutionnels, ARS/CGSS.
+
+La marketplace n'est pas la finalite du produit - c'est le mecanisme 
+qui genere la donnee dont la finalite a besoin.
+```
+
+### Trois actions concrètes adoptées immédiatement
+
+```
+1. MISSION DU PRODUIT REFORMULEE (ce document) - voir ci-dessus, a 
+   reprendre dans toute presentation/pitch futur du produit.
+
+2. NOUVELLE REGLE PERMANENTE (ajoutee a PLAN_PASSATION_SPRINTS.md) : 
+   toute nouvelle feature doit desormais etre evaluee aussi sous 
+   l'angle "quelle donnee ca fait remonter, utile a l'interlocuteur 
+   institutionnel futur" - pas seulement sous l'angle UX immediat.
+
+3. AUDIT TRACEEVENT DEMANDE (prompt ci-dessous) - verifier la 
+   couverture reelle par rapport a cette destination.
+```
+
+### Statut
+
+```
+✅ ADOPTÉ COMME ORIENTATION ACTIVE, pas différé. Le serveur MCP 
+(section precedente) reste un chantier futur (Phase 3), mais la 
+DISCIPLINE DE COLLECTE, elle, s'applique des maintenant a toute 
+nouvelle feature.
+```
+
+### Prompt d'audit TraceEvent rédigé (à envoyer à Opus)
+
+```
+Prompt complet redige pour auditer la couverture reelle de 
+TraceEvent au regard de cette mission institutionnelle - liste des 
+eventType existants, signaux manquants identifies (delai de 
+remplissage, taux reels pratiques, annulations post-signature, 
+saisonnalite, taux de conversion par etape). Lecture seule, aucun 
+code. En attente d'envoi.
+```
+
+
+---
+
+## AUDIT TRACEEVENT — Résultat et point d'urgence identifié (03/08)
+
+### Constat d'Opus (verbatim, important)
+
+```
+Avec 46 publications, 3 mises en relation et 2 contrats, la base ne 
+supporte aujourd'hui aucune affirmation territoriale. L'enjeu de cet 
+audit n'est pas de produire des chiffres maintenant, c'est de 
+garantir qu'ils seront là quand le volume viendra — et surtout qu'ils 
+ne seront pas déjà perdus, ce qui est le cas des annulations.
+```
+
+### Le vrai trou identifié
+
+```
+Les ANNULATIONS de matches/contrats après signature ne sont PAS 
+tracées par TraceEvent actuellement. Contrairement au petit volume 
+(pas un problème - se corrige avec le temps), une donnée 
+d'annulation non capturée aujourd'hui est PERDUE DÉFINITIVEMENT, 
+meme quand le volume grossira. C'est le seul point vraiment urgent 
+de l'audit, par irreversibilite.
+```
+
+### Statut
+
+```
+🔴 Prompt de fix prioritaire rédigé (capture TraceEvent des 
+annulations) - passe avant les ameliorations de confort, en attente 
+d'envoi.
+```
+
+---
+
+## CAPTURE TRACEEVENT DES ANNULATIONS — Livré (03/08, commit b4bd1f1)
+
+### 5 points de destruction couverts (2 de plus que prévu par l'audit initial)
+
+```
+| Chemin | Origine | Avant |
+|---|---|---|
+| DELETE /api/match/[matchId] "Annuler la mise en relation" | MATCH_SUPPRIME | suppression totale, sans trace |
+| PATCH /api/matches/[id] -> DECLINE/EXPIRE | DECLINE | statut change, sans trace |
+| DELETE /api/missions/[id] | ANNONCE_SUPPRIMEE | cascade silencieuse (non isole par l'audit initial) |
+| DELETE /api/absences | ABSENCE_SUPPRIMEE | cascade silencieuse (non isole par l'audit initial) |
+| DELETE /api/admin/missions/[id] | ADMIN | cascade silencieuse |
+```
+
+### Architecture retenue
+
+```
+UN SEUL eventType (MATCH_CANCELLED), pas deux - le moment de 
+l'annulation est porte par metadata.stade, evite le risque de double 
+comptage/oubli dans une future agregation.
+
+Metadata capture : stade (EN_ATTENTE/DISCUSSION/CONFIRME/
+CONTRAT_SIGNE), phase (avant/apres signature), signatures (0/1/2 - 
+le cas 1 seule signature distingue explicitement), joursDepuisMatch, 
+initiateur, origine. Plus type de relation et matchId en colonnes 
+indexees.
+
+Motif de l'annulation : PAS capture, aucune interface ne le collecte 
+- rien invente cote UI, conforme a la consigne.
+```
+
+### ✅ Décision privacy-by-design saluée
+
+```
+PAS de profileId ecrit, seulement le ROLE (CABINET/CANDIDAT/ADMIN/
+SYSTEME). Raisonnement d'Opus : mesurer la fiabilite du marche 
+n'exige pas de savoir QUI annule ; conserver l'identite permettrait 
+de profiler les praticiens qui se desistent, ce que le cadre RGPD 
+deja pose exclut. Decision reversible (le champ existe, pourrait 
+etre rempli plus tard si besoin reel et justifie).
+
+Applique proactivement la discipline RGPD deja posee (agregation, 
+jamais de profilage individuel) sans qu'elle ait ete redemandee pour 
+cette feature precise - bon signe de bonne comprehension du 
+principe, pas juste d'execution mecanique d'une consigne.
+```
+
+### Vérification en attente — décision prise
+
+```
+Le capteur n'a pas encore ete declenche reellement (compteur a zero, 
+seule mise en relation en base = celle avec Julien MORISOT). Opus 
+demandait si detruire ce match pour verifier le capteur.
+
+DÉCISION (03/08) : NON, ne pas détruire le match Julien pour ce 
+test. La premiere annulation reelle (test ou naturelle) validera le 
+capteur d'elle-meme ; le match Julien sert encore a d'autres 
+verifications en attente (B12 notamment) - ne pas le sacrifier pour 
+un test qui peut attendre.
+```
+
+### Statut
+
+```
+✅ LIVRÉ, poussé (b4bd1f1). Vérification empirique différée, pas 
+bloquante.
+```
+
+---
+
+## VÉRIFICATION LIVE COMPLÈTE — Parcours candidat, bannière + partage (03/08)
+
+### Résultat : tout vérifié en prod, à l'œil, en conditions réelles
+
+```
+| Élément | Statut |
+|---|---|
+| Bannière de confirmation côté candidat | ✅ "Votre recherche... visible par les cabinets" |
+| Partage à chaud depuis la bannière | ✅ Copier le lien + Partager... |
+| Copie réelle dans le presse-papier | ✅ confirmée par le collage de Jean-Charles |
+| Lien partagé valide | ✅ page publique servie, puis 404 après suppression |
+| Bouton Facebook retiré | ✅ bannière, page publique, fiche disponibilité |
+| CTA "Voir la recherche et se positionner" | ✅ |
+| Transparence sur l'ordre d'affichage | ✅ affichée sous les filtres |
+| Capture d'annulation | ✅ silencieuse a juste titre (0 mise en relation sur la mission test) |
+
+Test mené avec un vrai compte (Julien MORISOT), recherche de test 
+publiee (Marie-Galante, nov 2027) puis proprement supprimee - base 
+propre apres test, aucune mission "TEST technique" residuelle.
+```
+
+### Méthode notable — deux réserves honnêtes, résolues proprement
+
+```
+1. Copie presse-papier non prouvable par script (permission 
+   navigateur) - resolue par le collage manuel de Jean-Charles 
+   (⌘V), preuve humaine acceptee la ou l'automatisation ne pouvait 
+   pas confirmer sans risquer une fausse confirmation.
+2. Layout ShareActions imparfait (boutons empiles, vide a droite sur 
+   grand ecran) - signale comme point ouvert plutot que corrige sans 
+   permission, car la consigne "ne pas toucher ShareActions" avait 
+   ete posee dans un contexte anterieur different.
+```
+
+### Décision — autorisation donnée
+
+```
+✅ Jean-Charles lève la restriction sur ShareActions pour ce fix 
+précis (boutons côte à côte sur desktop). Prompt rédigé, en attente 
+d'envoi.
+```
+
+### ✅ LIVRÉ ET VÉRIFIÉ (03/08, commit 3540e5e)
+
+```
+Vérifié à l'œil aux deux vraies tailles sur serveur local (pas 
+seulement compilation) :
+- 1564px : "Copier le lien" et "Partager..." côte à côte, largeurs 
+  égales, aucun retour à la ligne
+- 414px : empilés pleine largeur, cibles confortables au pouce
+Bascule au point d'arrêt sm (640px) : flex-col sm:flex-row, 
+sm:flex-1, whitespace-nowrap.
+
+CATCH SUPPLÉMENTAIRE TROUVÉ EN VÉRIFIANT : la bannière de 
+confirmation de publication enveloppait ShareActions dans un 
+conteneur sm:min-w-[260px], dimensionné pour l'ancien empilement - à 
+260px, deux boutons côte à côte auraient fait ~125px chacun, trop 
+serré. Élargi à 380px. Seul appelant contraignant la largeur ; les 5 
+autres (page publique, planning, disponibilités, fiche de mise en 
+relation) laissent le composant s'étendre naturellement - non 
+revérifiés un par un (nécessitent session/état particulier), mais 
+conteneurs plus larges que 380px partout, donc rendu attendu au 
+moins aussi confortable. Pas d'action requise, à observer 
+occasionnellement au fil de l'usage normal.
+```
+
+---
+
+## AUDIT CHAÎNE TITULAIRE→ASSISTANT→REMPLAÇANT — Résultat complet (03/08)
+
+### Étape 1 — Rattachement manuel : FONCTIONNE
+
+```
+Reconstitué par le vrai parcours produit (pas d'écriture DB directe) :
+Compte Paul (assistant, paulgide@gmail.com) rattaché au poste 
+"Mathéo" de Jean-Charles via le rattachement manuel (Planning -> 
+periode -> Voir le detail -> + Rattacher un compte assistant). 
+Banniere violette s'affiche correctement chez Paul : "Vous etes 
+actuellement assistant·e chez Jean-Charles DUBIEN (poste Mathéo)" + 
+bouton "Faire remplacer mon absence".
+
+⚠️ POINT NON RÉSOLU, À CLARIFIER SÉPARÉMENT : le rattachement 
+AUTOMATIQUE a la signature n'a pas ete rejoue (necessite un contrat 
+complet 2 signatures). Selon un etablissement fait "ce matin" (hors 
+contexte direct de cette session), le garde 
+assistant.type !== ProfileType.ASSISTANT n'aurait JAMAIS laisse 
+passer personne en production. Si confirme, c'est un probleme 
+DISTINCT et potentiellement plus grave que celui ci-dessous, car 
+c'est cense etre le chemin NORMAL (pas une solution de secours 
+manuelle).
+```
+
+### Étape 2 — "Faire remplacer mon absence" : CASSÉ, cul-de-sac total
+
+```
+Le formulaire atteint (/missions/create?cabinetPostId=...&needType=remplacement) 
+NE PEUT PAS ETRE SOUMIS. Pas un probleme d'affichage : les champs 
+exiges par sa propre validation ne sont pas rendus dans le DOM 
+(0 textarea description, 0 input date debut, 0 input date fin). 
+Bouton "Publier le poste" desactive sans aucun moyen de le debloquer.
+
+CAUSE PRÉCISE : coverMode (rawProfileType === "ASSISTANT" && 
+cabinetPostId present) est bien detecte, mais UNIQUEMENT applique au 
+VOCABULAIRE (titres/libelles), PAS aux drapeaux de visibilite des 
+champs (showStartDate, showEndDate, showMinMonths, bloc texte libre) 
+qui continuent de lire le TYPE BRUT du profil. Pour un ASSISTANT, 
+aucune des conditions (qui verifient REMPLACANT ou TITULAIRE) n'est 
+vraie -> rien ne s'affiche. Pendant ce temps showMinMonths est VRAI 
+pour ASSISTANT -> affiche a tort "Duree minimale souhaitee" (champ 
+de poste long terme) dans un parcours de remplacement ponctuel.
+
+Formule retenue : "Le mode couverture a ete cable sur les mots, pas 
+sur les champs."
+
+CONSÉQUENCE : la question centrale de l'audit (double visibilite 
+timeline) reste NON OBSERVEE - aucune mission ne peut naitre de ce 
+parcours actuellement. Mais le code GARANTIT (missions/route.ts:207) 
+que si une mission existait, profileId=<cabinet> et 
+cabinetPostId=<poste> -> elle apparaitrait sur le planning du 
+titulaire mais PAS chez l'assistant (dont /disponibilites filtre sur 
+profileId). Le second defaut (double visibilite) existe donc bien, 
+simplement MASQUÉ par le premier (formulaire casse).
+
+DÉCOUVERTE ARCHITECTURALE SUPPLÉMENTAIRE : la vue personnelle d'un 
+ASSISTANT n'est PAS une timeline - c'est "Ma recherche de poste", 
+une liste d'annonces de recherche d'EMPLOI. Aucune surface, chez 
+lui, ne peut accueillir une periode de remplacement - meme en 
+corrigeant uniquement la requete de visibilite.
+```
+
+### Étape 3 — Cohérence de la chaîne
+
+```
+✅ Le titulaire voit bien tout - conception juste sur ce point. 
+Verifie incidemment : l'annonce d'aout de Jean-Charles est bien 
+repassee en ambre "Recrutement" depuis le correctif du matin meme 
+(confirmation croisee d'un fix precedent).
+
+🔴 RISQUE DE DOUBLE EMPLOI CONFIRMÉ AVEC DE VRAIES DONNÉES : aucune 
+contrainte d'unicite, aucun controle de chevauchement en base. Le 
+poste "Assistant 1" porte deja 3 missions, "Mathéo" en porte 2. Une 
+fois l'assistant capable de publier, titulaire ET assistant pourront 
+recruter deux remplacants pour la meme absence sans se croiser - 
+d'autant plus facilement que l'assistant ne voit meme pas ce qu'il a 
+lui-meme cree (etape 2).
+```
+
+### Décision — répartition des 3 correctifs proposés
+
+```
+✅ FIX 1 (débloquer le formulaire, driver par coverMode partout, pas 
+   par le type brut) — AUTORISÉ IMMÉDIATEMENT. Certain, reproductible, 
+   rend la fonctionnalité totalement inutilisable aujourd'hui.
+
+🟡 FIX 2 (rendre la mission visible chez l'assistant) — DÉCISION 
+   PRODUIT PRISE (03/08) : l'assistant est À LA FOIS chercheur de 
+   poste (candidat classique, déjà couvert par "Ma recherche de 
+   poste") ET pourvoyeur de poste pour sa propre couverture (rôle 
+   mini-employeur). Ces deux intentions ne doivent pas être 
+   confondues dans un seul écran. Proposition à valider : un nouvel 
+   espace distinct "Mes recherches de remplacement", façon liste 
+   "Annonces actives" (déjà existant côté titulaire) plutôt qu'une 
+   timeline complète type Planning — trop lourd pour un usage 
+   occasionnel. Prompt à rédiger et valider avant envoi.
+
+🟡 FIX 3 (garde anti-doublon, publication sur poste déjà couvert aux 
+   mêmes dates) — accepté sur le principe, à faire APRÈS le fix 1, 
+   pas urgent au vu du volume actuel mais risque réel et documenté.
+
+État laissé en base : Paul reste rattaché au poste Mathéo (utile 
+pour la suite des tests, pas détaché).
+```
+
+---
+
+## AUDIT CHAÎNE — Complément : 3e défaut découvert, plus grave que les deux autres (03/08)
+
+### Réponse définitive à la question centrale : NON, sur les deux vues
+
+```
+Confirmé par mesure DOM comparative sur la MEME URL, deux sessions 
+reelles (Paul/ASSISTANT vs jcdubien/TITULAIRE) :
+| | Paul (ASSISTANT) | jcdubien (TITULAIRE) |
+|---|---|---|
+| champs date | 0 | 2 |
+| description | 0 | 1 |
+Preuve la plus propre possible du bug formulaire (fix 1, deja 
+autorise, confirmation maintenue).
+```
+
+### 🔴 DÉFAUT 3 — NOUVEAU, découvert en creusant, plus grave que prévu
+
+```
+La brique de decembre EST bien creee et bien rattachee cote titulaire 
+(donnees justes, requete juste) - mais elle est TOTALEMENT INVISIBLE 
+VISUELLEMENT quand une autre carte occupe la meme ligne/periode.
+
+Mesure precise : brique "TEST audit" (dec.) x=697 largeur=47px, carte 
+"3 postes" (ouverte) x=470 largeur=1280px - MEME ligne, MEME hauteur, 
+plages imbriquees, AUCUN z-index sur aucune des deux. La plus large, 
+peinte en second, recouvre integralement la plus etroite. Seul 
+l'arbre d'accessibilite prouvait l'existence de la brique cachee - 
+visuellement, rien ne la trahissait (juste un aplat ambre uniforme).
+
+GRAVITÉ RECLASSÉE : ce n'est PAS un defaut specifique au parcours 
+assistant - c'est un defaut de rendu GENERAL du Planning, qui peut 
+cacher silencieusement n'importe quelle donnee a n'importe quel 
+titulaire des que deux elements se chevauchent sur une meme ligne de 
+poste. Plus grave que les defauts 1 et 2 combines, car il touche 
+potentiellement TOUS les titulaires actuels, pas seulement le 
+scenario assistant en cours d'audit.
+```
+
+### Mise à jour de l'ordre de priorité
+
+```
+1. 🔴 Fix z-index/chevauchement Planning (NOUVEAU, priorite la plus 
+   haute - touche tous les titulaires silencieusement)
+2. Fix 1 initial (débloquer formulaire couverture assistant) - 
+   confirmé, autorisé, prompt prêt
+3. Clarification rattachement automatique (garde jamais franchi en 
+   prod) - Paul existant rend ce test maintenant possible
+4. Fix "Mes recherches de remplacement" côté assistant - proposition 
+   à valider par Jean-Charles avant envoi
+5. Garde anti-doublon (poste "Mathéo" est passé de 2 à 3 missions 
+   PENDANT le test lui-même - accumulation confirmée en direct)
+```
+
+### ✅ LIVRÉ ET VÉRIFIÉ (03/08, commit f492ccd)
+
+```
+Preuve avant/après exacte sur le cas mesuré :
+| | avant | après |
+|---|---|---|
+| "3 postes" (ouverte, 1280px) | y=292 h=35 | y=298 h=20 |
+| "TEST" (décembre, 47px) | y=292 h=35 -> invisible | y=320 h=20 -> visible |
+
+🔴 IMPACT PRODUCTION RÉEL CONFIRMÉ (pas théorique) : Cabinet des 
+ravines, poste "Assistant 1" - une occupation ouverte SANS DATE DE 
+FIN (01/01/2026) recouvrait "Rempla septembre Pointe à Pitre" 
+(07/09->25/09/2026) - UN RECRUTEMENT ACTIF, invisible pour ce 
+cabinet jusqu'à ce correctif. Confirme que la reclassification en 
+priorité maximale était justifiée - ce n'était pas un risque futur, 
+c'était déjà en train de se produire.
+
+Second cas trouvé (siège titulaire JC, deux annonces 2025 qui se 
+chevauchent) - sans consequence, dates passées.
+
+MÉCANISME AGGRAVANT IDENTIFIÉ (à retenir comme point de vigilance 
+général) : une période SANS DATE DE FIN s'étale jusqu'au bord droit 
+et recouvre tout ce qui vient après elle sur la même ligne. Toute 
+future feature affichant des plages temporelles sur une ligne 
+partagée doit anticiper le chevauchement dès la conception.
+
+FIX : placement glouton en sous-lignes (assignLanes) - chaque brique 
+prend la première sous-ligne libre à sa date de début, la hauteur de 
+la ligne du poste grandit d'autant. Appliqué à desktop 
+(TimelineRow/MissionBrick) ET mobile (MobilePostCard) - bug 
+identique trouvé indépendamment côté mobile (positionnement en 
+pourcentages), corrigé sans qu'on ait eu à le redemander séparément.
+
+Non-régression vérifiée : sans chevauchement, une seule sous-ligne, 
+hauteur inchangée - testé sur 5 scénarios dont 2 tirés de vraies 
+données de production. Les fonds ("Présence", zones "non couvert") 
+ne concurrencent aucune brique, ils la portent.
+
+⚠️ RÉSERVE EN COURS : rendu mobile vérifié à la compilation 
+uniquement, pas encore à l'écran - demande faite de le vérifier 
+visuellement (fenêtre étroite + cas de chevauchement recréé), 
+compte-rendu attendu.
+```
+
+### Statut
+
+```
+✅ LIVRÉ ET VÉRIFIÉ (desktop). 🟡 Vérification visuelle mobile en 
+cours. 🟡 Fix 1 (formulaire) confirmé, prompt déjà rédigé 
+précédemment. 🟡 Clarification rattachement auto toujours en 
+attente. 🟡 Fix "Mes recherches de remplacement" en attente de 
+validation JC.
+```
+
+---
+
+## VISION ARCHITECTURE DE FOND — Chercheur d'emploi / pourvoyeur d'emploi, statut décidé à la recherche effective (03/08)
+
+### Proposition de Jean-Charles
+
+```
+Par definition, un "assistant" n'est assistant que s'il est rattache 
+a un cabinet - avant rattachement, l'appeler ASSISTANT est premature. 
+Proposition de simplification :
+
+- Un TITULAIRE avec des postes ouverts a des postes de titulaires, 
+  assistants ou collaborateurs (ceci existe deja structurellement - 
+  CabinetPost types)
+- Mais l'identite de la PERSONNE elle-meme, a l'inscription, 
+  pourrait etre juste binaire : CHERCHEUR D'EMPLOI / POURVOYEUR 
+  D'EMPLOI
+- Le STATUT PRECIS (remplacant, assistant, collaborateur, associe) 
+  se decide au moment ou la recherche devient EFFECTIVE (match/
+  contrat), pas fige des l'inscription
+
+Cette proposition RESOUD DIRECTEMENT la tension decouverte dans 
+l'audit precedent (assistant "a la fois chercheur de poste ET 
+pourvoyeur de poste") - si l'identite de base etait deja binaire 
+chercheur/pourvoyeur, cette dualite ne serait plus un cas special a 
+contourner (espace "Mes recherches de remplacement" invente pour 
+s'en sortir) mais une consequence naturelle du modele.
+```
+
+### Coût réel identifié — pourquoi ne pas le faire maintenant
+
+```
+ProfileType (TITULAIRE/STRUCTURE/REMPLACANT/ASSISTANT) est verifie 
+QUASIMENT PARTOUT dans l'application : formulaires (le bug qu'on 
+vient de corriger en est un exemple direct - "le mode couverture a 
+ete cable sur les mots, pas sur les champs"), templates de contrat, 
+filtres du feed, libelles de notifications, badges, scores de 
+matching. Ce n'est pas un detail isole, c'est une colonne vertebrale 
+du modele de donnees.
+
+Le bug recemment corrige illustre precisement le risque : une 
+logique CONTEXTUELLE (je couvre une absence) s'appuyant sur une 
+IDENTITE FIGEE (profileType) produit des bugs. La proposition de 
+Jean-Charles inverserait cette logique partout, pas seulement a cet 
+endroit - ce qui est juste, mais massif.
+```
+
+### Décision (03/08)
+
+```
+❌ PAS MAINTENANT — trop risqué a ce stade (proche d'une beta 
+stabilisee, sortir tout juste d'une vague de bugs du meme type sur 
+un perimetre plus restreint). Ouvrir ce chantier maintenant risquerait 
+de generer une nouvelle vague de bugs similaires sur TOUTE la surface 
+de l'app d'un coup.
+
+✅ CE QUI CONTINUE EN PARALLELE, SANS CONTRADICTION : le correctif 
+pragmatique deja pose ("Mes recherches de remplacement", espace leger 
+cote assistant) - n'entre pas en conflit avec cette vision, l'anticipe 
+meme partiellement, sans necessiter de refonte immediate.
+
+✅ CAPTURE POUR PHASE 3+ : vision documentee ici en detail, pour ne 
+pas se perdre. PREREQUIS avant d'y toucher un jour : un audit complet 
+de tous les usages de ProfileType dans le code (chaque route, chaque 
+composant, chaque template) pour mesurer precisement le rayon 
+d'impact avant de se lancer - pas une decision a prendre a la legere 
+au detour d'une session.
+```
