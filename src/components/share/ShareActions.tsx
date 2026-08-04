@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ShareFacebookButton from "./ShareFacebookButton";
 
 // Actions de partage d'une annonce (section 101 + partage natif) — réutilisable partout
 // (page publique /annonce/[id] ET gestion d'annonce dans l'app, section 159) :
 //  1. « Copier le lien » — toujours disponible (desktop + mobile), confirmation temporaire.
 //  2. « Partager… » — via navigator.share() (Web Share API) : sélecteur natif Android/iPhone
 //     listant toutes les apps (Instagram, TikTok, WhatsApp, SMS, Mail…). Affiché seulement si supporté.
-//  3. Bouton Facebook (sharer.php) — toujours présent.
+//
+// Le bouton « Partager sur Facebook » dédié a été retiré : le sélecteur natif propose déjà
+// Facebook parmi ses destinations, un second chemin vers la même app n'apportait rien.
+// Réserve connue : Facebook n'apparaît dans ce sélecteur que si l'application est installée
+// (Android/iOS) ; sur un poste sans elle, il reste « Copier le lien ».
+//
 // Le lien pointe vers la page publique de l'annonce, qui demande auth/création de compte.
 export default function ShareActions({ path, title }: { path: string; title: string }) {
   const [copied, setCopied] = useState(false);
@@ -73,8 +77,6 @@ export default function ShareActions({ path, title }: { path: string; title: str
           Partager…
         </button>
       )}
-
-      <ShareFacebookButton path={path} />
     </div>
   );
 }
