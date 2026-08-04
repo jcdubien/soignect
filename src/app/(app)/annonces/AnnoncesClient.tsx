@@ -9,6 +9,7 @@ import RecentMissionsTray, { RecentMission, removeRecentMission } from "@/compon
 import LaunchOfferBanner from "@/components/ui/LaunchOfferBanner";
 import MissionDetailSheet, { DetailMission, MissionRelation } from "@/components/swipe/MissionDetailSheet";
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
+import ShareActions from "@/components/share/ShareActions";
 
 interface Props {
   profileType: string;
@@ -90,25 +91,39 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Confirmation de publication (section 163) — non ambiguë, avec lien vers l'annonce. */}
       {showPublished && (
-        <div className="shrink-0 bg-emerald-50 border-b border-emerald-200 px-4 py-3 flex items-center justify-between gap-3">
-          <p className="text-sm text-emerald-800 min-w-0">
-            ✅ <strong>Votre annonce{publishedTitle ? ` « ${publishedTitle} »` : ""} est en ligne</strong> — active et visible par les candidats.
-            {publishedId && (
-              <>
-                {" "}
-                <Link href={`/missions/create?editId=${encodeURIComponent(publishedId)}`} className="underline font-semibold whitespace-nowrap">
-                  La voir / modifier
-                </Link>
-              </>
-            )}
-          </p>
-          <button
-            onClick={() => setShowPublished(false)}
-            aria-label="Fermer"
-            className="shrink-0 text-emerald-500 hover:text-emerald-700 text-lg leading-none"
-          >
-            ✕
-          </button>
+        <div className="shrink-0 bg-emerald-50 border-b border-emerald-200 px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-emerald-800 min-w-0">
+              ✅ <strong>Votre annonce{publishedTitle ? ` « ${publishedTitle} »` : ""} est en ligne</strong> — active et visible par les candidats.
+              {publishedId && (
+                <>
+                  {" "}
+                  <Link href={`/missions/create?editId=${encodeURIComponent(publishedId)}`} className="underline font-semibold whitespace-nowrap">
+                    La voir / modifier
+                  </Link>
+                </>
+              )}
+            </p>
+            <button
+              onClick={() => setShowPublished(false)}
+              aria-label="Fermer"
+              className="shrink-0 text-emerald-500 hover:text-emerald-700 text-lg leading-none"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Partage à chaud. Le moment le plus motivé pour diffuser une annonce est celui où
+              elle vient d'être publiée ; il fallait jusqu'ici repasser par le Planning, ouvrir
+              l'entrée et y chercher la section de partage. Mêmes actions, même composant. */}
+          {publishedId && (
+            <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
+              <p className="text-xs font-semibold text-emerald-700 shrink-0">Partagez-la maintenant :</p>
+              <div className="w-full sm:w-auto sm:min-w-[260px]">
+                <ShareActions path={`/annonce/${publishedId}`} title={publishedTitle || "Annonce"} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
