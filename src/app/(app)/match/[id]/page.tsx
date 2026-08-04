@@ -71,6 +71,13 @@ export default async function MatchPage({ params, searchParams }: Props) {
     : null;
   const affinityScore = mySwipe?.affinityScore ?? null; // 0-100, déjà la bonne échelle
 
+  // Salariat (section 161) : même règle que contrat-info — le recruteur est un établissement.
+  // Calculé ici plutôt qu'appelé, la page ayant déjà les deux profils complets en main.
+  const titulaireParty =
+    match.profileA.type === "TITULAIRE" ? match.profileA :
+    match.profileB.type === "TITULAIRE" ? match.profileB : null;
+  const isSalariat = titulaireParty?.titulaireKind === "STRUCTURE";
+
   const isPremium = await hasPremiumAccess({
     subscriptionPlan: (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan,
     billingTriggeredAt: (myProfile as typeof myProfile & { billingTriggeredAt?: Date | null }).billingTriggeredAt,
@@ -150,8 +157,23 @@ export default async function MatchPage({ params, searchParams }: Props) {
           autoOpen={chat === "1"}
         />
 
-        {/* 2. Contrat PDF — Premium uniquement */}
-        {isPremium ? (
+        {/* 2. Contrat — salariat : PDF hors sujet ; libéral : PDF Premium.
+             Soignect ne génère que des contrats libéraux (section 161). Quand le recruteur est
+             un établissement, le contrat de travail relève de lui : proposer le PDF n'a aucun
+             sens, et le proposer DERRIÈRE UN PAYWALL revenait à vendre un abonnement pour un
+             document qui ne serait jamais livré. On mène directement à l'explication dédiée. */}
+        {isSalariat ? (
+          <Link
+            href={`/match/${match.id}/contrat`}
+            className="w-full flex items-center justify-between px-5 py-4 bg-white border border-gray-200 text-gray-700 rounded-2xl hover:bg-gray-50 active:scale-[0.98] transition"
+          >
+            <div>
+              <p className="font-semibold text-sm">Poste salarié — contrat hors plateforme</p>
+              <p className="text-gray-400 text-xs">Le contrat de travail est établi par l&apos;établissement</p>
+            </div>
+            <span className="text-lg">🏢</span>
+          </Link>
+        ) : isPremium ? (
           <Link
             href={`/match/${match.id}/contrat`}
             className="w-full flex items-center justify-between px-5 py-4 bg-white border border-kine-200 text-kine-700 rounded-2xl font-semibold hover:bg-kine-50 active:scale-[0.98] transition"
