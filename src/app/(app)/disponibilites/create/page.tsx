@@ -177,7 +177,12 @@ export default function CreateDisponibilitePage() {
       setLoading(false);
       return;
     }
-    router.push("/annonces");
+    // Symétrie avec la publication d'annonce côté cabinet : confirmation explicite ET partage
+    // à chaud. Le candidat repartait jusqu'ici vers le feed sans un mot — sa recherche est
+    // pourtant publique et partageable exactement de la même façon.
+    const created = await res.json().catch(() => null);
+    const publishedId = created?.id ? String(created.id) : "";
+    router.push(`/annonces?published=1&pid=${encodeURIComponent(publishedId)}&pt=${encodeURIComponent(form.title)}`);
   }
 
   // ── Assistance IA (candidat) ────────────────────────────────────────────────────

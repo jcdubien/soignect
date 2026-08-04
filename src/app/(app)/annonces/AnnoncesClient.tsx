@@ -35,6 +35,16 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
   const publishedId = searchParams.get("pid") ?? "";
   const [showPublished, setShowPublished] = useState(justPublished);
 
+  // Un cabinet publie une « annonce » et l'édite via le formulaire ; un candidat publie une
+  // « recherche » et la modifie en place sur /disponibilites (feuille « Modifier ma recherche »,
+  // il n'existe pas d'URL d'édition). Le vocabulaire et la destination suivent donc le profil —
+  // la bannière est commune aux deux camps puisque tous deux atterrissent ici après publication.
+  const viseCandidats = profileType === "TITULAIRE";
+  const motPublie     = viseCandidats ? "annonce" : "recherche";
+  const lienEdition   = viseCandidats
+    ? `/missions/create?editId=${encodeURIComponent(publishedId)}`
+    : "/disponibilites";
+
   // Ouverture de la fiche détaillée (bottom sheet) d'une annonce donnée, enrichie du statut
   // réel de l'utilisateur (swipe / mise en relation) — donc porteuse des décisions.
   const openCard = useCallback(async (missionId: string, opts?: { forgetIfGone?: boolean }) => {
@@ -94,11 +104,11 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
         <div className="shrink-0 bg-emerald-50 border-b border-emerald-200 px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm text-emerald-800 min-w-0">
-              ✅ <strong>Votre annonce{publishedTitle ? ` « ${publishedTitle} »` : ""} est en ligne</strong> — active et visible par les candidats.
+              ✅ <strong>Votre {motPublie}{publishedTitle ? ` « ${publishedTitle} »` : ""} est en ligne</strong> — {viseCandidats ? "active et visible par les candidats" : "visible par les cabinets"}.
               {publishedId && (
                 <>
                   {" "}
-                  <Link href={`/missions/create?editId=${encodeURIComponent(publishedId)}`} className="underline font-semibold whitespace-nowrap">
+                  <Link href={lienEdition} className="underline font-semibold whitespace-nowrap">
                     La voir / modifier
                   </Link>
                 </>
@@ -120,7 +130,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
             <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
               <p className="text-xs font-semibold text-emerald-700 shrink-0">Partagez-la maintenant :</p>
               <div className="w-full sm:w-auto sm:min-w-[260px]">
-                <ShareActions path={`/annonce/${publishedId}`} title={publishedTitle || "Annonce"} />
+                <ShareActions path={`/annonce/${publishedId}`} title={publishedTitle || (viseCandidats ? "Annonce" : "Recherche")} />
               </div>
             </div>
           )}
