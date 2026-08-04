@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { BriqueStatus, MissionType, MatchStatus } from "@prisma/client";
 import { sendPeriodRemovedEmail } from "@/lib/email";
+import { logMatchCancelled } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -122,6 +123,19 @@ export async function DELETE(req: NextRequest) {
     prisma.profile.findUnique({ where: { id: profileId }, select: { name: true } }),
     prisma.mission.findUnique({ where: { id: missionId }, select: { startDate: true, endDate: true } }),
   ]);
+
+  // Retirer une période d'absence publiée annule les mises en relation qu'elle portait — même
+  // fait métier qu'une annulation explicite, capturé au même titre et AVANT la transaction.
+  const matchsPerdus = await prisma.match.findMany({
+    where: { OR: [{ missionAId: missionId }, { missionBId: missionId }] },
+    include: {
+      missionA: { select: { location: true, missionType: true, briqueStatus: true } },
+      missionB: { select: { location: true, missionType: true, briqueStatus: true } },
+    },
+  });
+  for (const m of matchsPerdus) {
+    logMatchCancelled(m, { origine: "ABSENCE_SUPPRIMEE", initiateur: "CABINET" });
+  }
 
   // Nettoyage des dépendances AVANT suppression, comme le fait déjà DELETE /api/missions/[id].
   // Sans ça, un seul Swipe reçu suffisait à faire échouer le delete sur contrainte de clé

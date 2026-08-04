@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendRelationCancelledEmail } from "@/lib/email";
 import { detachAssistantPostForMatch } from "@/lib/assistantPost";
+import { logMatchCancelled } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,15 @@ export async function DELETE(
   }
 
   const missionIds = [match.missionAId, match.missionBId].filter(Boolean) as string[];
+
+  // Traçabilité AVANT la suppression — après, il ne reste rien à observer (section 86 / audit
+  // Observatoire). Fire-and-forget : n'empêche jamais l'annulation demandée par l'utilisateur.
+  logMatchCancelled(match, {
+    origine: "MATCH_SUPPRIME",
+    initiateur: match.profileAId === profileId
+      ? (match.profileA?.type === "TITULAIRE" ? "CABINET" : "CANDIDAT")
+      : (match.profileB?.type === "TITULAIRE" ? "CABINET" : "CANDIDAT"),
+  });
 
   await prisma.$transaction([
     // Retirer les swipes réciproques → chacun pourra re-swiper le profil plus tard

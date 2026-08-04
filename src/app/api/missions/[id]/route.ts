@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { BriqueStatus, MissionType, ZoneGeographique } from "@prisma/client";
+import { logMatchCancelled } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +125,32 @@ export async function DELETE(
       { error: "Cette période est liée à un contrat confirmé. Utilisez « Annuler la mise en relation » pour l'annuler." },
       { status: 409 }
     );
+  }
+
+  // Supprimer l'annonce annule aussi les mises en relation qui en dépendent — c'est une
+  // annulation à part entière, jusqu'ici invisible. On les capture AVANT la transaction : après,
+  // elles n'existent plus (audit Observatoire).
+  const matchsPerdus = await prisma.match.findMany({
+    where: { OR: [{ missionAId: id }, { missionBId: id }] },
+    include: {
+      missionA: { select: { location: true, missionType: true, briqueStatus: true } },
+      missionB: { select: { location: true, missionType: true, briqueStatus: true } },
+    },
+  });
+  if (matchsPerdus.length > 0) {
+    const parAdmin = session.user.role === "ADMIN" && mission.profileId !== session.user.profileId;
+    // Une « annonce » supprimée peut être celle d'un cabinet comme la recherche d'un candidat :
+    // l'initiateur se lit sur le propriétaire, pas sur le vocabulaire de la route.
+    const proprio = await prisma.profile.findUnique({
+      where: { id: mission.profileId },
+      select: { type: true },
+    });
+    for (const m of matchsPerdus) {
+      logMatchCancelled(m, {
+        origine: "ANNONCE_SUPPRIMEE",
+        initiateur: parAdmin ? "ADMIN" : proprio?.type === "TITULAIRE" ? "CABINET" : "CANDIDAT",
+      });
+    }
   }
 
   // Nettoyage des dépendances AVANT suppression, sinon les contraintes de clé étrangère

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { computeAffinityScore } from "@/lib/deepseek";
 import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
+import { logMatchCancelled } from "@/lib/trace";
 import { MatchStatus, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,19 @@ export async function PATCH(
   // Mise à jour du statut (item 12)
   const status = (body as { status?: string }).status;
   if (status && (Object.values(MatchStatus) as string[]).includes(status)) {
+    // Une relation déclinée ou expirée s'arrête là : c'est une annulation, même sans
+    // suppression. Tracée au même titre, pour que la fiabilité du marché se mesure sur tous
+    // les abandons et pas seulement sur ceux qui effacent leurs traces.
+    if (status === MatchStatus.DECLINE || status === MatchStatus.EXPIRE) {
+      const viewerId = session.user.profileId as string;
+      const acteur = viewerId === profileAId ? match.missionA?.profile : match.missionB?.profile;
+      logMatchCancelled(match, {
+        origine: "DECLINE",
+        initiateur: status === MatchStatus.EXPIRE
+          ? "SYSTEME"
+          : acteur?.type === "TITULAIRE" ? "CABINET" : "CANDIDAT",
+      });
+    }
     const updated = await prisma.match.update({ where: { id }, data: { status: status as MatchStatus } });
     return NextResponse.json({ status: updated.status });
   }

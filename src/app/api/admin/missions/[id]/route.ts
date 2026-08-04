@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logMatchCancelled } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +50,18 @@ export async function DELETE(
   try {
     const matches = await prisma.match.findMany({
       where: { OR: [{ missionAId: id }, { missionBId: id }] },
-      select: { id: true },
+      include: {
+        missionA: { select: { location: true, missionType: true, briqueStatus: true } },
+        missionB: { select: { location: true, missionType: true, briqueStatus: true } },
+      },
     });
     const matchIds = matches.map((m) => m.id);
+
+    // Une suppression administrative détruit les mises en relation comme les autres chemins :
+    // tracée avant, sinon la donnée disparaît pour de bon (audit Observatoire).
+    for (const m of matches) {
+      logMatchCancelled(m, { origine: "ADMIN", initiateur: "ADMIN" });
+    }
 
     await prisma.$transaction([
       prisma.message.deleteMany({ where: { matchId: { in: matchIds } } }),
