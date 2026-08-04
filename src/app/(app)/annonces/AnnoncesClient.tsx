@@ -129,7 +129,8 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
           {publishedId && (
             <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
               <p className="text-xs font-semibold text-emerald-700 shrink-0">Partagez-la maintenant :</p>
-              <div className="w-full sm:w-auto sm:min-w-[260px]">
+              {/* Élargi depuis que les deux actions sont côte à côte : 260 px les auraient serrées. */}
+              <div className="w-full sm:w-auto sm:min-w-[380px]">
                 <ShareActions path={`/annonce/${publishedId}`} title={publishedTitle || (viseCandidats ? "Annonce" : "Recherche")} />
               </div>
             </div>

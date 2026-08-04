@@ -56,12 +56,15 @@ export default function ShareActions({ path, title }: { path: string; title: str
     }
   }
 
+  // Empilé sur mobile — deux cibles pleine largeur, plus confortables au pouce. Côte à côte
+  // dès `sm` : depuis le retrait du bouton Facebook il ne reste que deux actions, et les
+  // empiler sur écran large laissait une colonne étroite avec du vide à droite.
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col sm:flex-row gap-2">
       <button
         type="button"
         onClick={copyLink}
-        className={`w-full py-2.5 rounded-xl text-sm font-bold border transition ${
+        className={`w-full sm:flex-1 sm:w-auto min-w-0 px-3 py-2.5 rounded-xl text-sm font-bold border whitespace-nowrap transition ${
           copied ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-700 hover:bg-gray-50"
         }`}
       >
@@ -72,7 +75,7 @@ export default function ShareActions({ path, title }: { path: string; title: str
         <button
           type="button"
           onClick={nativeShare}
-          className="w-full py-2.5 rounded-xl text-sm font-bold bg-kine-600 text-white hover:bg-kine-700 transition"
+          className="w-full sm:flex-1 sm:w-auto min-w-0 px-3 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap bg-kine-600 text-white hover:bg-kine-700 transition"
         >
           Partager…
         </button>
