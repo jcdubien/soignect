@@ -77,6 +77,48 @@ const ZOOM_LABELS: Record<Zoom, string> = { month: "Mois", quarter: "Trimestre",
 const TRACK_HEIGHT = 44;
 const LABEL_WIDTH  = 140;
 
+// ── Sous-lignes (« lanes ») ───────────────────────────────────────────────────
+// Deux périodes qui se chevauchent occupaient la même bande, sans z-index : celle peinte en
+// second recouvrait l'autre INTÉGRALEMENT. Mesuré en production — une brique de remplacement
+// de 47 px disparaissait sous une annonce ouverte de 1280 px, même ligne, même hauteur ; seul
+// l'arbre d'accessibilité en gardait la trace. Un titulaire pouvait donc ignorer qu'une période
+// était déjà couverte, ou en recrutement, parce qu'elle était cachée derrière autre chose.
+//
+// On répartit désormais les briques qui se chevauchent sur des sous-lignes distinctes, et la
+// ligne du poste grandit d'autant. Aucune brique ne peut plus être invisible.
+const LANE_HEIGHT = 20; // hauteur d'une brique quand la ligne est partagée
+const LANE_GAP    = 2;
+const LANE_PAD    = 4;  // marge haute/basse, équivalente au `top-1 bottom-1` d'origine
+
+// Placement glouton par intervalles : chaque élément prend la première sous-ligne libre à sa
+// date de début. Les éléments qui ne se chevauchent pas restent donc sur une seule sous-ligne —
+// le cas courant garde exactement l'affichage d'avant.
+function assignLanes<T>(items: T[], start: (x: T) => number, end: (x: T) => number): { lanes: Map<T, number>; count: number } {
+  const ordonnes = [...items].sort((a, b) => start(a) - start(b) || end(a) - end(b));
+  const finDeLane: number[] = [];
+  const lanes = new Map<T, number>();
+  for (const it of ordonnes) {
+    let l = finDeLane.findIndex((fin) => fin <= start(it));
+    if (l === -1) { l = finDeLane.length; finDeLane.push(end(it)); }
+    else finDeLane[l] = end(it);
+    lanes.set(it, l);
+  }
+  return { lanes, count: Math.max(finDeLane.length, 1) };
+}
+
+// Hauteur d'une piste selon le nombre de sous-lignes. À une seule sous-ligne, on conserve la
+// hauteur historique (44) : rien ne bouge pour les plannings sans chevauchement.
+function trackHeightFor(laneCount: number): number {
+  if (laneCount <= 1) return TRACK_HEIGHT;
+  return LANE_PAD * 2 + laneCount * LANE_HEIGHT + (laneCount - 1) * LANE_GAP;
+}
+
+// Position verticale d'une brique dans sa sous-ligne.
+function laneStyle(lane: number, laneCount: number, trackHeight: number): { top: number; height: number } {
+  if (laneCount <= 1) return { top: LANE_PAD, height: trackHeight - LANE_PAD * 2 };
+  return { top: LANE_PAD + lane * (LANE_HEIGHT + LANE_GAP), height: LANE_HEIGHT };
+}
+
 // Plage large pour montrer l'historique réel des postes (occupation antérieure, section 56)
 const RANGE_START = new Date();
 RANGE_START.setMonth(RANGE_START.getMonth() - 18);
@@ -178,6 +220,9 @@ function pctIn(d: Date, start: Date, end: Date): number {
 
 interface MobileBrick {
   key: string;
+  // Sous-ligne attribuée (voir assignLanes). undefined = pleine hauteur (fonds, zones non
+  // couvertes) : ces éléments ne concurrencent aucune brique, ils la portent.
+  lane?: number;
   leftPct: number;
   widthPct: number;
   colorCls: string;   // "bg-... text-..." ou "timeline-hatch text-white"
@@ -191,6 +236,9 @@ interface MobileBrick {
 function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
   label: string; bricks: MobileBrick[]; todayPct: number; onLabelClick?: () => void;
 }) {
+  // Même règle que la vue desktop : les briques qui se chevauchent s'empilent, la piste grandit.
+  const laneCount = Math.max(1, ...bricks.map((b) => (b.lane ?? 0) + 1));
+  const pisteH = laneCount <= 1 ? 56 : LANE_PAD * 2 + laneCount * LANE_HEIGHT + (laneCount - 1) * LANE_GAP;
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
       {onLabelClick ? (
@@ -204,7 +252,8 @@ function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
       {/* Toute la piste (y compris la zone vide) ouvre le menu du poste sur mobile (section 156) —
           avant, seules les briques répondaient. Un tap sur une brique garde son handler propre. */}
       <div
-        className={`relative h-14 rounded-lg bg-[var(--sable-chaud)] overflow-hidden ${onLabelClick ? "cursor-pointer" : ""}`}
+        className={`relative rounded-lg bg-[var(--sable-chaud)] overflow-hidden ${onLabelClick ? "cursor-pointer" : ""}`}
+        style={{ height: pisteH }}
         onClick={onLabelClick ? (e) => { if (e.target === e.currentTarget) onLabelClick(); } : undefined}
       >
         {bricks.map(b => (
@@ -212,8 +261,15 @@ function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
             key={b.key}
             onClick={b.onClick}
             title={b.title}
-            className={`md3-ripple absolute top-1 bottom-1 rounded-[5px] flex items-center px-1 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] ${b.colorCls} ${b.urgent ? "motion-safe:animate-pulse" : ""}`}
-            style={{ left: `${b.leftPct}%`, width: `${Math.max(b.widthPct, 2)}%` }}
+            className={`md3-ripple absolute rounded-[5px] flex items-center px-1 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] ${b.colorCls} ${b.urgent ? "motion-safe:animate-pulse" : ""}`}
+            style={{
+              left: `${b.leftPct}%`,
+              width: `${Math.max(b.widthPct, 2)}%`,
+              // Fonds et zones non couvertes (lane undefined) gardent la pleine hauteur.
+              ...(b.lane === undefined
+                ? { top: LANE_PAD, height: pisteH - LANE_PAD * 2 }
+                : laneStyle(b.lane, laneCount, pisteH)),
+            }}
           >
             <span className="text-[9px] font-medium truncate leading-none">{b.label}</span>
           </button>
@@ -963,6 +1019,9 @@ function MissionBrick({
   dayWidth,
   effectiveStatus,
   isSelf,
+  lane,
+  laneCount,
+  trackHeight,
   onBrickClick,
   onPanelClick,
 }: {
@@ -971,6 +1030,9 @@ function MissionBrick({
   dayWidth: number;
   effectiveStatus: string;
   isSelf: boolean;
+  lane: number;
+  laneCount: number;
+  trackHeight: number;
   onBrickClick: (mission: MissionData, post: PostData, isSelf: boolean, e: React.MouseEvent) => void;
   onPanelClick: (panel: Panel) => void;
 }) {
@@ -1021,8 +1083,8 @@ function MissionBrick({
     <div
       role="button"
       tabIndex={0}
-      className={`absolute top-1 bottom-1 rounded-[6px] flex items-center px-2 cursor-pointer select-none overflow-hidden transition-[filter,box-shadow] duration-200 hover:brightness-95 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] focus-visible:ring-offset-1 ${brickColor}`}
-      style={{ left, width: Math.max(width, 24), position: "absolute" }}
+      className={`absolute rounded-[6px] flex items-center px-2 cursor-pointer select-none overflow-hidden transition-[filter,box-shadow] duration-200 hover:brightness-95 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] focus-visible:ring-offset-1 ${brickColor}`}
+      style={{ left, width: Math.max(width, 24), position: "absolute", ...laneStyle(lane, laneCount, trackHeight) }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       title={`${mission.title} · ${fmtDate(mission.startDate)} → ${fmtDate(mission.endDate)} · ${st.label}`}
@@ -1056,8 +1118,17 @@ function TimelineRow({
   const now = new Date();
   const isSelf = post.id === "self";
 
+  // Répartition des briques en sous-lignes : deux périodes qui se chevauchent ne partagent
+  // plus la même bande. On borne chaque mission comme le fait MissionBrick (départ prévu,
+  // sinon fin, sinon ouverte jusqu'au bord droit) pour que le calcul colle au rendu.
+  const missionsDatees = post.missions.filter((m) => toDate(m.startDate));
+  const debutDe = (m: MissionData) => dayOffset(toDate(m.startDate)!);
+  const finDe   = (m: MissionData) => dayOffset(toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END);
+  const { lanes, count: laneCount } = assignLanes(missionsDatees, debutDe, finDe);
+  const trackHeight = trackHeightFor(laneCount);
+
   return (
-    <div className="flex border-b border-gray-100 last:border-0" style={{ height: TRACK_HEIGHT }}>
+    <div className="flex border-b border-gray-100 last:border-0" style={{ height: trackHeight }}>
       {/* Label fixe — cliquable : ouvre le menu du poste (gérer / définir / modifier) */}
       <button
         type="button"
@@ -1142,6 +1213,9 @@ function TimelineRow({
               dayWidth={dayWidth}
               effectiveStatus={isSelf ? "PRESENT" : getEffectiveStatus(m, post, localStatuses)}
               isSelf={isSelf}
+              lane={lanes.get(m) ?? 0}
+              laneCount={laneCount}
+              trackHeight={trackHeight}
               onBrickClick={onBrickClick}
               onPanelClick={onPanelClick}
             />
@@ -1956,6 +2030,14 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
         });
       });
     }
+    // Sous-lignes calculées sur les seules missions : deux périodes qui se chevauchent
+    // s'empilent au lieu de se recouvrir. Les zones non couvertes, elles, ne chevauchent
+    // aucune mission par construction et gardent la pleine hauteur.
+    const missionsDatees = post.missions.filter((m) => toDate(m.startDate));
+    const debutDe = (m: MissionData) => toDate(m.startDate)!.getTime();
+    const finDe   = (m: MissionData) => (toDate(m.departureDate) ?? toDate(m.endDate) ?? mWin.end).getTime();
+    const { lanes } = assignLanes(missionsDatees, debutDe, finDe);
+
     post.missions.forEach(m => {
       const start = toDate(m.startDate);
       if (!start) return;
@@ -1968,7 +2050,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
       const isHatch = status === "FERME";
       const brickLabel = m.matchedName || m.title;
       bricks.push({
-        key: m.id, leftPct: mpct(start), widthPct: w,
+        key: m.id, lane: lanes.get(m) ?? 0, leftPct: mpct(start), widthPct: w,
         colorCls: isHatch ? "timeline-hatch text-white" : `${st.bg} ${st.text}`,
         label: brickLabel, title: `${brickLabel} · ${st.label}`,
         onClick: (e: React.MouseEvent) => openDropdown(m, post, false, e),
