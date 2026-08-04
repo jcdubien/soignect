@@ -441,6 +441,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // Candidats/annonces DISPONIBLES déjà vus (swipés) — renvoyé par le feed (header). Distingue
   // « aucun candidat n'existe » de « vous les avez déjà tous vus » dans l'état vide (section 1).
   const [seenAvailable,    setSeenAvailable]     = useState(0);
+  // Établissement uniquement : combien de candidats ont coché « ouvert aux postes salariés ».
+  // À zéro, un feed vide n'a rien d'une attente — personne ne peut apparaître. -1 = sans objet.
+  const [salariatOptIn,    setSalariatOptIn]     = useState(-1);
   const [swiping,          setSwiping]           = useState(false);
   const [match,            setMatch]             = useState<MatchData | null>(null);
   const [filter,           setFilter]            = useState<MissionFilter>("ALL");
@@ -520,6 +523,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       }
       const seenHdr = r.headers.get("x-feed-seen-available");
       if (seenHdr != null) setSeenAvailable(parseInt(seenHdr, 10) || 0);
+      const optInHdr = r.headers.get("x-feed-salariat-optin");
+      if (optInHdr != null) setSalariatOptIn(parseInt(optInHdr, 10));
       const data = await r.json();
       if (!Array.isArray(data)) {
         console.error("[SwipeStack] feed response is not an array:", data);
@@ -715,10 +720,14 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // remontait personne se retrouvait enfermé — plus un seul contrôle pour en changer.
   const emptyState = (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-10">
-        <span className="text-6xl">{filter !== "ALL" ? "🔍" : isTitulaire ? (seenAvailable > 0 ? "✅" : "👀") : "🌊"}</span>
+        {/* Établissement sans aucun candidat opté : ce n'est pas une attente, c'est un vivier
+            inexistant — l'icône et le texte doivent le dire, pas rassurer à tort. */}
+        <span className="text-6xl">{filter !== "ALL" ? "🔍" : salariatOptIn === 0 ? "💼" : isTitulaire ? (seenAvailable > 0 ? "✅" : "👀") : "🌊"}</span>
         <p className="text-gray-500 font-semibold">
           {filter !== "ALL"
             ? `Aucune annonce "${FILTER_LABELS[filter]}" pour le moment`
+            : salariatOptIn === 0
+            ? "Aucun candidat ouvert aux postes salariés pour l'instant"
             : isTitulaire
             ? (seenAvailable > 0
                 ? "Vous avez déjà vu tous les candidats disponibles"
@@ -726,7 +735,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             : "Plus d'annonces pour le moment"}
         </p>
         <p className="text-gray-400 text-sm max-w-xs">
-          {isTitulaire
+          {salariatOptIn === 0
+            ? "Votre annonce est en ligne. Seuls les professionnels ayant coché « ouvert aux postes salariés » dans leur compte peuvent la voir et vous être proposés — aucun ne l'a fait à ce jour. Ils apparaîtront ici dès qu'un premier l'activera."
+            : isTitulaire
             ? (seenAvailable > 0
                 ? `Vous avez parcouru ${seenAvailable} profil${seenAvailable > 1 ? "s" : ""} actuellement disponible${seenAvailable > 1 ? "s" : ""}. De nouveaux candidats apparaîtront ici dès leur inscription — retrouvez ceux qui vous intéressent dans « Vos mises en relation ».`
                 : "Votre annonce est bien en ligne et visible. Dès qu'un candidat correspond, il apparaît ici.")

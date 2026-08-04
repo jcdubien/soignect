@@ -123,9 +123,24 @@ export async function GET(req: NextRequest) {
       })
     : 0;
 
+  // Établissement (STRUCTURE) au feed vide : la cause n'est pas la même selon qu'AUCUN candidat
+  // n'a coché « ouvert aux postes salariés » — auquel cas personne ne peut apparaître, jamais —
+  // ou qu'il en existe mais qu'aucun ne corresponde. Le message d'attente convenait au second
+  // cas et mentait dans le premier. On compte donc les candidats optés, hors filtres de dates
+  // et de zone : c'est l'existence même d'un vivier qui est en question, pas sa pertinence.
+  // -1 = sans objet (le lecteur n'est pas un établissement).
+  const candidatsOptes = isStructureViewer
+    ? await prisma.profile.count({
+        where: { type: { in: oppositeTypes }, isActive: true, ouvertSalariat: true, id: { not: myProfile.id } },
+      })
+    : -1;
+
   // Expurge les champs sensibles du profil de chaque annonce (audit permissions, section 165) :
   // le feed ne doit exposer que les champs d'affichage (nom/photo/bio/région/note…).
   return NextResponse.json(stripMissionProfiles(missions), {
-    headers: { "x-feed-seen-available": String(seenAvailable) },
+    headers: {
+      "x-feed-seen-available": String(seenAvailable),
+      "x-feed-salariat-optin": String(candidatsOptes),
+    },
   });
 }
