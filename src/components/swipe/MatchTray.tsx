@@ -10,18 +10,12 @@ import { fmtDay } from "@/lib/dates";
 import type { TitulaireMission } from "@/components/swipe/MissionSelector";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import Button from "@/components/ui/md3/Button";
+import { lectureQualitative, PROFILE_LABEL } from "@/lib/compatibilite";
 
 const ChatModal = dynamic(() => import("@/components/chat/ChatModal"), { ssr: false });
 
 type MissionWithProfile = Mission & { profile: Profile };
 
-// Barèmes du détail de score selon le profil de pondération utilisé (section 120).
-const SCORE_WEIGHTS: Record<string, { dates: number; geo: number; bio: number; logement: number; vehicule: number; desirability: number }> = {
-  REMPLACEMENT:  { dates: 35, geo: 25, bio: 20, logement: 10, vehicule: 10, desirability: 10 },
-  COLLABORATION: { dates: 35, geo: 25, bio: 30, logement: 0,  vehicule: 0,  desirability: 10 },
-  ASSISTANAT:    { dates: 15, geo: 20, bio: 50, logement: 0,  vehicule: 0,  desirability: 15 },
-};
-const SCORE_PROFILE_LABEL: Record<string, string> = { REMPLACEMENT: "Remplacement", COLLABORATION: "Collaboration", ASSISTANAT: "Assistanat" };
 
 interface TrayItem {
   mission: MissionWithProfile;
@@ -46,11 +40,13 @@ interface MatchTrayProps {
   isPremium?: boolean;
   /** Filtre le tray sur une disponibilité précise du remplaçant (section 7) */
   disponibiliteId?: string;
+  /** Compte administrateur — seul à voir le barème chiffré derrière la lecture qualitative */
+  isAdmin?: boolean;
 }
 
 // ── Fiche complète de l'annonce ───────────────────────────────────────────────
 function MissionSheet({
-  item, onClose, onCancelled, onRemoved, titulaireMissions = [], onReassigned, myProfileType, myProfileId, isPremium,
+  item, onClose, onCancelled, onRemoved, titulaireMissions = [], onReassigned, myProfileType, myProfileId, isPremium, isAdmin,
 }: {
   item: TrayItem;
   onClose: () => void;
@@ -61,6 +57,7 @@ function MissionSheet({
   myProfileType?: string;
   myProfileId?: string;
   isPremium?: boolean;
+  isAdmin?: boolean;
 }) {
   const { mission } = item;
   const p = mission.profile;
@@ -167,40 +164,38 @@ function MissionSheet({
                   style={{ width: `${Math.min(item.affinityScore, 100)}%` }}
                 />
               </div>
-              {/* Détail des composantes (section 64 — Spécialités retiré) */}
+              {/* Lecture QUALITATIVE des composantes. Le détail chiffré (« Dates 28/35 ») n'apprend
+                  rien d'utile à qui décide, invite à l'arbitrage et expose les leviers ; il reste
+                  visible pour l'administration, qui en a un vrai usage. */}
               {item.scoreDetails && (() => {
-                // Profil de pondération utilisé (section 120) — détermine les barèmes affichés.
-                const profKey = item.scoreDetails?.profile;
-                const prof = (profKey === "ASSISTANAT" || profKey === "COLLABORATION") ? profKey : "REMPLACEMENT";
-                const max = SCORE_WEIGHTS[prof];
-                const rows = [
-                  { key: "dates",        label: "Dates",      max: max.dates },
-                  { key: "bio",          label: "Affinité",   max: max.bio },
-                  { key: "geo",          label: "Proximité",  max: max.geo },
-                  // Logement/véhicule uniquement quand ils comptent (Remplacement) — section 120/126 + feature terrain
-                  ...(max.logement > 0 ? [{ key: "logement", label: "Logement", max: max.logement }] : []),
-                  ...(max.vehicule > 0 ? [{ key: "vehicule", label: "Véhicule", max: max.vehicule }] : []),
-                  { key: "desirability", label: "Visibilité", max: max.desirability },
-                ];
-                // 4 composantes (Collab/Assistanat) sur une ligne ; 6 (Remplacement) sur deux lignes de 3.
-                const gridCols = rows.length >= 6 ? "grid-cols-3" : rows.length === 5 ? "grid-cols-5" : "grid-cols-4";
+                const mentions = lectureQualitative(item.scoreDetails);
+                if (mentions.length === 0) return null;
+                const couleur: Record<string, string> = {
+                  fort:   "bg-emerald-50 text-emerald-700",
+                  moyen:  "bg-amber-50 text-amber-700",
+                  faible: "bg-gray-100 text-gray-500",
+                };
+                const profKey = typeof item.scoreDetails?.profile === "string" ? item.scoreDetails.profile : "REMPLACEMENT";
                 return (
                   <>
-                    <div className={`grid gap-1 mt-2 ${gridCols}`}>
-                      {rows.map(({ key, label, max }) => {
-                        const val = Number(item.scoreDetails?.[key] ?? 0);
-                        return (
-                          <div key={key} className="flex flex-col items-center bg-white rounded-xl p-1.5">
-                            <span className="text-[9px] text-gray-400 uppercase tracking-wide">{label}</span>
-                            <span className="text-sm font-bold text-kine-600">{val}<span className="text-[9px] text-gray-300">/{max}</span></span>
-                          </div>
-                        );
-                      })}
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {mentions.map((m) => (
+                        <span key={m.cle} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${couleur[m.ton]}`}>
+                          {m.texte}
+                        </span>
+                      ))}
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
-                      Pondération <span className="font-semibold text-gray-500">{SCORE_PROFILE_LABEL[prof]}</span> ·{" "}
-                      <span className="font-semibold text-gray-500">Visibilité</span> = mise en avant selon abonnement et localisation.
-                    </p>
+                    {isAdmin && (
+                      // Admin uniquement : le barème brut, pour diagnostiquer un score aberrant —
+                      // ce qui s'est déjà produit et qu'aucun affichage qualitatif ne révélerait.
+                      <p className="text-[10px] text-gray-400 mt-1.5 font-mono">
+                        {PROFILE_LABEL[profKey] ?? profKey} · dates {String(item.scoreDetails.dates ?? "—")}
+                        {" · "}géo {String(item.scoreDetails.geo ?? "—")}
+                        {" · "}bio {String(item.scoreDetails.bio ?? "—")}
+                        {" · "}log {String(item.scoreDetails.logement ?? "—")}
+                        {" · "}véh {String(item.scoreDetails.vehicule ?? "—")}
+                      </p>
+                    )}
                   </>
                 );
               })()}
@@ -411,7 +406,7 @@ function MissionSheet({
 }
 
 // ── MatchTray principal ───────────────────────────────────────────────────────
-export default function MatchTray({ refreshKey, titulaireMissions = [], myProfileType, myProfileId, isPremium, disponibiliteId }: MatchTrayProps) {
+export default function MatchTray({ refreshKey, titulaireMissions = [], myProfileType, myProfileId, isPremium, disponibiliteId, isAdmin }: MatchTrayProps) {
   const [items,       setItems]       = useState<TrayItem[]>([]);
   const [selected,    setSelected]    = useState<TrayItem | null>(null);
   const [, setSeenIds] = useState<Set<string>>(new Set());
@@ -655,6 +650,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
           myProfileType={myProfileType}
           myProfileId={myProfileId}
           isPremium={isPremium}
+          isAdmin={isAdmin}
           onReassigned={() => { fetchTray(); /* section 185 : NE PAS fermer la fiche — choisir
             la mission cible enregistre juste le choix, l'utilisateur continue (annuler, chat…). */ }}
           onClose={() => setSelected(null)}

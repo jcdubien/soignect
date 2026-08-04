@@ -4,10 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { ProfileType, TitulaireKind, Prisma, BriqueStatus } from "@prisma/client";
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
+import { getDesirabilityPercent } from "@/lib/desirability";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/feed — annonces triées par desirabilityScore desc (nouveau feed Sprint 3)
+// GET /api/feed — annonces du camp opposé, ordonnées par mise en avant commerciale
+// (désirabilité effective), puis note et fraîcheur. Cet ordre est le SEUL endroit où
+// l'abonnement joue : il n'entre plus dans le score de compatibilité affiché.
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.profileId) {
@@ -86,12 +89,21 @@ export async function GET(req: NextRequest) {
     },
     include: { profile: true },
     orderBy: [
-      { profile: { desirabilityScore: "desc" } },
       { profile: { ratingAvg: "desc" } },
       { createdAt: "desc" },
     ],
     take: limit,
   });
+
+  // Mise en avant commerciale — ELLE VIT ICI, dans l'ordre d'affichage, et nulle part ailleurs.
+  // Elle sortait auparavant du score de compatibilité, où elle affirmait une chose fausse : le
+  // statut d'abonnement de l'annonceur n'est pas une propriété de l'accord entre deux personnes.
+  // Le tri SQL se faisait sur la colonne desirabilityScore brute, qui ignore le plan, le statut
+  // fondateur et les arbitrages admin ; on trie donc sur la désirabilité EFFECTIVE, après
+  // récupération de la page (au plus `limit` lignes, 50 max).
+  const desirabilite = new Map<string, number>();
+  for (const m of missions) desirabilite.set(m.id, getDesirabilityPercent(m.profile));
+  missions.sort((a, b) => (desirabilite.get(b.id) ?? 0) - (desirabilite.get(a.id) ?? 0));
 
   // Nombre de candidats/annonces DISPONIBLES que l'utilisateur a DÉJÀ VUS (swipés) — mêmes
   // filtres que le feed (type, match actif, gating, zone/dates), mais uniquement les déjà-swipés.

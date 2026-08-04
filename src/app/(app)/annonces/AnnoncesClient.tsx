@@ -19,9 +19,10 @@ interface Props {
   initialMissionId?: string;
   disponibiliteId?: string;
   cardMissionId?: string;
+  isAdmin?: boolean;
 }
 
-export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId, cardMissionId }: Props) {
+export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId, cardMissionId, isAdmin }: Props) {
   const [trayKey, setTrayKey] = useState(0);
   const [detail, setDetail] = useState<{ mission: DetailMission; relation: MissionRelation } | null>(null);
 
@@ -129,7 +130,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
           />
         </div>
 
-        <MatchTray refreshKey={trayKey} titulaireMissions={titulaireMissions} myProfileType={profileType} myProfileId={profileId} isPremium={isPremium} disponibiliteId={disponibiliteId} />
+        <MatchTray isAdmin={isAdmin} refreshKey={trayKey} titulaireMissions={titulaireMissions} myProfileType={profileType} myProfileId={profileId} isPremium={isPremium} disponibiliteId={disponibiliteId} />
       </div>
 
       {/* Fiche détaillée hors carrousel — même composant que l'icône "i", avec statut + actions */}

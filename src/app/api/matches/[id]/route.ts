@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { computeMatchScore } from "@/lib/deepseek";
+import { computeAffinityScore } from "@/lib/deepseek";
 import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { MatchStatus, Prisma } from "@prisma/client";
 
@@ -70,24 +70,54 @@ export async function PATCH(
     return NextResponse.json({ error: "Missions manquantes pour le scoring" }, { status: 422 });
   }
 
-  // Rate-limit DeepSeek (section 165) — au-delà du plafond, aucun score n'est calculé.
-  const budgetOk = await checkDeepSeekBudget(session.user.profileId as string);
-  const result = await computeMatchScore(
-    // bioTinder après le spread : l'accroche de l'annonce, à défaut celle du profil (section 157).
-    { profileType: match.missionA.profile.type, bio: match.missionA.profile.bio, ...match.missionA, bioTinder: match.missionA.bioTinder ?? match.missionA.profile.bioTinder },
-    { profileType: match.missionB.profile.type, bio: match.missionB.profile.bio, ...match.missionB, bioTinder: match.missionB.bioTinder ?? match.missionB.profile.bioTinder },
-    { skipDeepSeek: !budgetOk }
-  );
-  if (budgetOk) void recordDeepSeekCall(session.user.profileId as string);
+  // Une seule formule dans toute l'application : celle du feed et des swipes. Le candidat est
+  // le « swiper », l'annonce du cabinet la « mission » — c'est elle qui porte le type de poste,
+  // donc le profil de pondération, et les bonus logement/véhicule.
+  const [cabinetMission, candidatMission] =
+    match.missionA.profile.type === "TITULAIRE"
+      ? [match.missionA, match.missionB]
+      : [match.missionB, match.missionA];
 
-  // Rien calculé : on ne remplace pas un score existant par un chiffre de remplissage.
-  if (!result) {
-    return NextResponse.json({ aiScore: match.aiScore, aiFactors: match.aiFactors, scored: false });
-  }
+  const candidat = {
+    bioTinder: candidatMission.bioTinder ?? candidatMission.profile.bioTinder,
+    bio: candidatMission.profile.bio,
+    specialties: candidatMission.specialties,
+    startDate: candidatMission.startDate,
+    endDate: candidatMission.endDate,
+    minMonths: candidatMission.minMonths,
+    location: candidatMission.location,
+    zones: candidatMission.zones,
+    dateFlexibility: candidatMission.profile.dateFlexibility,
+    rechercheLogement: candidatMission.profile.rechercheLogement,
+    rechercheVehicule: candidatMission.profile.rechercheVehicule,
+  };
+  const annonce = {
+    bioTinder: cabinetMission.bioTinder ?? cabinetMission.profile.bioTinder,
+    bio: cabinetMission.profile.bio,
+    specialties: cabinetMission.specialties,
+    startDate: cabinetMission.startDate,
+    endDate: cabinetMission.endDate,
+    minMonths: cabinetMission.minMonths,
+    location: cabinetMission.location,
+    zones: cabinetMission.zones,
+    dateFlexibility: cabinetMission.dateFlexibility,
+    missionType: cabinetMission.missionType,
+    logementPropose: cabinetMission.logementPropose,
+    vehiculePropose: cabinetMission.vehiculePropose,
+  };
+
+  // Rate-limit DeepSeek (section 165) — au-delà du plafond, seule la composante « profils »
+  // retombe sur le neutre ; les dates et la géographie restent calculées.
+  const budgetOk = await checkDeepSeekBudget(session.user.profileId as string);
+  const result = await computeAffinityScore(candidat, annonce, { skipDeepSeek: !budgetOk });
+  if (budgetOk) void recordDeepSeekCall(session.user.profileId as string);
 
   const updated = await prisma.match.update({
     where: { id },
-    data: { aiScore: result.score, aiFactors: result.factors },
+    data: {
+      aiScore: result.total,
+      aiFactors: { ...result.details, profile: result.weightProfile } as Prisma.InputJsonValue,
+    },
   });
 
   return NextResponse.json({ aiScore: updated.aiScore, aiFactors: updated.aiFactors, scored: true });

@@ -14,6 +14,8 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
   const session = await auth();
   const profileId   = (session?.user as { profileId?: string })?.profileId ?? null;
   const profileType = (session?.user as { profileType?: string })?.profileType ?? "REMPLACANT";
+  // Le barème chiffré du score reste réservé à l'administration (lecture qualitative pour tous).
+  const isAdmin     = (session?.user as { role?: string })?.role === "ADMIN";
   const { missionId: initialMissionId, disponibiliteId, card: cardMissionId } = await searchParams;
 
   // Statut Premium (item 8) — gating du bouton "Envoyer un contrat" dans le tray.
@@ -67,6 +69,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
       initialMissionId={initialMissionId}
       disponibiliteId={disponibiliteId}
       cardMissionId={cardMissionId}
+      isAdmin={isAdmin}
     />
   );
 }

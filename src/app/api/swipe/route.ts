@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { Prisma, SwipeDirection } from "@prisma/client";
-import { computeAffinityScore, computeMatchScore } from "@/lib/deepseek";
+import { computeAffinityScore } from "@/lib/deepseek";
 import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { sendNewRelationEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
@@ -60,32 +60,6 @@ function pickBestReciprocal<T extends { swipedMission: Periode }>(
   });
   classes.sort((x, y) => x.rang - y.rang || y.recouvrement - x.recouvrement || x.ecart - y.ecart);
   return classes[0].s;
-}
-
-// Désirabilité en POURCENTAGE 0-100 (section 126). Appliquée ensuite proportionnellement
-// au créneau Désirabilité du profil de pondération (10 pts Remplacement/Collab, 15 Assistanat).
-function getDesirabilityPercent(profile: {
-  isFounding: boolean;
-  desirabilityOverride: number | null;
-  desirabilityExpiry: Date | null;
-  desirabilityScore: number;
-  subscriptionPlan?: string;
-  institutionalPartner?: boolean;
-}): number {
-  // Cabinet fondateur (JCD) = 100 % fixe.
-  if (profile.isFounding) return 100;
-  // Override admin = priorité absolue (0-100 %), tant que non expiré.
-  if (profile.desirabilityOverride !== null) {
-    const expired = profile.desirabilityExpiry && profile.desirabilityExpiry <= new Date();
-    if (!expired) return Math.min(Math.max(profile.desirabilityOverride, 0), 100);
-  }
-  // Sinon dérivé du plan (automatique) : Premium 50, Boost 80, Structure 50, Gratuit 0.
-  // Un desirabilityScore stocké (boost admin ponctuel) prime s'il est supérieur.
-  const byPlan =
-    profile.subscriptionPlan === "BOOST" ? 80 :
-    (profile.subscriptionPlan === "PREMIUM" || profile.subscriptionPlan === "STRUCTURE") ? 50 : 0;
-  const cpts = profile.institutionalPartner ? 20 : 0; // partenaire CPTS (section 23) — +20 %
-  return Math.min(Math.max(byPlan, profile.desirabilityScore ?? 0) + cpts, 100);
 }
 
 // DELETE /api/swipe?missionId=… — annule un swipe (section 98) : la mission
@@ -167,7 +141,6 @@ export async function POST(req: NextRequest) {
         minMonths: swipedMission.minMonths,
         location: swipedMission.location,
         zones: swipedMission.zones, // macro-zones couvertes (section 138)
-        desirabilityScore: getDesirabilityPercent(missionProfile),
         dateFlexibility: swipedMission.dateFlexibility,
         missionType: swipedMission.missionType,     // section 120 — profil de pondération
         logementPropose: swipedMission.logementPropose, // section 120 — bonus logement
@@ -249,41 +222,14 @@ export async function POST(req: NextRequest) {
       });
 
       if (!existing) {
-        const [profileA, profileB] = await Promise.all([
-          prisma.profile.findUnique({ where: { id: profileAId } }),
-          prisma.profile.findUnique({ where: { id: profileBId } }),
-        ]);
-
-        let aiScore: number | undefined;
-        let aiFactors: object | undefined;
-
-        if (profileA && profileB) {
-          const missionA = profileAId === swiperId
-            ? await prisma.mission.findUnique({ where: { id: reciprocalSwipe.swipedMissionId } })
-            : swipedMission;
-          const missionB = profileAId === swiperId
-            ? swipedMission
-            : await prisma.mission.findUnique({ where: { id: reciprocalSwipe.swipedMissionId } });
-
-          try {
-            // Rate-limit DeepSeek (section 165) — au-delà du plafond, pas d'appel : le score
-            // reste indéfini (colonne null), plutôt qu'un chiffre inventé qui ferait verdict.
-            const budgetOk = await checkDeepSeekBudget(swiperId);
-            const result = await computeMatchScore(
-              // bioTinder après le spread : l'accroche de l'annonce, à défaut celle du profil (section 157).
-              { profileType: profileA.type, bio: profileA.bio, ...(missionA ?? {}), bioTinder: missionA?.bioTinder ?? profileA.bioTinder },
-              { profileType: profileB.type, bio: profileB.bio, ...(missionB ?? {}), bioTinder: missionB?.bioTinder ?? profileB.bioTinder },
-              { skipDeepSeek: !budgetOk }
-            );
-            if (result) {
-              aiScore   = result.score;
-              aiFactors = result.factors;
-            }
-            if (budgetOk) void recordDeepSeekCall(swiperId, swipedMission.missionType);
-          } catch (err) {
-            console.error("[DeepSeek] Erreur calcul score match:", err);
-          }
-        }
+        // Score du match = INSTANTANÉ du score de compatibilité au moment de la mise en
+        // relation. Il n'existe plus de second calcul : le scoring dédié aux matchs était un
+        // doublon LLM sans pondération, que l'interface contournait déjà et qui a rendu zéro
+        // sur tout pendant des semaines sans que rien ne le signale. Une seule formule, celle
+        // qui s'affiche partout — et qui vient d'être calculée quelques lignes plus haut pour
+        // ce swipe même : on l'enregistre telle quelle, sans rappeler le modèle.
+        const aiScore   = affinityScore;
+        const aiFactors = scoreJson;
 
         // missionAId = TITULAIRE's mission, missionBId = candidat's mission
         const mySideMissionId = targetMissionId ?? reciprocalSwipe.swipedMissionId;

@@ -120,7 +120,8 @@ export default async function MatchPage({ params, searchParams }: Props) {
           <MatchScoreBlock
             matchId={match.id}
             initialScore={match.aiScore}
-            initialFactors={match.aiFactors as { availability: number; location: number; specialties: number; bio: number } | null}
+            initialFactors={match.aiFactors as Record<string, number | string> | null}
+            isAdmin={(session.user as { role?: string }).role === "ADMIN"}
           />
         )}
 

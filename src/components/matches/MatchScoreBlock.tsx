@@ -1,31 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import { lectureQualitative, PROFILE_LABEL } from "@/lib/compatibilite";
 
-// Compatibilité du COUPLE d'annonces (Match.aiScore, 0-100), à ne pas confondre avec le score
-// d'affinité du lecteur (Swipe.affinityScore) affiché au-dessus : celui-ci date du moment où il
-// s'est prononcé, celui-là évalue l'appariement des deux annonces telles qu'elles sont
-// aujourd'hui. Null = jamais calculé, et c'est dit tel quel — pas de zéro qui ferait verdict.
-interface Factors { availability: number; location: number; specialties: number; bio: number }
-
-const LIBELLES: Record<keyof Factors, string> = {
-  availability: "Disponibilités",
-  location:     "Localisation",
-  specialties:  "Spécialités",
-  bio:          "Profils",
-};
+// Compatibilité du COUPLE d'annonces, prise en photo au moment de la mise en relation, puis
+// recalculable à la demande. Même formule que le feed et les swipes — il n'existe plus qu'un
+// scoreur dans l'application. Null = jamais calculé, et c'est dit tel quel : un score absent
+// ne doit pas ressembler à un mauvais score.
+//
+// Restitution QUALITATIVE : le barème chiffré n'aide pas à décider, il invite à l'arbitrage.
+// Il reste affiché aux administrateurs, pour diagnostiquer un score aberrant.
+type Details = Record<string, number | string>;
 
 export default function MatchScoreBlock({
   matchId,
   initialScore,
   initialFactors,
+  isAdmin,
 }: {
   matchId: string;
   initialScore: number | null;
-  initialFactors: Factors | null;
+  initialFactors: Details | null;
+  isAdmin?: boolean;
 }) {
   const [score,   setScore]   = useState<number | null>(initialScore);
-  const [factors, setFactors] = useState<Factors | null>(initialFactors);
+  const [factors, setFactors] = useState<Details | null>(initialFactors);
   const [busy,    setBusy]    = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -44,20 +43,22 @@ export default function MatchScoreBlock({
         setMessage(typeof d?.error === "string" ? d.error : "Le calcul n'a pas abouti. Réessayez.");
         return;
       }
-      // scored: false = plafond d'analyses atteint. Aucun score n'a été calculé, et on se garde
-      // bien d'en inventer un : on l'annonce.
-      if (d?.scored === false) {
-        setMessage("Analyse indisponible pour le moment (plafond quotidien atteint) — réessayez plus tard.");
-        return;
-      }
       setScore(typeof d?.aiScore === "number" ? d.aiScore : null);
-      setFactors((d?.aiFactors as Factors) ?? null);
+      setFactors((d?.aiFactors as Details) ?? null);
     } catch {
       setMessage("Le calcul n'a pas abouti. Réessayez.");
     } finally {
       setBusy(false);
     }
   }
+
+  const mentions = lectureQualitative(factors);
+  const couleur: Record<string, string> = {
+    fort:   "bg-emerald-50 text-emerald-700",
+    moyen:  "bg-amber-50 text-amber-700",
+    faible: "bg-gray-100 text-gray-500",
+  };
+  const profKey = typeof factors?.profile === "string" ? factors.profile : "REMPLACEMENT";
 
   return (
     <div className="mt-4 pt-4 border-t border-gray-100">
@@ -87,14 +88,23 @@ export default function MatchScoreBlock({
               style={{ width: `${Math.min(Math.round(score), 100)}%` }}
             />
           </div>
-          {factors && (
+          {mentions.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2.5">
-              {(Object.keys(LIBELLES) as (keyof Factors)[]).map((k) => (
-                <span key={k} className="px-2 py-0.5 bg-gray-100 rounded-full text-[10px] text-gray-600">
-                  {LIBELLES[k]} {Math.round(factors[k] ?? 0)}%
+              {mentions.map((m) => (
+                <span key={m.cle} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${couleur[m.ton]}`}>
+                  {m.texte}
                 </span>
               ))}
             </div>
+          )}
+          {isAdmin && factors && (
+            <p className="text-[10px] text-gray-400 mt-2 font-mono">
+              {PROFILE_LABEL[profKey] ?? profKey} · dates {String(factors.dates ?? "—")}
+              {" · "}géo {String(factors.geo ?? "—")}
+              {" · "}bio {String(factors.bio ?? "—")}
+              {" · "}log {String(factors.logement ?? "—")}
+              {" · "}véh {String(factors.vehicule ?? "—")}
+            </p>
           )}
         </>
       )}

@@ -798,6 +798,14 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           ))}
         </div>
 
+        {/* Transparence sur l'ORDRE d'affichage. La mise en avant commerciale existe — elle ne
+            se cache simplement plus à l'intérieur du score de compatibilité, où elle affirmait
+            quelque chose de faux sur l'autre partie. Elle est dite, en clair, une fois. */}
+        <p className="px-4 pb-1 text-[10px] leading-snug text-gray-400 shrink-0">
+          Ordre d&apos;affichage : les comptes abonnés, partenaires et zones prioritaires apparaissent en premier.
+          Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
+        </p>
+
         {/* ── Pile de cartes ── (desktop >=1024px : largeur fixe 480px, centrée — section 63)
             Mobile : pas de `w-full` (il causait un débordement de 32px avec `mx-4`), l'item
             s'étire via le flex en tenant compte des marges.
