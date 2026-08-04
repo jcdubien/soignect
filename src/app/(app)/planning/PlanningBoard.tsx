@@ -263,6 +263,13 @@ function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
             title={b.title}
             className={`md3-ripple absolute rounded-[5px] flex items-center px-1 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] ${b.colorCls} ${b.urgent ? "motion-safe:animate-pulse" : ""}`}
             style={{
+              // position en STYLE INLINE, obligatoire : `.md3-ripple { position: relative }`
+              // (globals.css) est déclarée après les utilitaires Tailwind et l'emportait sur
+              // `absolute`. Les briques mobiles héritaient donc de `relative` : leurs left/top
+              // étaient ignorés et elles s'empilaient dans l'ordre du flux, hors de la frise —
+              // mesuré ici, une brique à `top: 4px` s'affichait 86 px plus bas, hors piste.
+              // Le MissionBrick desktop forçait déjà ce style ; le mobile avait été oublié.
+              position: "absolute",
               left: `${b.leftPct}%`,
               width: `${Math.max(b.widthPct, 2)}%`,
               // Fonds et zones non couvertes (lane undefined) gardent la pleine hauteur.
