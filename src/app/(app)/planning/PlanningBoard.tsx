@@ -13,6 +13,7 @@ import { notPast, nextDay } from "@/lib/dates";
 
 interface MatchInfo {
   id: string;
+  status?: string | null; // EN_ATTENTE | CONFIRME | DECLINE | EXPIRE — seul CONFIRME couvre le poste
   profileA?: { id: string; name: string | null; type: string } | null;
   profileB?: { id: string; name: string | null; type: string } | null;
   missionA?: { title: string; startDate: Date | null; endDate: Date | null } | null;
@@ -341,9 +342,12 @@ function getEffectiveStatus(
   // Si le statut a été modifié manuellement (différent du défaut RECHERCHE), on l'utilise
   if (stored !== "RECHERCHE") return stored;
 
-  // Sinon on calcule depuis les matches : un match = poste confirmé (plus de zone préavis)
-  const hasMatch = mission.matchesA.length > 0 || mission.matchesB.length > 0;
-  return hasMatch ? "CONFIRME" : "RECHERCHE";
+  // Sinon on calcule depuis les matches — mais seule une mise en relation CONFIRMÉE couvre le
+  // poste. Compter toutes les mises en relation peignait la brique en vert « Confirmé » dès le
+  // premier contact, alors que l'annonce recrute encore et que rien n'est acté : le planning
+  // annonçait un poste couvert sur la foi d'une conversation en cours.
+  const couvert = [...mission.matchesA, ...mission.matchesB].some((m) => m.status === "CONFIRME");
+  return couvert ? "CONFIRME" : "RECHERCHE";
 }
 
 // ── Menu à 3 choix au clic sur un poste (section 55) ─────────────────────────────

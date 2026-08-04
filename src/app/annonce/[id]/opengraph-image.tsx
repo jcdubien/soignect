@@ -77,8 +77,15 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   const type = badgeLabel(m.profile?.type, m.missionType);
   const dates = datesLabel(m);
 
-  // Police du titre dimensionnée selon la longueur (2 lignes max) → jamais de débordement.
-  const titleSize = title.length <= 26 ? 70 : title.length <= 46 ? 58 : title.length <= 72 ? 48 : 40;
+  // Zone de sécurité : beaucoup de destinations de partage (messageries, aperçus système via
+  // navigator.share) RECADRENT le 1200x630 en carré centré — soit les 630 px du milieu. Tout ce
+  // qui vivait sur les bords en sortait coupé : marque, badge, début du titre. L'essentiel tient
+  // donc dans une colonne centrée de 600 px, qui survit au recadrage carré comme au 1.91:1.
+  const SAFE = 600;
+
+  // Police du titre dimensionnée selon la longueur (2 lignes max) → jamais de débordement,
+  // seuils resserrés puisque la largeur utile est celle de la zone de sécurité, pas du canevas.
+  const titleSize = title.length <= 26 ? 54 : title.length <= 46 ? 44 : title.length <= 72 ? 36 : 30;
 
   return new ImageResponse(
     (
@@ -89,7 +96,9 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          padding: 64,
+          alignItems: "center",
+          textAlign: "center",
+          padding: 48,
           backgroundColor: "#0B3D5C",
           backgroundImage: "linear-gradient(135deg, #0B3D5C 0%, #12708f 55%, #1aa0a0 100%)",
           color: "#ffffff",
@@ -97,16 +106,16 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
         }}
       >
         {/* En-tête marque */}
-        <div style={{ display: "flex", alignItems: "center", fontSize: 38, fontWeight: 800, letterSpacing: -1, opacity: 0.95 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38, fontWeight: 800, letterSpacing: -1, opacity: 0.95 }}>
           Soignect
         </div>
 
         {/* Corps : type (badge) + titre + dates + commune */}
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: SAFE }}>
           <div
             style={{
               display: "flex",
-              alignSelf: "flex-start",
+              alignSelf: "center",
               fontSize: 30,
               fontWeight: 700,
               padding: "8px 22px",
@@ -129,7 +138,8 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
               fontSize: titleSize,
               fontWeight: 800,
               lineHeight: 1.08,
-              maxWidth: 1060,
+              maxWidth: SAFE,
+              textAlign: "center",
             }}
           >
             {title}
@@ -137,20 +147,20 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
 
           {/* Les 2 essentiels restants — libellés texte (pas d'emoji : absent de la police Satori),
               chacun sur sa ligne, valeur en ellipsis si trop longue → jamais de débordement. */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 34 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 18, maxWidth: 1060 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 28, width: SAFE }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18, maxWidth: SAFE }}>
               <div style={{ display: "flex", width: 118, fontSize: 24, fontWeight: 700, letterSpacing: 2, opacity: 0.65 }}>DATES</div>
-              <div style={{ display: "flex", fontSize: 42, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dates}</div>
+              <div style={{ display: "flex", fontSize: 34, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 460 }}>{dates}</div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 18, maxWidth: 1060 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18, maxWidth: SAFE }}>
               <div style={{ display: "flex", width: 118, fontSize: 24, fontWeight: 700, letterSpacing: 2, opacity: 0.65 }}>LIEU</div>
-              <div style={{ display: "flex", fontSize: 42, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{location}</div>
+              <div style={{ display: "flex", fontSize: 34, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 460 }}>{location}</div>
             </div>
           </div>
         </div>
 
         {/* Pied */}
-        <div style={{ display: "flex", fontSize: 26, opacity: 0.82 }}>
+        <div style={{ display: "flex", justifyContent: "center", fontSize: 22, opacity: 0.82, maxWidth: SAFE, textAlign: "center" }}>
           La mise en relation des professionnels de santé en Guadeloupe
         </div>
       </div>
