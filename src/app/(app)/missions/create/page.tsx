@@ -606,14 +606,15 @@ export default function CreateMissionPage() {
         {/* ── Colonne DROITE (desktop) / repli (mobile) : « ce que j'ai compris » + champs
             structurés éditables. Toujours visible sur desktop (lg:block) ; sur mobile, révélée
             après extraction (showManual passe à true) ou via le toggle. ── */}
-        <div className={profileType !== "TITULAIRE" ? "space-y-5" : `space-y-5 ${showManual ? "" : "hidden lg:block"}`}>
+        <div className={formType !== "TITULAIRE" ? "space-y-5" : `space-y-5 ${showManual ? "" : "hidden lg:block"}`}>
 
-        {/* Hors cabinet (assistant en mode couverture) : pas de colonne gauche, donc le titre
-            n'a pas été rendu au-dessus — on le place ici, en tête des champs. */}
-        {profileType !== "TITULAIRE" && titleField}
+        {/* Sans colonne gauche (remplaçant/assistant hors couverture), le titre n'a pas été
+            rendu au-dessus — on le place ici. En mode couverture la colonne gauche EXISTE :
+            tester le type brut y affichait le champ une seconde fois. */}
+        {formType !== "TITULAIRE" && titleField}
 
         {/* Résumé compact « ce que j'ai compris » + champs manquants requis (en tête de colonne) */}
-        {profileType === "TITULAIRE" && extractDone && (
+        {formType === "TITULAIRE" && extractDone && (
           <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-2">
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Ce que j&apos;ai compris</p>
             <div className="flex flex-wrap gap-1.5">
@@ -754,7 +755,7 @@ export default function CreateMissionPage() {
         {showStartDate && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {profileType !== "TITULAIRE"
+              {formType !== "TITULAIRE"
                 ? "Mes dates de disponibilité"
                 : showEndDate
                 ? "Période de remplacement"
@@ -826,7 +827,7 @@ export default function CreateMissionPage() {
         {showMinMonths && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {profileType === "TITULAIRE" ? "Durée minimale du contrat proposé" : "Durée minimale souhaitée"}
+              {formType === "TITULAIRE" ? "Durée minimale du contrat proposé" : "Durée minimale souhaitée"}
             </label>
             <select
               value={form.minMonths}
@@ -961,7 +962,7 @@ export default function CreateMissionPage() {
         {!loading && missingRequired.length > 0 && (
           <p className="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
             Pour publier, il reste à renseigner : <strong>{missingRequired.join(", ")}</strong>.
-            {profileType === "TITULAIRE" && !showManual && (
+            {formType === "TITULAIRE" && !showManual && (
               <button type="button" onClick={() => setShowManual(true)} className="ml-1 underline font-semibold text-kine-700">Ouvrir les champs</button>
             )}
           </p>
