@@ -100,6 +100,14 @@ export default function CreateMissionPage() {
     : profileType;
   const cfg = CONFIG[cfgKey] ?? CONFIG.REMPLACANT;
 
+  // Type de profil pour la MISE EN FORME (champs affichés, mise en page). Le mode couverture
+  // n'était appliqué qu'à cfgKey, c'est-à-dire au vocabulaire : les drapeaux ci-dessous
+  // lisaient le type brut du profil, si bien qu'un ASSISTANT n'obtenait ni les dates ni la
+  // description — alors que la validation les exigeait. Le formulaire était donc impossible à
+  // soumettre, et « Faire remplacer mon absence » ne menait nulle part. Le sélecteur de type
+  // de besoin, lui, reste réservé au titulaire : l'assistant n'a pas ce choix à faire.
+  const formType: ProfileTypeKey = coverMode ? "TITULAIRE" : profileType;
+
   // Labels mission type selon isEmployeur
   const needTypeLabels = isEmployeur
     ? { remplacement: "Vacation", assistant: "CDD", collaboration: "CDI" }
@@ -112,7 +120,10 @@ export default function CreateMissionPage() {
   // (section 92) via ?needType=… selon le postType du CabinetPost cliqué.
   const initialNeedType: NeedType = (() => {
     const n = searchParams.get("needType");
-    return n === "assistant" || n === "collaboration" || n === "remplacement" ? n : "";
+    if (n === "assistant" || n === "collaboration" || n === "remplacement") return n;
+    // Mode couverture : un assistant rattaché ne peut publier QU'UN remplacement (garde côté
+    // API). Sans ce repli, arriver sans ?needType laissait le formulaire sans dates de fin.
+    return coverMode ? "remplacement" : "";
   })();
   const [needType, setNeedType] = useState<NeedType>(initialNeedType);
 
@@ -283,16 +294,16 @@ export default function CreateMissionPage() {
   // timeline du Planning (MissionBrick renvoie null sans startDate). Elle était masquée pour
   // assistanat/collaboration — l'annonce partait alors sans date, était publiée sans erreur,
   // et n'apparaissait jamais sur la ligne du poste (constaté sur 3 annonces en base).
-  const showStartDate = profileType === "REMPLACANT" || profileType === "TITULAIRE";
+  const showStartDate = formType === "REMPLACANT" || formType === "TITULAIRE";
   // La date de FIN n'a de sens qu'en remplacement : assistanat/collaboration sont bornés par
   // la durée minimale (minMonths), et un endDate court ferait échouer la validation 90 jours.
   const showEndDate =
-    profileType === "REMPLACANT" ||
-    (profileType === "TITULAIRE" && needType === "remplacement");
+    formType === "REMPLACANT" ||
+    (formType === "TITULAIRE" && needType === "remplacement");
 
   const showMinMonths =
-    profileType === "ASSISTANT" ||
-    (profileType === "TITULAIRE" && (needType === "assistant" || needType === "collaboration"));
+    (formType === "ASSISTANT") ||
+    (formType === "TITULAIRE" && (needType === "assistant" || needType === "collaboration"));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -473,7 +484,7 @@ export default function CreateMissionPage() {
   );
 
   return (
-    <div className={`${profileType === "TITULAIRE" ? "max-w-lg lg:max-w-5xl" : "max-w-lg"} mx-auto px-4 py-8 animate-fade-up`}>
+    <div className={`${formType === "TITULAIRE" ? "max-w-lg lg:max-w-5xl" : "max-w-lg"} mx-auto px-4 py-8 animate-fade-up`}>
       {/* En-tête */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
@@ -496,10 +507,10 @@ export default function CreateMissionPage() {
 
         {/* ── Grille 2 colonnes sur desktop (section 2) : à gauche le texte libre + l'assistance,
             à droite l'extraction + les champs structurés éditables. Empilé sur mobile. ── */}
-        <div className={profileType === "TITULAIRE" ? "lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0" : ""}>
+        <div className={formType === "TITULAIRE" ? "lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0" : ""}>
 
-        {/* ── Colonne GAUCHE : texte libre + assistance IA (cabinet uniquement) ── */}
-        {profileType === "TITULAIRE" && (
+        {/* ── Colonne GAUCHE : texte libre + assistance IA (cabinet, et assistant en couverture) ── */}
+        {formType === "TITULAIRE" && (
           <div className="space-y-3">
             <label className="block text-sm font-semibold text-kine-700">
               Décrivez votre besoin en toute liberté{" "}

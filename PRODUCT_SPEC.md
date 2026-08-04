@@ -2009,3 +2009,250 @@ composant, chaque template) pour mesurer precisement le rayon
 d'impact avant de se lancer - pas une decision a prendre a la legere 
 au detour d'une session.
 ```
+
+---
+
+## AUDIT 4 PARCOURS — Résultat pour le salarié/recruteur (03/08)
+
+### Méthode
+
+```
+Refus de créer des comptes de test (limite tenue par Opus) - 
+recherche des comptes reels existants a la place. Les 4 parcours ont 
+deja un compte reel en base :
+- Remplacant : Julien MORISOT (2 disponibilites)
+- Assistant : Paul (0 mission)
+- Titulaire : Jean-Charles DUBIEN (9 missions, 5 postes)
+- Salarie/recruteur : Hopital beauperthuy (0 mission, JAMAIS UTILISE)
+```
+
+### 🔴 DÉCOUVERTE CRITIQUE — Le parcours salarié est fonctionnellement mort, pas juste peu testé
+
+```
+Le feed est aveugle DANS LES DEUX SENS :
+- api/feed/route.ts:70 exige ouvertSalariat=true chez le candidat 
+  pour qu'un etablissement le voie -> 0 profil sur 8 candidats a 
+  coche cette option
+- Symetriquement, un candidat non-opte ne voit jamais les annonces 
+  d'un etablissement
+
+CAUSE RACINE : ouvertSalariat n'est ecrit QUE depuis le formulaire de 
+CREATION d'une disponibilite (missions/route.ts:256). Ni la page 
+Compte, ni l'edition d'une recherche existante ne l'exposent. Les 2 
+candidats deja inscrits ne peuvent PAS l'activer sans tout republier 
+depuis zero.
+
+Résultat : l'établissement ne voit personne, personne ne le voit. 
+Mur invisible, pas un manque d'usage.
+```
+
+### Redondances trouvées (exactement ce que demandait l'audit de simplification)
+
+```
+1. DEUX SOURCES DE VÉRITÉ POUR "EMPLOYEUR" : Profile.isEmployeur 
+   vaut false sur le seul compte STRUCTURE, pendant que lib/auth.ts 
+   recalcule isEmployeur = isEmployeur || titulaireKind === 
+   "STRUCTURE". Le flag legacy survit sans jamais etre ecrit - deux 
+   notions pour un seul concept.
+
+2. VACATION/CDD/CDI NE SONT QUE DES ÉTIQUETTES : missions/create:104 
+   renomme l'affichage mais la base ne connait que REMPLACEMENT | 
+   ASSISTANAT | COLLABORATION. Un CDI est stocke comme "collaboration 
+   liberale" - et TOUT ce qui lit missionType en aval (ponderation du 
+   score, modele de contrat, planning) applique une logique liberale 
+   a un poste salarie. Pas cosmetique - potentiellement faux a chaque 
+   calcul downstream.
+```
+
+### Ce qui fonctionne bien — confirmation
+
+```
+✅ Le chemin contrat salarié est propre : match/[id]/contrat/page.tsx:155 
+intercepte isSalariat AVANT le mur Premium, explique clairement que 
+le contrat releve de l'etablissement, offre 2 sorties propres (ouvrir 
+la conversation, ou revenir). Confirme que la decision "Cas A" 
+(section historique) etait bien implementee.
+
+⚠️ Point mineur trouvé, pas codé sans accord : sur /match/[id], un 
+établissement non-Premium voit un CTA "réservé aux abonnés Premium" 
+pour le PDF de contrat — alors qu'en isSalariat=true, ce PDF n'a 
+JAMAIS de sens (contrat hors plateforme). Vend un accès Premium à un 
+document qui ne sera jamais livré.
+```
+
+### Décisions prises (03/08)
+
+```
+1. ✅ Fix formulaire assistant — deja autorise precedemment, rien de 
+   nouveau
+2. ✅ AUTORISÉ — rendre ouvertSalariat modifiable depuis le Compte 
+   (débloque tout le parcours salarié d'un coup, priorité haute)
+3. ⚪ NON TRANCHÉ — vrai MissionType dédié au salariat plutôt que des 
+   étiquettes. Même famille de question que la vision chercheur/
+   pourvoyeur (Phase 3+) : touche le modèle de données au-delà du 
+   cosmétique. PAS une décision à prendre à la légère - à documenter 
+   pour une vraie session dédiée, pas un prompt rapide.
+4. ✅ AUTORISÉ — retirer le CTA Premium/PDF quand isSalariat=true, 
+   correction simple et sans ambiguïté (le PDF n'a jamais de sens 
+   dans ce cas)
+```
+
+### ✅ LIVRÉ ET VÉRIFIÉ EN CONDITIONS RÉELLES (03/08, commit d1e0f8b)
+
+```
+Réglage ouvertSalariat placé dans sa propre section de "Mon compte" 
+(pas parmi les notifications - c'est une préférence de recherche, 
+décide ce qu'on voit ET qui nous voit) :
+
+"TYPE DE POSTES RECHERCHÉS - 💼 Je suis aussi ouvert·e aux postes 
+salariés. CDD, CDI, stage, vacation. Vous verrez alors les offres 
+des établissements (EHPAD, clinique, SSR…) et ils vous verront. Sans 
+cette option, vous ne voyez que les cabinets libéraux."
+
+Libellé bidirectionnel délibéré - répond exactement à l'angle mort 
+identifié (personne ne pouvait deviner l'invisibilité réciproque).
+
+VÉRIFICATION : requête EXACTE du feed rejouée contre la base réelle, 
+en basculant uniquement le réglage, sans republier :
+| | Feed établissement | Julien voit les établissements |
+|---|---|---|
+| Avant | 0 candidat | non |
+| Après bascule seule | 2 candidats (dispos de Julien) | oui |
+| Restauré | 0 candidat | non |
+
+Déblocage confirmé immédiat et symétrique, sans republication 
+nécessaire. Julien remis à false après test (activation réelle = 
+décision d'usage, pas effet de bord d'audit).
+```
+
+### Question ouverte — comment inciter à activer le réglage (pas encore résolue)
+
+```
+Le réglage est accessible mais rien n'incite à le trouver. Les 2 
+candidats existants restent à false - le parcours salarié reste vide 
+tant qu'ils ne cochent pas eux-mêmes.
+
+DEUX OPTIONS ENVISAGÉES :
+(a) Invitation explicite (ex: à l'inscription, ou quand le feed se 
+    vide)
+(b) Inverser la valeur par défaut (true par défaut)
+
+DÉCISION (03/08) : (a), PAS (b). Inverser le défaut risquerait de 
+proposer du CDI/CDD à quelqu'un venu spécifiquement pour du 
+remplacement libéral - contredit un principe de fond du projet 
+(ne jamais pousser silencieusement les gens vers autre chose que ce 
+qu'ils sont venus chercher). Meilleur moment identifié pour 
+l'invitation : à L'INSCRIPTION elle-même (question simple posée 
+explicitement), plutôt qu'un nudge après coup quand le feed se vide 
+- plus honnête, évite l'impression de vouloir faire changer d'avis 
+quelqu'un qui a déjà choisi.
+
+Pas encore transformé en prompt - à faire quand le parcours 
+d'inscription sera retouché, pas une urgence isolée.
+```
+
+### Reste ouvert de cet audit
+
+```
+- Formulaire de couverture assistant (bloquant, certain, déjà 
+  autorisé, prompt prêt)
+- MissionType dédié au salariat vs étiquettes sur types libéraux 
+  (non tranché, nécessite une vraie session dédiée)
+```
+
+---
+
+## AUDIT FORMULAIRE SALARIÉ — Le vocabulaire libéral traverse tout (03/08)
+
+### Constat, sur le vrai formulaire, sans rien publier
+
+```
+Ce qui FONCTIONNE : habillage employeur réel et soigné - "Ouvrir un 
+poste", types Vacation/CDD/CDI avec sous-titres, "Commune de 
+l'établissement", placeholder d'intitulé adapté. Champs de dates 
+apparaissent correctement au choix de Vacation.
+
+Ce qui CASSE - le vocabulaire libéral traverse le formulaire :
+| Champ affiché à l'établissement | Problème |
+|---|---|
+| "CA mensuel estimé €" | Un salarié n'a pas de chiffre d'affaires |
+| "Redevance versée au cabinet %" | Libellé adapté mais DE TRAVERS - un établissement verse un salaire, pas une redevance à un cabinet |
+| Placeholder du texte libre | Exemple montré = celui d'un cabinet libéral ("Rétro 25%, CA ~8000€/mois") - non-sens pour un hôpital |
+| Rémunération | ABSENTE - l'info la plus importante d'une offre salariée (brut mensuel, grille, échelon) n'est demandée NULLE PART |
+
+Bloc de dates intitulé "Période de remplacement" pour une Vacation - 
+terminologie incorrecte aussi.
+```
+
+### Élévation de priorité
+
+```
+Ce constat transforme une preoccupation architecturale abstraite 
+(score/contrat/planning appliquent une logique liberale a du 
+salariat, deja documentee) en un probleme d'EXPERIENCE UTILISATEUR 
+PUBLIQUEMENT INCOHERENT pour toute une categorie de recruteurs. Un 
+vrai etablissement qui tenterait de publier aujourd'hui verrait un 
+formulaire qui semble casse, pas juste imparfait.
+
+Reste en Phase 3 (vrai chantier, pas un correctif de 5 minutes - 
+touche le modele de donnees MissionType), mais son urgence relative 
+vient de monter suite a cette demonstration concrete.
+```
+
+### Décision sur la vérification finale (feed/matching en conditions réelles)
+
+```
+Compte Hopital beauperthuy porte une adresse email de VRAIE CPTS, 
+pas un compte de test au nom de Jean-Charles. Opus a refusé de 
+publier une offre (même temporaire, même étiquetée TEST) sans accord 
+explicite - bonne discipline, le risque réputationnel réel dépasse 
+le cadre d'un audit.
+
+DÉCISION (03/08) : option 3 retenue — ON S'ARRÊTE LÀ pour ce compte. 
+Le mécanisme de déblocage (ouvertSalariat) a déjà été vérifié 
+rigoureusement avec de vraies données (rapport précédent, requête 
+feed rejouée avant/après/restauré sur le compte de Julien) — pas 
+besoin de répéter la démonstration sur un compte réel d'institution 
+pour la consolider davantage.
+```
+
+### Statut
+
+```
+✅ Audit du parcours 4 (salarié/recruteur) considéré SUFFISANT pour 
+conclure : inscription ✅, formulaire audité en détail (fonctionne 
+partiellement, vocabulaire à corriger), contrat ✅ (déjà vérifié 
+propre), feed/matching mécaniquement prouvé débloqué (via Julien). 
+Aucune action supplémentaire requise sur ce compte.
+```
+
+### ⏸️ SESSION INTERROMPUE (03/08) — interruption technique, pas un échec
+
+```
+Onglet Chrome fermé + limite d'usage 5h atteinte sur les outils 
+passant par un modèle. AUCUNE PUBLICATION N'A EU LIEU - le clic de 
+publication n'est jamais parti (bouton disparu de la page au moment 
+de la recherche). Vérifié en base : aucune mission Hopital 
+beauperthuy, aucune mission TEST, aucun poste rattaché, 0 
+ouvertSalariat actif - base intacte, le compte de la vraie CPTS n'a 
+strictement rien reçu.
+
+✅ CONFIRMATION : le retrait du CTA Premium/PDF trompeur (isSalariat) 
+A BIEN ÉTÉ LIVRÉ (commit 42bbb6b) - passe de "autorisé" à "fait".
+
+RÉCAPITULATIF FINAL DU PARCOURS 4 :
+- Inscription ✅
+- Formulaire ⚠️ audité en détail, vocabulaire libéral confirmé partout
+- Feed 🔴 verrou confirmé ET mécanisme de déblocage PROUVÉ (0→2 
+  candidats juste par bascule du réglage, sans republication)
+- Contrat ✅ propre, CTA trompeur retiré
+- Matching et notifications : NON OBSERVÉS (nécessitent une 
+  publication réelle + un candidat opté qui swipe - session 
+  interrompue avant ce point)
+
+POUR REPRENDRE : rouvrir un onglet Chrome, reconnecter d'abord 
+l'établissement, puis Julien avec ouvertSalariat activé depuis son 
+compte. Publication de test (~1 min), puis feed/match/contrat/
+notifications en une passe.
+```
+
