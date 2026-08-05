@@ -114,10 +114,16 @@ export async function DELETE(
   const mission = await prisma.mission.findUnique({ where: { id } });
   if (!mission) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
-  // L'assistant rattaché au poste peut RETIRER le remplacement qu'il a publié pour couvrir son
-  // absence — symétrique du droit de le publier (POST, section 153 point 4). La mission
+  // L'assistant rattaché au poste peut RETIRER un remplacement posé sur SON poste. La mission
   // appartient au cabinet, si bien que le garde de propriété le lui refusait : il pouvait créer
   // une demande de couverture sans jamais pouvoir l'annuler (403 constaté en conditions réelles).
+  //
+  // PORTÉE ASSUMÉE, plus large que « retirer ce que j'ai publié » : le droit couvre AUSSI les
+  // annonces publiées par le cabinet sur ce poste. Le modèle ne permet pas de faire autrement —
+  // la mission ne porte que profileId (le cabinet) et cabinetPostId, aucun champ ne dit qui l'a
+  // créée. Arbitrage retenu : le poste est celui de l'assistant, la couverture concerne son
+  // absence, il en dispose. Le restreindre supposerait d'ajouter un champ d'auteur.
+  //
   // Restreint au REMPLACEMENT, comme à la publication : il ne touche pas aux postes long terme.
   let assistantDuPoste = false;
   if (mission.cabinetPostId && mission.missionType === MissionType.REMPLACEMENT) {
