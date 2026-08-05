@@ -34,10 +34,15 @@ export default function ZoneSelector({
           type="button"
           onClick={toggleAll}
           aria-pressed={allSelected}
+          // Non sélectionné, ce raccourci s'affichait teinté (bg-kine-50) quand les zones
+          // voisines sont blanches : il avait l'air déjà actif. On croyait l'avoir choisi, on
+          // cliquait, et la bascule désélectionnait tout — le bouton de publication restait
+          // grisé sur « au moins une zone géographique », sans qu'on comprenne pourquoi. Même
+          // habillage que les autres chips au repos ; seuls le gras et l'emoji le distinguent.
           className={`px-3 py-1.5 rounded-full text-sm font-bold border transition ${
             allSelected
               ? "bg-kine-700 text-white border-kine-700"
-              : "bg-kine-50 text-kine-700 border-kine-200 hover:border-kine-400"
+              : "bg-white text-gray-600 border-gray-200 hover:border-kine-300"
           }`}
         >
           🌴 Toute la Guadeloupe
