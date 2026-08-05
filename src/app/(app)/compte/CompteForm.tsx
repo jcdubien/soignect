@@ -9,6 +9,7 @@ import CompteTimeline from "./CompteTimeline";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164, splitE164 } from "@/lib/phone";
 import { bioLimitFor } from "@/lib/bio";
+import { missingContractLabels } from "@/lib/contractProfile";
 
 const REGION_LABELS: Record<Region, string> = {
   GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
@@ -87,6 +88,15 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   const [phone, setPhone]               = useState(initPhone.local);
   const [emailOptIn, setEmailOptIn]     = useState(profile.user?.emailOptIn ?? true);
   const [notifyConsultation, setNotifyConsultation] = useState(profile.user?.notifyConsultation ?? true);
+
+  // Identité contractuelle (section 150) — même source de vérité que le garde serveur
+  // (contrat/route.ts, signature/route.ts). Calculée sur l'état COURANT du formulaire, pour
+  // que l'invitation disparaisse à mesure que l'utilisateur complète, sans attendre la
+  // sauvegarde. Le mur du contrat ne doit pas être la première fois qu'on entend parler
+  // de ces champs.
+  const identiteManquante = missingContractLabels({
+    name, adresse, rpps, numeroOrdre, siret, titulaireKind: kind,
+  });
 
   const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
@@ -200,6 +210,18 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
           />
         </div>
       </section>
+
+      {identiteManquante.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-900">
+            📄 <strong>Pensez à compléter votre profil</strong> pour pouvoir générer des contrats.
+          </p>
+          <p className="text-xs text-amber-700 mt-1">
+            Il manque : {identiteManquante.join(", ")}. Ces informations figurent sur le contrat
+            et vous seront demandées avant de le générer ou de le signer.
+          </p>
+        </div>
+      )}
 
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Mon compte</h1>

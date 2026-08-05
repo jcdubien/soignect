@@ -6,6 +6,7 @@ import { SubscriptionPlan } from "@prisma/client";
 import { hasPremiumAccess } from "@/lib/platform";
 import MatchChatButton from "@/components/chat/MatchChatButton";
 import MatchScoreBlock from "@/components/matches/MatchScoreBlock";
+import { missingContractLabels } from "@/lib/contractProfile";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,12 @@ export default async function MatchPage({ params, searchParams }: Props) {
     match.profileA.type === "TITULAIRE" ? match.profileA :
     match.profileB.type === "TITULAIRE" ? match.profileB : null;
   const isSalariat = titulaireParty?.titulaireKind === "STRUCTURE";
+
+  // Identité contractuelle (section 150) — même source de vérité que le garde serveur.
+  // On prévient AVANT le clic : sans ça, l'utilisateur découvrait l'exigence au moment du
+  // refus, sur un écran qui promettait un PDF. Sans objet pour un poste salarié, qui ne
+  // génère aucun contrat ici.
+  const identiteManquante = isSalariat ? [] : missingContractLabels(myProfile);
 
   const isPremium = await hasPremiumAccess({
     subscriptionPlan: (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan,
@@ -162,6 +169,18 @@ export default async function MatchPage({ params, searchParams }: Props) {
              un établissement, le contrat de travail relève de lui : proposer le PDF n'a aucun
              sens, et le proposer DERRIÈRE UN PAYWALL revenait à vendre un abonnement pour un
              document qui ne serait jamais livré. On mène directement à l'explication dédiée. */}
+        {identiteManquante.length > 0 && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm text-amber-900">
+              📄 <strong>Complétez votre profil</strong> pour pouvoir générer le contrat.
+            </p>
+            <p className="text-xs text-amber-700 mt-1">
+              Il manque : {identiteManquante.join(", ")}.{" "}
+              <Link href="/compte" className="underline font-semibold">Compléter mon profil →</Link>
+            </p>
+          </div>
+        )}
+
         {isSalariat ? (
           <Link
             href={`/match/${match.id}/contrat`}
