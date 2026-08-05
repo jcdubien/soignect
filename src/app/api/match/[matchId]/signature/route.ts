@@ -9,6 +9,8 @@ import { sendBillingTriggeredEmail, sendSignatureAppliedEmail } from "@/lib/emai
 import { reportStructureContractUsage } from "@/lib/stripe-usage";
 import { attachAssistantPostForMatch } from "@/lib/assistantPost";
 import { createNotification } from "@/lib/notifications";
+import { isContractProfileEnforced } from "@/lib/platform";
+import { missingContractFields, missingContractLabels } from "@/lib/contractProfile";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -68,6 +70,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
 
   const myProfile = match.profileAId === session.user.profileId ? match.profileA : match.profileB;
   const side = mySide(myProfile.type);
+
+  // Identité contractuelle (section 150) — MÊME garde que la génération du PDF, appliqué ici
+  // aussi. Il ne vivait que dans contrat/route.ts : le parcours normal était bien fermé (sans
+  // PDF généré, on n'atteint pas la signature dans l'interface), mais l'endpoint restait
+  // ouvert — on pouvait apposer une signature sur un contrat dont l'identité d'une des parties
+  // est incomplète. Une signature engage : elle mérite le même contrôle que le document.
+  if (await isContractProfileEnforced()) {
+    const parties = await prisma.profile.findMany({
+      where: { id: { in: [match.profileAId, match.profileBId] } },
+      select: { id: true, titulaireKind: true, rpps: true, numeroOrdre: true, adresse: true, siret: true },
+    });
+    const incomplet = parties.find((x) => missingContractFields(x).length > 0);
+    if (incomplet) {
+      const mien = incomplet.id === session.user.profileId;
+      return NextResponse.json(
+        {
+          error: mien
+            ? `Identité contractuelle incomplète — complétez votre profil avant de signer (${missingContractLabels(incomplet).join(", ")}).`
+            : "Identité contractuelle incomplète du côté de l'autre partie — elle doit compléter son profil avant que le contrat puisse être signé.",
+        },
+        { status: 422 }
+      );
+    }
+  }
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
