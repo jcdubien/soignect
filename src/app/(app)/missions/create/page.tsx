@@ -962,8 +962,12 @@ export default function CreateMissionPage() {
         {!loading && missingRequired.length > 0 && (
           <p className="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
             Pour publier, il reste à renseigner : <strong>{missingRequired.join(", ")}</strong>.
+            {/* `lg:hidden` : la colonne des champs structurés est en `hidden lg:block` — donc
+                déjà dépliée à partir de `lg`, quel que soit showManual. Proposer de l'ouvrir sur
+                desktop désignait des champs visibles à l'écran, et le clic ne changeait rien.
+                Le message des prérequis, lui, reste utile aux deux tailles. */}
             {formType === "TITULAIRE" && !showManual && (
-              <button type="button" onClick={() => setShowManual(true)} className="ml-1 underline font-semibold text-kine-700">Ouvrir les champs</button>
+              <button type="button" onClick={() => setShowManual(true)} className="lg:hidden ml-1 underline font-semibold text-kine-700">Ouvrir les champs</button>
             )}
           </p>
         )}
