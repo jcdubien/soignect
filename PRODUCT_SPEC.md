@@ -2055,13 +2055,28 @@ la disponibilite d'un candidat, les deux etaient vides et les bonus
 tombaient a zero. Le cabinet ne pouvait PAS DEPASSER 80/100 sur un
 remplacant. Plafond structurel, jamais affiche, jamais soupconne.
 
-CONSTATE SUR DONNEES REELLES : Julien notait Jean-Charles 78/48/43,
-Jean-Charles notait Julien 23 (logement 0, vehicule 0). Ces nombres
-n'etaient pas comparables et rien a l'ecran ne le disait.
+PREUVE : structurelle, pas anecdotique. Verifiee par lecture du code
+puis par test — memes deux profils, les deux sens rendent 83 apres
+correctif, contre 100 max / 80 max avant.
 
-Aggravant : le detail affichait "logement: 0", qui se lit "pas de
-logement propose" alors que la bonne lecture etait "sans objet dans
-ce sens".
+CORRECTION D'UNE ERREUR D'ATTRIBUTION (verif live du 06/08) : le
+couple "Julien 78 / Jean-Charles 23" avait d'abord ete presente comme
+la demonstration de ce plafond. IL NE L'EST PAS. Sur cette paire,
+AUCUN des deux camps n'avait coche de critere : logement 0 et
+vehicule 0 des DEUX cotes. L'ecart venait d'ailleurs —
+
+  - dates 30 vs 0 : l'annonce a ete MODIFIEE le 04/08, apres le swipe
+    de Julien du 01/08. Ses dates sont passees a 2025 (saisie erronee,
+    annee revolue) ; le 78 note un etat qui n'existe plus.
+  - geo 25 vs 6 : les deux calculs n'ont pas utilise la meme mission
+    cote swipeur (voir « reste ouvert »).
+
+Le correctif reste juste et necessaire — le plafond a 80 se lit dans
+le code — mais il ne faut pas lui attribuer ces chiffres-la.
+
+Aggravant reel, lui : le detail affichait "logement: 0", qui se lit
+"pas de logement propose" alors que la bonne lecture etait "sans
+objet dans ce sens".
 ```
 
 ### Le correctif : renormalisation
@@ -2155,9 +2170,22 @@ faire payer le bonus a tout le monde.
 ```
 Les Match.aiScore deja en base sont des instantanes calcules avec
 l'ancienne formule — ils ne sont PAS recalcules par ce commit. Le
-bouton "Recalculer" de la fiche de match applique la nouvelle. A
-decider : rescoring de masse, ou attente de la recalculation
-naturelle.
+bouton "Recalculer" de la fiche de match applique la nouvelle.
+
+PLUS LARGE QUE PREVU (verif live du 06/08) : ce ne sont pas seulement
+les Match.aiScore. Les 8 Swipe.affinityScore portent eux aussi des
+scores figes, et c'est LE CHIFFRE AFFICHE EN PREMIER ET EN GRAND sur
+la fiche de match ("Score d'affinite"), au-dessus du score de paire
+correct. Deux nombres differents pour la meme paire sur le meme
+ecran : 23 % en haut (fige, propre au lecteur), 22 % en dessous
+(recalcule, propre a la paire). Certains de ces details contiennent
+encore "desirability": 10 — ils precedent meme la refonte du 03/08.
+
+DEFAUT DISTINCT, NON CORRIGE : dans /api/swipe, la mission du swipeur
+est choisie par findFirst({ profileId, isActive: true }) quand aucune
+cible n'est precisee — une mission ARBITRAIRE, pas celle qui sera
+appariee. Le score de swipe peut donc comparer un couple qui n'est
+pas celui du match. C'est ce qui explique le geo 25 vs 6 ci-dessus.
 ```
 
 
