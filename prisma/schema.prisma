@@ -192,6 +192,16 @@ model Profile {
   // remplaçant pour le bonus véhicule du score (match binaire avec Mission.vehiculePropose).
   rechercheVehicule Boolean @default(false)
 
+  // Attentes de cadre d'exercice (section 190) — même modèle binaire que rechercheLogement :
+  // ces critères n'entrent dans le score QUE si le candidat les exprime. Non cochés, leur poids
+  // est redistribué sur le socle, jamais laissé en trou (renormalisation).
+  rechercheSecretariat Boolean @default(false)
+
+  // Souhait d'exercer en structure coordonnée (MSP / centre de santé / équipe de soins
+  // primaires). Ce n'est pas un confort : l'exercice coordonné ouvre l'accès direct sans
+  // prescription médicale préalable (Avenant 7), donc une autonomie de pratique réelle.
+  rechercheExerciceCoordonne Boolean @default(false)
+
   // Ouverture aux postes salariés (section 154) — REMPLACANT/ASSISTANT qui accepte aussi
   // les contrats salariés (CDD/CDI/Stage/Vacation) publiés par les comptes STRUCTURE.
   // Défaut false = le candidat ne voit pas / n'est pas visible pour le salariat (opt-in).
@@ -282,6 +292,20 @@ model Mission {
   // Véhicule mis à disposition avec l'annonce (feature terrain, annonces réelles) — bonus
   // véhicule du score, symétrique de logementPropose (match binaire avec Profile.rechercheVehicule).
   vehiculePropose Boolean @default(false)
+
+  // Secrétariat présent au cabinet (section 190) — bonus du score, même structure binaire que
+  // le logement (match avec Profile.rechercheSecretariat). Allège la charge administrative,
+  // argument récurrent des annonces réelles pour un remplaçant comme pour un assistant.
+  secretairePresente Boolean @default(false)
+
+  // Exercice coordonné : MSP, centre de santé, ou équipe de soins primaires (section 190).
+  // PORTÉE PROFESSIONNELLE, pas un agrément décoratif — l'exercice coordonné ouvre l'accès
+  // direct sans prescription médicale préalable, jusqu'à 8 séances (Avenant 7). C'est pourquoi
+  // il pèse plus lourd que les trois autres bonus dans le barème (lib/compatibilite).
+  //
+  // Porté par la Mission et non par le Profile, par symétrie avec logementPropose et parce
+  // qu'un cabinet multi-sites peut n'être coordonné que sur l'un d'eux.
+  exerciceCoordonne Boolean @default(false)
 
   // Demi-journées libres par semaine (feature terrain) — critère qualité de vie annoncé
   // spontanément par les titulaires. Affichage seul (hors score). Cap UI 0-10.

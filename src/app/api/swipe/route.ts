@@ -129,8 +129,19 @@ export async function POST(req: NextRequest) {
         location: swiperMission?.location ?? swipedMission.location,
         zones: swiperMission?.zones ?? [], // macro-zones souhaitées (section 138)
         dateFlexibility: swiperProfile.dateFlexibility,
-        rechercheLogement: swiperProfile.rechercheLogement, // section 120
-        rechercheVehicule: swiperProfile.rechercheVehicule, // feature terrain — bonus véhicule
+        // Demandes du swipeur (Profile) ET offres de sa propre annonce (Mission) : le scoreur lit
+        // désormais chaque critère des deux côtés, pour que la paire ait UN score quel que soit
+        // le sens du swipe (section 190). Un cabinet qui swipe une disponibilité apporte ici son
+        // logement et son secrétariat, qu'il ne transmettait pas auparavant.
+        rechercheLogement: swiperProfile.rechercheLogement,
+        rechercheVehicule: swiperProfile.rechercheVehicule,
+        rechercheSecretariat: swiperProfile.rechercheSecretariat,
+        rechercheExerciceCoordonne: swiperProfile.rechercheExerciceCoordonne,
+        missionType: swiperMission?.missionType,
+        logementPropose: swiperMission?.logementPropose,
+        vehiculePropose: swiperMission?.vehiculePropose,
+        secretairePresente: swiperMission?.secretairePresente,
+        exerciceCoordonne: swiperMission?.exerciceCoordonne,
       };
       const missionInput = {
         bioTinder: swipedMission.bioTinder,
@@ -143,8 +154,17 @@ export async function POST(req: NextRequest) {
         zones: swipedMission.zones, // macro-zones couvertes (section 138)
         dateFlexibility: swipedMission.dateFlexibility,
         missionType: swipedMission.missionType,     // section 120 — profil de pondération
-        logementPropose: swipedMission.logementPropose, // section 120 — bonus logement
-        vehiculePropose: swipedMission.vehiculePropose, // feature terrain — bonus véhicule
+        // Offres de l'annonce swipée ET demandes du profil qui la porte — symétrique du bloc
+        // ci-dessus. Une disponibilité de candidat n'a rien à « proposer », mais son profil
+        // exprime les attentes qui décident quels bonus entrent au barème (section 190).
+        logementPropose: swipedMission.logementPropose,
+        vehiculePropose: swipedMission.vehiculePropose,
+        secretairePresente: swipedMission.secretairePresente,
+        exerciceCoordonne: swipedMission.exerciceCoordonne,
+        rechercheLogement: missionProfile.rechercheLogement,
+        rechercheVehicule: missionProfile.rechercheVehicule,
+        rechercheSecretariat: missionProfile.rechercheSecretariat,
+        rechercheExerciceCoordonne: missionProfile.rechercheExerciceCoordonne,
       };
       try {
         // Rate-limit DeepSeek (section 165) : au-delà du plafond, on saute l'appel API et le

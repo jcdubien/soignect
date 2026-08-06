@@ -1,7 +1,7 @@
 // ── Système de scoring affinité 0-100 (Sprint 3) ─────────────────────────────
 
 import { zoneOfCommune, type ZoneGeo } from "@/lib/communes";
-import { weightsFor } from "@/lib/compatibilite";
+import { socleFor, BONUS, type BonusKey } from "@/lib/compatibilite";
 
 export interface AffinityInput {
   bioTinder?: string | null;
@@ -15,10 +15,16 @@ export interface AffinityInput {
   dateFlexibility?: number; // 0=exact, 1=±3j, 2=±1sem, 3=±2sem, 4=±1mois
   // Section 120 — pondération différenciée par type de poste + logement structuré
   missionType?: string;        // porté par la Mission (REMPLACEMENT | ASSISTANAT | COLLABORATION)
-  logementPropose?: boolean;   // Mission (annonce cabinet) : logement proposé
-  rechercheLogement?: boolean; // Profil remplaçant : recherche un logement
-  vehiculePropose?: boolean;   // Mission (annonce cabinet) : véhicule mis à disposition (feature terrain)
-  rechercheVehicule?: boolean; // Profil remplaçant : besoin d'un véhicule
+  // ── Offres, portées par la Mission du pourvoyeur ──
+  logementPropose?: boolean;   // logement proposé
+  vehiculePropose?: boolean;   // véhicule mis à disposition (feature terrain)
+  secretairePresente?: boolean;// secrétariat présent au cabinet (section 190)
+  exerciceCoordonne?: boolean; // MSP / centre de santé / ESP (section 190)
+  // ── Demandes, portées par le Profil du chercheur ──
+  rechercheLogement?: boolean;
+  rechercheVehicule?: boolean;
+  rechercheSecretariat?: boolean;
+  rechercheExerciceCoordonne?: boolean;
 }
 
 export interface AffinityResult {
@@ -30,6 +36,11 @@ export interface AffinityResult {
     bio: number;
     logement: number;
     vehicule: number;
+    secretariat: number;
+    coordination: number;
+    // Plafond effectif du socle après renormalisation (100 − bonus en jeu). Sans lui, la lecture
+    // qualitative ne peut pas savoir sur quelle échelle « dates: 24 » doit être jugé.
+    socleMax: number;
   };
 }
 
@@ -157,29 +168,69 @@ export async function computeAffinityScore(
   mission: AffinityInput,
   options?: { skipDeepSeek?: boolean }
 ): Promise<AffinityResult> {
-  const { w, label } = weightsFor(mission.missionType);
+  // Le type de poste vient de l'annonce swipée, mais une disponibilité de candidat en porte un
+  // aussi : on retombe sur celui du swipeur quand la mission n'en déclare pas.
+  const { socle, label } = socleFor(mission.missionType ?? swiper.missionType);
+
+  // ── UN SCORE PAR PAIRE, PAS UN PAR SENS DE SWIPE ────────────────────────────────────────
+  //
+  // Les champs sont ORIENTÉS : « propose » n'existe que sur une annonce de cabinet, « recherche »
+  // que sur un profil de candidat. L'ancienne lecture ne regardait l'offre que du côté `mission`
+  // et la demande que du côté `swiper` : quand le CABINET swipait la disponibilité d'un candidat,
+  // les deux étaient vides et les quatre bonus tombaient à zéro. Le cabinet ne pouvait alors pas
+  // dépasser 80/100 sur un remplaçant — plafond structurel invisible, constaté sur les données
+  // réelles (Julien notait Jean-Charles 78, Jean-Charles notait Julien 23).
+  //
+  // On lit donc chaque critère des DEUX côtés : peu importe qui swipe, l'offre est là où elle est.
+  const offre   = (k: "logementPropose" | "vehiculePropose" | "secretairePresente" | "exerciceCoordonne") =>
+    Boolean(mission[k] || swiper[k]);
+  const demande = (k: "rechercheLogement" | "rechercheVehicule" | "rechercheSecretariat" | "rechercheExerciceCoordonne") =>
+    Boolean(swiper[k] || mission[k]);
+
+  const CRITERES: { cle: BonusKey; offre: boolean; demande: boolean }[] = [
+    { cle: "logement",     offre: offre("logementPropose"),    demande: demande("rechercheLogement") },
+    { cle: "vehicule",     offre: offre("vehiculePropose"),    demande: demande("rechercheVehicule") },
+    { cle: "secretariat",  offre: offre("secretairePresente"), demande: demande("rechercheSecretariat") },
+    { cle: "coordination", offre: offre("exerciceCoordonne"),  demande: demande("rechercheExerciceCoordonne") },
+  ];
+
+  // ── RENORMALISATION ─────────────────────────────────────────────────────────────────────
+  //
+  // Un critère n'entre au barème QUE SI le chercheur l'exprime. Non demandé, son poids retourne
+  // au socle plutôt que de laisser un trou : un candidat qui n'a pas besoin de logement n'est pas
+  // moins compatible qu'un autre, alors qu'il perdait 10 points auparavant.
+  //
+  // Demandé mais non proposé, en revanche, le critère reste au barème et vaut 0 — là, l'écart
+  // est réel : la personne veut quelque chose que ce cabinet n'offre pas.
+  const enJeu = CRITERES.filter((c) => c.demande);
+  const budgetActif = enJeu.reduce((s, c) => s + BONUS[c.cle], 0);
+  const socleMax = 100 - budgetActif;
+  const echelle = socleMax / 100;
 
   const datesRaw = scoreDates(mission, swiper);                             // 0-35
   const geoRaw   = scoreGeo(swiper, mission);                              // 0-25
   const bioRaw   = await scoreBio(swiper, mission, options?.skipDeepSeek);  // 0-30
 
-  const dates = Math.round((datesRaw / 35) * w.dates);
-  const geo   = Math.round((geoRaw   / 25) * w.geo);
-  const bio   = Math.round((bioRaw   / 30) * w.bio);
-  // Bonus logement binaire, UNIQUEMENT en Remplacement (w.logement=0 pour Collab/Assistanat) :
-  // plein si l'annonce propose un logement ET le remplaçant en cherche.
-  const logement = (mission.logementPropose && swiper.rechercheLogement) ? w.logement : 0;
-  // Bonus véhicule symétrique (feature terrain) : plein si l'annonce met un véhicule à disposition
-  // ET le remplaçant en a besoin. Même structure binaire que le logement.
-  const vehicule = (mission.vehiculePropose && swiper.rechercheVehicule) ? w.vehicule : 0;
+  const dates = Math.round((datesRaw / 35) * socle.dates * echelle);
+  const geo   = Math.round((geoRaw   / 25) * socle.geo   * echelle);
+  const bio   = Math.round((bioRaw   / 30) * socle.bio   * echelle);
 
-  // Chaque profil somme exactement 100 ; le clamp reste une ceinture de sécurité en cas
-  // d'évolution des barèmes.
-  const total = Math.min(100, dates + geo + bio + logement + vehicule);
+  const acquis = (cle: BonusKey) => {
+    const c = CRITERES.find((x) => x.cle === cle)!;
+    return c.demande && c.offre ? BONUS[cle] : 0;
+  };
+  const logement     = acquis("logement");
+  const vehicule     = acquis("vehicule");
+  const secretariat  = acquis("secretariat");
+  const coordination = acquis("coordination");
+
+  // Socle et bonus en jeu somment exactement 100 ; le clamp reste une ceinture de sécurité en
+  // cas d'évolution des barèmes.
+  const total = Math.min(100, dates + geo + bio + logement + vehicule + secretariat + coordination);
 
   return {
     total,
     weightProfile: label,
-    details: { dates, geo, bio, logement, vehicule },
+    details: { dates, geo, bio, logement, vehicule, secretariat, coordination, socleMax },
   };
 }

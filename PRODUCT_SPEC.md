@@ -2039,6 +2039,128 @@ au detour d'une session.
 
 ---
 
+---
+
+## SECTION 190 — Asymétrie du score corrigée (renormalisation) + deux critères de bonus (06/08)
+
+### Le défaut : un score par SENS de swipe, pas par paire
+
+```
+Les champs du score sont ORIENTES : "propose" n'existe que sur une
+annonce de cabinet, "recherche" que sur un profil de candidat.
+
+computeAffinityScore ne lisait l'OFFRE que du cote `mission` et la
+DEMANDE que du cote `swiper`. Consequence : quand le CABINET swipait
+la disponibilite d'un candidat, les deux etaient vides et les bonus
+tombaient a zero. Le cabinet ne pouvait PAS DEPASSER 80/100 sur un
+remplacant. Plafond structurel, jamais affiche, jamais soupconne.
+
+CONSTATE SUR DONNEES REELLES : Julien notait Jean-Charles 78/48/43,
+Jean-Charles notait Julien 23 (logement 0, vehicule 0). Ces nombres
+n'etaient pas comparables et rien a l'ecran ne le disait.
+
+Aggravant : le detail affichait "logement: 0", qui se lit "pas de
+logement propose" alors que la bonne lecture etait "sans objet dans
+ce sens".
+```
+
+### Le correctif : renormalisation
+
+```
+1. UN SCORE PAR PAIRE. Chaque critere est lu DES DEUX COTES (offre =
+   mission.x || swiper.x ; demande = swiper.y || mission.y). Les
+   points d'appel transmettent desormais les deux faces. Verifie :
+   candidat->annonce et cabinet->dispo rendent 83 tous les deux.
+
+2. SOCLE EN PROPORTIONS, plus en points absolus. Un critere n'entre
+   au bareme QUE SI le chercheur l'exprime ; non demande, son poids
+   RETOURNE AU SOCLE au lieu de laisser un trou. Un candidat sans
+   besoin de logement perdait 10 points, il n'en perd plus.
+
+   Demande mais non offert, en revanche, le critere reste au bareme
+   et vaut 0 : la l'ecart est reel.
+
+3. socleMax stocke dans scoreDetails (100 - bonus en jeu). Sans lui,
+   la lecture qualitative ne peut pas savoir sur quelle echelle juger
+   "dates: 27". Les lignes deja en base n'en ont pas : lectureQualitative
+   retombe alors sur les baremes d'avant (LEGACY_WEIGHTS), sinon les
+   scores anciens paraitraient plus faibles qu'ils ne l'etaient.
+```
+
+### Baremes
+
+```
+SOCLE (proportions sommant 100, ramenees au prorata de ce qui reste)
+                  dates  geo  bio
+  REMPLACEMENT      40    30   30
+  COLLABORATION     35    30   35
+  ASSISTANAT        20    25   55
+
+La GEOGRAPHIE pese plus sur un remplacement court que sur un poste
+long : on ne demenage pas pour trois semaines. Inversion par rapport
+au bareme precedent, ou elle valait 25 dans les deux cas.
+
+L'affinite de profils est plafonnee a 55 meme la ou elle est la plus
+pertinente : seule composante dependant d'un appel modele, et seule
+a pouvoir retomber au neutre silencieusement (rate-limit, section
+165). On ne lui confie pas la majorite absolue.
+
+BONUS (budget 20, INCHANGE vs logement 10 + vehicule 10 : les deux
+nouveaux criteres se partagent l'existant, ils ne l'augmentent pas)
+  coordination (MSP/CDS/ESP)   7
+  logement                     5
+  vehicule                     4
+  secretariat                  4
+
+REPARTITION EN ATTENTE DE VALIDATION — un seul endroit a modifier,
+BONUS dans lib/compatibilite.ts.
+```
+
+### Pourquoi la coordination devant les trois autres
+
+```
+Logement, vehicule et secretariat sont des conditions MATERIELLES,
+valables le temps de la mission. L'exercice coordonne change ce que
+le kine a le DROIT de faire — acces direct sans prescription
+medicale prealable, jusqu'a 8 seances (Avenant 7) — et reste un
+acquis de pratique apres la mission. Ce n'est pas du meme ordre
+qu'un confort.
+
+Logement devant vehicule et secretariat : en Guadeloupe c'est le
+premier blocage concret pour un remplacant venu de l'exterieur.
+
+LIBELLE : "Exercice coordonne — acces direct sans prescription".
+On nomme l'AVANTAGE avant le dispositif : "MSP" ne dit rien a qui
+n'y a jamais exerce.
+```
+
+### Point de vigilance retenu
+
+```
+Ces deux criteres sont CONDITIONNELS (ils exigent une demande du
+chercheur), et ce n'est pas un detail d'implementation. Un critere
+qui rapporterait des points a TOUS les candidats indistinctement ne
+mesurerait pas la compatibilite mais l'ATTRACTIVITE — exactement ce
+qui a ete sorti du score le 03/08 avec la desirabilite. Un cabinet
+en MSP merite d'etre mis en avant : cela releve de l'ORDRE DU FEED
+et du badge de carte, pas du score de compatibilite.
+
+C'est pourquoi deux champs de DEMANDE ont ete ajoutes cote candidat
+(rechercheSecretariat, rechercheExerciceCoordonne) plutot que de
+faire payer le bonus a tout le monde.
+```
+
+### Reste ouvert
+
+```
+Les Match.aiScore deja en base sont des instantanes calcules avec
+l'ancienne formule — ils ne sont PAS recalcules par ce commit. Le
+bouton "Recalculer" de la fiche de match applique la nouvelle. A
+decider : rescoring de masse, ou attente de la recalculation
+naturelle.
+```
+
+
 ## AUDIT 4 PARCOURS — Résultat pour le salarié/recruteur (03/08)
 
 ### Méthode

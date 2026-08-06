@@ -118,6 +118,8 @@ export interface ExtractedFields {
   caMensuelEstime?: number;
   logementPropose?: boolean;
   vehiculePropose?: boolean;
+  secretairePresente?: boolean; // secrétariat sur place
+  exerciceCoordonne?: boolean;  // MSP / centre de santé / ESP
   demiJourneesLibres?: number; // 0-10
   repartition?: string; // ex. « cabinet + domicile » — tag affichage
   methode?: string;     // ex. « Mézières, sport » — tag affichage
@@ -125,6 +127,8 @@ export interface ExtractedFields {
   zones?: string[];            // macro-zones souhaitées (ZoneGeo)
   rechercheLogement?: boolean; // le candidat cherche un logement
   rechercheVehicule?: boolean; // le candidat a besoin d'un véhicule
+  rechercheSecretariat?: boolean;       // le candidat privilégie un cabinet avec secrétariat
+  rechercheExerciceCoordonne?: boolean; // le candidat souhaite exercer en structure coordonnée
   ouvertSalariat?: boolean;    // ouvert aux postes salariés
 }
 
@@ -149,12 +153,16 @@ const rawExtractionSchema = z.object({
   caMensuelEstime: fieldWithEvidence,
   logementPropose: fieldWithEvidence,
   vehiculePropose: fieldWithEvidence,
+  secretairePresente: fieldWithEvidence,
+  exerciceCoordonne: fieldWithEvidence,
   demiJourneesLibres: fieldWithEvidence,
   repartition: fieldWithEvidence,
   methode: fieldWithEvidence,
   zones: fieldWithEvidence,
   rechercheLogement: fieldWithEvidence,
   rechercheVehicule: fieldWithEvidence,
+  rechercheSecretariat: fieldWithEvidence,
+  rechercheExerciceCoordonne: fieldWithEvidence,
   ouvertSalariat: fieldWithEvidence,
 });
 
@@ -190,11 +198,15 @@ export async function extractAnnonceFields(
   "caMensuelEstime":   {"value":<entier euros/mois>,"evidence":"..."} | null,
   "logementPropose":   {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le cabinet PROPOSE un logement
   "vehiculePropose":   {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le cabinet MET un véhicule à disposition
+  "secretairePresente":{"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si une SECRÉTAIRE / un secrétariat est présent au cabinet (« secrétariat », « accueil », « télésecrétariat » NON)
+  "exerciceCoordonne": {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le cabinet exerce en MSP (maison de santé pluriprofessionnelle), centre de santé ou équipe de soins primaires. « pluridisciplinaire » ou « avec des médecins » NE SUFFIT PAS : il faut la structure de coordination nommée
   "demiJourneesLibres":{"value":<entier 0-10>,"evidence":"..."} | null,  // demi-journées libres/semaine
   "repartition":       {"value":"<ex: cabinet + domicile>","evidence":"..."} | null`;
   const candidatFields = `  "zones":             {"value":[<une ou plusieurs clés parmi : ${ZONE_ORDER.map((z) => `${z} (${ZONE_LABELS[z]})`).join(", ")}>],"evidence":"..."} | null,
   "rechercheLogement": {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le candidat CHERCHE un logement
   "rechercheVehicule": {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le candidat a BESOIN d'un véhicule
+  "rechercheSecretariat":{"value":true,"evidence":"..."} | null,         // true UNIQUEMENT si le candidat DEMANDE un cabinet avec secrétariat
+  "rechercheExerciceCoordonne":{"value":true,"evidence":"..."} | null,   // true UNIQUEMENT si le candidat SOUHAITE exercer en MSP / centre de santé / structure coordonnée
   "ouvertSalariat":    {"value":true,"evidence":"..."} | null`;          // true si ouvert aux postes salariés (CDD/CDI/vacation)
   const fieldsBlock = role === "cabinet" ? `${commonFields},\n${cabinetFields}` : `${commonFields},\n${candidatFields}`;
   // L'accroche (carte de swipe) est extraite DANS LE MÊME APPEL : l'utilisateur ne saisit plus
@@ -281,6 +293,8 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
 
     if (accepted(r.logementPropose) === true) out.logementPropose = true;
     if (accepted(r.vehiculePropose) === true) out.vehiculePropose = true;
+    if (accepted(r.secretairePresente) === true) out.secretairePresente = true;
+    if (accepted(r.exerciceCoordonne) === true) out.exerciceCoordonne = true;
 
     const dj = acceptedNumber(r.demiJourneesLibres);
     if (dj !== undefined && dj >= 0 && dj <= 10) out.demiJourneesLibres = dj;
@@ -298,6 +312,8 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
     }
     if (accepted(r.rechercheLogement) === true) out.rechercheLogement = true;
     if (accepted(r.rechercheVehicule) === true) out.rechercheVehicule = true;
+    if (accepted(r.rechercheSecretariat) === true) out.rechercheSecretariat = true;
+    if (accepted(r.rechercheExerciceCoordonne) === true) out.rechercheExerciceCoordonne = true;
     if (accepted(r.ouvertSalariat) === true) out.ouvertSalariat = true;
   }
 

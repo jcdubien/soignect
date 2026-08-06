@@ -22,7 +22,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // une annonce dessus la fait passer en RECHERCHE (fusion, section 188).
       briqueStatus: true,
       missionType: true, dateFlexibility: true, cabinetPostId: true,
-      logementPropose: true, vehiculePropose: true, demiJourneesLibres: true, caMensuelEstime: true,
+      logementPropose: true, vehiculePropose: true, secretairePresente: true, exerciceCoordonne: true,
+      demiJourneesLibres: true, caMensuelEstime: true,
       retrocessionRate: true, rawText: true,
     },
   });
@@ -54,6 +55,8 @@ const updateSchema = z.object({
   // Passent par ...rest → colonnes Mission. rechercheVehicule reste une préférence du Profile.
   logementPropose: z.boolean().optional(),
   vehiculePropose: z.boolean().optional(),
+  secretairePresente: z.boolean().optional(), // secrétariat sur place (section 190)
+  exerciceCoordonne: z.boolean().optional(),  // MSP / centre de santé / ESP (section 190)
   demiJourneesLibres: z.number().int().min(0).max(10).optional().nullable(),
   caMensuelEstime: z.number().int().min(0).max(1000000).optional().nullable(),
   retrocessionRate: z.number().int().min(0).max(100).optional().nullable(), // (ré)introduit dans le parcours cabinet

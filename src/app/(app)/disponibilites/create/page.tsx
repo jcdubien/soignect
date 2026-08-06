@@ -64,6 +64,8 @@ export default function CreateDisponibilitePage() {
     dateFlexibility: 0,
     rechercheLogement: false,
     rechercheVehicule: false,
+    rechercheSecretariat: false,       // privilégie un cabinet avec secrétariat (section 190)
+    rechercheExerciceCoordonne: false, // souhaite exercer en structure coordonnée (section 190)
     ouvertSalariat: false,
     rawText: "", // texte libre (refonte saisie texte-libre + extraction IA)
   });
@@ -162,6 +164,8 @@ export default function CreateDisponibilitePage() {
         dateFlexibility: form.dateFlexibility,
         rechercheLogement: form.rechercheLogement,
         rechercheVehicule: form.rechercheVehicule,
+        rechercheSecretariat: form.rechercheSecretariat,
+        rechercheExerciceCoordonne: form.rechercheExerciceCoordonne,
         ouvertSalariat: form.ouvertSalariat,
       }),
     });
@@ -203,6 +207,8 @@ export default function CreateDisponibilitePage() {
         : {}),
       ...(f.rechercheLogement === true ? { rechercheLogement: true } : {}),
       ...(f.rechercheVehicule === true ? { rechercheVehicule: true } : {}),
+      ...(f.rechercheSecretariat === true ? { rechercheSecretariat: true } : {}),
+      ...(f.rechercheExerciceCoordonne === true ? { rechercheExerciceCoordonne: true } : {}),
       ...(f.ouvertSalariat === true ? { ouvertSalariat: true } : {}),
     }));
     setDetectedTags({ methode: typeof f.methode === "string" ? f.methode : undefined });
@@ -217,6 +223,8 @@ export default function CreateDisponibilitePage() {
     if (form.minMonths) k.push(`durée minimale : ${form.minMonths} mois`);
     if (form.rechercheLogement) k.push("recherche un logement");
     if (form.rechercheVehicule) k.push("besoin d'un véhicule");
+    if (form.rechercheSecretariat) k.push("privilégie un cabinet avec secrétariat");
+    if (form.rechercheExerciceCoordonne) k.push("souhaite l'exercice coordonné (MSP / centre de santé)");
     if (form.ouvertSalariat) k.push("ouvert au salariat");
     if (detectedTags.methode) k.push(`méthodes : ${detectedTags.methode}`);
     return k;
@@ -460,6 +468,8 @@ export default function CreateDisponibilitePage() {
                 {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
                 {form.rechercheLogement && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Cherche logement</span>}
                 {form.rechercheVehicule && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Besoin véhicule</span>}
+                {form.rechercheSecretariat && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗂️ Secrétariat</span>}
+                {form.rechercheExerciceCoordonne && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🤝 Exercice coordonné</span>}
                 {form.ouvertSalariat && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💼 Ouvert salariat</span>}
                 {detectedTags.methode && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.methode}</span>}
               </div>
@@ -730,6 +740,36 @@ export default function CreateDisponibilitePage() {
             className="w-4 h-4 rounded accent-kine-600"
           />
           <span className="text-sm text-gray-700">🚗 J&apos;ai besoin d&apos;un véhicule</span>
+        </label>
+
+        {/* ── Attentes de cadre d'exercice (section 190) — RENORMALISATION : ne cocher que ce
+             qui compte vraiment. Un critère coché entre au barème du score et coûte des points
+             face aux cabinets qui ne l'offrent pas ; un critère laissé décoché ne pénalise
+             personne, son poids retourne aux dates, au secteur et aux profils. ── */}
+        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.rechercheSecretariat}
+            onChange={(e) => setForm({ ...form, rechercheSecretariat: e.target.checked })}
+            className="w-4 h-4 rounded accent-kine-600"
+          />
+          <span className="text-sm text-gray-700">🗂️ Je privilégie un cabinet avec secrétariat</span>
+        </label>
+
+        <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.rechercheExerciceCoordonne}
+            onChange={(e) => setForm({ ...form, rechercheExerciceCoordonne: e.target.checked })}
+            className="w-4 h-4 rounded accent-kine-600 mt-0.5"
+          />
+          <span className="text-sm text-gray-700">
+            🤝 Je souhaite exercer en structure coordonnée
+            <span className="block text-xs text-gray-500 mt-0.5">
+              MSP, centre de santé, ESP — accès direct sans prescription médicale préalable,
+              jusqu&apos;à 8 séances.
+            </span>
+          </span>
         </label>
 
         {/* ── Ouverture au salariat (section 154) — opt-in : rend le profil visible/matchable

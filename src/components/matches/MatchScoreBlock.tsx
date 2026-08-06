@@ -104,6 +104,11 @@ export default function MatchScoreBlock({
               {" · "}bio {String(factors.bio ?? "—")}
               {" · "}log {String(factors.logement ?? "—")}
               {" · "}véh {String(factors.vehicule ?? "—")}
+              {" · "}sec {String(factors.secretariat ?? "—")}
+              {" · "}coord {String(factors.coordination ?? "—")}
+              {/* socleMax = plafond du socle après renormalisation (100 − bonus en jeu). Sans lui
+                  on ne peut pas juger si « dates 27 » est bon : le maximum dépend de la paire. */}
+              {" · "}socle/{String(factors.socleMax ?? "100")}
             </p>
           )}
         </>

@@ -161,6 +161,8 @@ export default function CreateMissionPage() {
     dateFlexibility: 0,
     logementPropose: false,
     vehiculePropose: false,
+    secretairePresente: false, // secrétariat sur place (section 190)
+    exerciceCoordonne: false,  // MSP / centre de santé / ESP (section 190)
     demiJourneesLibres: "", // demi-journées libres/semaine (feature terrain) — vide = non renseigné
     caMensuelEstime: "",    // CA mensuel estimé € (feature terrain) — optionnel, vide = non renseigné
     retrocessionRate: "",   // taux de rétrocession % — (ré)introduit dans le parcours cabinet
@@ -234,6 +236,8 @@ export default function CreateMissionPage() {
           dateFlexibility: m.dateFlexibility ?? 0,
           logementPropose: m.logementPropose ?? false,
           vehiculePropose: m.vehiculePropose ?? false,
+          secretairePresente: m.secretairePresente ?? false,
+          exerciceCoordonne: m.exerciceCoordonne ?? false,
           demiJourneesLibres: m.demiJourneesLibres != null ? String(m.demiJourneesLibres) : "",
           caMensuelEstime: m.caMensuelEstime != null ? String(m.caMensuelEstime) : "",
           retrocessionRate: m.retrocessionRate != null ? String(m.retrocessionRate) : "",
@@ -339,6 +343,8 @@ export default function CreateMissionPage() {
       dateFlexibility: form.dateFlexibility,
       logementPropose: form.logementPropose,
       vehiculePropose: form.vehiculePropose,
+      secretairePresente: form.secretairePresente,
+      exerciceCoordonne: form.exerciceCoordonne,
       demiJourneesLibres: form.demiJourneesLibres ? parseInt(form.demiJourneesLibres, 10) : null,
       caMensuelEstime: form.caMensuelEstime ? parseInt(form.caMensuelEstime, 10) : null,
       retrocessionRate: form.retrocessionRate ? parseInt(form.retrocessionRate, 10) : null,
@@ -401,6 +407,8 @@ export default function CreateMissionPage() {
       ...(typeof f.demiJourneesLibres === "number" ? { demiJourneesLibres: String(f.demiJourneesLibres) } : {}),
       ...(f.logementPropose === true ? { logementPropose: true } : {}),
       ...(f.vehiculePropose === true ? { vehiculePropose: true } : {}),
+      ...(f.secretairePresente === true ? { secretairePresente: true } : {}),
+      ...(f.exerciceCoordonne === true ? { exerciceCoordonne: true } : {}),
     }));
     setDetectedTags({
       repartition: typeof f.repartition === "string" ? f.repartition : undefined,
@@ -421,6 +429,8 @@ export default function CreateMissionPage() {
     if (form.demiJourneesLibres) k.push(`demi-journées libres : ${form.demiJourneesLibres}/semaine`);
     if (form.logementPropose) k.push("logement proposé");
     if (form.vehiculePropose) k.push("véhicule mis à disposition");
+    if (form.secretairePresente) k.push("secrétariat sur place");
+    if (form.exerciceCoordonne) k.push("exercice coordonné (MSP / centre de santé)");
     if (detectedTags.repartition) k.push(`répartition : ${detectedTags.repartition}`);
     if (detectedTags.methode) k.push(`méthodes : ${detectedTags.methode}`);
     return k;
@@ -627,6 +637,8 @@ export default function CreateMissionPage() {
               {form.demiJourneesLibres && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗓️ {form.demiJourneesLibres} dj/sem.</span>}
               {form.logementPropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Logement</span>}
               {form.vehiculePropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Véhicule</span>}
+              {form.secretairePresente && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗂️ Secrétariat</span>}
+              {form.exerciceCoordonne && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🤝 Exercice coordonné</span>}
               {detectedTags.repartition && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.repartition}</span>}
               {detectedTags.methode && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.methode}</span>}
             </div>
@@ -865,6 +877,37 @@ export default function CreateMissionPage() {
             className="w-4 h-4 rounded accent-kine-600"
           />
           <span className="text-sm text-gray-700">🚗 Véhicule mis à disposition</span>
+        </label>
+
+        {/* ── Secrétariat sur place (section 190) — alimente le bonus secrétariat du score.
+             Argument récurrent des annonces réelles : moins de charge administrative. ── */}
+        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.secretairePresente}
+            onChange={(e) => setForm({ ...form, secretairePresente: e.target.checked })}
+            className="w-4 h-4 rounded accent-kine-600"
+          />
+          <span className="text-sm text-gray-700">🗂️ Secrétariat sur place</span>
+        </label>
+
+        {/* ── Exercice coordonné (section 190) — le libellé NOMME L'AVANTAGE avant le dispositif :
+             « MSP » ne dit rien à qui n'y a jamais exercé, l'accès direct sans prescription
+             (Avenant 7, jusqu'à 8 séances) dit exactement ce qu'on y gagne. C'est aussi ce qui
+             justifie que ce critère pèse plus lourd que les trois autres au barème. ── */}
+        <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.exerciceCoordonne}
+            onChange={(e) => setForm({ ...form, exerciceCoordonne: e.target.checked })}
+            className="w-4 h-4 rounded accent-kine-600 mt-0.5"
+          />
+          <span className="text-sm text-gray-700">
+            🤝 Exercice coordonné (MSP, centre de santé, ESP)
+            <span className="block text-xs text-gray-500 mt-0.5">
+              Ouvre l&apos;accès direct sans prescription médicale préalable, jusqu&apos;à 8 séances.
+            </span>
+          </span>
         </label>
 
         {/* ── Demi-journées libres + CA estimé (feature terrain) — informations affichées sur

@@ -29,6 +29,10 @@ const createMissionSchema = z.object({
   rechercheLogement: z.boolean().optional(), // dispo remplaçant : recherche un logement (→ Profile)
   vehiculePropose: z.boolean().optional(),   // annonce cabinet : véhicule mis à disposition (feature terrain)
   rechercheVehicule: z.boolean().optional(), // dispo remplaçant : besoin d'un véhicule (→ Profile)
+  secretairePresente: z.boolean().optional(),         // annonce cabinet : secrétariat sur place (section 190)
+  rechercheSecretariat: z.boolean().optional(),       // dispo candidat : privilégie un cabinet avec secrétariat (→ Profile)
+  exerciceCoordonne: z.boolean().optional(),          // annonce cabinet : MSP / CDS / ESP (section 190)
+  rechercheExerciceCoordonne: z.boolean().optional(), // dispo candidat : souhaite l'exercice coordonné (→ Profile)
   demiJourneesLibres: z.number().int().min(0).max(10).optional().nullable(),      // affichage seul (hors score)
   caMensuelEstime: z.number().int().min(0).max(1000000).optional().nullable(),    // affichage seul, optionnel
   rawText: z.string().max(8000).optional().nullable(),                            // texte libre de l'annonce (refonte saisie)
@@ -111,7 +115,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, demiJourneesLibres, caMensuelEstime, rawText, ouvertSalariat, briqueStatus, cabinetPostId } = parsed.data;
+  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, rawText, ouvertSalariat, briqueStatus, cabinetPostId } = parsed.data;
 
   // Photo de profil obligatoire pour publier une annonce/disponibilité (ferme la brèche
   // rétroactive : un profil créé avant l'onboarding-photo pouvait publier sans photo).
@@ -267,6 +271,8 @@ export async function POST(req: NextRequest) {
       dateFlexibility: dateFlexibility ?? 0,
       logementPropose: logementPropose ?? false,
       vehiculePropose: vehiculePropose ?? false,
+      secretairePresente: secretairePresente ?? false,
+      exerciceCoordonne: exerciceCoordonne ?? false,
       demiJourneesLibres: demiJourneesLibres ?? null,
       caMensuelEstime: caMensuelEstime ?? null,
       rawText: rawText ?? null,
@@ -278,12 +284,15 @@ export async function POST(req: NextRequest) {
   // "Je recherche un logement" est une préférence du profil remplaçant (section 120) —
   // portée par le formulaire de disponibilité, persistée sur le Profile. Idem pour
   // "ouvert au salariat" (section 154) — préférence candidat qui pilote le gating salariat.
-  if (typeof rechercheLogement === "boolean" || typeof rechercheVehicule === "boolean" || typeof ouvertSalariat === "boolean") {
+  const prefsCandidat = [rechercheLogement, rechercheVehicule, rechercheSecretariat, rechercheExerciceCoordonne, ouvertSalariat];
+  if (prefsCandidat.some((v) => typeof v === "boolean")) {
     await prisma.profile.update({
       where: { id: session.user.profileId },
       data: {
         ...(typeof rechercheLogement === "boolean" ? { rechercheLogement } : {}),
         ...(typeof rechercheVehicule === "boolean" ? { rechercheVehicule } : {}),
+        ...(typeof rechercheSecretariat === "boolean" ? { rechercheSecretariat } : {}),
+        ...(typeof rechercheExerciceCoordonne === "boolean" ? { rechercheExerciceCoordonne } : {}),
         ...(typeof ouvertSalariat === "boolean" ? { ouvertSalariat } : {}),
       },
     }).catch(() => { /* non bloquant */ });

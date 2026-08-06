@@ -104,6 +104,8 @@ export async function PATCH(
     dateFlexibility: candidatMission.profile.dateFlexibility,
     rechercheLogement: candidatMission.profile.rechercheLogement,
     rechercheVehicule: candidatMission.profile.rechercheVehicule,
+    rechercheSecretariat: candidatMission.profile.rechercheSecretariat,
+    rechercheExerciceCoordonne: candidatMission.profile.rechercheExerciceCoordonne,
   };
   const annonce = {
     bioTinder: cabinetMission.bioTinder ?? cabinetMission.profile.bioTinder,
@@ -118,6 +120,8 @@ export async function PATCH(
     missionType: cabinetMission.missionType,
     logementPropose: cabinetMission.logementPropose,
     vehiculePropose: cabinetMission.vehiculePropose,
+    secretairePresente: cabinetMission.secretairePresente,
+    exerciceCoordonne: cabinetMission.exerciceCoordonne,
   };
 
   // Rate-limit DeepSeek (section 165) — au-delà du plafond, seule la composante « profils »
