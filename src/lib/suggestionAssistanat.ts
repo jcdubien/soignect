@@ -14,7 +14,15 @@ import { MissionType, ProfileType, SwipeDirection } from "@prisma/client";
 // c'est que l'intérêt exprimé ne mène nulle part.
 export const SEUIL_INTERETS = 2;
 
-export async function suggestionAssistanat(profileId: string): Promise<number | null> {
+export interface SignalAssistanat {
+  interets: number;
+  // Le seuil compte l'assistanat ET la collaboration, mais le bandeau ne doit nommer que ce qui
+  // s'est réellement produit : dire « ou de collaboration » à quelqu'un qui n'a swipé que des
+  // assistanats lui décrit une action qu'il n'a pas faite.
+  avecCollaboration: boolean;
+}
+
+export async function suggestionAssistanat(profileId: string): Promise<SignalAssistanat | null> {
   const profile = await prisma.profile.findUnique({
     where: { id: profileId },
     select: { type: true, suggestionAssistanatVueAt: true },
@@ -24,12 +32,17 @@ export async function suggestionAssistanat(profileId: string): Promise<number | 
   if (!profile || profile.type !== ProfileType.REMPLACANT) return null;
   if (profile.suggestionAssistanatVueAt) return null;
 
-  const interets = await prisma.swipe.count({
+  const swipes = await prisma.swipe.findMany({
     where: {
       swiperId: profileId,
       direction: SwipeDirection.RIGHT,
       swipedMission: { missionType: { in: [MissionType.ASSISTANAT, MissionType.COLLABORATION] } },
     },
+    select: { swipedMission: { select: { missionType: true } } },
   });
-  return interets >= SEUIL_INTERETS ? interets : null;
+  if (swipes.length < SEUIL_INTERETS) return null;
+  return {
+    interets: swipes.length,
+    avecCollaboration: swipes.some((s) => s.swipedMission.missionType === MissionType.COLLABORATION),
+  };
 }

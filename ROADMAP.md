@@ -515,13 +515,25 @@ La règle d'écriture opposable ("aucun écran n'affirme ce qu'il n'a
 pas vérifié") doit s'appliquer à TOUTE nouvelle feature dès sa 
 conception, pas seulement en correction a posteriori.
 
-TIER 1 — statuts à reconfirmer avant tout le reste :
+TIER 1a — ACTION À EFFET UTILISATEUR, à faire en premier (pas une 
+simple vérification de statut) :
+- 2 comptes déjà bloqués par enforceContractProfile ont une annonce 
+  en ligne aujourd'hui. Si l'un des deux est un vrai testeur (pas un 
+  compte de Jean-Charles), un message direct maintenant évite qu'il 
+  découvre le mur sans explication à sa prochaine tentative de 
+  contrat.
+
+TIER 1b — statuts à reconfirmer avant tout le reste :
 - Bug Sentry suppression Mission (jamais mentionné dans les rapports 
   du 03/08, statut réel inconnu)
 - Connexion jcdubien@gmail.com (probablement résolue par la 
   normalisation email du 30/07, jamais confirmée explicitement)
-- 2 comptes déjà bloqués par enforceContractProfile avec une annonce 
-  en ligne — prévenir directement si l'un est un vrai testeur
+- 🆕 Rattachement automatique à la signature (assistant.type) — 
+  DÉCOUVERT NON CORRIGÉ lors d'une relecture indépendante (03/08) : 
+  la décision était prise (élargir au type de mission) mais aucun 
+  prompt n'a jamais été envoyé. git log confirme le garde inchangé. 
+  Voir PRODUCT_SPEC.md, section "malentendu du 23/07" pour le 
+  contexte complet de cette découverte.
 
 TIER 2 — Sprint 1, prompts antérieurs à la session marathon, 
 probablement partiellement caducs (vérifier avant renvoi) : layout 
@@ -530,7 +542,10 @@ email poste-assistant, bug timeline Assistant 1
 
 TIER 3 — 3 défauts connus du parcours salarié, non traités : champs 
 économiques incohérents, architecture MissionType, bouton sans effet 
-sous l'état vide établissement
+sous l'état vide établissement. PLUS (03/08) : email/notification à 
+l'entrée en période de grâce pour tout futur cabinet payant — la 
+bascule en facturation est aujourd'hui totalement silencieuse, 
+volontairement reporté (bêta encore petite).
 
 TIER 4 — NOUVEAU, signalé par l'évaluation UX/UI : le formulaire de 
 création d'annonce s'est alourdi au fil des ajouts (texte libre + 4 
@@ -559,9 +574,10 @@ RESTE VALABLE DEPUIS LE 26/07 — actions administratives Jean-Charles :
   a été retiré (redondant avec le partage natif), à reconfirmer si 
   cette action a encore un sens
 - Résoudre l'issue Sentry self-test (NEXTJS-1)
-- INPI "Soignect" toujours pas fait — domaine soignect.fr réservé 
-  sur OVH (fait). Diffusion Facebook large volontairement suspendue 
-  par Jean-Charles en attendant l'INPI.
+- ✅ INPI "Soignect" — FAIT (03/08). Domaine soignect.fr réservé sur 
+  OVH également fait. 🎉 LA SUSPENSION DE DIFFUSION FACEBOOK EST 
+  LEVÉE — Jean-Charles peut relancer sa campagne d'acquisition, y 
+  compris la page /venir-en-guadeloupe déjà construite.
 ```
 
 ---

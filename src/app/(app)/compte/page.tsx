@@ -105,13 +105,16 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
 
   // Suggestion « poste long terme » (section 191) — null si le profil n'est pas concerné,
   // si le signal n'est pas atteint, ou si l'utilisateur l'a déjà écartée.
-  const interetsLongTerme = await suggestionAssistanat(profileId);
+  const signalLongTerme = await suggestionAssistanat(profileId);
 
   return (
     <>
-      {interetsLongTerme !== null && (
+      {signalLongTerme && (
         <div className="mx-auto max-w-2xl px-4 pt-4">
-          <SuggestionAssistanat interets={interetsLongTerme} />
+          <SuggestionAssistanat
+            interets={signalLongTerme.interets}
+            avecCollaboration={signalLongTerme.avecCollaboration}
+          />
         </div>
       )}
       {photoError && (

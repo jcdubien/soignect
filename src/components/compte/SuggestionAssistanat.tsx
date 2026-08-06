@@ -8,7 +8,7 @@ import Link from "next/link";
 // LE TEXTE RENVOIE UN FAIT, IL NE DEVINE RIEN. « Vous cherchez peut-être à vous poser ? »
 // présuppose une intention et sonne condescendant pour quelqu'un qui vient justement de
 // l'exprimer trois fois. On lui rappelle ce qu'il a fait, il en tire la conclusion.
-export default function SuggestionAssistanat({ interets }: { interets: number }) {
+export default function SuggestionAssistanat({ interets, avecCollaboration }: { interets: number; avecCollaboration: boolean }) {
   const [ferme, setFerme] = useState(false);
   if (ferme) return null;
 
@@ -22,9 +22,9 @@ export default function SuggestionAssistanat({ interets }: { interets: number })
       <span className="text-lg leading-none mt-0.5">👩‍⚕️</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-700">
-          Vous avez marqué de l&apos;intérêt pour {interets} postes d&apos;assistanat ou de
-          collaboration. Ces postes se cherchent différemment d&apos;un remplacement — sur la durée,
-          pas sur des dates.
+          Vous avez marqué de l&apos;intérêt pour {interets} postes d&apos;assistanat
+          {avecCollaboration ? " ou de collaboration" : ""}. Ces postes se cherchent différemment
+          d&apos;un remplacement — sur la durée, pas sur des dates.
         </p>
         <Link
           href="/disponibilites/create?type=ASSISTANAT"

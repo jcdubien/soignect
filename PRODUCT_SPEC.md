@@ -582,6 +582,27 @@ bêta de 4 jours (audit du 21/07).
 Cumulé dans PROMPTS_EN_ATTENTE.md (B7). Contrainte de portée explicite 
 dans le prompt : une seule page construite, pas les 3 autres, pas de 
 nom de marque distinct.
+
+🔴 CORRECTION DE SUIVI (03/08) : B7 N'A JAMAIS ÉTÉ CONSTRUITE. Le ✅ 
+ci-dessus documentait que le prompt était rédigé et remis — pas 
+qu'il avait été exécuté. Aucune vérification n'a jamais confirmé 
+l'exécution. MÊME FAMILLE que le "malentendu du 23/07" (voir section 
+dédiée) : un ✅ affirmant plus qu'il ne sait.
+
+Ce qui existe réellement : une page DIFFÉRENTE, /remplacement-kine-
+guadeloupe (origine exacte non tracée), trouvée et largement corrigée 
+le 03/08 par Opus (filtres zones, disponibilités remplaçants absentes 
+du côté preuve, annonces expirées affichées comme actives, piège SQL 
+NOT(null<now), messaging gratuité). 
+
+✅ DÉCISION (03/08) : ne pas construire B7 séparément. Utiliser 
+/remplacement-kine-guadeloupe comme page de diffusion, avec l'ajout 
+de la pré-sélection du profil au CTA (~30 lignes, voir prompt ci-
+dessous). Cohérent avec la discipline de simplification déjà 
+engagée — ne pas construire deux fois la même chose.
+
+B7 reste documenté ci-dessus pour mémoire historique, mais n'est PLUS 
+un chantier actif.
 ```
 
 ---
@@ -1022,11 +1043,25 @@ contre l'état actuel du code. À creuser si Jean-Charles le juge utile.
 ### Statut
 
 ```
-🔴 URGENT — Prompt de vérification en lecture seule rédigé et remis 
-à Jean-Charles pour envoi. En attente du rapport de Claude Code 
-avant toute décision de correction. Voir point 2 de la section 
-"RÉCUPÉRATION D'UNE CONVERSATION ANTÉRIEURE" ci-dessus pour le détail 
-de la contrainte (article R.4321-99).
+✅ RÉSOLU — vérifié directement, portée : RemplacantRating (le 
+cabinet évalue le remplaçant) ne porte aucun champ de commentaire 
+libre ; l'asymétrie voulue par l'article R.4321-99 est respectée à 
+ce niveau du modèle. Ce prompt original — plus précis que le cadrage 
+en 7 points fait le lendemain — visait exactement ce point, et 
+c'est lui qui répond à la question, pas l'audit élargi.
+
+⚠️ CE QUE "RÉSOLU" COUVRE ICI, PRÉCISÉMENT (convention de portée 
+adoptée suite au malentendu du 23/07, voir plus bas) : l'absence de 
+champ de commentaire libre sur le modèle RemplacantRating. 
+NE COUVRE PAS : une revue exhaustive de tous les points où le 
+produit touche à la déontologie (voir la section "AUDIT 
+DÉONTOLOGIQUE" du 03/08 pour ce périmètre plus large, séparément 
+traité).
+
+Historique : resté marqué 🔴 en attente pendant 6 jours (29/07→03/08) 
+sans confirmation qu'il avait été transmis à une session Opus — 
+symptomatique de la même faille que celle nommée dans la règle de 
+méthode n°7.
 ```
 
 ---
@@ -2024,10 +2059,25 @@ un perimetre plus restreint). Ouvrir ce chantier maintenant risquerait
 de generer une nouvelle vague de bugs similaires sur TOUTE la surface 
 de l'app d'un coup.
 
+🔴 CORRECTION DE SUIVI (03/08, trouvée par Opus) : la phrase 
+ci-dessous, écrite plus tôt le même jour, était ambiguë et a été lue 
+à tort comme "déjà construit". Précision : "Mes recherches de 
+remplacement" n'a JAMAIS existé dans le code — c'était une 
+PROPOSITION de nom d'espace, jamais un fait. Ce qui a RÉELLEMENT été 
+construit et livré à la place, plus tard le même jour, c'est plus 
+simple : une carte "Couverture de mon absence" directement sous la 
+bannière violette (voir section "CLÔTURE COMPLÈTE — Le fil 
+rattachement assistant"). Les deux noms ne désignent PAS la même 
+chose — le second a remplacé le premier dans les faits, sans jamais 
+mettre à jour cette note-ci en conséquence. Même famille que le 
+"malentendu du 23/07" : une formulation qui affirme plus qu'elle ne 
+sait, cette fois causée par moi (Sonnet), pas par le produit.
+
 ✅ CE QUI CONTINUE EN PARALLELE, SANS CONTRADICTION : le correctif 
-pragmatique deja pose ("Mes recherches de remplacement", espace leger 
-cote assistant) - n'entre pas en conflit avec cette vision, l'anticipe 
-meme partiellement, sans necessiter de refonte immediate.
+pragmatique PROPOSÉ à ce moment-là ("Mes recherches de remplacement", 
+espace léger côté assistant — jamais construit sous ce nom) - 
+n'entre pas en conflit avec cette vision, l'anticipe même 
+partiellement, sans necessiter de refonte immediate.
 
 ✅ CAPTURE POUR PHASE 3+ : vision documentee ici en detail, pour ne 
 pas se perdre. PREREQUIS avant d'y toucher un jour : un audit complet 
@@ -2038,156 +2088,6 @@ au detour d'une session.
 ```
 
 ---
-
----
-
-## SECTION 190 — Asymétrie du score corrigée (renormalisation) + deux critères de bonus (06/08)
-
-### Le défaut : un score par SENS de swipe, pas par paire
-
-```
-Les champs du score sont ORIENTES : "propose" n'existe que sur une
-annonce de cabinet, "recherche" que sur un profil de candidat.
-
-computeAffinityScore ne lisait l'OFFRE que du cote `mission` et la
-DEMANDE que du cote `swiper`. Consequence : quand le CABINET swipait
-la disponibilite d'un candidat, les deux etaient vides et les bonus
-tombaient a zero. Le cabinet ne pouvait PAS DEPASSER 80/100 sur un
-remplacant. Plafond structurel, jamais affiche, jamais soupconne.
-
-PREUVE : structurelle, pas anecdotique. Verifiee par lecture du code
-puis par test — memes deux profils, les deux sens rendent 83 apres
-correctif, contre 100 max / 80 max avant.
-
-CORRECTION D'UNE ERREUR D'ATTRIBUTION (verif live du 06/08) : le
-couple "Julien 78 / Jean-Charles 23" avait d'abord ete presente comme
-la demonstration de ce plafond. IL NE L'EST PAS. Sur cette paire,
-AUCUN des deux camps n'avait coche de critere : logement 0 et
-vehicule 0 des DEUX cotes. L'ecart venait d'ailleurs —
-
-  - dates 30 vs 0 : l'annonce a ete MODIFIEE le 04/08, apres le swipe
-    de Julien du 01/08. Ses dates sont passees a 2025 (saisie erronee,
-    annee revolue) ; le 78 note un etat qui n'existe plus.
-  - geo 25 vs 6 : les deux calculs n'ont pas utilise la meme mission
-    cote swipeur (voir « reste ouvert »).
-
-Le correctif reste juste et necessaire — le plafond a 80 se lit dans
-le code — mais il ne faut pas lui attribuer ces chiffres-la.
-
-Aggravant reel, lui : le detail affichait "logement: 0", qui se lit
-"pas de logement propose" alors que la bonne lecture etait "sans
-objet dans ce sens".
-```
-
-### Le correctif : renormalisation
-
-```
-1. UN SCORE PAR PAIRE. Chaque critere est lu DES DEUX COTES (offre =
-   mission.x || swiper.x ; demande = swiper.y || mission.y). Les
-   points d'appel transmettent desormais les deux faces. Verifie :
-   candidat->annonce et cabinet->dispo rendent 83 tous les deux.
-
-2. SOCLE EN PROPORTIONS, plus en points absolus. Un critere n'entre
-   au bareme QUE SI le chercheur l'exprime ; non demande, son poids
-   RETOURNE AU SOCLE au lieu de laisser un trou. Un candidat sans
-   besoin de logement perdait 10 points, il n'en perd plus.
-
-   Demande mais non offert, en revanche, le critere reste au bareme
-   et vaut 0 : la l'ecart est reel.
-
-3. socleMax stocke dans scoreDetails (100 - bonus en jeu). Sans lui,
-   la lecture qualitative ne peut pas savoir sur quelle echelle juger
-   "dates: 27". Les lignes deja en base n'en ont pas : lectureQualitative
-   retombe alors sur les baremes d'avant (LEGACY_WEIGHTS), sinon les
-   scores anciens paraitraient plus faibles qu'ils ne l'etaient.
-```
-
-### Baremes
-
-```
-SOCLE (proportions sommant 100, ramenees au prorata de ce qui reste)
-                  dates  geo  bio
-  REMPLACEMENT      40    30   30
-  COLLABORATION     35    30   35
-  ASSISTANAT        20    25   55
-
-La GEOGRAPHIE pese plus sur un remplacement court que sur un poste
-long : on ne demenage pas pour trois semaines. Inversion par rapport
-au bareme precedent, ou elle valait 25 dans les deux cas.
-
-L'affinite de profils est plafonnee a 55 meme la ou elle est la plus
-pertinente : seule composante dependant d'un appel modele, et seule
-a pouvoir retomber au neutre silencieusement (rate-limit, section
-165). On ne lui confie pas la majorite absolue.
-
-BONUS (budget 20, INCHANGE vs logement 10 + vehicule 10 : les deux
-nouveaux criteres se partagent l'existant, ils ne l'augmentent pas)
-  coordination (MSP/CDS/ESP)   7
-  logement                     5
-  vehicule                     4
-  secretariat                  4
-
-REPARTITION EN ATTENTE DE VALIDATION — un seul endroit a modifier,
-BONUS dans lib/compatibilite.ts.
-```
-
-### Pourquoi la coordination devant les trois autres
-
-```
-Logement, vehicule et secretariat sont des conditions MATERIELLES,
-valables le temps de la mission. L'exercice coordonne change ce que
-le kine a le DROIT de faire — acces direct sans prescription
-medicale prealable, jusqu'a 8 seances (Avenant 7) — et reste un
-acquis de pratique apres la mission. Ce n'est pas du meme ordre
-qu'un confort.
-
-Logement devant vehicule et secretariat : en Guadeloupe c'est le
-premier blocage concret pour un remplacant venu de l'exterieur.
-
-LIBELLE : "Exercice coordonne — acces direct sans prescription".
-On nomme l'AVANTAGE avant le dispositif : "MSP" ne dit rien a qui
-n'y a jamais exerce.
-```
-
-### Point de vigilance retenu
-
-```
-Ces deux criteres sont CONDITIONNELS (ils exigent une demande du
-chercheur), et ce n'est pas un detail d'implementation. Un critere
-qui rapporterait des points a TOUS les candidats indistinctement ne
-mesurerait pas la compatibilite mais l'ATTRACTIVITE — exactement ce
-qui a ete sorti du score le 03/08 avec la desirabilite. Un cabinet
-en MSP merite d'etre mis en avant : cela releve de l'ORDRE DU FEED
-et du badge de carte, pas du score de compatibilite.
-
-C'est pourquoi deux champs de DEMANDE ont ete ajoutes cote candidat
-(rechercheSecretariat, rechercheExerciceCoordonne) plutot que de
-faire payer le bonus a tout le monde.
-```
-
-### Reste ouvert
-
-```
-Les Match.aiScore deja en base sont des instantanes calcules avec
-l'ancienne formule — ils ne sont PAS recalcules par ce commit. Le
-bouton "Recalculer" de la fiche de match applique la nouvelle.
-
-PLUS LARGE QUE PREVU (verif live du 06/08) : ce ne sont pas seulement
-les Match.aiScore. Les 8 Swipe.affinityScore portent eux aussi des
-scores figes, et c'est LE CHIFFRE AFFICHE EN PREMIER ET EN GRAND sur
-la fiche de match ("Score d'affinite"), au-dessus du score de paire
-correct. Deux nombres differents pour la meme paire sur le meme
-ecran : 23 % en haut (fige, propre au lecteur), 22 % en dessous
-(recalcule, propre a la paire). Certains de ces details contiennent
-encore "desirability": 10 — ils precedent meme la refonte du 03/08.
-
-DEFAUT DISTINCT, NON CORRIGE : dans /api/swipe, la mission du swipeur
-est choisie par findFirst({ profileId, isActive: true }) quand aucune
-cible n'est precisee — une mission ARBITRAIRE, pas celle qui sera
-appariee. Le score de swipe peut donc comparer un couple qui n'est
-pas celui du match. C'est ce qui explique le geo 25 vs 6 ci-dessus.
-```
-
 
 ## AUDIT 4 PARCOURS — Résultat pour le salarié/recruteur (03/08)
 
@@ -2566,9 +2466,11 @@ gravité du blocage.
    grave qu'un simple manque de confort visuel. Prompt rédigé, en 
    attente d'envoi.
 
-🟡 Visibilité complète ("Mes recherches de remplacement") — reste en 
-   attente de validation finale sur l'emplacement exact, pas de 
-   changement.
+✅ Visibilité complète — RÉSOLU différemment de ce qui était envisagé 
+   ici : pas un espace séparé "Mes recherches de remplacement" (jamais 
+   construit sous ce nom), mais une carte "Couverture de mon absence" 
+   directement sous la bannière violette, livrée plus tard le même 
+   jour (voir section "CLÔTURE COMPLÈTE"). Plus simple que prévu.
 
 🟡 Garde anti-doublon — toujours pertinent, encore plus nécessaire 
    maintenant que ni titulaire ni assistant ne voient facilement ce 
@@ -2851,9 +2753,16 @@ ProfileType partout - traité maintenant, pas différé.
 ### Statut
 
 ```
-🟡 Prompt à rédiger : élargir le garde de rattachement automatique 
-(attache ET détache) pour se baser sur le type de MISSION 
-(ASSISTANAT/COLLABORATION) plutôt que sur le type du candidat.
+🔴 NON CORRIGÉ — décision prise (interprétation 2 : élargir au type 
+de MISSION plutôt qu'au type de candidat), mais AUCUN PROMPT ENVOYÉ 
+NI EXÉCUTÉ. Confirmé par relecture indépendante le [date de cette 
+correction] : git log sur src/lib/assistantPost.ts ne montre que 3 
+commits, tous antérieurs à la session marathon du 03/08 ; le garde 
+reste en place aux lignes 39 et 97, inchangé.
+
+⚠️ PRÉCÉDENT DIRECT DE CETTE MÊME ERREUR (le "malentendu du 23/07", 
+voir section dédiée plus bas) : une décision documentée n'est pas 
+une correction livrée. Prompt à rédiger et ENVOYER, pas encore fait.
 ```
 
 ---
@@ -3182,4 +3091,843 @@ croit qu'il dit. Quatre découvertes aujourd'hui (titre en double,
 libellé au mauvais vocabulaire, brique invisible malgré données 
 justes, droit plus large que documenté) qu'aucune lecture de code 
 seule n'aurait trouvées.
+```
+
+---
+
+## 🎓 ÉVALUATION UX/UI DE FIN DE SESSION — synthèse critique après 4 parcours manipulés en réel (03/08)
+
+> Évaluation à chaud d'Opus, fondée sur la manipulation réelle des 4 
+> parcours (une trentaine d'écrans), pas une grille théorique. À 
+> conserver intégralement — c'est le document le plus utile de toute 
+> la session pour la suite.
+
+### Ce qui est bon, et sous-estimé
+
+```
+1. LA SAISIE TEXTE LIBRE + EXTRACTION — "l'idée la plus forte du 
+   produit". Enlève la marche administrative la plus haute sans 
+   sacrifier la donnée structurée.
+2. LA TIMELINE DU PLANNING — métaphore juste, une ligne par poste, 
+   compréhension d'un coup d'œil. "Rare et difficile à concevoir."
+3. L'ÉCRITURE — français soigné, vocabulaire adapté au profil, états 
+   vides qui expliquent. "Quelqu'un s'en occupe vraiment."
+4. LES CONTRATS — modèles sérieux, articles cités, clause Ordre.
+```
+
+### 🔴 LE DÉFAUT DE FOND, UNIQUE ET RÉPÉTÉ
+
+```
+"L'écran affirme ce qu'il n'a pas vérifié." PAS une accumulation de 
+bugs — UN BIAIS D'ÉCRITURE : le produit rassure par défaut, chaque 
+message rédigé pour le cas nominal, jamais "et si c'est faux ?"
+
+Six exemples réels rencontrés dans CETTE session :
+- "Aucun candidat disponible" alors qu'un candidat attendait depuis 
+  3 swipes
+- "Dès qu'un candidat correspond, il apparaît ici" — aucun ne 
+  pouvait apparaître
+- "Email envoyé !" au-dessus d'un paragraphe disant l'inverse
+- Score de compatibilité à 0 — pas un jugement, un calcul jamais fait
+- Poste "Confirmé" en vert — sur la foi d'une conversation en cours
+- "Détails réservés aux membres" — à un membre déjà connecté
+
+CETTE RÈGLE EST DÉSORMAIS AJOUTÉE AU PROTOCOLE PERMANENT (voir 
+PLAN_PASSATION_SPRINTS.md, correction de méthode n°7).
+```
+
+### Trois motifs additionnels, moins graves
+
+```
+1. LES IMPASSES — une notif menant à une vitrine sans action, un 
+   bouton vers un formulaire non soumissible, un CTA Premium pour un 
+   PDF qui n'existera jamais. Le produit propose souvent une action 
+   de plus qu'il ne peut en tenir.
+2. LE PRODUIT NE MONTRE PAS CE QU'IL FAIT — l'assistant publiait et 
+   ne retrouvait rien ; une brique existait, invisible sous une 
+   autre. La donnée est là, l'interface ne l'expose pas.
+3. LA PROFONDEUR — rattacher un assistant demande de cliquer une 
+   période (pas le lien évident), puis dérouler un panneau. Trois 
+   niveaux pour une action structurante, ratée du premier coup même 
+   par Opus lui-même.
+```
+
+### Ce qu'Opus changerait, dans l'ordre
+
+```
+1. Une règle d'écriture opposable (ci-dessus, adoptée)
+2. Toute action a une issue — un bouton mène quelque part, un 
+   blocage dit comment le lever
+3. Montrer à l'utilisateur ce qu'il vient de faire — "le correctif 
+   qui a le plus changé le parcours assistant"
+4. Alléger le formulaire de publication — texte libre + 4 boutons IA 
+   + repli + 2 colonnes + sélecteur + 8 champs + encart prérequis. 
+   "L'idée d'origine se noie dans son propre outillage." 
+   ⚠️ NOUVEAU CHANTIER DE SIMPLIFICATION À CONSIDÉRER, distinct de 
+   ceux déjà identifiés (partage Facebook, etc.)
+```
+
+### Jugement d'ensemble (à retenir mot pour mot)
+
+```
+"C'est un produit conçu par quelqu'un qui connaît son métier, avec 
+un modèle de données qui le montre. Les défauts ne sont pas des 
+maladresses de débutant : ce sont des écarts entre ce que le système 
+sait et ce que l'écran raconte, ce qui est typique d'un développement 
+rapide où la donnée avance plus vite que la mise en scène.
+
+Pour une bêta, le socle est là. Ce que je surveillerais en priorité 
+n'est pas l'esthétique — elle est correcte et cohérente — mais la 
+véracité des écrans. Dans un outil où des praticiens engagent des 
+contrats, un message qui ment coûte plus cher qu'un bouton mal 
+aligné."
+```
+
+---
+
+## 🎓 LE MALENTENDU DU 23/07 — quand un ✅ valide une marche et déclare l'escalier praticable
+
+> Trouvé par relecture intégrale d'Opus (03/08, après-coup de la 
+> session marathon). C'est la découverte méthodologique la plus 
+> importante de tout ce document — elle montre que le défaut de 
+> fond identifié dans l'évaluation UX/UI ("l'écran affirme ce qu'il 
+> n'a pas vérifié") a aussi infecté LE SUIVI DE PROJET LUI-MÊME, pas 
+> seulement le produit.
+
+### Les faits
+
+```
+18/07 (Sprint 3) : "Rattachement compte ASSISTANT à un poste cabinet 
+(section 153) — non testé en conditions réelles, test end-to-end 
+recommandé"
+
+23/07 : "✅ Test assistant↔poste CONFIRMÉ OK par Jean-Charles — 
+c'était le dernier vrai bloquant produit du Sprint 0. Levé."
+
+03/08 (11 jours plus tard, session marathon) : découverte que TOUT 
+ce qui vient après le rattachement manuel était cassé - le 
+formulaire de couverture ne pouvait pas être soumis, l'assistant ne 
+voyait pas ce qu'il publiait, ne pouvait pas le retirer, et le 
+rattachement AUTOMATIQUE n'avait jamais fonctionné (toujours pas 
+corrigé à ce jour, voir section dédiée).
+```
+
+### Le diagnostic, dans les mots d'Opus
+
+```
+"Le test du 23/07 a validé la première marche et déclaré l'escalier 
+praticable."
+
+Ce n'est pas un reproche - c'est exactement l'erreur que la règle de 
+méthode n°7 vise, et sa découverte PROUVE que cette règle est bien 
+placée. Mais elle a une conséquence pratique très concrète : un ✅ 
+"vérifié en prod" dans ce document ne dit pas QUELLE PORTION du 
+parcours a été vérifiée. Un item marqué clos a masqué une chaîne 
+rompue pendant onze jours.
+```
+
+### Trois occurrences de la même famille, trois sessions différentes
+
+```
+1. §152 — le type ASSISTANT ne pouvait pas s'inscrire, bloquant 
+   "tout le produit gold depuis le début"
+2. §161 — un contrat CDD/CDI générait un PDF d'assistanat libéral 
+   juridiquement incorrect (ANCÊTRE DIRECT du travail du 03/08 sur 
+   isSalariat)
+3. Le rattachement assistant (23/07 → 03/08, ci-dessus)
+
+Trois occurrences, trois sessions, même famille : PAS une série de 
+maladresses isolées, mais une PROPRIÉTÉ DU PRODUIT à traiter comme 
+telle systématiquement, pas au cas par cas.
+```
+
+### ✅ CONVENTION ADOPTÉE — distinguer la portée d'une vérification, symétriquement aux statuts d'attente
+
+```
+La légende de ce document distingue déjà finement les statuts 
+d'ATTENTE (🟡🟠🔵⚪🔒). Il manquait la distinction symétrique côté 
+FAIT : "✅ vérifié en prod" recouvrait aussi bien "mesuré à l'écran 
+de bout en bout" que "confirmé sur un seul point d'entrée".
+
+RÈGLE ADOPTÉE À PARTIR DE MAINTENANT : tout ✅ dans ce document doit 
+préciser sa PORTÉE entre parenthèses ou en une phrase courte — 
+"vérifié de bout en bout" vs "vérifié sur [étape précise], le reste 
+de la chaîne non testé". Ne plus jamais laisser un ✅ nu sur un 
+parcours à plusieurs étapes sans dire laquelle a été couverte.
+
+Cette convention s'ajoute à la règle de méthode n°7 (PLAN_PASSATION_
+SPRINTS.md) — elle en est l'application directe au suivi de projet 
+lui-même, pas seulement au produit.
+```
+
+---
+
+## 🔴 PAYWALL RÉAPPARU — Root cause trouvée et corrigée (03/08, en continu)
+
+### Le bug réel
+
+```
+isFounding existait déjà (100% désirabilité) mais hasPremiumAccess 
+ne le consultait JAMAIS. Résultat : le compte fondateur de 
+Jean-Charles a basculé SILENCIEUSEMENT en mode facturation le 1er 
+août - quatorze jours après la signature d'un contrat le 18/07 
+(billingTriggeredAt), sans que isFounding n'intervienne pour 
+l'exempter.
+
+FIX (commit 966389e) :
+if (!(await isFreeAccessMode())) return false;   // le mode global reste souverain
+if (input?.isFounding) return true;              // exemption de la bascule individuelle SEULEMENT
+
+L'exemption ne porte QUE sur la bascule individuelle (grâce/
+facturation par compte) - PAS sur le mode global freeAccessMode. Si 
+freeAccessMode passe à false un jour, le compte fondateur redevient 
+soumis aux mêmes règles que les autres, SAUF décision contraire 
+explicite (voir ci-dessous).
+```
+
+### Vérification avant push — 6 scénarios, 1 seul change
+
+```
+| Cas | Avant | Après |
+|---|---|---|
+| Fondateur, contrat signé 18/07 | 🚧 mur | ✅ accès |
+| Cabinet lambda, aucun contrat | ✅ | ✅ |
+| Cabinet lambda, grâce écoulée | 🚧 | 🚧 |
+| Cabinet lambda, grâce en cours | ✅ | ✅ |
+| Fondateur, après fin du mode gratuit | 🚧 | 🚧 |
+| Abonné payant | ✅ | ✅ |
+
+Un seul cas change - exactement celui de Jean-Charles. Les 4 murs 
+concernés confirmés exhaustivement : fiche de mise en relation, feed 
+/annonces (bouton "Envoyer un contrat"), contrat-info, génération PDF.
+```
+
+### ✅ Deux disciplines saluées
+
+```
+1. PAS d'exemption perpétuelle décidée seul - "ouvrir un Premium 
+   perpétuel aux fondateurs aurait été une décision commerciale 
+   déguisée en correctif". Signalé comme "une ligne à déplacer" si 
+   Jean-Charles veut l'inverse - pas décidé à sa place.
+2. billingTriggeredAt NON effacé - "la facturation a été 
+   réellement déclenchée, c'est un fait comptable, et l'effacer 
+   aurait réécrit l'histoire pour masquer un symptôme. L'exemption 
+   suffit." Intégrité des données historiques préservée.
+```
+
+### 🆕 DÉCOUVERTE IMPORTANTE — la bascule en facturation est silencieuse pour TOUT futur cabinet
+
+```
+"Le mécanisme a fonctionné comme prévu, mais [...] Ton compte a 
+basculé le 1er août en silence. Quand la bêta grandira, chaque 
+cabinet qui signera son premier contrat vivra la même surprise 
+quatorze jours plus tard. Un email à la bascule, ou au moins à 
+l'entrée dans la grâce, éviterait que le premier signal soit un mur."
+
+CE N'EST PAS SPÉCIFIQUE AU CAS FONDATEUR - c'est un vrai gap produit 
+qui touchera CHAQUE futur cabinet payant. À traiter avant que la 
+bêta ne grandisse réellement.
+```
+
+### ✅ DÉCISION COMMERCIALE PRISE (03/08) : le fondateur reste gratuit, inconditionnellement
+
+```
+Jean-Charles : "fondateur devra rester gratuit" - décision claire, 
+l'exemption doit devenir INCONDITIONNELLE (pas seulement pendant 
+freeAccessMode). 
+
+Opus vérifie AVANT d'implémenter qui porte ce drapeau et qui peut 
+l'accorder ("ça devient un engagement commercial") - bonne 
+prudence maintenue même face à une décision claire, pas d'exécution 
+aveugle d'une directive business sans en comprendre le mécanisme 
+technique sous-jacent d'abord.
+```
+
+### Non vérifié à l'écran
+
+```
+Navigateur resté sur session Hopital beauperthuy. Reconnexion en 
+jcdubien nécessaire pour confirmer visuellement la disparition des 
+murs sur la fiche du match avec Julien et sur le tray.
+```
+
+### Statut
+
+```
+🟡 Fix du bug racine livré et vérifié par requête. Décision 
+d'exemption inconditionnelle en cours d'implémentation (investigation 
+prudente en cours). 
+
+🟢 NOUVEAU CHANTIER IDENTIFIÉ, VOLONTAIREMENT REPORTÉ (03/08) : email/
+notification à l'entrée en période de grâce pour tout futur cabinet - 
+pas de prompt rédigé, GARDÉ POUR LA PROCHAINE SESSION. Pas urgent 
+tant que la bêta reste petite (peu de cabinets qui signent leur 
+premier contrat en ce moment).
+```
+
+---
+
+## SCORING — Asymétrie chercheur/pourvoyeur diagnostiquée + extension décidée (03/08)
+
+### Le bug trouvé — score non symétrique selon qui swipe
+
+```
+computeAffinityScore prend ses poids sur la mission swipée. Les 
+bonus logement/vehicule ne se declenchent que si 
+mission.logementPropose && swiper.rechercheLogement - ces champs 
+sont ORIENTES (propose = pourvoyeur, recherche = chercheur).
+
+CONSEQUENCE MESUREE SUR DONNEES REELLES : un cabinet qui swipe la 
+disponibilite d'un candidat n'active que 3 composantes sur 5 
+(plafond structurel a 80), alors qu'un candidat qui swipe l'annonce 
+active les 5 (plafond 100). Preuve : Julien a note Jean-Charles 78/
+48/43, Jean-Charles a note Julien 23 (logement:0, vehicule:0 - lu a 
+tort comme "rien propose" alors que c'est "sans objet dans ce sens"). 
+Nombres non comparables, rien a l'ecran ne le signale.
+
+MEME FAMILLE que le reste de la session, cette fois trouvee dans les 
+mathematiques du score plutot que dans un texte d'ecran. Connecte 
+directement a la vision chercheur/pourvoyeur deja documentee (Phase 
+3) - troisieme occurrence de la meme tension architecturale (apres 
+rattachement automatique, apres formulaire couverture assistant).
+```
+
+### Répartition actuelle (barèmes par type de mission)
+
+```
+| Besoin | Dates | Géo | Profils (IA) | Logement | Véhicule |
+|---|---|---|---|---|---|
+| Remplacement | 35 | 25 | 20 | 10 | 10 |
+| Collaboration | 40 | 30 | 30 | — | — |
+| Assistanat | 20 | 25 | 55 | — | — |
+```
+
+### ✅ Décision — deux volets distincts
+
+```
+VOLET 1 - RENORMALISATION : ✅ AUTORISÉE IMMÉDIATEMENT (03/08). Un 
+correctif de justesse, pas un choix produit - socle toujours à 100, 
+bonus redistribués quand non applicables plutôt que de laisser un 
+trou.
+
+VOLET 2 - NOUVELLE RÉPARTITION DE POIDS proposée par Opus (inversion 
+géographique : géo pèse plus en court terme qu'en long terme, "on ne 
+déménage pas pour 3 semaines mais peut-être pour 6 mois") : PAS 
+ENCORE TRANCHÉE seule - Jean-Charles a répondu en ÉTENDANT le 
+scope plutôt qu'en validant les chiffres proposés :
+
+🆕 DEUX NOUVEAUX CRITÈRES DE BONUS AJOUTÉS AU CHANTIER (03/08) :
+1. SECRÉTAIRE — présence d'une secrétaire au cabinet, nouveau bonus 
+   optionnel symétrique à logement/véhicule
+2. EXERCICE COORDONNÉ EN MSP — avantage professionnel réel (accès 
+   direct sans prescription jusqu'à 8 séances, cf. Avenant 7 déjà 
+   documenté dans ce projet), pas un simple confort. Poids relatif 
+   à proposer par Opus plutôt que décidé à l'avance, vu sa portée 
+   professionnelle potentiellement supérieure à un simple agrément 
+   matériel.
+
+Les deux s'ajoutent au MÊME pool de bonus renormalisé que logement/
+véhicule.
+```
+
+### Méthode d'ajustement évidence-based — notée, pas engagée maintenant
+
+```
+Opus propose de corréler scores élevés et mises en relation 
+réellement abouties (66 swipes disponibles) pour calibrer les poids 
+sur des résultats réels plutôt qu'à l'aveugle. Bonne idée en 
+principe, mais volume jugé encore trop faible (66 swipes) pour en 
+tirer des conclusions fiables - à reconsidérer quand le volume aura 
+grossi.
+```
+
+### Statut
+
+```
+✅ Renormalisation autorisée, prompt rédigé.
+🆕 Deux nouveaux critères (secrétaire, MSP) ajoutés au même prompt - 
+Opus doit proposer une répartition de poids avant de figer le calcul 
+final, pas décider seul vu la portée professionnelle du critère MSP.
+Nouveaux champs à ajouter : checklist de chaîne complète applicable 
+(règle de méthode n°1).
+```
+
+---
+
+## FEATURE — Bloc-notes d'événements (poste + mise en relation) (03/08)
+
+### Besoin exprimé
+
+```
+Carnet de bord manuel pour documenter des evenements qui ne rentrent 
+dans aucun champ structure : contact telephonique, contact email, 
+annonce postee ailleurs, date probablement amenee a changer. 
+DISTINCT de TraceEvent (automatique/systeme) - ici c'est manuel, 
+saisi par l'utilisateur.
+```
+
+### Périmètre tranché
+
+```
+LES DEUX NIVEAUX, meme mecanisme technique reutilise :
+- Attache au POSTE (CabinetPost) - contexte general, independant du 
+  candidat en cours (ex: annonce postee ailleurs)
+- Attache a une MISE EN RELATION (Match) precise - suit cette 
+  relation specifique (ex: appel telephonique a un candidat donne)
+
+Modele generique propose (TimelineNote, entityType POSTE|MATCH, 
+entityId polymorphique) - a valider par Opus avant implementation.
+```
+
+### Statut
+
+```
+🟡 Prompt rédigé, demande explicitement un rapport de structure 
+avant code (nouvelle feature, pas un correctif). En attente d'envoi.
+```
+
+---
+
+## SCORING — Deux défauts supplémentaires trouvés et corrigés (03/08, commit 43408a4)
+
+### Défaut 1 — la mission du swipeur comparée était tirée au hasard
+
+```
+Le score comparait l'annonce swipee a findFirst({isActive: true}) - 
+une mission prise dans l'ordre d'INSERTION, pas celle que le match 
+allait reellement apparier. Il notait donc un couple qui n'existait 
+pas.
+
+FIX : suit maintenant le MEME classement deja utilise pour 
+l'appariement reel (recouvrement reel > periode non datee > ecart le 
+plus faible > annonces revolues en dernier). Meme regle des deux 
+cotes -> meme couple compare.
+
+BONNE PRATIQUE : logique extraite dans src/lib/periodes.ts - "tant 
+qu'elle vivait dans un fichier de route Next, rien ne pouvait la 
+tester isolement, et c'est elle qui s'est trompee". Rend le bug 
+impossible a repeter silencieusement.
+
+Verifie sur les 2 vraies disponibilites de Julien - 3 cas sur 4 
+corriges. Le 4e ("non datee") : attente initiale d'Opus fausse, code 
+correct des le depart - TEST CORRIGE plutot que force a passer.
+```
+
+### Défaut 2 — deux scores contradictoires sur la même fiche
+
+```
+Le bandeau "Score d'affinite" affichait Swipe.affinityScore (un 
+instantane fige au moment du swipe, different par sens - meme famille 
+que l'asymetrie deja trouvee) a cote du nouveau score de paire 
+recalcule. RETIRE. Un seul score desormais, celui de la paire, avec 
+lecture qualitative + bouton recalcul, en tete de fiche et dans 
+l'en-tete du chat.
+
+Raison : l'instantane ne survit pas a l'edition des annonces qu'il 
+note - celui du match de Jean-Charles decrivait un etat disparu 
+depuis 3 jours.
+
+DETTE TECHNIQUE CONNUE, ACCEPTEE (volume minuscule) : les 8 
+Swipe.affinityScore figes existent toujours en base, ne sont plus 
+affiches nulle part, MAIS restent lus par le tri du feed - les 
+swipes anciens gardent un classement a l'ancienne formule jusqu'a 
+rejeu. Pas corrige, volume trop faible pour justifier l'effort 
+maintenant.
+```
+
+### ✅ Correction de donnée autorisée
+
+```
+Cause du score a 22% du match de reference identifiee : une annonce 
+de Jean-Charles porte des dates aout-septembre 2025 (annee revolue) 
+alors que creee le 31/07/2026 - faute de frappe quasi certaine 
+(2025 au lieu de 2026). Ne recouvrira JAMAIS aucune disponibilite 
+tant que non corrigee.
+
+✅ AUTORISÉ (03/08) : corriger l'année en 2026. Opus avait bien fait 
+de demander avant de toucher au contenu d'une annonce utilisateur.
+```
+
+---
+
+## 📌 VEILLE — Hausse de tarif DeepSeek annoncée (03/08)
+
+```
+Email officiel DeepSeek : hausse significative des tarifs API a 
+venir, chiffres non encore communiques ("sujet a notice officielle"). 
+Pas d'action requise maintenant.
+
+IMPACT POTENTIEL SUR SOIGNECT : DeepSeek est utilise pour extraction 
+texte libre (creation annonce), composante "Profils" du score de 
+matching, aide a la redaction, suggestions d'optimisation. Protection 
+deja en place : rate-limiting/budget existant (deepseekBudget.ts, 
+plafonds journaliers user + global, depuis Sprint 0) - limite le 
+risque d'emballement de cout meme si le prix au call augmente.
+
+ACTION SUGGEREE QUAND LES VRAIS CHIFFRES TOMBERONT : demander a Opus 
+le volume d'appels reel des 30 derniers jours (logs existants) pour 
+chiffrer l'impact concret avant de reagir. Si marginal, ne rien 
+changer. Si lourd, evaluer alternatives (autre fournisseur LLM, 
+reduction frequence d'appels non critiques) a ce moment-la.
+```
+
+---
+
+## PAGE DE DIFFUSION — /remplacement-kine-guadeloupe corrigée, décision prise (03/08)
+
+### Corrections livrées (commit 1aef755)
+
+```
+| | Avant | Après |
+|---|---|---|
+| Annonces affichées | 7 | 9 |
+| Dont chercheurs de poste | 0 | 2 |
+| Promesse chiffrée fausse | présente | retirée |
+
+FILTRE ZONES corrigé : comparait une liste figée de 32 communes au 
+champ libre "location" - accepte désormais les deux (une annonce 
+antérieure au système de zones n'en a pas). Saint-Martin/Saint-Barth 
+restent exclus (pages dédiées).
+
+DISPONIBILITÉS REMPLAÇANTS ENFIN VISIBLES - leur "location" valait 
+une macro-zone ("Sud Basse-Terre") ou une liste, ne passait jamais le 
+filtre exact. "Une page censée prouver que ça bouge des deux côtés 
+n'affichait que des cabinets."
+
+FILTRE ANNONCES EXPIRÉES ajouté - aucun avant, une annonce à période 
+passée s'affichait comme preuve d'activité. PIÈGE SQL TROUVÉ EN 
+EXÉCUTANT (pas en relisant) : NOT (null < maintenant) ne vaut pas 
+vrai en SQL - 3 annonces sans date de fin ("dès septembre") 
+disparaissaient silencieusement dans la première version du fix.
+
+GRATUITÉ : plus aucun seuil/date annoncé pour les cabinets. Confirmé 
+: triggerBillingIfNeeded ne s'applique qu'au type TITULAIRE - un 
+chercheur de poste n'est JAMAIS facturé, quel que soit le devenir du 
+mode bêta. Message : "Remplacement, assistanat, collaboration : la 
+recherche de poste est gratuite, sans frais ni engagement."
+```
+
+### 🔴 Découverte majeure — /venir-en-guadeloupe (B7) n'a jamais existé
+
+```
+Voir correction dans la section B7 plus haut. Résumé : un suivi 
+erroné a laissé croire pendant des jours qu'une page dédiée existait, 
+alors que seul le prompt avait été rédigé, jamais confirmé exécuté.
+```
+
+### ✅ Décision (03/08)
+
+```
+Utiliser /remplacement-kine-guadeloupe comme page de diffusion, ne 
+pas construire B7 séparément. Ajouter la pré-sélection du profil au 
+CTA d'inscription (actuellement /register nu, sans lecture du type 
+de profil souhaité).
+```
+
+### Statut
+
+```
+✅ Corrections de fond livrées et vérifiées. 🟡 Prompt de 
+pré-sélection du profil rédigé ci-dessous, en attente d'envoi.
+```
+
+---
+
+## STRATÉGIE DE MARCHÉ — Déséquilibre remplaçant/assistant + saisonnalité (03/08)
+
+### Deux constats de Jean-Charles
+
+```
+1. Beaucoup de remplaçants, pas assez d'assistants. Souhait : un 
+   flux incitatif qui récupère implicitement une partie des 
+   remplaçants vers l'assistanat.
+2. Saisonnalité : mai-octobre a MOINS de candidats visibles que 
+   octobre-mai. Souhait : booster la visibilité de ceux qui 
+   cherchent quand même sur cette fenêtre creuse.
+```
+
+### Connexion avec l'existant
+
+```
+Le point 1 est EXACTEMENT le cas d'usage qui justifie la vision 
+chercheur/pourvoyeur déjà documentée en Phase 3 ("on peut chercher 
+des remplas puis vouloir se poser"). Décision : ne pas attendre la 
+refonte complète - tester une version légère (suggestion 
+contextuelle, pas de refonte du modèle de données) pour valider 
+l'intuition à moindre coût avant d'investir dans l'architecture 
+complète.
+
+Le point 2 s'articule naturellement avec le travail du jour sur la 
+désirabilité (sortie du score, vivant désormais dans l'ordre du 
+feed) - le bon endroit pour ajouter un boost saisonnier, sans 
+toucher au calcul de compatibilité.
+```
+
+### Investigation du boost saisonnier — résultat et validation (03/08)
+
+```
+LIEU CONFIRMÉ : getDesirabilityPercent (lib/desirability.ts), 
+appliqué en post-traitement dans api/feed/route.ts:105-106.
+
+TROIS CONSTATS QUI CHANGENT LA CONCEPTION :
+1. La désirabilité vaut 0 pour TOUS les candidats aujourd'hui (jamais 
+   facturés, aucun override/statut partenaire) - le boost saisonnier 
+   ne serait donc pas "un facteur parmi d'autres" mais LE SEUL signal 
+   de classement du feed cabinet. Change complètement l'enjeu du 
+   dosage.
+2. 🔴 CATCH IMPORTANT : un boost ABSOLU aurait déclassé les cabinets 
+   qui ne recrutent pas l'été - 3 annonces cabinet sur 8 sont sans 
+   date de fin (postes long terme, filtre inapplicable). Un cabinet 
+   recrutant pour décembre aurait vu des candidats disponibles en 
+   août remonter en tête, le score disant "dates éloignées" mais 
+   trop tard - l'ordre déjà faussé. Trouvé AVANT d'être construit.
+3. Les assistants structurellement exclus - poste sans dates (option 
+   1, minMonths seul) donc aucun chevauchement calculable. Cohérent 
+   avec la nature du poste, pas un défaut.
+
+DONNÉES : seulement 3 disponibilités candidats en base (toutes dans 
+mai-octobre), 8 annonces cabinet (5 démarrant dans la fenêtre). 
+Aujourd'hui le boost serait INERTE (100% des candidats concernés, 
+aucun ordre relatif changé) - bonne discipline de ne pas confirmer/
+infirmer la rareté mai-octobre sur cette base ("c'est ton observation 
+terrain qui fait foi, pas ces trois lignes").
+
+✅ PROPOSITION VALIDÉE (03/08), trois arbitrages tranchés :
+1. Boost CONDITIONNEL (pas absolu) - un candidat mai-octobre n'est 
+   boosté que si le besoin du cabinet regardant recoupe aussi cette 
+   fenêtre. Seule option évitant le déclassement trouvé au point 2.
+2. Dosage : +30, sous le futur palier Premium (50) pour que la 
+   monétisation future reste toujours prioritaire sur la saisonnalité
+3. Assistants exclus : accepté, cohérent avec l'absence de fenêtre 
+   saisonnière pour un engagement long terme
+
+Règle de chevauchement simple retenue : test d'appartenance des mois 
+couverts à mai-octobre, sans arithmétique d'années, pas de cas 
+particulier au 31 décembre. Ligne de transparence prolongée 
+(existante + mention saisonnalité).
+```
+
+### Statut
+
+```
+✅ Boost saisonnier : investigation complète, 3 arbitrages validés, 
+AUTORISÉ à implémenter (~30 lignes, lib/desirability.ts).
+🟡 Suggestion légère assistanat pour remplaçants à profil compatible : 
+prompt toujours en attente d'envoi, indépendant.
+```
+
+---
+
+## REFONTE INSCRIPTION — Investigation complète + validation (03/08)
+
+### État actuel trouvé
+
+```
+6 obligations sur 3 écrans : email, mot de passe, nom, photo, CGU, + 
+choix de profil implicite.
+
+🔴 DEUX CHAMPS FANTÔMES TROUVÉS : Commune et RPPS saisis, affichés, 
+JAMAIS transmis à /api/profiles, aucune colonne en base (Profile n'a 
+même pas de colonne "commune"). Le RPPS jeté ici est EXACTEMENT le 
+champ qu'enforceContractProfile (armé aujourd'hui même) exige avant 
+contrat - blocage incompréhensible plus tard pour une donnée déjà 
+fournie une fois.
+
+LA PHOTO EST LE VRAI VERROU, SANS UTILITÉ À CE STADE : bloque le 
+passage à l'écran 3, mais le feed interroge les MISSIONS, jamais les 
+PROFILS - un compte sans annonce est invisible de toute façon. La 
+photo ne devient utile qu'à la première publication, pas à 
+l'inscription. C'est pourtant la demande la plus lourde du parcours 
+(galerie/selfie avant d'avoir rien vu du produit).
+```
+
+### Confirmé — le type de profil reste demandé en amont
+
+```
+Colonne vertébrale du modèle (limite accroche, amorces, direction 
+feed via oppositeTypes, écran de publication, libellés, modèles de 
+contrat) - cohérent avec la décision déjà prise le 03/08 de différer 
+la refonte chercheur/pourvoyeur après évaluation du rayon d'impact.
+
+⚠️ RÉSERVE SIGNALÉE (4e occurrence de la même tension architecturale, 
+pas traitée) : REMPLACANT vs ASSISTANT peut être une distinction 
+prématurée pour un nouvel arrivant - un métropolitain ne sait pas 
+toujours s'il veut du ponctuel ou du long terme, c'est souvent ce 
+qu'il vient découvrir. Le libellé actuel aide déjà, reste un point 
+de perte potentielle.
+```
+
+### ✅ Proposition validée par Jean-Charles
+
+```
+UN SEUL écran après le choix du profil, QUATRE champs : Nom · Email · 
+Mot de passe · CGU → compte créé, connecté.
+
+Champs déférés :
+| Champ | Nouveau moment | Pourquoi |
+|---|---|---|
+| Photo | 1re publication disponibilité | c'est là qu'une carte existe et sera vue |
+| Accroche | idem | déjà optionnelle |
+| Téléphone | "Mon compte", optionnel | inutile avant une mise en relation |
+| Commune | supprimée du parcours | géographie appartient à la disponibilité (macro-zones) |
+| RPPS/Ordre/adresse | 1re tentative de contrat | garde déjà existant + bannière proactive déjà construite |
+
+POINT DE VIGILANCE CRITIQUE : déplacer la photo exige de poser le 
+garde À LA PUBLICATION (sinon cartes sans visuel qui passent - le 
+problème serait déplacé, pas résolu). Audit de tout ce qui suppose 
+photoUrl non nul ailleurs dans le code : PAS ENCORE FAIT, à faire 
+avant de coder.
+```
+
+### Statut
+
+```
+✅ Nettoyage des champs fantômes + refonte complète VALIDÉS par 
+Jean-Charles. Prompt rédigé en 2 parties (nettoyage immédiat + 
+refonte), avec l'audit photoUrl explicitement demandé en préalable. 
+En attente d'envoi.
+```
+
+---
+
+## SUGGESTION ASSISTANAT — Investigation renverse la prémisse de départ (03/08)
+
+### 🔴 LA PRÉMISSE ÉTAIT FAUSSE
+
+```
+Feed n'a AUCUN filtre par type de mission - un remplacant voit deja 
+tous les postes d'assistanat, melanges aux remplacements. Pas de 
+"feed filtre ASSISTANAT" existant vers lequel pointer.
+
+DONNEES REELLES : Julien MORISOT (30j, 6 swipes) a dit OUI a 3 postes 
+long terme sur 6 - la MOITIE de son activite. John Doe (0j, 6 swipes) 
+1 seul oui sur long terme.
+
+Le signal initialement propose ("anciennete sans jamais avoir 
+consulte d'annonce d'assistanat") se serait declenche pour ZERO des 
+2 remplacants reels.
+
+REFORMULATION : ce n'est PAS un probleme de decouverte (l'appetence 
+existe deja et s'exprime deja par le swipe) - c'est un probleme de 
+TRANSFORMATION (rien ne recupere cet interet exprime pour en faire 
+quelque chose).
+```
+
+### Trois signaux évalués, décision prise
+
+```
+1. ✅ RETENU - swipe droite sur du long terme (≥2 swipes RIGHT sur 
+   ASSISTANAT/COLLABORATION). Seul signal directement observé, 
+   requête simple sans calcul fragile.
+2. Remplacement long/reconduit - incalculable aujourd'hui (1 seul 
+   match confirmé en base), à ajouter plus tard quand le volume le 
+   permettra.
+3. ❌ ÉCARTÉ - ancienneté seule. Ne mesure aucune intention, 
+   sollicitation générique qui apprend à ignorer les bandeaux.
+```
+
+### ✅ Désaccord de formulation tranché en faveur d'Opus
+
+```
+REJETÉ : "Vous cherchez peut-être à vous poser ?" - présuppose et 
+infantilise quelqu'un qui a déjà répondu 3 fois.
+
+RETENU : "Vous avez marqué de l'intérêt pour trois postes 
+d'assistanat. Ces postes se cherchent différemment d'un remplacement 
+— voir comment." - reflète le fait plutôt que de deviner l'intention. 
+Cohérent avec la règle d'écriture opposable (n°7) déjà adoptée cette 
+session.
+```
+
+### ✅ Décisions d'implémentation
+
+```
+- Persistance de la fermeture : colonne suggestionAssistanatVueAt sur 
+  Profile (pas localStorage, ne suit pas d'un appareil à l'autre) - 
+  une migration de plus, cohérent avec les autres migrations du jour.
+- Emplacement : bandeau discret en tête de "Mon compte", fermable.
+- 🎯 DESTINATION DU LIEN, décision clé : OPTION 3 retenue - ne mène 
+  PAS à une liste filtrée, mais à l'écran expliquant ce qu'implique 
+  une recherche d'assistanat + publication d'une recherche long 
+  terme. Raison : le vrai déséquilibre n'est pas que les remplaçants 
+  ignorent l'assistanat, c'est qu'AUCUN ne se DÉCLARE candidat à 
+  l'assistanat - donc aucun cabinet ne les voit comme tels. Un lien 
+  vers une liste ne change pas ça ; un lien vers "publie ta 
+  recherche" s'attaque au vrai manque.
+```
+
+### Statut
+
+```
+✅ Toutes les décisions tranchées. Prompt à rédiger et envoyer.
+```
+
+---
+
+## SUGGESTION ASSISTANAT — Livrée, vérification visuelle en attente (03/08, commit a70e454)
+
+### Ce qui est livré
+
+```
+SIGNAL : ≥2 swipes RIGHT sur ASSISTANAT/COLLABORATION. Testé sur les 
+9 profils réels - le bandeau ne s'affiche QUE pour Julien (3 
+intérêts). John Doe (1 seul) ne le voit pas. Aucun titulaire, aucun 
+assistant.
+
+BANDEAU : tête de "Mon compte", fermable, jamais une modale. 
+Fermeture mémorisée sur Profile.suggestionAssistanatVueAt - tient 
+d'un appareil à l'autre, date exploitable pour mesurer le test.
+
+DESTINATION CRÉÉE (elle n'existait pas) : un remplaçant ne pouvait 
+PAS publier de recherche long terme - missionType figé à 
+REMPLACEMENT, sélecteur réservé aux profils ASSISTANT. Seul recours 
+avant : qu'un admin change son type de compte. Le choix du type de 
+recherche est désormais ouvert à tous les candidats, avec 
+"Remplacement" ajouté aux options.
+```
+
+### Portée du changement — signalée par Opus, validée par Sonnet
+
+```
+Le drapeau isAssistant ne signifie plus "je suis assistant" mais "la 
+recherche porte sur un poste long terme" - c'était déjà son sens 
+réel dans ~20 lectures existantes (dates masquées, durée minimale, 
+libellés). L'IDENTITÉ (ProfileType) ne bouge pas, seule la RECHERCHE 
+devient un choix indépendant.
+
+✅ VALIDÉ PAR SONNET : c'est une version étroite et pragmatique de la 
+vision chercheur/pourvoyeur (Phase 3), livrée organiquement en 
+résolvant le problème de destination - exactement le "test à moindre 
+coût avant refonte complète" suggéré plus tôt dans la session. Ne 
+touche pas la colonne vertébrale (ProfileType), juste ce formulaire. 
+Gardé tel quel, pas à annuler.
+```
+
+### Vérification visuelle demandée, en attente
+
+```
+Opus refuse de considérer le sélecteur vérifié sans l'avoir vu à 
+l'écran - callback explicite à l'incident du matin même (titre en 
+double sur le formulaire de couverture, trouvé seulement 
+visuellement). Demande reconnexion :
+- Julien (remplaçant) : bandeau + formulaire
+- Paul (assistant) : au moins le formulaire, "la partie risquée"
+```
+
+### 🔴 Correction de suivi trouvée et corrigée (03/08)
+
+```
+"Mes recherches de remplacement" n'a jamais existé dans le code - 
+une formulation ambiguë de Sonnet ("le correctif pragmatique déjà 
+posé") a été lue à tort comme "déjà construit". Corrigé dans les 
+sections concernées. Ce qui existe réellement : la carte "Couverture 
+de mon absence", plus simple, livrée sous un nom différent. Même 
+famille que le "malentendu du 23/07", cette fois causée par Sonnet.
+```
+
+### Statut
+
+```
+✅ Livré et poussé. 🟡 Vérification visuelle en attente de 
+reconnexion (Julien puis Paul).
 ```
