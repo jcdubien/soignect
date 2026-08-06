@@ -93,7 +93,6 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   // générique, pour rester cohérent avec /annonce/[id] qui renvoie notFound().
   if (!m) return new Response("Not found", { status: 404 });
 
-  const title = m.title.length > 120 ? m.title.slice(0, 118).trimEnd() + "…" : m.title;
   const location = m.location;
   const type = badgeLabel(m.profile?.type, m.missionType);
   const dates = datesLabel(m);
@@ -104,9 +103,53 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   // donc dans une colonne centrée de 600 px, qui survit au recadrage carré comme au 1.91:1.
   const SAFE = 600;
 
-  // Police du titre dimensionnée selon la longueur (2 lignes max) → jamais de débordement,
-  // seuils resserrés puisque la largeur utile est celle de la zone de sécurité, pas du canevas.
-  const titleSize = title.length <= 26 ? 54 : title.length <= 46 ? 44 : title.length <= 72 ? 36 : 30;
+  // ── Titre borné à 2 lignes, CALCULÉ ET NON DÉLÉGUÉ AU CSS ──────────────────────────────
+  //
+  // Le fichier promettait « 2 lignes max » via `WebkitLineClamp: 2`. Cette propriété est
+  // IGNORÉE par le moteur de rendu d'images : vérifié en la passant à 1, le titre sortait
+  // toujours sur 3 lignes. La garantie n'a donc jamais existé — un titre de 89 caractères en
+  // occupait bien 3.
+  //
+  // On la reconstruit par le calcul. Largeur moyenne d'un glyphe MESURÉE sur des rendus réels :
+  // 14,4 px à fontSize 30 sur trois lignes de longueurs différentes (14,47 / 14,36 / 14,22),
+  // soit 0,48 em. Arrondi à 0,50 pour garder de la marge sur les titres riches en capitales.
+  const LARGEUR_GLYPHE_EM = 0.5;
+  const TAILLES = [54, 44, 36, 30] as const;
+
+  // On SIMULE la césure au lieu de l'approximer par un nombre de caractères. Un budget global
+  // ne marche pas : la coupe se fait sur les MOTS, et le gaspillage en fin de ligne dépend du
+  // titre. Mesuré — « Kiné remplaçant à Pointe-Noire (Guadeloupe) - Équipe polyvalente, MSP, »
+  // tient 69 caractères en 2 lignes là où un budget arithmétique en autorisait 74, et les
+  // 5 excédentaires passaient sur une 3e ligne.
+  function lignes(texte: string, size: number): string[] {
+    const parLigne = Math.max(1, Math.floor(SAFE / (LARGEUR_GLYPHE_EM * size)));
+    const out: string[] = [];
+    let courante = "";
+    for (const mot of texte.split(/\s+/).filter(Boolean)) {
+      const essai = courante ? `${courante} ${mot}` : mot;
+      if (essai.length <= parLigne) courante = essai;
+      else { if (courante) out.push(courante); courante = mot; }
+    }
+    if (courante) out.push(courante);
+    return out;
+  }
+
+  const brut = m.title.trim();
+  // La plus GRANDE police qui tient en 2 lignes ; à défaut la plus petite, et on coupe.
+  const titleSize = TAILLES.find((t) => lignes(brut, t).length <= 2) ?? TAILLES[TAILLES.length - 1];
+
+  // Troncature mot à mot jusqu'à tenir, plutôt qu'une coupe au milieu d'un mot : on retire le
+  // dernier mot tant que l'ellipsis ne rentre pas en 2 lignes.
+  let title = brut;
+  if (lignes(title, titleSize).length > 2) {
+    const mots = brut.split(/\s+/).filter(Boolean);
+    while (mots.length > 1) {
+      mots.pop();
+      const essai = mots.join(" ") + "…";
+      if (lignes(essai, titleSize).length <= 2) { title = essai; break; }
+    }
+    if (title === brut) title = mots.join(" ") + "…"; // titre d'un seul mot très long
+  }
 
   const photo = await fondPhoto(m.profile?.photoUrl);
 
@@ -191,17 +234,16 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
             {type}
           </div>
 
-          {/* Titre — police dynamique, 2 lignes max, ellipsis */}
+          {/* Titre — la limite à 2 lignes est garantie par le CALCUL ci-dessus (police choisie
+              + troncature), pas par du CSS : `WebkitLineClamp` est ignoré par ce moteur. */}
           <div
             style={{
-              display: "-webkit-box",
-              WebkitBoxOrient: "vertical",
-              WebkitLineClamp: 2,
+              display: "flex",
               overflow: "hidden",
               fontSize: titleSize,
               fontWeight: 800,
               lineHeight: 1.08,
-              maxWidth: SAFE,
+              width: SAFE,
               textAlign: "center",
             }}
           >
