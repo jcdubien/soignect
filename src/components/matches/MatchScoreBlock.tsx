@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { lectureQualitative, PROFILE_LABEL } from "@/lib/compatibilite";
 
 // Compatibilité du COUPLE d'annonces, prise en photo au moment de la mise en relation, puis
@@ -27,6 +28,7 @@ export default function MatchScoreBlock({
   const [factors, setFactors] = useState<Details | null>(initialFactors);
   const [busy,    setBusy]    = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const router = useRouter();
 
   async function calculer() {
     if (busy) return;
@@ -45,6 +47,13 @@ export default function MatchScoreBlock({
       }
       setScore(typeof d?.aiScore === "number" ? d.aiScore : null);
       setFactors((d?.aiFactors as Details) ?? null);
+      // Le nouveau score vit dans cet état local, mais la page qui l'entoure est un composant
+      // serveur dont le rendu a été mémorisé par le cache du routeur. Sans cette invalidation,
+      // revenir sur la fiche ressert l'ANCIEN score : constaté en prod, 48 en base et 22 à
+      // l'écran, la valeur à jour n'apparaissant qu'en changeant l'URL. L'utilisateur en
+      // conclut que le bouton ne sert à rien. force-dynamic ne couvre pas ce cache-là :
+      // il gouverne le rendu serveur, pas ce que le routeur client garde en mémoire.
+      router.refresh();
     } catch {
       setMessage("Le calcul n'a pas abouti. Réessayez.");
     } finally {
