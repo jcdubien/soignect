@@ -3367,89 +3367,167 @@ premier contrat en ce moment).
 
 ---
 
-## SCORING — Asymétrie chercheur/pourvoyeur diagnostiquée + extension décidée (03/08)
+## SCORING — Asymétrie chercheur/pourvoyeur corrigée + deux critères de bonus (06/08, commits beb13ae + 48033be)
 
-### Le bug trouvé — score non symétrique selon qui swipe
+⚠️ CETTE SECTION DÉCRIT LE CODE DÉPLOYÉ. Une version antérieure la donnait comme « en attente
+de décision » alors que la renormalisation et les deux nouveaux critères étaient EN PRODUCTION
+depuis le 06/08. Elle affichait aussi l'ancien barème comme « actuel ».
 
-```
-computeAffinityScore prend ses poids sur la mission swipée. Les 
-bonus logement/vehicule ne se declenchent que si 
-mission.logementPropose && swiper.rechercheLogement - ces champs 
-sont ORIENTES (propose = pourvoyeur, recherche = chercheur).
-
-CONSEQUENCE MESUREE SUR DONNEES REELLES : un cabinet qui swipe la 
-disponibilite d'un candidat n'active que 3 composantes sur 5 
-(plafond structurel a 80), alors qu'un candidat qui swipe l'annonce 
-active les 5 (plafond 100). Preuve : Julien a note Jean-Charles 78/
-48/43, Jean-Charles a note Julien 23 (logement:0, vehicule:0 - lu a 
-tort comme "rien propose" alors que c'est "sans objet dans ce sens"). 
-Nombres non comparables, rien a l'ecran ne le signale.
-
-MEME FAMILLE que le reste de la session, cette fois trouvee dans les 
-mathematiques du score plutot que dans un texte d'ecran. Connecte 
-directement a la vision chercheur/pourvoyeur deja documentee (Phase 
-3) - troisieme occurrence de la meme tension architecturale (apres 
-rattachement automatique, apres formulaire couverture assistant).
-```
-
-### Répartition actuelle (barèmes par type de mission)
+### Le défaut — un score par SENS de swipe, pas par paire
 
 ```
-| Besoin | Dates | Géo | Profils (IA) | Logement | Véhicule |
-|---|---|---|---|---|---|
-| Remplacement | 35 | 25 | 20 | 10 | 10 |
-| Collaboration | 40 | 30 | 30 | — | — |
-| Assistanat | 20 | 25 | 55 | — | — |
+Les champs du score sont ORIENTES : "propose" n'existe que sur une
+annonce de cabinet, "recherche" que sur un profil de candidat.
+computeAffinityScore ne lisait l'OFFRE que du cote `mission` et la
+DEMANDE que du cote `swiper`. Quand le CABINET swipait la
+disponibilite d'un candidat, les deux etaient vides : les bonus
+tombaient a zero et le cabinet ne pouvait PAS DEPASSER 80/100.
+Plafond structurel, jamais affiche.
+
+Aggravant : le detail affichait "logement: 0", qui se lit "pas de
+logement propose" alors que la bonne lecture etait "sans objet dans
+ce sens".
 ```
 
-### ✅ Décision — deux volets distincts
+### ⚠️ CORRECTION D'ATTRIBUTION — la preuve n'est pas celle qu'on a cru
 
 ```
-VOLET 1 - RENORMALISATION : ✅ AUTORISÉE IMMÉDIATEMENT (03/08). Un 
-correctif de justesse, pas un choix produit - socle toujours à 100, 
-bonus redistribués quand non applicables plutôt que de laisser un 
-trou.
+Le couple "Julien 78 / Jean-Charles 23" a d'abord ete presente comme
+la demonstration mesuree de ce plafond, ici meme et dans le message
+de commit. IL NE LA DEMONTRE PAS, et cette correction a deja ete
+poussee une fois (48033be) avant d'etre effacee par une reecriture
+de ce fichier. Elle est retablie ici.
 
-VOLET 2 - NOUVELLE RÉPARTITION DE POIDS proposée par Opus (inversion 
-géographique : géo pèse plus en court terme qu'en long terme, "on ne 
-déménage pas pour 3 semaines mais peut-être pour 6 mois") : PAS 
-ENCORE TRANCHÉE seule - Jean-Charles a répondu en ÉTENDANT le 
-scope plutôt qu'en validant les chiffres proposés :
+Sur cette paire, AUCUN des deux camps n'avait coche de critere :
+logement 0 et vehicule 0 des DEUX cotes. L'ecart venait d'ailleurs :
 
-🆕 DEUX NOUVEAUX CRITÈRES DE BONUS AJOUTÉS AU CHANTIER (03/08) :
-1. SECRÉTAIRE — présence d'une secrétaire au cabinet, nouveau bonus 
-   optionnel symétrique à logement/véhicule
-2. EXERCICE COORDONNÉ EN MSP — avantage professionnel réel (accès 
-   direct sans prescription jusqu'à 8 séances, cf. Avenant 7 déjà 
-   documenté dans ce projet), pas un simple confort. Poids relatif 
-   à proposer par Opus plutôt que décidé à l'avance, vu sa portée 
-   professionnelle potentiellement supérieure à un simple agrément 
-   matériel.
+  - dates 30 vs 0 : l'annonce a ete MODIFIEE le 04/08, apres le
+    swipe de Julien du 01/08 (dates passees a 2025, annee revolue).
+    Le 78 note un etat qui n'existait plus.
+  - geo 25 vs 6 : les deux calculs n'utilisaient pas la meme mission
+    cote swipeur (defaut findFirst, corrige depuis - voir section
+    "Deux defauts supplementaires").
 
-Les deux s'ajoutent au MÊME pool de bonus renormalisé que logement/
-véhicule.
+LE PLAFOND A 80 EST REEL — il se lit dans le code et se verifie par
+test : memes deux profils, 100 max d'un cote contre 80 de l'autre
+avant correctif, 83 des deux cotes apres. Mais il se demontre par
+LECTURE DU CODE, pas par ces chiffres-la.
+
+Lecon retenue : un chiffre de production n'est une preuve que si
+l'on a verifie que rien d'autre ne l'explique.
 ```
 
-### Méthode d'ajustement évidence-based — notée, pas engagée maintenant
+### Le correctif livré
 
 ```
-Opus propose de corréler scores élevés et mises en relation 
-réellement abouties (66 swipes disponibles) pour calibrer les poids 
-sur des résultats réels plutôt qu'à l'aveugle. Bonne idée en 
-principe, mais volume jugé encore trop faible (66 swipes) pour en 
-tirer des conclusions fiables - à reconsidérer quand le volume aura 
-grossi.
+1. UN SCORE PAR PAIRE. Chaque critere est lu DES DEUX COTES
+   (offre = mission.x || swiper.x ; demande = swiper.y || mission.y).
+   Les points d'appel transmettent les deux faces.
+
+2. SOCLE EN PROPORTIONS. Un critere n'entre au bareme QUE SI le
+   chercheur l'exprime ; non demande, son poids RETOURNE AU SOCLE au
+   lieu de laisser un trou. Demande mais non offert, il reste au
+   bareme et vaut 0 : la, l'ecart est reel.
+
+3. socleMax (100 - bonus en jeu) stocke dans scoreDetails. Sans lui,
+   la lecture qualitative ne sait pas sur quelle echelle juger
+   "dates: 27". Les lignes anterieures n'en ont pas : on retombe
+   alors sur LEGACY_WEIGHTS, sinon les anciens scores paraitraient
+   plus faibles qu'ils ne l'etaient.
+
+Invariant verifie sur les 16 combinaisons de demandes x 3 profils :
+socle + bonus en jeu = 100 partout.
 ```
 
-### Statut
+### Barèmes EN PRODUCTION (lib/compatibilite.ts)
 
 ```
-✅ Renormalisation autorisée, prompt rédigé.
-🆕 Deux nouveaux critères (secrétaire, MSP) ajoutés au même prompt - 
-Opus doit proposer une répartition de poids avant de figer le calcul 
-final, pas décider seul vu la portée professionnelle du critère MSP.
-Nouveaux champs à ajouter : checklist de chaîne complète applicable 
-(règle de méthode n°1).
+SOCLE — proportions sommant 100, ramenees au prorata de ce qui reste
+                  dates  geo  bio
+  REMPLACEMENT      40    30   30
+  COLLABORATION     35    30   35
+  ASSISTANAT        20    25   55
+
+La GEOGRAPHIE pese plus sur un remplacement court que sur un poste
+long : on ne demenage pas pour trois semaines. Inversion par rapport
+a l'ancien bareme, ou elle valait 25 dans les deux cas.
+
+L'affinite de profils est plafonnee a 55 meme la ou elle est la plus
+pertinente : seule composante dependant d'un appel modele, et seule
+a pouvoir retomber au neutre silencieusement (rate-limit, section
+165). On ne lui confie pas la majorite absolue.
+
+BONUS — budget 20, INCHANGE vs logement 10 + vehicule 10. Les deux
+nouveaux criteres se partagent l'existant, ils ne l'augmentent pas.
+  coordination (MSP / CDS / ESP)   7
+  logement                         5
+  vehicule                         4
+  secretariat                      4
+
+ANCIEN BAREME, pour memoire (ne plus citer comme actuel) :
+  Remplacement 35/25/20 + 10/10 · Collaboration 40/30/30 ·
+  Assistanat 20/25/55
+```
+
+### ⚠️ Statut de validation — le point ouvert
+
+```
+La repartition des bonus (7/5/4/4) et l'inversion geographique sont
+DEPLOYEES mais N'ONT JAMAIS ETE VALIDEES par Jean-Charles. Elles ont
+ete implementees avec la mention "en attente de validation" dans le
+code et le commit.
+
+A TRANCHER : valider ces chiffres, ou les changer. Un seul endroit —
+la constante BONUS et les SOCLE_* dans lib/compatibilite.ts.
+```
+
+### Pourquoi la coordination devant les trois autres
+
+```
+Logement, vehicule et secretariat sont des conditions MATERIELLES,
+valables le temps de la mission. L'exercice coordonne change ce que
+le kine a le DROIT de faire — acces direct sans prescription
+medicale prealable, jusqu'a 8 seances (Avenant 7) — et reste un
+acquis de pratique apres la mission. Pas du meme ordre qu'un confort.
+
+Logement devant vehicule et secretariat : en Guadeloupe c'est le
+premier blocage concret pour un remplacant venu de l'exterieur.
+
+LIBELLE : "Exercice coordonne — acces direct sans prescription". On
+nomme l'AVANTAGE avant le dispositif : "MSP" ne dit rien a qui n'y a
+jamais exerce.
+```
+
+### Les deux criteres sont CONDITIONNELS — et ce n'est pas un detail
+
+```
+Ils exigent une demande du chercheur (rechercheSecretariat,
+rechercheExerciceCoordonne, champs ajoutes cote candidat). Un critere
+qui rapporterait des points a TOUS les candidats indistinctement ne
+mesurerait pas la compatibilite mais l'ATTRACTIVITE — exactement ce
+qui a ete sorti du score le 03/08 avec la desirabilite.
+
+Un cabinet en MSP merite d'etre mis en avant : cela releve de
+l'ORDRE DU FEED et du badge de carte, pas du score de compatibilite.
+```
+
+### Méthode d'ajustement évidence-based — notée, pas engagée
+
+```
+Correler scores eleves et mises en relation reellement abouties pour
+calibrer les poids sur des resultats plutot qu'a l'aveugle. Volume
+juge encore trop faible - a reconsiderer quand il aura grossi.
+```
+
+### Reste ouvert
+
+```
+Les Match.aiScore et Swipe.affinityScore deja en base sont des
+instantanes calcules a l'ancienne formule. Le bouton "Recalculer"
+applique la nouvelle. A decider : rescoring de masse, ou attente de
+la recalculation naturelle. Les Swipe.affinityScore ne sont plus
+affiches nulle part (voir section suivante) mais restent lus par le
+tri du feed.
 ```
 
 ---
