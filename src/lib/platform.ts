@@ -35,14 +35,14 @@ export async function hasPremiumAccess(input?: {
 }): Promise<boolean> {
   const plan = input?.subscriptionPlan;
   if (plan === "PREMIUM" || plan === "BOOST" || plan === "STRUCTURE") return true;
-  if (!(await isFreeAccessMode())) return false;
-  // Cabinet fondateur : exempté de la BASCULE INDIVIDUELLE, pas du mode global. Le premier
-  // compte à signer un contrat déclenche sa facturation puis, la grâce écoulée, revoit des
-  // murs Premium alors que la bêta est censée être gratuite pour tous — c'est arrivé au
-  // compte fondateur lui-même, seul signataire à ce jour. L'exemption s'arrête quand
-  // freeAccessMode passe à false : ouvrir un Premium perpétuel serait une décision
-  // commerciale, pas un correctif.
+  // Cabinet fondateur : accès Premium À VIE, décision commerciale de Jean-Charles (06/08).
+  // Placé AVANT le test du mode gratuit, donc l'exemption survit à la fin de la bêta —
+  // contrairement à une première version qui ne levait que la bascule individuelle.
+  // Ce que ça engage : le drapeau est attribuable depuis /admin/profiles, et il vaut
+  // désormais gratuité perpétuelle en plus de la désirabilité à 100 %. À n'accorder qu'en
+  // connaissance de ces deux effets. Un seul compte le porte aujourd'hui.
   if (input?.isFounding) return true;
+  if (!(await isFreeAccessMode())) return false;
   if (!input?.billingTriggeredAt) return true;
   const end = graceEndsAt(input.billingTriggeredAt);
   return end ? new Date() < end : true;
