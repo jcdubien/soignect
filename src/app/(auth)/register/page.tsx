@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
 import Image from "next/image";
-import { COMMUNES_GUADELOUPE } from "@/lib/communes";
 import { bioLimitFor } from "@/lib/bio";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
@@ -127,9 +126,6 @@ function RegisterForm() {
   }
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [commune, setCommune] = useState("");
-  // RPPS collected but not persisted until Sprint 8 (no DB column yet)
-  const [rpps, setRpps] = useState("");
   // Notifications (section 50-51)
   const [phoneCountry, setPhoneCountry] = useState("GP");
   const [phone, setPhone] = useState("");
@@ -391,32 +387,19 @@ function RegisterForm() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Commune principale</label>
-                  <select
-                    value={commune}
-                    onChange={(e) => setCommune(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-                  >
-                    <option value="">Sélectionner…</option>
-                    {COMMUNES_GUADELOUPE.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
+                {/* « Commune principale » et « N° RPPS » se trouvaient ici. Tous deux SAISIS PUIS
+                    JETÉS : jamais transmis à /api/profiles, absents du schéma serveur, et
+                    Profile n'a même pas de colonne `commune`. Ils coûtaient de la friction sur
+                    l'écran le plus coûteux du produit pour zéro valeur.
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    N° RPPS
-                    <span className="text-gray-400 font-normal ml-1">(optionnel — requis pour la génération de contrats)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={rpps}
-                    onChange={(e) => setRpps(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-                    placeholder="10 chiffres"
-                    maxLength={11}
-                  />
-                </div>
+                    Le RPPS était le plus nuisible : c'est exactement le champ qu'exige
+                    enforceContractProfile. L'utilisateur le donnait ici, on le perdait, et des
+                    semaines plus tard on lui refusait son contrat pour RPPS manquant. Il est
+                    désormais demandé au moment du contrat, là où il sert — le garde et la
+                    bannière de « Mon compte » existent déjà.
+
+                    La géographie, elle, appartient à la disponibilité (macro-zones), pas au
+                    compte. */}
 
                 {/* Téléphone (section 50-51) */}
                 <div>
