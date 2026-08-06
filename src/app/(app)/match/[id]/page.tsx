@@ -60,17 +60,17 @@ export default async function MatchPage({ params, searchParams }: Props) {
   const theirProfile  = isA ? match.profileB : match.profileA;
   const theirMission  = isA ? match.missionB : match.missionA;
 
-  // M1 — Score affinité depuis Swipe : c'est celui du lecteur, calculé au moment où il s'est
-  // prononcé. Match.aiScore évalue le couple d'annonces et vaut null tant qu'il n'a pas été
-  // calculé ; les deux sont désormais sur 0-100 (l'échelle 0-1 de Match.aiScore est corrigée).
-  const theirMissionId = isA ? match.missionBId : match.missionAId;
-  const mySwipe = theirMissionId
-    ? await prisma.swipe.findFirst({
-        where: { swiperId: profileId, swipedMissionId: theirMissionId },
-        select: { affinityScore: true },
-      })
-    : null;
-  const affinityScore = mySwipe?.affinityScore ?? null; // 0-100, déjà la bonne échelle
+  // UN SEUL SCORE SUR CETTE FICHE, celui de la PAIRE (section 190).
+  //
+  // La page affichait auparavant Swipe.affinityScore : le score DU LECTEUR, figé à l'instant où
+  // il s'était prononcé. Deux conséquences constatées en prod sur un même match : les deux
+  // parties voyaient des nombres différents (78 % d'un côté, 23 % de l'autre), et ce nombre
+  // trônait au-dessus du score de couple correct — 23 % en grand, 22 % en dessous.
+  //
+  // Un instantané n'est pas faux en soi, mais celui-ci ne survit pas à l'édition des annonces
+  // qu'il note : l'une d'elles avait changé de dates trois jours après le swipe, et le score
+  // affiché continuait de décrire un état disparu. Match.aiScore, lui, est recalculable.
+  const affinityScore = match.aiScore;
 
   // Salariat (section 161) : même règle que contrat-info — le recruteur est un établissement.
   // Calculé ici plutôt qu'appelé, la page ayant déjà les deux profils complets en main.
@@ -112,21 +112,9 @@ export default async function MatchPage({ params, searchParams }: Props) {
           {theirProfile.name ?? "Profil"} et vous êtes compatibles
         </p>
 
-        {/* Score affinité (0-100 depuis Swipe) */}
-        {affinityScore !== null && (
-          <>
-            <div className="flex justify-between text-xs text-gray-400 mb-1.5">
-              <span>Score d&apos;affinité</span>
-              <span className="font-bold text-kine-600">{Math.round(affinityScore)}%</span>
-            </div>
-            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-kine-500 rounded-full transition-all"
-                style={{ width: `${Math.min(Math.round(affinityScore), 100)}%` }}
-              />
-            </div>
-          </>
-        )}
+        {/* Le bandeau « Score d'affinité » qui se trouvait ici a été retiré : il doublait le bloc
+            ci-dessous avec un chiffre différent pour la même paire. Un seul score désormais,
+            celui du couple d'annonces, avec sa lecture qualitative et son bouton de recalcul. */}
 
         {/* Compatibilité du couple d'annonces — calculable à la demande. Sans ce déclencheur,
             un score jamais calculé (ou remis à zéro après réaffectation) le restait à vie :

@@ -8,6 +8,7 @@ import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { sendNewRelationEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { logTraceEvent } from "@/lib/trace";
+import { pickBestPeriode } from "@/lib/periodes";
 
 export const dynamic = "force-dynamic";
 
@@ -16,51 +17,6 @@ const swipeSchema = z.object({
   direction:       z.nativeEnum(SwipeDirection),
   targetMissionId: z.string().optional(), // TITULAIRE's active chip mission
 });
-
-type Periode = { startDate: Date | null; endDate: Date | null };
-
-// Recouvrement en jours entre deux périodes. null quand l'une des deux n'est pas bornée
-// (annonce ouverte : « dès août », minMonths seul) : absence d'information, pas incompatibilité.
-function overlapDays(a: Periode, b: Periode): number | null {
-  if (!a.startDate || !a.endDate || !b.startDate || !b.endDate) return null;
-  const start = Math.max(a.startDate.getTime(), b.startDate.getTime());
-  const end   = Math.min(a.endDate.getTime(),   b.endDate.getTime());
-  return Math.max(0, Math.round((end - start) / 86_400_000));
-}
-
-// Écart en jours entre deux périodes disjointes (0 si elles se touchent ou se recouvrent).
-function gapDays(a: Periode, b: Periode): number {
-  if (!a.startDate || !a.endDate || !b.startDate || !b.endDate) return Number.MAX_SAFE_INTEGER;
-  const ecart = a.startDate > b.endDate
-    ? a.startDate.getTime() - b.endDate.getTime()
-    : b.startDate.getTime() - a.endDate.getTime();
-  return Math.max(0, Math.round(ecart / 86_400_000));
-}
-
-// Parmi les annonces que l'autre partie a retenues, celle qui correspond vraiment à la période
-// visée, par ordre de préférence :
-//   0. recouvrement réel — le plus large gagne ;
-//   1. annonce non datée (« dès août », minMonths seul) : rien ne la contredit ;
-//   2. dates disjointes mais annonce encore à venir ou en cours — l'écart le plus faible ;
-//   3. annonce déjà passée : jamais retenue tant qu'il existe autre chose. Lier une nouvelle
-//      mise en relation à une annonce périmée n'a aucun sens, or c'est exactement ce que
-//      donnait le repli « la plus récemment swipée ».
-// À égalité, la plus récente (liste triée par date décroissante, tri stable).
-function pickBestReciprocal<T extends { swipedMission: Periode }>(
-  swipes: T[],
-  cible: Periode,
-  maintenant: Date = new Date(),
-): T | null {
-  if (swipes.length === 0) return null;
-  const classes = swipes.map((s) => {
-    const o = overlapDays(s.swipedMission, cible);
-    const perimee = !!s.swipedMission.endDate && s.swipedMission.endDate < maintenant;
-    const rang = o === null ? 1 : o > 0 ? 0 : perimee ? 3 : 2;
-    return { s, rang, recouvrement: o ?? 0, ecart: gapDays(s.swipedMission, cible) };
-  });
-  classes.sort((x, y) => x.rang - y.rang || y.recouvrement - x.recouvrement || x.ecart - y.ecart);
-  return classes[0].s;
-}
 
 // DELETE /api/swipe?missionId=… — annule un swipe (section 98) : la mission
 // redevient visible dans le feed (le feed exclut les missions déjà swipées).
@@ -110,11 +66,19 @@ export async function POST(req: NextRequest) {
   let scoreDetails: object | undefined;
 
   if (direction === SwipeDirection.RIGHT) {
+    // Le score compare l'annonce swipée à UNE de mes missions — encore faut-il que ce soit la
+    // bonne. Le repli historique prenait findFirst({ isActive: true }), c'est-à-dire une mission
+    // ARBITRAIRE (ordre d'insertion), pas celle qui sera appariée par le match quelques lignes
+    // plus bas. Le score notait donc parfois un couple qui n'existait pas : constaté en prod,
+    // deux lectures de la même paire à 25/25 et 6/25 en géographie selon le sens du swipe.
+    // On applique ici le classement qui sert déjà à l'appariement — même règle, même résultat.
     const [swiperProfile, swiperMission] = await Promise.all([
       prisma.profile.findUnique({ where: { id: swiperId } }),
       targetMissionId
         ? prisma.mission.findUnique({ where: { id: targetMissionId } })
-        : prisma.mission.findFirst({ where: { profileId: swiperId, isActive: true } }),
+        : prisma.mission
+            .findMany({ where: { profileId: swiperId, isActive: true }, orderBy: { createdAt: "desc" } })
+            .then((mes) => pickBestPeriode(mes, (m) => m, swipedMission)),
     ]);
 
     if (swiperProfile) {
@@ -231,7 +195,7 @@ export async function POST(req: NextRequest) {
       include: { swipedMission: { select: { startDate: true, endDate: true } } },
       orderBy: { createdAt: "desc" },
     });
-    const reciprocalSwipe = pickBestReciprocal(reciprocalSwipes, swipedMission);
+    const reciprocalSwipe = pickBestPeriode(reciprocalSwipes, (s) => s.swipedMission, swipedMission);
 
     if (reciprocalSwipe) {
       const profileAId = swiperId < swipedMission.profileId ? swiperId : swipedMission.profileId;
