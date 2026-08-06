@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import type { ZoneGeographique } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -25,11 +26,32 @@ const GUADELOUPE_COMMUNES = [
   "La Désirade", "Terre-de-Haut (Les Saintes)", "Terre-de-Bas (Les Saintes)",
 ];
 
+// Les huit zones guadeloupéennes. Saint-Martin et Saint-Barthélemy en sont volontairement
+// absentes : elles ont leurs propres pages d'entrée.
+const GUADELOUPE_ZONES: ZoneGeographique[] = [
+  "CENTRE_CAP_EXCELLENCE", "SUD_GRANDE_TERRE", "NORD_GRANDE_TERRE", "SUD_BASSE_TERRE",
+  "NORD_BASSE_TERRE", "MARIE_GALANTE", "LES_SAINTES", "LA_DESIRADE",
+];
+
 async function getMissions() {
+  const maintenant = new Date();
   return prisma.mission.findMany({
     where: {
       isActive: true,
-      location: { in: GUADELOUPE_COMMUNES },
+      AND: [
+        // Le produit est passé aux MACRO-ZONES (section 138), la page était restée sur une
+        // liste figée de communes comparée au champ libre `location`. Elle écartait donc en
+        // silence tout ce qui n'était pas une commune exacte — 3 annonces actives sur 10, dont
+        // les DEUX SEULES disponibilités de remplaçants, qui portaient « Sud Basse-Terre » ou
+        // une liste de zones. La page ne montrait que des cabinets.
+        // Les communes restent acceptées : les annonces antérieures aux zones n'en ont pas.
+        { OR: [{ zones: { hasSome: GUADELOUPE_ZONES } }, { location: { in: GUADELOUPE_COMMUNES } }] },
+        // Une annonce terminée n'est pas une preuve d'activité, c'est le contraire. Pas de date
+        // de fin = annonce ouverte (« dès septembre »), surtout pas périmée : il faut l'écrire
+        // explicitement, car en SQL `NOT (null < maintenant)` ne vaut pas vrai et les faisait
+        // toutes disparaître — 3 des 9 lors du test.
+        { OR: [{ endDate: null }, { endDate: { gte: maintenant } }] },
+      ],
     },
     include: { profile: { select: { type: true, name: true, ratingAvg: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
@@ -54,8 +76,8 @@ export default async function GuadeloupePage() {
         </h1>
         <p className="text-gray-500 text-base leading-relaxed">
           Soignect est le job board Tinder des kinésithérapeutes de Guadeloupe.
-          Cabinets et remplaçants se trouvent en quelques swipes — sans intermédiaire,
-          sans frais pour les remplaçants.
+          Cabinets et remplaçants se trouvent en quelques swipes, sans intermédiaire.
+          Gratuit pour qui cherche un poste.
         </p>
       </div>
 
@@ -63,7 +85,15 @@ export default async function GuadeloupePage() {
       <div className="bg-gradient-to-br from-kine-600 to-kine-800 rounded-2xl p-6 text-white mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
           <p className="font-bold text-lg mb-1">Rejoignez Soignect gratuitement</p>
-          <p className="text-kine-100 text-sm">Remplaçants : accès à vie, sans aucun frais. Cabinets : première annonce gratuite.</p>
+          {/* Promesse volontairement NON CHIFFRÉE. L'ancienne — « Cabinets : première annonce
+              gratuite » — était fausse : la bascule payante d'un cabinet se déclenche à sa
+              première signature de contrat, pas à sa deuxième annonce, et il peut en publier
+              autant qu'il veut sans rien payer. On n'annonce donc plus de seuil pour les
+              cabinets. Ce qui reste affirmé est vrai sans condition ni date : triggerBillingIfNeeded
+              ne s'applique qu'au type TITULAIRE, un chercheur de poste n'est jamais facturé. */}
+          <p className="text-kine-100 text-sm">
+            Remplacement, assistanat, collaboration : la recherche de poste est gratuite, sans frais ni engagement.
+          </p>
         </div>
         <Link
           href="/register"
