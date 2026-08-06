@@ -3469,16 +3469,22 @@ ANCIEN BAREME, pour memoire (ne plus citer comme actuel) :
   Assistanat 20/25/55
 ```
 
-### ⚠️ Statut de validation — le point ouvert
+### ✅ Statut de validation — tranché
 
 ```
-La repartition des bonus (7/5/4/4) et l'inversion geographique sont
-DEPLOYEES mais N'ONT JAMAIS ETE VALIDEES par Jean-Charles. Elles ont
-ete implementees avec la mention "en attente de validation" dans le
-code et le commit.
+VALIDE PAR JEAN-CHARLES LE 06/08 : la repartition des bonus
+(coordination 7 / logement 5 / vehicule 4 / secretariat 4) ET
+l'inversion geographique du socle (la geo pese 30 en remplacement
+court contre 25 en assistanat — on ne demenage pas pour trois
+semaines).
 
-A TRANCHER : valider ces chiffres, ou les changer. Un seul endroit —
-la constante BONUS et les SOCLE_* dans lib/compatibilite.ts.
+Ces chiffres etaient deployes depuis beb13ae sans validation, avec la
+mention "en attente" dans le code et le commit. L'ecart est ferme :
+code et decision disent desormais la meme chose.
+
+Ils ne sont plus provisoires. Les changer est une decision produit,
+pas un ajustement — un seul endroit, la constante BONUS et les
+SOCLE_* dans lib/compatibilite.ts.
 ```
 
 ### Pourquoi la coordination devant les trois autres

@@ -32,7 +32,9 @@ export type BonusKey = "logement" | "vehicule" | "secretariat" | "coordination";
 // véhicule 10). Les deux nouveaux critères se partagent ce budget, ils ne l'augmentent pas —
 // le socle garde donc le même poids relatif qu'avant.
 //
-// RÉPARTITION EN ATTENTE DE VALIDATION (section 190). Un seul endroit à modifier.
+// RÉPARTITION VALIDÉE par Jean-Charles le 06/08, en même temps que l'inversion géographique
+// du socle. Ces chiffres ne sont plus provisoires : les changer est une décision produit, pas
+// un ajustement. Un seul endroit à modifier.
 export const BONUS: Record<BonusKey, number> = {
   coordination: 7, // exercice coordonné (MSP / CDS / ESP)
   logement:     5,
