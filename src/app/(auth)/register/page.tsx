@@ -74,12 +74,25 @@ function RegisterForm() {
   const inviteToken = searchParams.get("inviteToken");
   const [invite, setInvite] = useState<{ cabinetName: string | null; postLabel: string; invitedEmail: string } | null>(null);
   const returnTo = rawReturnTo && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//") ? rawReturnTo : null;
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Pré-sélection du profil depuis une page d'entrée (section 190). /remplacement-kine-guadeloupe
+  // s'adresse aux remplaçants : qui en vient a déjà répondu à la question, on ne la repose pas.
+  //
+  // On SAUTE l'écran 1 sans le supprimer — la flèche « ← » de l'écran 2 y ramène, et l'écran 2
+  // annonce le choix fait à sa place avec de quoi le défaire. Personne ne doit se retrouver
+  // enfermé dans un profil parce qu'il a cliqué depuis la mauvaise page.
+  //
+  // Valeur inconnue ou absente : ignorée en silence, parcours normal. Le paramètre vient de
+  // l'URL, donc de n'importe qui : il choisit un écran de départ, jamais un droit.
+  const rawProfileType = searchParams.get("profileType");
+  const preselected = (["TITULAIRE", "REMPLACANT", "ASSISTANT"] as const).find((t) => t === rawProfileType) ?? null;
+
+  const [step, setStep] = useState<1 | 2 | 3>(preselected ? 2 : 1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   // Step 1
-  const [profileType, setProfileType] = useState<ProfileTypeChoice | "">("");
+  const [profileType, setProfileType] = useState<ProfileTypeChoice | "">(preselected ?? "");
   // Titulaire de type Structure privée (EHPAD / clinique / SSR) — entrée « Établissement ».
   // Détermine titulaireKind = STRUCTURE dès l'inscription (sinon CABINET par défaut).
   const [structure, setStructure] = useState(false);
@@ -306,6 +319,23 @@ function RegisterForm() {
               <h2 className="text-lg font-bold text-gray-800 mb-5">
                 {profileType === "TITULAIRE" ? (structure ? "Votre établissement" : "Votre cabinet") : "Votre identité"}
               </h2>
+
+              {/* L'écran 1 ayant été sauté, rien ne dirait sous quel profil on s'inscrit. On
+                  l'annonce, et on laisse le défaire. Le libellé suit `profileType` et non le
+                  paramètre d'URL : après un changement, il dit la vérité. */}
+              {preselected && profileType && (
+                <p className="-mt-3 mb-5 text-sm text-gray-400">
+                  Inscription en tant que{" "}
+                  <span className="font-semibold text-gray-600">
+                    {profileType === "REMPLACANT" ? "remplaçant·e"
+                      : profileType === "ASSISTANT" ? "assistant·e / collaborateur·rice"
+                      : structure ? "établissement" : "cabinet"}
+                  </span>.{" "}
+                  <button type="button" onClick={() => setStep(1)} className="text-kine-600 font-semibold hover:underline">
+                    Changer
+                  </button>
+                </p>
+              )}
 
               <form
                 onSubmit={(e) => { e.preventDefault(); if (email && password && name && emailAvailable !== false) setStep(3); }}

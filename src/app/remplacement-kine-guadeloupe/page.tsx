@@ -96,7 +96,7 @@ export default async function GuadeloupePage() {
           </p>
         </div>
         <Link
-          href="/register"
+          href="/register?profileType=REMPLACANT"
           className="flex-shrink-0 px-5 py-3 bg-white text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition"
         >
           S&apos;inscrire →
@@ -149,7 +149,7 @@ export default async function GuadeloupePage() {
       <div className="mt-8 text-center">
         <p className="text-gray-400 text-sm mb-3">Voir toutes les annonces disponibles</p>
         <Link
-          href="/register"
+          href="/register?profileType=REMPLACANT"
           className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition"
         >
           Créer mon compte gratuitement →
