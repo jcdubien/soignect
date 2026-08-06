@@ -12,9 +12,29 @@
 // des points absolus est ce qui rend la renormalisation possible sans double barème.
 export type SocleProfile = { dates: number; geo: number; bio: number };
 
-export const SOCLE_REMPLACEMENT:  SocleProfile = { dates: 40, geo: 30, bio: 30 };
-export const SOCLE_COLLABORATION: SocleProfile = { dates: 35, geo: 30, bio: 35 };
-export const SOCLE_ASSISTANAT:    SocleProfile = { dates: 20, geo: 25, bio: 55 };
+export const SOCLE_REMPLACEMENT: SocleProfile = { dates: 40, geo: 30, bio: 30 };
+
+// UN SEUL PROFIL POUR LES DEUX POSTES LONG TERME — assistanat et collaboration (06/08).
+//
+// Ils avaient des barèmes distincts, et celui de la collaboration était du mauvais côté :
+// 35/30/35, la copie de celui du remplacement, alors qu'une collaboration est un poste long
+// terme. Défaut concret, pas théorique — comme un assistanat, elle se publie SANS dates, et
+// scoreDates rend 17/35 en neutre dans ce cas : avec les dates pesées à 35 ce neutre injectait
+// ~17 points de bruit, contre ~10 à 20. La première collaboration publiée aurait été moins bien
+// notée qu'un assistanat identique, pour une raison étrangère à la compatibilité.
+//
+// Rien ne justifiait la séparation : le reste du produit les traite déjà comme un seul cas (le
+// formulaire de disponibilité branche sur `postKind !== "REMPLACEMENT"`, dates masquées et durée
+// minimale exigée pour les deux). La patientèle propre, seule vraie différence, change ce qu'on
+// SIGNE — pas ce qui rend deux personnes compatibles.
+//
+// Aucun score existant n'est affecté : ce barème n'avait jamais été appliqué une seule fois
+// (0 mission COLLABORATION créée, 0 swipe noté).
+//
+// À resséparer si le terrain le demande — hypothèse plausible : un collaborateur qui se
+// constitue sa patientèle a peut-être un besoin géographique plus fort. Avec zéro collaboration
+// en base, la séparer aujourd'hui reviendrait à encoder une supposition.
+export const SOCLE_LONG_TERME: SocleProfile = { dates: 20, geo: 25, bio: 55 };
 
 // La géographie pèse PLUS sur un remplacement court que sur un poste long : on ne déménage pas
 // pour trois semaines, on déménage pour un assistanat. Un candidat à 40 km est disqualifiant
@@ -55,9 +75,12 @@ export const BONUS_BUDGET = Object.values(BONUS).reduce((a, b) => a + b, 0);
 
 export type WeightProfile = SocleProfile & Record<BonusKey, number>;
 
+// MissionType garde ses trois valeurs — contrats et libellés en ont besoin. Seul le barème n'en
+// distingue plus que deux. Le label reste celui du type réel : la lecture qualitative et
+// l'affichage admin doivent continuer de dire « Collaboration » quand c'en est une.
 export function socleFor(missionType?: string | null): { socle: SocleProfile; label: string } {
-  if (missionType === "ASSISTANAT")    return { socle: SOCLE_ASSISTANAT,    label: "ASSISTANAT" };
-  if (missionType === "COLLABORATION") return { socle: SOCLE_COLLABORATION, label: "COLLABORATION" };
+  if (missionType === "ASSISTANAT")    return { socle: SOCLE_LONG_TERME, label: "ASSISTANAT" };
+  if (missionType === "COLLABORATION") return { socle: SOCLE_LONG_TERME, label: "COLLABORATION" };
   return { socle: SOCLE_REMPLACEMENT, label: "REMPLACEMENT" };
 }
 

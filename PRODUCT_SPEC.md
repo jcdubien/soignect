@@ -3443,10 +3443,10 @@ socle + bonus en jeu = 100 partout.
 
 ```
 SOCLE — proportions sommant 100, ramenees au prorata de ce qui reste
-                  dates  geo  bio
-  REMPLACEMENT      40    30   30
-  COLLABORATION     35    30   35
-  ASSISTANAT        20    25   55
+                              dates  geo  bio
+  REMPLACEMENT                  40    30   30
+  LONG TERME (assistanat +
+             collaboration)     20    25   55
 
 La GEOGRAPHIE pese plus sur un remplacement court que sur un poste
 long : on ne demenage pas pour trois semaines. Inversion par rapport
@@ -3485,6 +3485,51 @@ code et decision disent desormais la meme chose.
 Ils ne sont plus provisoires. Les changer est une decision produit,
 pas un ajustement — un seul endroit, la constante BONUS et les
 SOCLE_* dans lib/compatibilite.ts.
+```
+
+### Assistanat et collaboration fusionnes en un seul bareme (06/08)
+
+```
+QUESTION DE JEAN-CHARLES : « assistant et collaborateur sont des
+statuts quasi identiques (seule difference : se faire sa propre
+patientele), et dans les faits quasi que des assistants. Pourquoi
+faire un scoring different ? »
+
+CONSTAT : le bareme collaboration n'avait JAMAIS servi — 0 mission
+COLLABORATION creee, 0 swipe note. Les seuls profils de ponderation
+appliques en base sont ASSISTANAT et REMPLACEMENT.
+
+ET IL ETAIT DU MAUVAIS COTE : 35/30/35, la copie de celui du
+remplacement (40/30/30 a l'origine), alors qu'une collaboration est
+un poste LONG TERME. Ca ressemble a un profil cree en dupliquant
+celui d'a cote, pas a une decision.
+
+DEFAUT CONCRET, pas theorique : comme un assistanat, une
+collaboration se publie SANS dates (duree minimale seule).
+scoreDates rend 17/35 en neutre dans ce cas. Avec les dates pesees
+a 35, ce neutre injectait 17 points de bruit ; a 20, il n'en injecte
+que 10. La premiere collaboration publiee aurait ete moins bien
+notee qu'un assistanat identique, pour une raison etrangere a la
+compatibilite.
+
+LE RESTE DU PRODUIT LES TRAITE DEJA COMME UN SEUL CAS : le
+formulaire de disponibilite branche sur `postKind !== "REMPLACEMENT"`
+— dates masquees et duree minimale exigee pour les deux. La
+patientele propre, seule vraie difference, change ce qu'on SIGNE,
+pas ce qui rend deux personnes compatibles.
+
+DECISION (validee) : un seul SOCLE_LONG_TERME (20/25/55) pour les
+deux. MissionType garde ses TROIS valeurs — contrats et libelles en
+ont besoin — et le label affiche reste « Collaboration » quand c'en
+est une. Seul le bareme n'en distingue plus que deux.
+
+Aucun score existant affecte : ce bareme n'avait jamais ete applique.
+
+A RESSEPARER si le terrain le demande. Hypothese plausible : un
+collaborateur qui se constitue sa patientele a peut-etre un besoin
+geographique plus fort (il lui faut un secteur ou capter des
+patients). Avec zero collaboration en base, la separer aujourd'hui
+reviendrait a encoder une supposition.
 ```
 
 ### Pourquoi la coordination devant les trois autres
