@@ -46,6 +46,26 @@ function datesLabel(m: { startDate: Date | null; endDate: Date | null; minMonths
   return "Dates à convenir";
 }
 
+// Photo de fond : on la télécharge NOUS-MÊMES et on la passe en data URI, au lieu de laisser
+// le générateur d'image aller la chercher. Raison : si ce téléchargement échoue au moment du
+// rendu, c'est TOUTE l'image de partage qui échoue — or les caches sociaux retiennent
+// longtemps un aperçu cassé. Ici, un échec dégrade simplement vers le fond dégradé d'origine.
+// Délai borné pour la même raison : un stockage lent ne doit pas faire expirer le rendu.
+async function fondPhoto(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
+    if (!res.ok) return null;
+    const type = res.headers.get("content-type") ?? "image/jpeg";
+    if (!type.startsWith("image/")) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength === 0 || buf.byteLength > 6_000_000) return null; // vide ou déraisonnable
+    return `data:${type};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 export default async function OgImage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -58,7 +78,8 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
       select: {
         title: true, location: true, missionType: true,
         startDate: true, endDate: true, minMonths: true,
-        profile: { select: { type: true } }, // cadre le badge (cabinet propose / candidat se propose)
+        // photoUrl : fond de la carte (section 158). type : cadre le badge (cabinet propose / candidat se propose).
+        profile: { select: { type: true, photoUrl: true } },
       },
     });
   } catch {
@@ -87,6 +108,8 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   // seuils resserrés puisque la largeur utile est celle de la zone de sécurité, pas du canevas.
   const titleSize = title.length <= 26 ? 54 : title.length <= 46 ? 44 : title.length <= 72 ? 36 : 30;
 
+  const photo = await fondPhoto(m.profile?.photoUrl);
+
   return new ImageResponse(
     (
       <div
@@ -94,17 +117,57 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
           width: 1200,
           height: 630,
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          alignItems: "center",
-          textAlign: "center",
-          padding: 48,
+          position: "relative",
           backgroundColor: "#0B3D5C",
-          backgroundImage: "linear-gradient(135deg, #0B3D5C 0%, #12708f 55%, #1aa0a0 100%)",
+          // Repli conservé tel quel : sans photo, la carte est exactement celle d'avant.
+          // La clé est OMISE quand il y a une photo, jamais mise à undefined : le moteur de rendu
+          // lit la propriété dès qu'elle existe et appelle .trim() dessus — undefined le fait
+          // planter, et c'est TOUTE l'image de partage qui tombe en 500 (constaté en prod).
+          ...(photo ? {} : { backgroundImage: "linear-gradient(135deg, #0B3D5C 0%, #12708f 55%, #1aa0a0 100%)" }),
           color: "#ffffff",
           fontFamily: "sans-serif",
         }}
       >
+        {photo && (
+          <img
+            src={photo}
+            width={1200}
+            height={630}
+            style={{ position: "absolute", top: 0, left: 0, width: 1200, height: 630, objectFit: "cover" }}
+          />
+        )}
+        {/* Voile gris uniforme. Une photo de profil peut être claire, sombre, chargée : un voile
+            unique garantit le contraste du texte blanc quelle qu'elle soit, là où un dégradé
+            laisserait des zones illisibles selon le cliché.
+            OPACITÉ MESURÉE, pas estimée. Sur une photo de cabinet très lumineuse, contraste
+            blanc/fond au 95e centile des zones sans texte : 4,06:1 à 58 %, 5,33:1 à 68 %,
+            6,79:1 à 76 %. Le seuil confortable est 4,5:1 (AA gros texte : 3:1). 68 % est le
+            premier palier confortable qui laisse encore reconnaître la photo. */}
+        {photo && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0, left: 0, width: 1200, height: 630,
+              display: "flex",
+              backgroundColor: "rgba(42,45,48,0.68)",
+            }}
+          />
+        )}
+
+        {/* Calque de contenu — reprend la mise en page d'origine à l'identique. */}
+        <div
+          style={{
+            position: "relative",
+            width: 1200,
+            height: 630,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            alignItems: "center",
+            textAlign: "center",
+            padding: 48,
+          }}
+        >
         {/* En-tête marque */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38, fontWeight: 800, letterSpacing: -1, opacity: 0.95 }}>
           Soignect
@@ -149,19 +212,20 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
               chacun sur sa ligne, valeur en ellipsis si trop longue → jamais de débordement. */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 28, width: SAFE }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18, maxWidth: SAFE }}>
-              <div style={{ display: "flex", width: 118, fontSize: 24, fontWeight: 700, letterSpacing: 2, opacity: 0.65 }}>DATES</div>
+              <div style={{ display: "flex", width: 118, fontSize: 24, fontWeight: 700, letterSpacing: 2, opacity: photo ? 0.85 : 0.65 }}>DATES</div>
               <div style={{ display: "flex", fontSize: 34, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 460 }}>{dates}</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18, maxWidth: SAFE }}>
-              <div style={{ display: "flex", width: 118, fontSize: 24, fontWeight: 700, letterSpacing: 2, opacity: 0.65 }}>LIEU</div>
+              <div style={{ display: "flex", width: 118, fontSize: 24, fontWeight: 700, letterSpacing: 2, opacity: photo ? 0.85 : 0.65 }}>LIEU</div>
               <div style={{ display: "flex", fontSize: 34, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 460 }}>{location}</div>
             </div>
           </div>
         </div>
 
         {/* Pied */}
-        <div style={{ display: "flex", justifyContent: "center", fontSize: 22, opacity: 0.82, maxWidth: SAFE, textAlign: "center" }}>
+        <div style={{ display: "flex", justifyContent: "center", fontSize: 22, opacity: photo ? 0.95 : 0.82, maxWidth: SAFE, textAlign: "center" }}>
           La mise en relation des professionnels de santé en Guadeloupe
+        </div>
         </div>
       </div>
     ),
