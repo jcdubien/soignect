@@ -4009,3 +4009,150 @@ famille que le "malentendu du 23/07", cette fois causée par Sonnet.
 ✅ Livré et poussé. 🟡 Vérification visuelle en attente de 
 reconnexion (Julien puis Paul).
 ```
+
+---
+
+## 🚨 DÉCOUVERTE STRUCTURELLE — Deux PRODUCT_SPEC.md divergents, source des malentendus répétés (03/08)
+
+### Le problème, nommé clairement
+
+```
+Le PRODUCT_SPEC.md tenu par Sonnet dans cette conversation (celui-ci) 
+N'EST PAS le PRODUCT_SPEC.md que lit Opus (celui du dépôt réel, 
+réécrit par Opus le 30/07 - déjà flagué comme risque à ce moment-là, 
+jamais réconcilié depuis).
+
+CONSÉQUENCE CONCRÈTE, 4 OCCURRENCES EN UNE SEULE JOURNÉE : un prompt 
+cite une section de CE document comme source ("lis PRODUCT_SPEC.md, 
+section X") ; Opus consulte SON document (le dépôt), ne trouve pas 
+la section, rapporte à raison qu'elle "n'existe pas" :
+1. /venir-en-guadeloupe
+2. "Mes recherches de remplacement" (déjà trouvé et corrigé plus haut)
+3. Section "STRATÉGIE DE MARCHÉ"
+4. Section "investigation inscription 03/08"
+
+MOTIF IDENTIFIÉ PAR OPUS : "mes investigations te sont rendues en 
+conversation, tu me demandes d'implémenter, donc rien n'atterrit 
+dans la spec [du dépôt] — et le prompt suivant la cite comme source."
+```
+
+### ✅ SOLUTION ADOPTÉE (03/08) — Opus écrit sa propre spec après chaque investigation
+
+```
+Désormais : à la fin de CHAQUE investigation (même en lecture seule, 
+même sans modification de code), Opus écrit une section de spec 
+DIRECTEMENT DANS LE DÉPÔT. Coût : un commit de documentation par 
+investigation. Bénéfice : élimine le décalage à la racine - le 
+document qu'Opus lit devient le document qu'il vient d'écrire.
+
+RÔLE DE CE DOCUMENT-CI (tenu par Sonnet) DÉSORMAIS CLARIFIÉ : mémoire 
+de conversation et vue d'ensemble stratégique pour Jean-Charles, PAS 
+la source que Opus doit citer dans ses prompts. Les prompts futurs 
+rédigés par Sonnet ne devraient plus dire "lis PRODUCT_SPEC.md, 
+section X" en référence à CE document - soit reformuler le contexte 
+nécessaire directement dans le prompt, soit référencer la vraie spec 
+du dépôt une fois qu'Opus l'aura mise à jour.
+```
+
+### Ce que ça implique pour la suite
+
+```
+- Les deux documents (celui-ci et celui du dépôt) vont continuer de 
+  diverger sur le contenu FUTUR sauf réconciliation périodique - à 
+  faire de temps en temps si besoin (demander à Opus un export de sa 
+  version pour comparaison), mais pas urgent vu la nouvelle règle 
+  d'écriture d'Opus qui rend SA version fiable au jour le jour.
+- Ce document-ci reste la référence pour tout ce qui a été DÉCIDÉ 
+  dans cette conversation (arbitrages produit, décisions de Jean-
+  Charles) - mais plus la référence technique pour Opus.
+```
+
+### Statut
+
+```
+✅ Règle adoptée. Prompt/consigne à faire suivre à Opus : écrire 
+systématiquement dans le dépôt, même en lecture seule.
+```
+
+### ⚠️ COMPLÉMENT (06/08) — la règle ci-dessus ne suffit pas, mesuré deux fois
+
+```
+CONSTAT : « Opus écrit dans le dépôt » ne protège de rien si la
+réécriture suivante de ce fichier repart d'une copie figée. Opus a
+écrit dans le dépôt, DEUX FOIS, et les deux fois la régénération
+suivante a écrasé son travail :
+
+  1. commit 48033be (correction d'attribution) → écrasé par bf254cc
+  2. commit 94bf35b (section scoring réécrite)  → écrasé le 06/08
+
+La seconde régénération n'était pas un retour en arrière volontaire :
+elle a produit « version d'avant + 117 lignes nouvelles, ZÉRO
+suppression ». Signature d'un remplacement complet du fichier à
+partir d'une base qui n'a jamais contenu les commits d'Opus.
+
+CE QUI A ÉTÉ PERDU PUIS RÉTABLI DEUX FOIS : la correction établissant
+que « Julien 78 / Jean-Charles 23 » ne démontre PAS le plafond à 80
+(aucun des deux camps n'avait coché de critère ; l'écart vient d'une
+annonce modifiée après le swipe). Réaffirmée comme preuve mesurée à
+chaque régénération.
+
+CE QU'IL FAUT À LA PLACE, pour qui régénère ce fichier :
+  git pull, PUIS fusionner ses ajouts dans la version du dépôt.
+  Jamais un remplacement complet à partir d'une copie locale.
+
+Sans ça, chaque correction technique d'Opus a une durée de vie d'une
+régénération, et les erreurs corrigées reviennent à l'identique.
+```
+
+---
+
+## SUGGESTION ASSISTANAT — Finalisation (03/08)
+
+### Erreur de manipulation identifiée
+
+```
+Un prompt périmé (rédigé avant l'investigation d'Opus qui a reformulé 
+toute la feature) a été renvoyé par erreur - la feature était déjà 
+livrée et vérifiée à l'écran sur Julien au moment de l'envoi. Aucune 
+action requise, juste ignorer ce prompt.
+```
+
+### Correctif de texte livré au passage (bf254cc)
+
+```
+Le bandeau annonçait "postes d'assistanat OU DE COLLABORATION" dans 
+tous les cas, alors que Julien n'a swipé que des assistanats - la 
+mention de collaboration n'apparaît plus que si elle est réellement 
+en jeu. Cohérent avec la règle d'écriture opposable (n°7) : un 
+bandeau qui reflète un fait ne peut pas décrire une action non faite.
+```
+
+### ✅ Décision sur l'étage explicatif manquant
+
+```
+Lien vérifié à l'écran : mène bien à /disponibilites/create?type=
+ASSISTANAT, le vrai formulaire en mode long terme (pas de liste 
+filtrée) - confirmé "Visible par les cabinets proposant des postes 
+longue durée", durée minimale exigée, exemple 12 mois.
+
+MANQUE : rien n'explique à Julien ce qu'implique un assistanat 
+(patientèle du cabinet, engagement plusieurs mois, rétrocession 
+versée plutôt que conservée, différence avec la collaboration).
+
+✅ RETENU : un encart DÉPLIABLE en tête du formulaire (pas une page 
+séparée), visible quand le type long terme est choisi - trois lignes 
+sur ce qui change. Raison : une page dédiée coûte un écran de plus 
+entre intention et action, mauvais sens pour mesurer la conversion.
+
+Cohérence de libellé : garder "Publier une recherche de poste" pour 
+le lien (décrit ce qui va se passer), PAS "voir comment" (suppose 
+une page explicative séparée qu'on ne construit pas).
+```
+
+### Statut
+
+```
+✅ Feature entièrement livrée et vérifiée sur Julien. 🟡 Encart 
+explicatif décidé, prompt à rédiger. Vérification sur Paul (assistant) 
+toujours en attente de reconnexion.
+```
