@@ -45,6 +45,17 @@ RÈGLES NON NÉGOCIABLES :
 - 🆕 Toute feature touchant à la notation/évaluation entre profils → 
   vérifier la conformité déontologique (article R.4321-99) AVANT 
   construction, pas après
+- 🆕🆕 MISSION DE FOND (adoptée le 03/08, pas différée) : Soignect 
+  n'est pas "un Uber du remplacement" — c'est un fournisseur de 
+  ressources et d'intelligence sur les ressources de santé. Le 
+  remplaçant/cabinet est l'interlocuteur initial (moteur de 
+  collecte) ; les grandes organisations de santé (hôpitaux, CPTS, 
+  ARS/CGSS) sont l'interlocuteur de destination à terme. 
+  CONSÉQUENCE PRATIQUE : toute nouvelle feature doit être évaluée 
+  aussi sous l'angle "quelle donnée ça fait remonter, utile à cet 
+  interlocuteur institutionnel futur" — pas seulement sous l'angle 
+  UX immédiat. Voir PRODUCT_SPEC.md, section "Vision stratégique — 
+  Au-delà du SaaS", pour le détail complet.
 
 RÈGLE DU GEL : reste active par défaut. Elle a déjà été levée 
 consciemment pour les 8 features de différenciation (Sprint 3 
@@ -154,10 +165,13 @@ précédents.
 4. Config Facebook (App Domains + mode Live) — bloqué sur accès Meta 
    Developers de Jean-Charles
 5. Résoudre l'issue Sentry self-test NEXTJS-1 (2 min)
-6. INPI "Soignect" + domaine soignect.fr — ⚠️ Jean-Charles a 
+6. INPI "Soignect" — TOUJOURS PAS FAIT (29/07). ⚠️ Jean-Charles a 
    explicitement suspendu la diffusion Facebook en attendant cette 
    protection. Ce n'est plus de l'administratif secondaire, c'est ce 
    qui bloque le lancement de la campagne.
+   ✅ Domaine soignect.fr réservé sur OVH (29/07) — le site répond 
+   déjà sur ce domaine (constaté dans un aperçu de partage), à 
+   distinguer du dépôt de marque INPI qui, lui, reste à faire.
 7. Templates PDF salariés CDD/CDI — seulement si les Structures le 
    demandent ET après validation juridique
 8. Module Cession & Association — nécessite avis juridique avant 
@@ -198,4 +212,144 @@ précédents.
 6. 🆕 LA VIGILANCE DÉONTOLOGIQUE : toute feature de notation/avis 
    entre profils doit respecter l'asymétrie légale documentée 
    (article R.4321-99) avant construction.
+```
+
+---
+
+## 🟣 SPRINT PAUSE — Audit de simplification + 4 parcours, avant livraison bêta (ajouté 03/08)
+
+```
+Décision de Jean-Charles : avant de livrer la bêta, faire une vraie 
+pause. Deux volets qui se répondent, pas juste un audit de bugs.
+
+RAPPEL DU FIL À GARDER (mission produit, formulée par Jean-Charles) :
+1. Initialement : un système de facilitation de mise en relation, 
+   volontairement un peu ludique
+2. Secondairement : un vrai système d'optimisation territoriale 
+   (rejoint la mission de fond adoptée le 03/08 - voir règle 
+   ci-dessus, "fournisseur de ressources et d'intelligence")
+
+Jean-Charles reconnaît lui-même générer beaucoup d'idées ("dix-sept 
+par jour") et demande explicitement à Sonnet de faire CONTREPOIDS - 
+pas juste documenter, activement pousser vers la simplification.
+```
+
+### Volet A — Audit fonctionnel des 4 parcours (Opus)
+
+```
+- Remplaçant
+- Assistant  
+- Titulaire
+- 🆕 Salarié/recruteur (établissement) — explicitement identifié 
+  comme laissé de côté depuis un moment, jamais vraiment testé de 
+  bout en bout
+
+Objectif : qu'est-ce qui casse, qu'est-ce qui est redondant, 
+qu'est-ce qui ne casse pas — sur les quatre, pas seulement les trois 
+habituels.
+```
+
+### Volet B — Audit de simplification (Sonnet + Jean-Charles, sans code)
+
+```
+Première passe faite le 03/08 par Sonnet, candidats identifiés :
+- Fusionner "Aide à la rédaction" et "Optimiser mon annonce" en une 
+  seule action si leur distinction n'est pas claire pour l'utilisateur
+- Badge non identifié dans le header ("🇬🇵" + chiffre) — à clarifier 
+  ou retirer, ne doit pas rester en zone grise
+- Vérifier la duplication des points de partage (annonce, 
+  disponibilité, confirmation publication) — même mécanique répétée 
+  à plusieurs endroits avec de légères variantes ?
+- Questionner la visibilité du score (même qualitatif) côté 
+  utilisateur — sert-il vraiment la décision, ou ajoute du bruit 
+  cognitif sur un geste qui doit rester rapide (swipe) ?
+
+MÉTHODE POUR CHAQUE ÉCRAN/FEATURE : "est-ce que ça sert le fil 
+(faciliter simplement une mise en relation, puis nourrir 
+l'intelligence territoriale), ou c'est une idée ajoutée sans qu'on 
+se soit demandé si elle devait rester visible ?"
+
+Rien de figé côté Phase 3+ à rouvrir (multi-marque, i18n, Cession, 
+MCP, communauté remplaçants, badge CPTS) - la discipline sur ce 
+point tient déjà, ne pas la remettre en cause ici.
+```
+
+### Décisions du volet B — tranchées au fil de l'eau
+
+```
+✅ 03/08 — Retirer le bouton "Partager sur Facebook" dédié. Le 
+partage natif ("Partager…") ouvre déjà le sélecteur système qui 
+inclut Facebook — redondant. Ne garder que "Copier le lien" + 
+"Partager…" natif. Prompt rédigé, à envoyer.
+```
+
+---
+
+## 📍 POINT DE REPRISE — fin de session du 03/08 (très longue session)
+
+```
+Session interrompue par limite technique (5h d'usage outils), pas 
+par manque de travail restant. État de la file, dans l'ordre de 
+priorité pour la reprise :
+
+🔴 TOUJOURS NON RÉSOLU, LE PLUS ANCIEN, LE PLUS URGENT :
+- Vérification déontologique du système de notation (article 
+  R.4321-99) — jamais confirmée depuis sa demande initiale
+
+✅ Fix état vide feed établissement — LIVRÉ ET CONFIRMÉ (commit 
+  b986237). Nouveau header x-feed-salariat-optin (compte 
+  zone/dates-agnostique, -1 pour non-établissement), message 
+  distingue "aucun candidat opté" de "aucune correspondance". Non 
+  vérifié à l'écran (changement texte sans effet de bord, à 
+  observer à la prochaine visite naturelle sur ce compte, pas 
+  urgent).
+
+🟡 PRÊTS À ENVOYER, AUTORISÉS, PAS ENCORE CONFIRMÉS ENVOYÉS :
+- Clarification garde du rattachement automatique à la signature 
+  (assistant.type !== ProfileType.ASSISTANT, jamais franchi en prod 
+  selon un établissement antérieur) — toujours en attente, dernier 
+  point technique ouvert de la session
+
+🟡 EN COURS DE VÉRIFICATION :
+- Rendu mobile du fix z-index (demandé, compte-rendu non reçu à ce 
+  jour)
+
+🟡 POUR REPRENDRE LE PARCOURS SALARIÉ (4e parcours) :
+- Reconnecter Chrome : établissement (Hopital beauperthuy) puis 
+  Julien (avec ouvertSalariat activé depuis son compte)
+- Publier une offre de test, dérouler feed → match → contrat → 
+  notifications
+- Supprimer proprement après
+
+⚪ DÉCISIONS PRODUIT DIFFÉRÉES, DOCUMENTÉES EN DÉTAIL, PAS URGENTES :
+- MissionType dédié au salariat (vs étiquettes sur types libéraux) — 
+  urgence relative montée après démonstration concrète (champs 
+  économiques absurdes pour un établissement)
+- Vision chercheur d'emploi / pourvoyeur d'emploi (refonte 
+  ProfileType) — Phase 3+, prérequis: audit complet des usages avant 
+  d'y toucher
+- Espace "Mes recherches de remplacement" côté assistant — proposition 
+  faite, en attente de validation finale avant envoi
+- Incitation à activer ouvertSalariat (invitation à l'inscription, 
+  pas de changement de valeur par défaut) — à faire au prochain 
+  passage sur le parcours d'inscription
+
+✅ LIVRÉ ET VÉRIFIÉ CETTE SESSION (résumé) :
+- Symétrie bannière de publication candidat/cabinet
+- Retrait bouton Facebook dédié (redondant avec partage natif)
+- ShareActions : boutons côte à côte desktop, empilés mobile
+- Capture TraceEvent des annulations (5 points de destruction, 
+  privacy-by-design sans profileId)
+- Fix z-index/chevauchement Planning (impact production réel confirmé)
+- ouvertSalariat modifiable depuis Mon compte (débloque le parcours 
+  salarié, vérifié par requête réelle avant/après/restauré)
+- Retrait CTA Premium/PDF trompeur pour isSalariat
+- Audit complet des 4 parcours (remplaçant ✅, assistant ✅ CLOS, 
+  titulaire ✅, salarié/recruteur ⚠️ partiel)
+- 🎉 CHAÎNE ASSISTANT ENTIÈREMENT CLOSE (7 commits) : formulaire de 
+  couverture débloqué, visibilité de sa propre couverture (carte 
+  dédiée), droit de retrait (symétrique au droit de publier), garde 
+  anti-doublon (limité à REMPLACEMENT, préserve le chevauchement 
+  légitime assistanat/remplacement). Vérifié de bout en bout en 
+  conditions réelles depuis le compte de Paul.
 ```

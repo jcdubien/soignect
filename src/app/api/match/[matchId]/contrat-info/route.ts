@@ -23,8 +23,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
-      profileA: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, ...IDENTITY_SELECT } },
-      profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, ...IDENTITY_SELECT } },
+      profileA: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
+      profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
       missionA: { select: { missionType: true, retrocessionRate: true } },
       missionB: { select: { missionType: true, retrocessionRate: true } },
     },
@@ -48,6 +48,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     (await hasPremiumAccess({
       subscriptionPlan: myProfile.subscriptionPlan,
       billingTriggeredAt: myProfile.billingTriggeredAt,
+      isFounding: myProfile.isFounding,
     }));
 
   const missionType =

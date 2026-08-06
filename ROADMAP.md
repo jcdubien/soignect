@@ -1,9 +1,17 @@
 # ROADMAP Soignect — Vue chronologique et dépendances
 
-> Document de pilotage, séparé du PRODUCT_SPEC.md. Le spec contient le détail 
-> de chaque décision (voir PRODUCT_SPEC.md — sections 99 à 171 et au-delà, 
-> c'est la partie vivante du document, cf. avertissement de lecture en tête 
-> de ce fichier) ; ce document répond à une seule question à chaque instant : 
+> Document de pilotage, séparé du PRODUCT_SPEC.md. 
+>
+> ⚠️ NOTE DU 26/07 : PRODUCT_SPEC.md a été reconstruit suite à une 
+> perte de fichier locale (incident technique côté outils, pas de 
+> perte de code/données réelles — uniquement le document de suivi). 
+> Le nouveau PRODUCT_SPEC.md contient un état consolidé du produit 
+> (26/07) plutôt que les sections numérotées 1-200 d'origine. CETTE 
+> ROADMAP-CI, elle, est restée intacte et fait foi pour tout 
+> l'historique chronologique (Phase 0 à aujourd'hui) — à privilégier 
+> pour comprendre "comment on en est arrivé là".
+>
+> Ce document répond à une seule question à chaque instant : 
 > **où en est-on, et qu'est-ce qui vient après ?**
 >
 > Mise à jour : chaque fois qu'un sprint est clos ou qu'une décision est prise, 
@@ -217,13 +225,12 @@ les entrées ci-dessous sont fermées sauf mention contraire.
 ```
 Dépendance : Phase 1 close, bêta lancée. **Volume de travail largement supérieur à l'estimation initiale — la bêta a immédiatement révélé des problèmes non anticipés par la spec, cohérent avec l'utilité même de faire une bêta.**
 
-### Action requise avant diffusion large au groupe WhatsApp
+### ✅ Test assistant↔poste CONFIRMÉ OK par Jean-Charles (23/07)
 ```
-Tester end-to-end le rattachement assistant↔poste (section 153) : 
-signer un contrat assistanat de test, vérifier l'apparition du 
-poste rattaché dans le Planning, vérifier que le bouton "Faire 
-remplacer mon absence" fonctionne. C'est le seul point non vérifié 
-en conditions réelles à ce jour.
+Le rattachement assistant↔poste (section 153) a été testé de bout 
+en bout par Jean-Charles et confirmé fonctionnel — c'était le 
+dernier vrai bloquant produit du Sprint 0, en attente depuis le 
+18/07. Levé.
 ```
 
 ### Sprint 3.y — Consolidation post-audit (156 à 161) ✅ CLOS (20/07)
@@ -267,6 +274,74 @@ Réutiliser la méthode de confrontation offre/demande (sections
 117-118quater du spec) sur les retours réels bêta, en complément 
 des données Physiorama — pour affiner encore le score et le 
 positionnement une fois de vrais utilisateurs actifs.
+```
+Dépendance : Sprint 3 (bêta en cours).
+
+---
+
+### Sprint 3.z — Session du 23/07 : vérifications réelles + 10 nouveaux points + réflexions stratégiques
+
+```
+✅ Section 177 (bug critique timeline vide) — FAUSSE ALERTE, RÉSOLUE. 
+   Vérifiée en conditions réelles (base de données + session live) : 
+   la capture avait été prise avant la création de la disponibilité 
+   testée. Aucun code cassé.
+✅ Sections 172/180 (dates obligatoires, menu rapide timeline) — 
+   confirmées solides par cette vérification.
+✅ Section 182 — lien direct vers l'annonce du visiteur dans le mail 
+   de consultation (au lieu de renvoyer vers ses propres annonces).
+✅ Section 139 — Share Dialog Facebook débloqué, App ID obtenu 
+   (réutilisation app "Post MK Bot" existante), prompt prêt.
+
+🟡 10 NOUVEAUX PROMPTS EN ATTENTE — compilés dans PROMPTS_DU_JOUR_23_07.md :
+   1. Share Dialog Facebook (prêt, App ID inclus)
+   2. Bug accroche coupée au bord droit (mobile, Mon compte)
+   3. Sentry + bouton "Signaler un problème" (dernier item Sprint 0, 
+      statut d'envoi à reconfirmer)
+   4. Cycle de vie matches — sortie de liste active au contrat signé 
+      des deux côtés (section 184)
+   5. Slider redevance trop étroit (20-50% → élargir, cas réels à 10%)
+   6. Icône/logo quadrillage (transparence perdue) + accent visuel 
+      Guadeloupe léger (palette tropicale + colibri, sans drapeau — 
+      section 192)
+   7. Espace vide UI entre "Vos mises en relation"/"Vos choix" et 
+      le menu du bas (état vide swipe)
+   8. Badge "Vérifié RPPS" affiché à tort malgré ANS_API_KEY non 
+      configurée (section 193 — problème de confiance potentiel)
+   9. Vérifier qu'une annonce/dispo matchée disparaît bien du 
+      carrousel de TOUS les autres utilisateurs (section 194)
+   10. Menu "Choisir la mission cible" se ferme automatiquement à 
+       la sélection, empêche de compléter le formulaire (section 195)
+
+⚪ RÉFLEXIONS STRATÉGIQUES CAPTURÉES, TOUTES DIFFÉRÉES (Phase 3+, 
+   aucune ne doit distraire du Sprint 0/bêta en cours) :
+   - Section 185 — vision multi-marque (nom variable par profession/
+     région), branding Guadeloupe complet différé (accent léger 
+     traité séparément, voir point 6 ci-dessus)
+   - Section 186 — internationalisation (espagnol/portugais/allemand/
+     anglais/roumain) — point légal important : les contrats doivent 
+     rester en français (droit français, modèle CNOMK)
+   - Section 187 — modèle de paiement à la carte (façon Physiorama/
+     LeBonCoin) en complément de l'abonnement mensuel — pas d'urgence, 
+     freeAccessMode actif
+   - Section 188 — le palier 1 (46 cabinets) devrait-il intégrer un 
+     seuil côté remplaçants/assistants (15-20 déjà ciblés Sprint 1) ? 
+     Question liée à 187, à trancher ensemble au Sprint 3
+   - Section 178/189 — espace d'archivage des contrats dédié dans 
+     chaque compte + formulaire "1 pour 1" zones non prioritaires 
+     (interlocuteur confirmé : CPAM, pas CDO — correction faite) — 
+     nécessite avis juridique avant automatisation
+   - Sections 190/191 — bugs UI mineurs (espace vide, slider) déjà 
+     inclus dans les 10 prompts ci-dessus
+
+📄 NOUVEAUX LIVRABLES : deux guides utilisateur créés (guide-
+   titulaires-structures.md et guide-remplacants-assistants.md) — 
+   premiers documents user-facing, distincts du PRODUCT_SPEC 
+   technique. À maintenir à jour au même rythme.
+
+⚪ Point non résolu, en attente : badge "🎙️11" repéré dans le header 
+   titulaire, non identifié dans la documentation — à clarifier avec 
+   Jean-Charles.
 ```
 Dépendance : Sprint 3 (bêta en cours).
 
@@ -362,40 +437,131 @@ Prérequis avant tout développement :
 
 ---
 
+## 🎯 SESSION MARATHON DU 03/08 — quatre fils majeurs entièrement clos, 25 commits
+
+```
+Session exceptionnellement longue et productive, largement hors du 
+cadre "sprint par sprint" ci-dessus — traitée comme une session 
+d'audit et de correction intensive, en parallèle des sprints prévus. 
+Détail complet dans PRODUCT_SPEC.md (sections datées 03/08) ; ce qui 
+suit est le résumé exécutif.
+
+QUATRE FILS ENTIÈREMENT CLOS :
+
+1. CHAÎNE ASSISTANT — d'inexistante à complète. Le formulaire "Faire 
+   remplacer mon absence" était un cul-de-sac total le matin (aucun 
+   champ ne se rendait). Le soir : publication fonctionnelle, 
+   visibilité de sa propre couverture (carte dédiée), droit de 
+   retrait symétrique au droit de publier, garde anti-doublon. 
+   Bonus : le garde du rattachement AUTOMATIQUE à la signature 
+   (distinct du rattachement manuel) était cassé depuis l'origine — 
+   corrigé, avec preuve réelle (12 postes orphelins retrouvés).
+
+2. PARCOURS SALARIÉ/RECRUTEUR — d'aveugle des deux côtés à 
+   fonctionnel. Le feed établissement ne voyait jamais aucun 
+   candidat (0 candidat sur 8 n'avait activé l'opt-in, et ce 
+   réglage n'était modifiable qu'à la création d'une toute nouvelle 
+   recherche). Corrigé : réglage accessible depuis "Mon compte", 
+   déblocage vérifié par requête réelle avant/après/restauré. CTA 
+   Premium trompeur retiré. Restent en Phase 3 : champs économiques 
+   incohérents (CA/redevance n'ont pas de sens pour un salarié, 
+   rémunération jamais demandée), et l'architecture MissionType 
+   (3 types libéraux portant 6 réalités).
+
+3. AUDIT DÉONTOLOGIQUE — enforceContractProfile armé (PDF ET 
+   signature — un premier passage n'avait fermé que la génération 
+   PDF, la route de signature restait une "porte de service" 
+   ouverte). Message proactif à 2 emplacements avant le blocage. 
+   0 notation en base à ce jour (sujet système de notation sans 
+   urgence). 4 arbitrages documentés et transmis au CDO de 
+   Jean-Charles (dont un point sérieux : la commission au contrat du 
+   plan Structure touche potentiellement au compérage/partage 
+   d'honoraires).
+
+4. UN BUG DE PRODUCTION RÉEL TROUVÉ ET CORRIGÉ — des briques de 
+   Planning qui se chevauchent sans z-index se recouvraient 
+   totalement. Pas théorique : ça cachait déjà un vrai recrutement 
+   actif à un vrai cabinet avant la correction.
+
+🎓 ÉVALUATION UX/UI DE FIN DE SESSION (voir PRODUCT_SPEC.md pour le 
+texte complet) : diagnostic de fond au-delà des bugs individuels — 
+"l'écran affirme ce qu'il n'a pas vérifié" est le défaut UNIQUE ET 
+RÉPÉTÉ derrière 8 correctifs de la journée. Élevé au rang de RÈGLE 
+PERMANENTE dans PLAN_PASSATION_SPRINTS.md (correction de méthode 
+n°7) : aucun écran n'affirme ce qu'il n'a pas vérifié.
+
+Jugement d'ensemble d'Opus, à retenir : "Pour une bêta, le socle est 
+là. Ce que je surveillerais en priorité n'est pas l'esthétique — 
+elle est correcte et cohérente — mais la véracité des écrans."
+```
+
+---
+
 ## Tableau de synthèse — que faire maintenant, dans l'ordre
 
 ```
-🎉 PHASE 1 TERMINÉE (17/07). 🚧 PHASE 2 (BÊTA) TRÈS ACTIVE — volume 
-de travail important (sections 139 à 171), incluant 2 découvertes 
-critiques du même ordre (bug inscription Assistant section 152, 
-bug contrat salarié section 161) — toutes deux neutralisées.
+🎉 MISE À JOUR 03/08 — SPRINT 0 ET UNE GRANDE PARTIE DU SPRINT 1 
+TERMINÉS DE FAIT, via une session marathon d'audit/correction 
+intensive (25 commits, 4 fils majeurs clos, détail juste au-dessus). 
+La déontologie, longtemps signalée "en attente", est CLOSE.
 
-⚠️ DEPUIS LE 21/07, LA PLANIFICATION OPÉRATIONNELLE DÉTAILLÉE EST 
-TENUE DANS PLAN_PASSATION_SPRINTS.md — ce tableau ci-dessous reste 
-une vue résumée, mais PLAN_PASSATION_SPRINTS.md fait foi en cas de 
-divergence (il est plus récent et plus précis, notamment sur la 
-sécurité pré-diffusion et le séquençage par semaine).
+⚠️ POUR LE DÉTAIL OPÉRATIONNEL COURT TERME, PLAN_PASSATION_SPRINTS.md 
+FAIT FOI. Ce tableau reste une vue résumée de haut niveau.
 
-Résumé du Sprint 0 (porte de la bêta, voir le plan pour le détail) :
-1. TESTER END-TO-END le rattachement assistant↔poste (section 153) 
-   — SEUL point produit non vérifié en conditions réelles à ce jour
-2. Envoyer les 2 bugs bloquants déjà rédigés (bouton "Publier mes 
-   disponibilités" grisé §168/169, badges candidatures inopérants 
-   §164)
-3. Sécurité pré-diffusion (rate limiting DeepSeek, audit permissions, 
-   Sentry/feedback) — voir PLAN_PASSATION_SPRINTS.md section 0.3
-4. INPI + domaine soignect.fr (actions manuelles Jean-Charles)
-5. → Une fois tout coché : DIFFUSION WHATSAPP LARGE
-6. Ne rien engager sur Phase 4/5/Cession avant que Phase 2-3 soient 
-   largement digérées
+PROCHAINES ÉTAPES, PAR NIVEAU DE PRIORITÉ (établies le 03/08) :
 
-POINTS EN ATTENTE, NON BLOQUANTS (repris en Sprint 2-4 du plan) :
-- Section 149 (photo Wikipédia + relief visuel texte annonce)
-- Section 139 (Share Dialog Facebook) — attend accès JC
-- Wording "candidater" page publique dispo candidat (section 161)
-- Champs éditables in-app clauses contrat (section 166)
-- Partage WhatsApp texte pré-rempli (section 167)
-- Templates PDF CDD/CDI (section 161) — différé, pas urgent
+TIER 0 — méthode, pas de code, le plus rentable de tous :
+La règle d'écriture opposable ("aucun écran n'affirme ce qu'il n'a 
+pas vérifié") doit s'appliquer à TOUTE nouvelle feature dès sa 
+conception, pas seulement en correction a posteriori.
+
+TIER 1 — statuts à reconfirmer avant tout le reste :
+- Bug Sentry suppression Mission (jamais mentionné dans les rapports 
+  du 03/08, statut réel inconnu)
+- Connexion jcdubien@gmail.com (probablement résolue par la 
+  normalisation email du 30/07, jamais confirmée explicitement)
+- 2 comptes déjà bloqués par enforceContractProfile avec une annonce 
+  en ligne — prévenir directement si l'un est un vrai testeur
+
+TIER 2 — Sprint 1, prompts antérieurs à la session marathon, 
+probablement partiellement caducs (vérifier avant renvoi) : layout 
+desktop deux colonnes, déconnexion mobile, image OG, invitation 
+email poste-assistant, bug timeline Assistant 1
+
+TIER 3 — 3 défauts connus du parcours salarié, non traités : champs 
+économiques incohérents, architecture MissionType, bouton sans effet 
+sous l'état vide établissement
+
+TIER 4 — NOUVEAU, signalé par l'évaluation UX/UI : le formulaire de 
+création d'annonce s'est alourdi au fil des ajouts (texte libre + 4 
+boutons IA + repli + 2 colonnes + sélecteur + 8 champs + prérequis) 
+— "l'idée d'origine se noie dans son propre outillage". Rejoint la 
+demande de simplification déjà posée par Jean-Charles. Mérite une 
+vraie session dédiée avant Tier 2.
+
+TIER 5 — Phase 3, sciemment différé (voir détail complet plus haut 
+dans ce document et dans PRODUCT_SPEC.md) : pricing à la carte, 
+palier 1, multi-marque, i18n, vision MCP/donnée institutionnelle, 
+chercheur/pourvoyeur, fluidité du statut dans le temps, module 
+Cession, 8 features de différenciation acquisition, badge CPTS.
+
+DÉCISIONS PRODUIT MINEURES TOUJOURS EN ATTENTE :
+- Expéditeur email → noreply@soignect.fr (quand domaine vérifié)
+- Nommer le visiteur dans le mail de consultation (actuellement anonyme)
+- Badge "🎙️11" toujours non identifié
+- Rappel post-signature Ordre + champ "autorisation de remplacement" 
+  (proposés lors de l'audit déontologique, pas encore pris)
+
+RESTE VALABLE DEPUIS LE 26/07 — actions administratives Jean-Charles :
+- connection_limit=1 sur DATABASE_URL (Vercel)
+- ANS_API_KEY sur Vercel (vérification RPPS réellement fonctionnelle)
+- Config Facebook — possiblement OBSOLÈTE : le bouton Facebook dédié 
+  a été retiré (redondant avec le partage natif), à reconfirmer si 
+  cette action a encore un sens
+- Résoudre l'issue Sentry self-test (NEXTJS-1)
+- INPI "Soignect" toujours pas fait — domaine soignect.fr réservé 
+  sur OVH (fait). Diffusion Facebook large volontairement suspendue 
+  par Jean-Charles en attendant l'INPI.
 ```
 
 ---

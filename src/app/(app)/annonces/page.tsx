@@ -24,9 +24,9 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
   if (profileId) {
     const me = await prisma.profile.findUnique({
       where: { id: profileId },
-      select: { subscriptionPlan: true, billingTriggeredAt: true },
+      select: { subscriptionPlan: true, billingTriggeredAt: true, isFounding: true },
     });
-    isPremium = await hasPremiumAccess({ subscriptionPlan: me?.subscriptionPlan, billingTriggeredAt: me?.billingTriggeredAt });
+    isPremium = await hasPremiumAccess({ subscriptionPlan: me?.subscriptionPlan, billingTriggeredAt: me?.billingTriggeredAt, isFounding: me?.isFounding });
   }
 
   // Mode lancement gratuit : masque toute communication « gratuit → payant » (section 2).

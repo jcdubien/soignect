@@ -88,6 +88,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
   const isPremium = await hasPremiumAccess({
     subscriptionPlan: (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan,
     billingTriggeredAt: (myProfile as typeof myProfile & { billingTriggeredAt?: Date | null }).billingTriggeredAt,
+    isFounding: (myProfile as typeof myProfile & { isFounding?: boolean }).isFounding,
   });
 
   return (

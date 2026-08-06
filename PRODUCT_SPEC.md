@@ -1368,6 +1368,33 @@ Note : en Assistanat, Profils pèse encore 55/100 (repartition
 différente selon le type de mission, à confirmer si volontaire).
 
 À TRANCHER PAR JEAN-CHARLES.
+
+### Extension de la vision — fluidité du statut DANS LE TEMPS (03/08, ajout de fin de session)
+
+```
+Précision apportée par Jean-Charles, distincte de la dualité 
+chercheur/pourvoyeur ci-dessus mais de la même famille de question : 
+le statut ne devrait pas seulement pouvoir être DOUBLE (chercheur ET 
+pourvoyeur en même temps), il devrait pouvoir ÉVOLUER DANS LE TEMPS.
+
+Scénarios réels cités :
+- Un remplaçant qui cherche des missions ponctuelles depuis un 
+  moment, et qui veut à un moment donné "se poser" (devenir assistant 
+  ou titulaire quelque part) - progression de carrière naturelle
+- Un titulaire qui veut TEMPORAIREMENT faire des remplacements 
+  ailleurs (changement de rythme, envie de mobilité) AVANT DE REVENIR 
+  à son propre cabinet - pas un changement définitif, un aller-retour
+
+NUANCE SUPPLÉMENTAIRE posée par la formulation "au sein d'un même 
+cabinet ou pas" : un titulaire qui explore temporairement le 
+remplacement ailleurs garde-t-il son cabinet "en toile de fond" 
+pendant cette parenthèse, ou est-ce un vrai changement de statut 
+complet le temps de l'exploration ? Question non tranchée, à 
+approfondir en même temps que la vision chercheur/pourvoyeur - même 
+chantier, pas deux chantiers séparés.
+```
+
+
 ```
 
 ### Vague 2 — commit 3c3018e, deux signalements corrigés
@@ -2256,3 +2283,753 @@ compte. Publication de test (~1 min), puis feed/match/contrat/
 notifications en une passe.
 ```
 
+### ✅ SESSION REPRISE ET PARCOURS 4 CONCLU (03/08)
+
+```
+Reprise sans encombre - la panne initiale était juste des champs de 
+formulaire repliés cachant le bouton, pas un vrai bug.
+
+PUBLICATION FAITE, PREUVE DÉFINITIVE OBTENUE : une "Vacation" 
+publiée par l'établissement est stockée en base comme REMPLACEMENT. 
+Fuite confirmée jusqu'à l'affichage : le chip du feed montre 
+"Remplacement · 1 déc. → 20 déc." et les filtres proposent 
+"Remplacement/Assistanat/Collaboration" - le renommage employeur ne 
+vit QUE dans le formulaire de création, rien en aval ne le sait.
+
+TROIS VERROUS IDENTIFIÉS EN SÉRIE (méthodiquement, pas par tâtonnement) :
+| Verrou | Effet | Verdict |
+|---|---|---|
+| ouvertSalariat du candidat | exclut tous les candidats | LE vrai blocage, déjà corrigé (d1e0f8b) |
+| Chevauchement des dates avec le chip | excluait une dispo de Julien | comportement LÉGITIME |
+| NO_ACTIVE_MATCH_FILTER | excluait une dispo déjà engagée | comportement LÉGITIME |
+
+Une fois alignés : PARCOURS CONFIRMÉ FONCTIONNEL. Julien apparaît 
+dans le feed de l'établissement, marqué "Compatible", boutons de 
+décision présents. Confirme que d1e0f8b est bien ce qui rend ce 
+parcours atteignable.
+
+🆕 NOUVELLE TROUVAILLE : l'état vide du feed établissement AFFIRME 
+LE FAUX - "Votre annonce est bien en ligne et visible. Dès qu'un 
+candidat correspond, il apparaît ici" alors qu'aucun candidat ne 
+PEUT apparaître tant que ouvertSalariat=0 partout, indépendamment de 
+toute correspondance. Même famille que le fix du matin sur le feed 
+candidat. Prompt rédigé, ciblé et sans risque - distinct des 2 autres 
+chantiers qui restent en Phase 3.
+
+PAS DE SWIPE FAIT (bonne discipline) - aurait créé un vrai choix en 
+attente au nom de la CPTS, action sortante au nom d'un tiers, hors 
+cadre d'un audit.
+
+Nettoyage confirmé : aucune mission sur le compte CPTS, ouvertSalariat 
+de Julien remis à false, seul le match d'origine subsiste en base.
+
+BILAN FINAL DU PARCOURS 4 : inscription ✅, formulaire ⚠️ (vocabulaire 
+à corriger, Phase 3), feed ✅ fonctionnel une fois débloqué (+ 1 fix 
+ciblé état vide en attente), contrat ✅ propre, matching/notifications 
+non observés par choix éthique (pas un manque de preuve du mécanisme, 
+déjà démontré par le feed).
+
+TROIS CHANTIERS RESTANTS, INCHANGÉS PAR ORDRE D'IMPACT :
+1. Formulaire assistant bloqué (le plus grave - fonctionnalité 
+   inexistante) - déjà autorisé, prompt prêt
+2. Champs économiques salariés (CA/Redevance absurdes, rémunération 
+   absente) - Phase 3
+3. MissionType : "trois types libéraux qui portent aujourd'hui six 
+   réalités" (formule d'Opus) - Phase 3, nécessite une vraie session 
+   dédiée
+```
+
+
+---
+
+## RÉSOLUTION DÉFINITIVE — Formulaire assistant débloqué, question centrale tranchée, découverte plus grave (03/08)
+
+### Fix 1 livré avec 2 régressions rattrapées par vérification à l'écran
+
+```
+Déblocage initial (7b634ec) : mesure DOM confirmée, 0->2 champs date, 
+0->1 description sur la même URL en session Paul.
+
+2 RÉGRESSIONS trouvées SEULEMENT par vérification visuelle (la 
+compilation passait dans les deux cas) :
+- Champ "Intitulé du poste" affiché EN DOUBLE
+- Bloc de dates encore intitulé "Mes dates de disponibilité" 
+  (vocabulaire candidat) au lieu d'un libellé approprié au mode 
+  couverture
+
+CAUSE : un commentaire de code ("pas de colonne gauche, donc le 
+titre n'a pas été rendu au-dessus") décrivait une prémisse devenue 
+FAUSSE dès que le premier correctif a changé le contexte (la colonne 
+gauche existe maintenant en mode couverture), sans que la condition 
+qui en dépendait soit mise à jour en même temps. Dette silencieuse 
+classique.
+
+Corrigé et repoussé (d8036a6) : 1 seul titre, 2 dates, 1 description, 
+libellé "Période de remplacement" correct.
+
+Anecdote sans consequence : clic accidentel sur "Déconnexion" (premier 
+bouton submit de la page dans l'ordre du DOM) au lieu de "Publier" - 
+aucun degat, juste une reconnexion necessaire. Note legere : si un 
+humain valide au clavier (Entree), meme risque existe potentiellement.
+```
+
+### 🔴 QUESTION CENTRALE DE L'AUDIT TRANCHÉE : NON, pas visible sur les deux vues
+
+```
+Publication réelle réussie depuis le compte de Paul (bouton "Faire 
+remplacer mon absence"). Mission créée :
+profileId = LE CABINET (jcdubien) - PAS Paul
+cabinetPostId = poste Mathéo
+REMPLACEMENT/RECHERCHE, 01/12->20/12/2026
+
+| Vue | Résultat |
+|---|---|
+| /planning de jcdubien, ligne Mathéo | ✅ l'annonce y est |
+| /disponibilites de Paul | ❌ "Aucune recherche publiée" alors qu'il vient de publier |
+```
+
+### 🔴🔴 DÉCOUVERTE PLUS GRAVE QUE PRÉVU — l'assistant est verrouillé hors de sa propre création
+
+```
+En nettoyant après le test, Paul a reçu 403 INTERDIT en tentant 
+d'agir sur SA PROPRE mission (qu'il venait de créer). La route exige 
+mission.profileId === session.profileId - or la mission appartient 
+au CABINET (par construction du flux), pas à Paul.
+
+CITATION EXACTE, à retenir : "L'assistant peut publier. Il ne peut 
+ni voir, ni suivre, ni annuler. C'est plus sévère que ce que 
+l'analyse statique laissait prévoir."
+
+Nettoyage a dû être fait par accès direct base (Opus), Paul ne 
+pouvant PAS le faire lui-même depuis le produit - confirme la 
+gravité du blocage.
+```
+
+### Décision — réordonnancement des 3 pistes restantes
+
+```
+✅ AUTORISÉ ET PRIORISÉ EN PREMIER (changement d'ordre par rapport à 
+   la proposition d'Opus) : permettre à l'assistant de RETIRER sa 
+   propre demande (élargir le garde DELETE/gestion à cabinetPostId, 
+   pas seulement profileId). Raison de la priorité : être verrouillé 
+   hors de sa propre création est un blocage fonctionnel dur, plus 
+   grave qu'un simple manque de confort visuel. Prompt rédigé, en 
+   attente d'envoi.
+
+🟡 Visibilité complète ("Mes recherches de remplacement") — reste en 
+   attente de validation finale sur l'emplacement exact, pas de 
+   changement.
+
+🟡 Garde anti-doublon — toujours pertinent, encore plus nécessaire 
+   maintenant que ni titulaire ni assistant ne voient facilement ce 
+   que l'autre a fait.
+
+4 commits en production aujourd'hui sur ce fil : 7b634ec, d8036a6 
+(assistant), d1e0f8b, 42bbb6b (salarié).
+```
+
+---
+
+## 🎉 CLÔTURE COMPLÈTE — Le fil "rattachement assistant" de toute la session, résolu de bout en bout (03/08)
+
+### Les trois correctifs finaux, livrés ensemble (commit a1c2e66)
+
+```
+1. VISIBILITÉ — La couverture appartient au cabinet, donc 
+   "mes disponibilités" (filtre profileId) ne la voyait pas. Chargée 
+   désormais par le rattachement (cabinetPostId), comme le Planning 
+   du titulaire. SOLUTION RETENUE, plus simple que prévu : une carte 
+   "Couverture de mon absence" directement sous la bannière violette 
+   (intitulé, dates, nombre de mises en relation) - PAS une nouvelle 
+   section séparée comme envisagé initialement ("Mes recherches de 
+   remplacement"). Plus élégant, trouvable exactement là où 
+   l'utilisateur regarde après son action.
+
+2. RETRAIT — DELETE /api/missions/[id] autorise désormais l'assistant 
+   rattaché à retirer un remplacement posé sur son poste - symétrique 
+   exact du droit de publier. VOLONTAIREMENT LIMITÉ AU TYPE 
+   REMPLACEMENT : ne touche pas aux postes long terme du cabinet.
+
+3. ANTI-DOUBLON — POST /api/missions refuse en 409 un remplacement 
+   dont la période CHEVAUCHE (intersection, pas égalité) une annonce 
+   déjà active sur le même poste, en nommant celle qui existe. 
+   VOLONTAIREMENT LIMITÉ AU REMPLACEMENT : un assistanat long terme 
+   et un remplacement ponctuel se chevauchent LÉGITIMEMENT - c'est le 
+   cas nominal (on couvre l'absence de l'occupant du poste). Bloquer 
+   ça aurait cassé le parcours qu'on venait de réparer.
+```
+
+### Vérification complète en conditions réelles, depuis le compte de Paul
+
+```
+| Correctif | Vérification |
+|---|---|
+| Visibilité | Bloc "Couverture de mon absence" affiché, avec dates et "Publiée sur le poste Mathéo. Visible par les remplaçants et sur le planning du cabinet." |
+| Anti-doublon | 2e annonce sur 10-30 déc (chevauchement PARTIEL, pas identique à 1-20 déc) refusée avec message nommant l'annonce existante - vérifie la vraie logique d'intersection, pas un cas trivial d'égalité |
+| Retrait | Clic "Retirer" depuis le compte de Paul → succès, là où la même action renvoyait 403 hier |
+
+Nettoyage confirmé : aucune mission de test, poste détaché, cabinet à 
+ses 9 missions d'origine, 1 seul match (celui d'origine).
+```
+
+### La boucle complète, résumée
+
+```
+"Il publie, il voit ce qu'il a publié, il suit les mises en relation 
+reçues, il peut retirer sa demande — et ni lui ni le titulaire ne 
+peuvent créer un doublon pour la même absence."
+
+7 commits en production aujourd'hui sur cette seule chaîne (du 
+déblocage du formulaire jusqu'au retrait).
+```
+
+### Ce qui reste ouvert — inchangé, toujours Phase 3, aucun urgent
+
+```
+1. Champs économiques établissement (CA/Redevance absurdes pour un 
+   salarié, rémunération absente)
+2. MissionType : "trois types libéraux portent aujourd'hui six 
+   réalités" - Vacation/CDD/CDI ne survivent pas au formulaire (feed 
+   et planning réaffichent "Remplacement"). Nécessite une migration, 
+   donc une décision à part - pas urgent.
+```
+
+---
+
+## VÉRIFICATION DÉONTOLOGIQUE — Cadrage et 7 points identifiés (03/08)
+
+### Méthode retenue
+
+```
+Opus a correctement refusé de rendre un avis déontologique (ni 
+juriste ni CDO) - propose à la place un audit FACTUEL, même méthode 
+qu'aujourd'hui : chaque affirmation adossée au code/base. Livrable : 
+tableau surface produit -> règle concernée -> ce que fait l'app 
+aujourd'hui (avec preuve) -> question à trancher.
+
+Point de départ encourageant : les modèles de contrat contiennent 
+déjà un avertissement "à faire valider par avocat/Ordre", clause 
+RCP, saisine préalable du CDO (R.4321-99 al.2), déclaration 
+d'absence de convention secrète, Article 21 (communication à 
+l'Ordre sous un mois).
+```
+
+### 3 points FACTUELS, concrets, avec correctifs clairs (approuvés)
+
+```
+1. COMMUNICATION À L'ORDRE = une clause, pas un acte. Le contrat dit 
+   qu'elle "sera communiquée" sous un mois - rien dans le produit ne 
+   le rappelle après signature, n'en trace la date, ni ne relance. 
+   Obligation réglementaire, et la plateforme sait exactement quand 
+   un contrat est signé.
+
+2. enforceContractProfile À FALSE PAR DÉFAUT — RPPS/Ordre/adresse/
+   SIRET ne sont que des avertissements. Un contrat peut être signé 
+   avec une identité contractuelle incomplète, sans vérification que 
+   le signataire est bien inscrit au tableau. (Connexion : ce flag 
+   était déjà identifié tôt dans le projet comme "à activer au 
+   Sprint 3", jamais fait.)
+
+3. AUTORISATION DE REMPLACEMENT jamais demandée — un remplaçant doit 
+   en détenir une, délivrée par son CDO. Aucun champ de ce type dans 
+   le schéma.
+```
+
+### 4 points D'ARBITRAGE, documentés sans trancher (pour le CDO)
+
+```
+4. Publicité et valorisation — pages publiques annoncent CA/taux, 
+   indexées Google Jobs. Frontière information loyale / promotion 
+   commerciale ?
+
+5. Notation entre confrères — 3 modèles existent, ratingAvg participe 
+   au tri du feed. ⚠️ PRÉCISION DEMANDÉE (23/07→03/08, question 
+   initiale de ce fil) : la question FACTUELLE (champ commentaire 
+   libre côté notation candidat existe-t-il ? est-il déjà en usage 
+   réel ?) reste à établir précisément, séparément de la question 
+   d'arbitrage plus large.
+
+6. Mise en avant payante — rendue transparente ce matin (feed). 
+   Question de fond : classement dépendant de l'abonnement, tenable 
+   vis-à-vis de l'égalité entre confrères ?
+
+7. 🔴 SIGNALÉ EN PRIORITÉ — Commission au contrat (plan Structure : 
+   "89€/mois + 20€/contrat"). Une commission indexée sur le NOMBRE 
+   DE CONTRATS entre professionnels de santé touche potentiellement 
+   au COMPÉRAGE et au PARTAGE D'HONORAIRES — notions à vraie portée 
+   en droit de la santé français, pas une simple nuance. Si le 
+   modèle économique lui-même pouvait être requalifié ainsi, c'est 
+   une question de STRUCTURE TARIFAIRE à revoir, pas juste une 
+   fonctionnalité à ajuster. À faire remonter en priorité au CDO, 
+   avant les 3 autres points d'arbitrage.
+```
+
+### Statut
+
+```
+✅ Périmètre validé par Jean-Charles. Opus continue sur les points 
+1-3. Point 5 : précision factuelle demandée avant classement 
+définitif en arbitrage. Point 7 : signalé comme le plus consequential 
+des 4, priorité de remontée au CDO.
+```
+
+---
+
+## CORRECTION DE SUIVI — La vérification déontologique n'était pas "en attente depuis le début" (03/08)
+
+### Erreur reconnue
+
+```
+Sonnet a affirmé à plusieurs reprises que la vérification 
+déontologique était "le point le plus ancien, en attente depuis le 
+début de la session" - FAUX. Le prompt avait été rédigé le 29/07 
+dans une session antérieure, mais jamais confirmé transmis à cette 
+session-ci d'Opus. Sonnet a continué à le lister comme "en attente" 
+sur la seule base de l'intention de Jean-Charles de l'envoyer, sans 
+jamais vérifier la réception réelle - exactement l'erreur de 
+méthode déjà identifiée et nommée plus tôt dans cette même session 
+(incident ROADMAP.md, fausse alerte timeline) : vérifier avant 
+d'affirmer. Leçon non appliquée à son propre suivi.
+
+Conséquence limitée : l'audit finalement mené (en réponse à "comment 
+vérification déontologique ?") est excellent et couvre largement le 
+besoin - juste une reformulation nécessaire, pas de perte réelle.
+```
+
+## AUDIT DÉONTOLOGIQUE — Résultat des 3 points factuels (03/08)
+
+### 1. Communication à l'Ordre : une clause, jamais un acte
+
+```
+Obligation bien présente dans les 3 templates de contrat (article 
+21). Mais "Ordre" n'apparaît QUE dans les PDF - aucune autre surface 
+produit ne le mentionne. AUCUN champ de suivi en base (pas de date 
+d'envoi, pas de statut, pas de relance) - alors que la plateforme 
+trace déjà CONTRACT_SIGNED et sait exactement quand agir.
+```
+
+### 2. Vérification d'identité : un avertissement, pas une condition
+
+```
+PlatformConfig.enforceContractProfile = FALSE en production, vérifié 
+en base. Mécanisme de blocage existe (contrat/route.ts:132) mais 
+désarmé.
+
+Mesure sur les 8 comptes réels : UN SEUL compte sur huit est vérifié 
+RPPS. Un contrat peut aujourd'hui être signé entre deux praticiens 
+dont ni l'inscription au tableau ni le numéro d'Ordre ne sont 
+renseignés.
+```
+
+### 3. Autorisation de remplacement : n'existe pas dans le modèle
+
+```
+Aucun champ nulle part - le schéma porte rpps/numeroOrdre/adresse/
+siret/isVerified, rien qui corresponde à l'autorisation delivrée par 
+le CDO que doit détenir un remplaçant. Des contrats de remplacement 
+sont générés sans jamais demander la pièce qui les autorise.
+```
+
+### 4 points d'arbitrage — précision sur le point 5
+
+```
+Notation entre confrères : 3 modèles existent (Rating, CabinetRating, 
+RemplacantRating), ratingAvg participe au tri du feed — MAIS ZÉRO 
+NOTATION EN BASE À CE JOUR. Le sujet est donc entièrement ouvert, 
+pas encore un risque actif (contrairement à la crainte initiale d'un 
+usage réel déjà en cours). Bon moment pour décider AVANT tout 
+premier usage, pas pour corriger un usage existant.
+```
+
+### Décision — Fix 1 pris en premier
+
+```
+✅ ARMER enforceContractProfile — décision prise par Jean-Charles 
+("1"). Effet à connaître : 7 comptes sur 8 seraient bloqués tant 
+qu'ils n'ont pas complété leur profil. Opus vérifie précisément CE 
+QUE le blocage bloque (génération PDF seule, ou aussi signature) 
+avant de basculer - bonne prudence, en cours.
+
+Rappel : points 4, 6, 7 restent à faire valider par le CDO de Jean-
+Charles, pas par Opus ni Sonnet - l'inventaire ne vaut pas avis.
+```
+
+---
+
+## RATTACHEMENT AUTOMATIQUE — Bug CONFIRMÉ avec preuve en production (03/08)
+
+### Le bug, avec preuve réelle
+
+```
+attachAssistantPostForMatch (signature/route.ts:196) a pour garde :
+if (cabinet.type !== TITULAIRE || assistant.type !== ASSISTANT) return;
+
+Mais le feed autorise DEUX types à matcher une mission d'assistanat :
+oppositeTypes = [REMPLACANT, ASSISTANT]
+
+Un profil REMPLACANT peut donc signer un contrat d'assistanat SANS 
+jamais être rattaché - silencieusement, sans erreur, sans trace.
+
+PREUVE EN PRODUCTION (pas hypothétique) : le SEUL contrat d'assistanat 
+jamais signé sur la plateforme (23/07, match cmrujdgx1...) n'a créé 
+AUCUN rattachement. 12 postes ont fini avec linkedUserId = null. 
+Même angle mort au détachement (l.97).
+```
+
+### Décision — interprétation retenue
+
+```
+Deux lectures possibles :
+1. Voulu (un remplaçant qui signe un assistanat devrait d'abord 
+   changer de type de profil, à lui dire au moment du match/signature)
+2. Oubli (le type de profil décrit ce qu'on cherche, pas ce qu'on 
+   devient - le garde doit s'élargir au type de MISSION, pas au type 
+   de candidat)
+
+✅ DÉCISION (03/08) : Interprétation 2 retenue, préférence d'Opus 
+suivie. Cohérent avec le principe déjà posé "collaborateur = 
+assistant", et avec le fait que le feed encourage lui-même ce match. 
+CONNEXION IMPORTANTE : c'est une manifestation concrète et déjà 
+survenue de la tension "chercheur/pourvoyeur" documentée plus tôt 
+(section vision architecture) - le type de profil comme identité 
+figée VS comme simple préférence de recherche. Contrairement à la 
+grande refonte de Phase 3, ce correctif reste CIRCONSCRIT (une 
+condition à 2 endroits : attache + détache), pas une réécriture de 
+ProfileType partout - traité maintenant, pas différé.
+```
+
+### Statut
+
+```
+🟡 Prompt à rédiger : élargir le garde de rattachement automatique 
+(attache ET détache) pour se baser sur le type de MISSION 
+(ASSISTANAT/COLLABORATION) plutôt que sur le type du candidat.
+```
+
+---
+
+## DEUX BUGS UI SIGNALÉS — création annonce/disponibilité (03/08, fin de session)
+
+### 1. "Ouvrir les champs" affiché à tort sur desktop
+
+```
+Sur /missions/create (desktop, layout deux colonnes), le lien 
+"Ouvrir les champs" apparaît alors que les champs sont déjà visibles 
+à l'écran - comportement probablement pensé pour mobile (champs 
+repliés par défaut), appliqué à tort sur desktop où rien n'est à 
+ouvrir.
+```
+
+### 2. "Toute la Guadeloupe" seul pourrait ne pas satisfaire la validation "au moins une zone"
+
+```
+Sur /disponibilites/create, le texte d'aide dit que "Toute la 
+Guadeloupe" équivaut à "aucune restriction géographique" - 
+sélectionnable comme une zone valide. Signalement à vérifier : ce 
+choix seul (sans autre zone) laisserait le bouton de publication 
+grisé, si la validation ne reconnaît pas cette sélection comme 
+suffisante.
+```
+
+### Statut
+
+```
+🟡 2 prompts rédigés, en attente d'envoi.
+```
+
+---
+
+## enforceContractProfile ARMÉ — Effet réel mesuré + trou de sécurité trouvé (03/08)
+
+### Bascule effectuée
+
+```
+✅ false -> true en production, via toggle /admin/config existant. 
+Aucun code modifié.
+```
+
+### Effet réel, corrigé après vérification (pas l'estimation initiale)
+
+```
+Règle réelle (lib/contractProfile) : praticiens = RPPS + numéro 
+Ordre + adresse ; structures = SIRET + adresse. Le SIRET N'EST PAS 
+exigé d'un praticien - correction de l'estimation initiale ("7 sur 
+8").
+
+Résultat mesuré : SEULEMENT 2 comptes sur 8 passent (Jean-Charles 
+DUBIEN, Julien MORISOT) - et ce sont précisément les deux qui ont 
+une relation/contrat en cours. Les 6 autres sont bloqués avec 
+message explicite ("Identité contractuelle incomplète") jusqu'à 
+complétion de profil.
+```
+
+### 🔴 TROU DE SÉCURITÉ TROUVÉ — le garde protège le PDF, pas la signature
+
+```
+Vérifié AVANT de basculer (bonne discipline) : le blocage ne vit QUE 
+dans la génération du PDF (contrat/route.ts:132). La route de 
+SIGNATURE ne vérifie RIEN - aucune occurrence du contrôle d'identité.
+
+En pratique le parcours normal est fermé (sans PDF généré, 
+l'utilisateur n'atteint pas l'étape de signature via l'interface). 
+Mais l'ENDPOINT reste ouvert : rien au niveau API n'empêche de 
+signer un contrat dont l'identité contractuelle est incomplète.
+
+Formule retenue : "Le drapeau protège le chemin normal, pas la porte 
+de service." 
+
+CONNEXION : même famille que l'audit permissions complet mené plus 
+tôt dans le projet (findings #1-8, protection UI sans equivalent 
+serveur) - une 9e variante du même défaut de fond.
+
+✅ DÉCISION (03/08) : fermer aussi ce trou. Correctif ciblé demandé : 
+même vérification, mêmes conditions, ajoutée dans signature/route.ts.
+```
+
+### Ce qui reste ouvert (inchangé)
+
+```
+- Rappel post-signature de communication à l'Ordre (avec champ de 
+  suivi) - pas encore pris
+- Champ "autorisation de remplacement" - pas encore pris
+- 4 arbitrages (publicité, notation, mise en avant payante, 
+  rémunération au contrat) - pour le CDO de Jean-Charles, pas Opus 
+  ni Sonnet. Note utile sur la notation : zéro note en base 
+  actuellement, moment favorable pour décider avant tout usage réel.
+```
+
+### Statut
+
+```
+✅ enforceContractProfile armé et vérifié. 🟡 Fermeture de la faille 
+signature/route.ts autorisée, en attente d'envoi/exécution.
+```
+
+---
+
+## FERMETURE DE LA PORTE DE SERVICE — Signature protégée + message proactif décidé (03/08)
+
+### Livré
+
+```
+✅ Garde étendu à signature/route.ts (commit 1b40bd7) - mêmes 
+conditions que la génération PDF. Message adaptatif selon le côté 
+défaillant ("complétez votre profil" vs "l'autre partie doit 
+compléter le sien"). Non vérifié à l'écran par choix éthique (aurait 
+nécessité de monter une relation avec un compte tiers incomplet, 
+refusé de le faire sans directive explicite) - raisonnement logique 
+jugé suffisant (les 2 seuls comptes complets sont precisement ceux 
+qui passent).
+```
+
+### ✅ LIVRÉ — Message proactif aux deux emplacements (commits, dont 1a52258)
+
+```
+DEUX EMPLACEMENTS, RAISON DISTINCTE POUR CHACUN :
+- "Mon compte" : prévient "un jour" - bandeau visible à la prochaine 
+  connexion si identité incomplète. Calcul sur L'ÉTAT COURANT DU 
+  FORMULAIRE (pas le profil enregistré) - disparaît en tapant, sans 
+  attendre la sauvegarde. Bon détail UX, évite de reprocher à 
+  l'utilisateur ce qu'il vient de saisir.
+- Fiche de mise en relation, au-dessus du bouton contrat : prévient 
+  "maintenant, pour CE contrat-là", avec lien direct "Compléter mon 
+  profil →" vers /compte. RIEN affiché pour un poste salarié (aucun 
+  contrat n'y est généré, évite d'inquiéter sans objet).
+
+Les deux ensemble évitent l'angle mort qu'un seul aurait laissé : on 
+ne va pas sur "Mon compte" sans raison, et découvrir l'exigence sur 
+la fiche sans savoir où la résoudre agace.
+
+✅ ARCHITECTURE SALUÉE : AUCUNE DUPLICATION DE LOGIQUE. Les 4 
+surfaces (2 gardes serveur + 2 avertissements) appellent TOUTES 
+missingContractLabels (lib/contractProfile) - "source unique de 
+vérité, partagée serveur et client", déjà conçue comme telle avant 
+même cette feature. Si la règle change, les 4 suivent 
+automatiquement.
+
+Non vérifié à l'écran (le match test JC↔Julien concerne précisément 
+les 2 seuls comptes complets, donc rien à voir sur cette fiche pour 
+ce cas) - jugé non nécessaire, la logique s'appuie sur la même 
+fonction déjà éprouvée par les gardes serveur (exigence de justesse 
+plus haute que celle-ci). À observer à la prochaine connexion 
+naturelle sur un compte incomplet.
+```
+
+### Récapitulatif de l'audit déontologique — état final de la session
+
+```
+✅ FAIT : enforceContractProfile armé + garde étendu à la signature 
+   (fermeture complète du "chemin normal" ET de la "porte de service")
+✅ FAIT : message proactif décidé, prompt prêt
+🟡 RESTE À PRENDRE (proposé par Opus, pas encore choisi) : rappel 
+   post-signature de communication à l'Ordre (avec champ de suivi), 
+   champ "autorisation de remplacement"
+⚪ POUR LE CDO DE JEAN-CHARLES, PAS POUR OPUS NI SONNET : publicité/
+   valorisation des annonces, notation entre confrères (moment 
+   favorable - zéro note en base), mise en avant payante, 
+   rémunération au contrat (compérage/partage d'honoraires - le plus 
+   consequential, signalé en priorité)
+```
+
+---
+
+## RÉ-AUDIT FINAL DE LA SESSION — 6/7 vérifiés, découverte sur la portée du droit de retrait (03/08, clôture)
+
+### Découverte — le droit de retrait est plus large qu'annoncé
+
+```
+Testé en conditions réelles : Paul a supprimé une annonce publiée 
+par le TITULAIRE (pas par lui-même) sur son propre poste - le garde 
+ouvert ce matin autorise le retrait de TOUTE couverture posée sur le 
+poste, quel qu'en soit l'auteur, pas seulement "ce que j'ai publié" 
+comme présenté initialement.
+
+CAUSE : le modèle de données ne porte aucun champ d'auteur (Mission 
+n'a que profileId=cabinet et cabinetPostId=poste) - impossible de 
+distinguer "ma demande" de "celle du cabinet" sans migration.
+
+DEUX OPTIONS PRÉSENTÉES, DÉCISION PRISE :
+1. ✅ RETENUE — Assumer : le poste est celui de l'assistant, la 
+   couverture concerne son absence, il en dispose (comportement 
+   actuel, aucun changement nécessaire)
+2. Restreindre — ajouter createdByUserId, migration, garde affiné 
+   (NON retenue)
+```
+
+### ✅ BONNE PRATIQUE NOTÉE — commentaire de code corrigé pour refléter la portée réelle
+
+```
+Commit a4d4933, commentaire SEUL, aucun changement de comportement. 
+Le commentaire décrivait initialement un droit plus étroit ("retirer 
+ce que j'ai publié") que ce que le code accorde réellement. Corrigé 
+pour documenter la PORTÉE RÉELLE + LA RAISON DE L'ARBITRAGE 
+(contrainte du modèle de données + décision assumée), pas seulement 
+le comportement.
+
+PRINCIPE À RETENIR : un commentaire qui explique le POURQUOI d'un 
+arbitrage, pas seulement le QUOI du code, évite qu'un futur lecteur 
+(humain ou IA) ne "corrige" par erreur un comportement volontaire en 
+le prenant pour un oubli.
+```
+
+### Bilan des vérifications du ré-audit — 6 sur 7
+
+```
+| Correctif | Statut |
+|---|---|
+| Bandeau proactif "compléter le profil" | ✅ vérifié à l'écran, compte Paul |
+| Réglage "ouvert aux postes salariés" | ✅ vérifié, section dédiée |
+| "Ouvrir les champs" masqué sur desktop | ✅ largeur nulle à 1440px |
+| Anti-doublon | ✅ 409 nommant l'annonce, depuis les 2 comptes |
+| Sous-lignes du planning (z-index) | ✅ brique 47px sur sa propre bande |
+| Chaîne titulaire→assistant→décembre | ✅ les 2 vues, publication ET retrait |
+| Message d'état vide établissement | ⏳ SEUL non observé - reporté |
+```
+
+### Décision de clôture de session
+
+```
+✅ Le point restant (message établissement) N'EST PAS vérifié à 
+l'écran ce soir - raisonnement jugé suffisant (condition déjà 
+confirmée vraie en production par requête directe, changement de 
+texte pur, risque faible). Reporté à la prochaine connexion 
+naturelle sur ce compte, pas de session supplémentaire forcée.
+
+PRINCIPE DE CLÔTURE RETENU (citation à conserver) : "l'expérience de 
+cette session dit qu'un écran non regardé cache parfois un titre en 
+double ou un libellé resté en vocabulaire candidat" - la meilleure 
+synthèse de la leçon de toute la journée : la compilation et la 
+logique seules ne garantissent jamais qu'un écran dit ce qu'on croit 
+qu'il dit. Principe à conserver pour toutes les sessions futures.
+```
+
+---
+
+## 🏁 CLÔTURE DÉFINITIVE DE LA SESSION MARATHON DU 03/08 — 25 commits
+
+### Dernier correctif vérifié à l'écran
+
+```
+Message d'état vide établissement CONFIRMÉ CORRECT : "Aucun candidat 
+ouvert aux postes salariés pour l'instant [...] aucun ne l'a fait à 
+ce jour. Ils apparaîtront ici dès qu'un premier l'activera." - dit 
+enfin la vérité, là où l'ancien promettait une correspondance qui 
+n'aurait jamais pu arriver.
+
+🟡 Incohérence mineure trouvée au passage : sous ce message, le 
+bouton reste "+ Publier une annonce" (hérité de l'état vide 
+générique) - l'établissement a déjà une annonce en ligne, en publier 
+une seconde ne débloque rien (le verrou est côté candidat). Non 
+traité, priorité basse.
+
+Base restaurée exactement à l'état trouvé : aucune mission de test, 
+aucun poste rattaché, un seul match, arbre git propre.
+```
+
+### 🎯 LES 4 PARCOURS, AVANT/APRÈS CETTE SESSION — le résumé qui compte
+
+```
+REMPLAÇANT — Identité complète, contrat autorisé. Le SEUL parcours 
+qui n'a jamais rien cassé aujourd'hui.
+
+ASSISTANT — Le plus transformé. Ce matin : "Faire remplacer mon 
+absence" menait à un formulaire IMPOSSIBLE à soumettre, la 
+fonctionnalité n'existait tout simplement pas. Ce soir : il publie, 
+voit sa couverture, la suit, la retire — et un doublon est refusé 
+des deux côtés.
+
+TITULAIRE — Les pièges d'affichage silencieux sont levés : 
+sous-lignes du planning (une brique de 47px ne disparaît plus sous 
+une annonce ouverte — impact production réel déjà confirmé), chip 
+périmé qui vidait le feed, lien "Ouvrir les champs" fantôme sur 
+desktop.
+
+SALARIÉ/RECRUTEUR — Passé d'INEXISTANT à FONCTIONNEL. Était aveugle 
+dans les deux sens ; ouvertSalariat activable depuis le compte, feed 
+qui s'ouvre dès qu'un candidat coche l'option, écran vide qui dit 
+enfin la vérité au lieu de promettre l'impossible.
+```
+
+### Ce qui reste, non traité (inventaire final)
+
+```
+3 défauts connus, non corrigés :
+- Champs économiques du parcours salarié (CA/redevance absurdes, 
+  aucune rémunération demandée)
+- MissionType : 3 types libéraux portant 6 réalités (Vacation/CDD/
+  CDI ne survivent pas au formulaire)
+- Bouton "+ Publier une annonce" sous l'état vide établissement 
+  (action sans effet)
+
+2 points déontologiques ouverts (proposés, pas encore pris) :
+- Rappel de communication à l'Ordre (clause posée, acte jamais 
+  rappelé ni tracé)
+- Champ "autorisation de remplacement" absent du modèle
+
+🔴 POINT DE VIGILANCE IMMÉDIAT, ACTION MANUELLE POSSIBLE :
+enforceContractProfile armé -> 6 comptes sur 8 bloqués pour 
+générer/signer. DEUX D'ENTRE EUX PUBLIENT DÉJÀ DES ANNONCES. Le 
+bandeau les préviendra à leur PROCHAINE visite du compte, mais rien 
+ne les alerte proactivement avant ça. Si l'un de ces 2 comptes est 
+un vrai testeur (pas un compte de Jean-Charles), un message direct 
+éviterait la découverte du mur sans explication.
+```
+
+### Bilan chiffré de la session
+
+```
+25 commits poussés en une seule session. Quatre fils majeurs 
+entièrement clos : chaîne assistant, parcours salarié, audit 
+déontologique, refonte du scoring. Plusieurs bugs de production 
+réels trouvés ET corrigés (pas théoriques) : z-index cachant un vrai 
+recrutement, 403 verrouillant un assistant hors de sa propre 
+création, taux de rétrocession affiché inversé (session précédente), 
+agenda privé exposé publiquement (session précédente).
+
+PRINCIPE DE MÉTHODE LE PLUS IMPORTANT DE TOUTE CETTE SESSION : la 
+compilation ne suffit jamais à garantir qu'un écran dit ce qu'on 
+croit qu'il dit. Quatre découvertes aujourd'hui (titre en double, 
+libellé au mauvais vocabulaire, brique invisible malgré données 
+justes, droit plus large que documenté) qu'aucune lecture de code 
+seule n'aurait trouvées.
+```

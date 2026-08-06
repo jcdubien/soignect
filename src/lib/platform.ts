@@ -31,10 +31,18 @@ export async function isContractProfileEnforced(): Promise<boolean> {
 export async function hasPremiumAccess(input?: {
   subscriptionPlan?: string | null;
   billingTriggeredAt?: Date | null;
+  isFounding?: boolean | null;
 }): Promise<boolean> {
   const plan = input?.subscriptionPlan;
   if (plan === "PREMIUM" || plan === "BOOST" || plan === "STRUCTURE") return true;
   if (!(await isFreeAccessMode())) return false;
+  // Cabinet fondateur : exempté de la BASCULE INDIVIDUELLE, pas du mode global. Le premier
+  // compte à signer un contrat déclenche sa facturation puis, la grâce écoulée, revoit des
+  // murs Premium alors que la bêta est censée être gratuite pour tous — c'est arrivé au
+  // compte fondateur lui-même, seul signataire à ce jour. L'exemption s'arrête quand
+  // freeAccessMode passe à false : ouvrir un Premium perpétuel serait une décision
+  // commerciale, pas un correctif.
+  if (input?.isFounding) return true;
   if (!input?.billingTriggeredAt) return true;
   const end = graceEndsAt(input.billingTriggeredAt);
   return end ? new Date() < end : true;

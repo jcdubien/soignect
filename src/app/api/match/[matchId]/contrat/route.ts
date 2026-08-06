@@ -102,8 +102,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   // Accès Premium — via le helper unifié (mode gratuit global + grâce billing, section 100),
   // ou partenaire CPTS (Premium gratuit, item 25). Cohérent avec /annonces et /match/[id].
   const myProfile = match.profileAId === profileId ? match.profileA : match.profileB;
-  const mp = myProfile as typeof myProfile & { subscriptionPlan: SubscriptionPlan; billingTriggeredAt?: Date | null; institutionalPartner?: boolean };
-  const allowed = mp.institutionalPartner || await hasPremiumAccess({ subscriptionPlan: mp.subscriptionPlan, billingTriggeredAt: mp.billingTriggeredAt });
+  const mp = myProfile as typeof myProfile & { subscriptionPlan: SubscriptionPlan; billingTriggeredAt?: Date | null; institutionalPartner?: boolean; isFounding?: boolean };
+  const allowed = mp.institutionalPartner || await hasPremiumAccess({ subscriptionPlan: mp.subscriptionPlan, billingTriggeredAt: mp.billingTriggeredAt, isFounding: mp.isFounding });
   if (!allowed) {
     return NextResponse.json({ error: "Fonctionnalité réservée aux abonnés Premium" }, { status: 403 });
   }
