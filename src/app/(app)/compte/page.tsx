@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CompteForm from "./CompteForm";
+import SuggestionAssistanat from "@/components/compte/SuggestionAssistanat";
+import { suggestionAssistanat } from "@/lib/suggestionAssistanat";
 
 export const dynamic = "force-dynamic";
 
@@ -101,8 +103,17 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
     ];
   }
 
+  // Suggestion « poste long terme » (section 191) — null si le profil n'est pas concerné,
+  // si le signal n'est pas atteint, ou si l'utilisateur l'a déjà écartée.
+  const interetsLongTerme = await suggestionAssistanat(profileId);
+
   return (
     <>
+      {interetsLongTerme !== null && (
+        <div className="mx-auto max-w-2xl px-4 pt-4">
+          <SuggestionAssistanat interets={interetsLongTerme} />
+        </div>
+      )}
       {photoError && (
         <div className="mx-auto max-w-2xl px-4 pt-4">
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">

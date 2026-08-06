@@ -70,7 +70,22 @@ export default function CreateDisponibilitePage() {
     rawText: "", // texte libre (refonte saisie texte-libre + extraction IA)
   });
 
-  const isAssistant = profileType === "ASSISTANT";
+  // Ce que je cherche MAINTENANT — distinct de ce que je SUIS (section 191). Un remplaçant ne
+  // pouvait pas publier de recherche long terme : missionType était figé à REMPLACEMENT et le
+  // sélecteur réservé aux profils ASSISTANT. Son seul recours était qu'un administrateur change
+  // son type de compte. C'est le pas minimal vers la bascule chercheur/pourvoyeur documentée en
+  // Phase 3, sans y toucher : l'identité ne bouge pas, seule la recherche devient un choix.
+  const typeInitial = searchParams.get("type");
+  const [postKind, setPostKind] = useState<"REMPLACEMENT" | "ASSISTANAT" | "COLLABORATION">(
+    typeInitial === "ASSISTANAT" || typeInitial === "COLLABORATION" ? typeInitial
+      : profileType === "ASSISTANT" ? "ASSISTANAT"
+      : "REMPLACEMENT",
+  );
+
+  // Ce drapeau ne dit pas « je suis assistant » mais « la recherche porte sur un poste long
+  // terme » — c'est déjà le sens de ses vingt lectures (dates masquées, durée minimale exigée,
+  // libellés de projet). Il suit donc le type de poste choisi, plus le type de compte.
+  const isAssistant = postKind !== "REMPLACEMENT";
 
   // ── Assistance IA (refonte saisie) — chaque action = 1 appel serveur explicite ──
   const [aiBusy, setAiBusy] = useState<null | "extract" | "title" | "redaction" | "optimize">(null);
@@ -89,7 +104,6 @@ export default function CreateDisponibilitePage() {
   const blockValid = !!form.startDate && !!form.endDate && form.endDate >= form.startDate;
   // Un profil ASSISTANT couvre assistant ET collaborateur (même statut, seule diff = patientèle
   // propre au niveau du contrat). On le laisse donc choisir son type de poste recherché.
-  const [postKind, setPostKind] = useState<"ASSISTANAT" | "COLLABORATION">("ASSISTANAT");
 
   // Validation 90 jours pour ASSISTANT (section 37.E)
   const missionDays = form.startDate && form.endDate
@@ -160,7 +174,7 @@ export default function CreateDisponibilitePage() {
         startDate: isAssistant ? null : (form.startDate ? new Date(form.startDate).toISOString() : null),
         endDate: isAssistant ? null : (form.endDate ? new Date(form.endDate).toISOString() : null),
         minMonths: form.minMonths ? parseInt(form.minMonths) : null,
-        missionType: isAssistant ? postKind : "REMPLACEMENT",
+        missionType: postKind,
         dateFlexibility: form.dateFlexibility,
         rechercheLogement: form.rechercheLogement,
         rechercheVehicule: form.rechercheVehicule,
@@ -513,13 +527,14 @@ export default function CreateDisponibilitePage() {
         {/* ── Formulaire manuel (repli) — masqué par défaut ── */}
         <div className={showManual ? "space-y-5" : "hidden"}>
 
-        {/* Type de poste recherché (section 154) — un profil ASSISTANT peut viser un
-            assistanat OU une collaboration libérale (patientèle propre). */}
-        {isAssistant && (
-          <div>
+        {/* Type de poste recherché — ouvert à TOUS les candidats. Le sélecteur ne peut pas être
+            conditionné par `isAssistant`, qu'il pilote : choisir « Remplacement » le ferait
+            disparaître et l'utilisateur ne pourrait plus revenir sur son choix. */}
+        <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Type de poste recherché</label>
-            <div className="grid grid-cols-2 gap-2">
-              {([["ASSISTANAT", "Assistanat", "Long terme, patientèle du cabinet"],
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {([["REMPLACEMENT", "Remplacement", "Dates précises, court terme"],
+                 ["ASSISTANAT", "Assistanat", "Long terme, patientèle du cabinet"],
                  ["COLLABORATION", "Collaboration libérale", "Je me constitue ma patientèle"]] as const).map(([val, title, sub]) => (
                 <button
                   key={val}
@@ -534,8 +549,7 @@ export default function CreateDisponibilitePage() {
                 </button>
               ))}
             </div>
-          </div>
-        )}
+        </div>
 
         {/* Accroche — champ EXTRAIT du texte libre (fusion des deux zones de saisie).
             Le textarea n'apparaît QUE s'il a du contenu (extraction faite, ou reprise du profil)

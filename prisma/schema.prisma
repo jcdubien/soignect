@@ -202,6 +202,12 @@ model Profile {
   // prescription médicale préalable (Avenant 7), donc une autonomie de pratique réelle.
   rechercheExerciceCoordonne Boolean @default(false)
 
+  // Suggestion « et si vous cherchiez un poste long terme ? » (section 191) — date de fermeture
+  // du bandeau par l'utilisateur. Portée par le Profile et non par le navigateur : une
+  // suggestion écartée doit le rester d'un appareil à l'autre, et la date sert à mesurer
+  // le test (combien la ferment, combien publient ensuite).
+  suggestionAssistanatVueAt DateTime?
+
   // Ouverture aux postes salariés (section 154) — REMPLACANT/ASSISTANT qui accepte aussi
   // les contrats salariés (CDD/CDI/Stage/Vacation) publiés par les comptes STRUCTURE.
   // Défaut false = le candidat ne voit pas / n'est pas visible pour le salariat (opt-in).
