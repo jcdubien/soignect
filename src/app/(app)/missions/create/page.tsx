@@ -191,10 +191,21 @@ export default function CreateMissionPage() {
   // attendu est justement d'ouvrir des champs masqués. (Voir le formulaire de disponibilité,
   // même traitement.)
   const blocChampsRef = useRef<HTMLDivElement | null>(null);
+  const scrollDemande = useRef(false);
   function allerAuxChamps() {
+    scrollDemande.current = true;
     setShowManual(true);
-    setTimeout(() => blocChampsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   }
+  // Le défilement doit attendre le rendu qui RÉVÈLE le bloc. Un setTimeout fixe ne suffit pas :
+  // tant que le bloc porte `hidden`, scrollIntoView ne fait rien du tout, en silence. Mesuré —
+  // les champs apparaissaient bien à 780 px dans une fenêtre de 457 px, et la page restait en
+  // haut. L'utilisateur cliquait et ne voyait rien bouger, soit exactement l'impasse que ce
+  // bouton devait supprimer. On s'accroche donc à showManual plutôt qu'à un délai.
+  useEffect(() => {
+    if (!showManual || !scrollDemande.current) return;
+    scrollDemande.current = false;
+    blocChampsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showManual]);
 
   // Item 15 — préserver le formulaire lors de la redirection photo obligatoire.
   // Le brouillon est sauvegardé en localStorage avant d'aller sur /compte, puis
