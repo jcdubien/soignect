@@ -192,19 +192,35 @@ export default function CreateMissionPage() {
   // même traitement.)
   const blocChampsRef = useRef<HTMLDivElement | null>(null);
   const scrollDemande = useRef(false);
+
+  // On calcule la position et on pilote la FENÊTRE, au lieu d'appeler scrollIntoView sur le
+  // bloc. Mesuré en conditions réelles (fenêtre 500x457) : les champs se révélaient bien à
+  // 1038 px, et scrollIntoView ne déplaçait rien — il échoue en silence dès qu'un ancêtre porte
+  // un overflow ou une transformation, sans erreur ni avertissement. window.scrollTo sur un
+  // offset absolu ne dépend d'aucun ancêtre.
+  //
+  // Deux rAF : le premier laisse React peindre le bloc révélé, le second garantit que la mise
+  // en page est calculée avant qu'on lise sa position — sinon on mesure un bloc encore masqué.
+  function scrollVersChamps() {
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = blocChampsRef.current;
+        if (!el) return;
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" });
+      }),
+    );
+  }
   function allerAuxChamps() {
+    // Champs déjà ouverts : on défile tout de suite. Sans ce cas, un second appui ne faisait
+    // rien — l'effet ci-dessous ne se déclenche que quand showManual CHANGE.
+    if (showManual) { scrollVersChamps(); return; }
     scrollDemande.current = true;
     setShowManual(true);
   }
-  // Le défilement doit attendre le rendu qui RÉVÈLE le bloc. Un setTimeout fixe ne suffit pas :
-  // tant que le bloc porte `hidden`, scrollIntoView ne fait rien du tout, en silence. Mesuré —
-  // les champs apparaissaient bien à 780 px dans une fenêtre de 457 px, et la page restait en
-  // haut. L'utilisateur cliquait et ne voyait rien bouger, soit exactement l'impasse que ce
-  // bouton devait supprimer. On s'accroche donc à showManual plutôt qu'à un délai.
   useEffect(() => {
     if (!showManual || !scrollDemande.current) return;
     scrollDemande.current = false;
-    blocChampsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollVersChamps();
   }, [showManual]);
 
   // Item 15 — préserver le formulaire lors de la redirection photo obligatoire.
