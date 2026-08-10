@@ -6,12 +6,15 @@ import type { ZoneGeographique } from "@prisma/client";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Remplacement kiné Guadeloupe — Annonces & disponibilités | Soignect",
+  // Le titre garde « remplacement kiné Guadeloupe » en tête — c'est la requête réellement
+  // tapée — mais nomme aussi l'assistanat et la collaboration, que la page montrait déjà sans
+  // jamais les annoncer.
+  title: "Remplacement, assistanat, collaboration kiné en Guadeloupe | Soignect",
   description:
-    "Trouvez un remplacement en kinésithérapie en Guadeloupe. Annonces de cabinets et remplaçants kinés disponibles sur toute la Guadeloupe (Grande-Terre, Basse-Terre, Marie-Galante, Les Saintes, La Désirade).",
+    "Postes de kinésithérapie en Guadeloupe : remplacements ponctuels, assistanats et collaborations libérales. Annonces de cabinets et kinés disponibles sur toute la Guadeloupe (Grande-Terre, Basse-Terre, Marie-Galante, Les Saintes, La Désirade).",
   openGraph: {
-    title: "Remplacement kiné Guadeloupe | Soignect",
-    description: "Le job board des kinésithérapeutes de Guadeloupe. Trouvez un remplaçant ou un cabinet en quelques swipes.",
+    title: "Postes de kiné en Guadeloupe | Soignect",
+    description: "Le job board des kinésithérapeutes de Guadeloupe : remplacement, assistanat, collaboration. Trouvez un cabinet ou un candidat en quelques swipes.",
     type: "website",
   },
 };
@@ -72,11 +75,12 @@ export default async function GuadeloupePage() {
           📍 Guadeloupe
         </span>
         <h1 className="text-3xl font-black text-gray-900 mb-3">
-          Remplacement kiné Guadeloupe
+          Kiné en Guadeloupe : remplacement, assistanat, collaboration
         </h1>
         <p className="text-gray-500 text-base leading-relaxed">
           Soignect est le job board Tinder des kinésithérapeutes de Guadeloupe.
-          Cabinets et remplaçants se trouvent en quelques swipes, sans intermédiaire.
+          Une mission de quelques semaines, un assistanat sur la durée ou une collaboration
+          libérale : cabinets et candidats se trouvent en quelques swipes, sans intermédiaire.
           Gratuit pour qui cherche un poste.
         </p>
       </div>
@@ -106,7 +110,7 @@ export default async function GuadeloupePage() {
       {/* Liste des annonces */}
       <h2 className="text-lg font-bold text-gray-800 mb-4">
         {missions.length > 0
-          ? `${missions.length} annonce${missions.length > 1 ? "s" : ""} en Guadeloupe`
+          ? `${missions.length} poste${missions.length > 1 ? "s" : ""} en Guadeloupe`
           : "Aucune annonce pour le moment"}
       </h2>
 
@@ -117,7 +121,14 @@ export default async function GuadeloupePage() {
               ? `${formatDate(m.startDate)} → ${formatDate(m.endDate)}`
               : m.minMonths ? `${m.minMonths} mois min.` : null;
 
-            const typeLabel = { REMPLACANT: "Remplaçant", ASSISTANT: "Assistant", TITULAIRE: "Cabinet" }[m.profile.type];
+            // Le badge disait seulement QUI publie (« Cabinet »), jamais CE QUI est proposé :
+            // un assistanat de 12 mois et un remplacement de trois semaines s'affichaient à
+            // l'identique. Même cadrage que la carte de partage — un cabinet PROPOSE, un
+            // candidat SE PROPOSE.
+            const estCandidat = m.profile.type === "REMPLACANT" || m.profile.type === "ASSISTANT";
+            const typeLabel = estCandidat
+              ? { REMPLACEMENT: "Remplaçant disponible", ASSISTANAT: "Cherche un assistanat", COLLABORATION: "Cherche une collaboration" }[m.missionType]
+              : { REMPLACEMENT: "Remplacement", ASSISTANAT: "Assistanat · long terme", COLLABORATION: "Collaboration libérale" }[m.missionType];
 
             return (
               <div key={m.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
@@ -125,8 +136,8 @@ export default async function GuadeloupePage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                        m.profile.type === "TITULAIRE" ? "bg-emerald-100 text-emerald-700" :
-                        m.profile.type === "ASSISTANT" ? "bg-violet-100 text-violet-700" :
+                        m.missionType === "ASSISTANAT" ? "bg-violet-100 text-violet-700" :
+                        m.missionType === "COLLABORATION" ? "bg-amber-100 text-amber-700" :
                         "bg-blue-100 text-blue-700"
                       }`}>{typeLabel}</span>
                       {m.profile.ratingAvg && (
@@ -162,7 +173,9 @@ export default async function GuadeloupePage() {
         <p>
           La Guadeloupe compte plus de 300 cabinets de kinésithérapie répartis sur Grande-Terre,
           Basse-Terre, Marie-Galante, les Saintes et la Désirade. Le marché du remplacement y est actif
-          toute l&apos;année, avec des pics en juillet-août et en décembre.
+          toute l&apos;année, avec des pics en juillet-août et en décembre. Les postes durables —
+          assistanat et collaboration libérale — s&apos;y négocient au fil de l&apos;eau, et les
+          cabinets peinent souvent à les pourvoir.
         </p>
         <p>
           Le taux de rétrocession moyen en Guadeloupe se situe entre 65% et 80%.
@@ -170,8 +183,9 @@ export default async function GuadeloupePage() {
           peuvent offrir des perspectives d&apos;installation aidées par l&apos;ARS.
         </p>
         <p>
-          Soignect référence les annonces de remplacement sur l&apos;ensemble du territoire guadeloupéen,
-          des cabinets de Pointe-à-Pitre aux structures rurales de Marie-Galante.
+          Soignect référence les postes de kinésithérapie sur l&apos;ensemble du territoire guadeloupéen —
+          remplacements ponctuels, assistanats et collaborations — des cabinets de Pointe-à-Pitre aux
+          structures rurales de Marie-Galante.
         </p>
         <div className="flex flex-wrap gap-2 pt-2">
           <Link href="/remplacement-kine-saint-martin" className="underline hover:text-kine-600">Remplacement kiné Saint-Martin</Link>
