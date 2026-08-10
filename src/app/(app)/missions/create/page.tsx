@@ -206,7 +206,12 @@ export default function CreateMissionPage() {
       requestAnimationFrame(() => {
         const el = blocChampsRef.current;
         if (!el) return;
-        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" });
+        // DÉFILEMENT INSTANTANÉ, PAS FLUIDE. `behavior: "smooth"` est purement IGNORÉ quand
+        // l'utilisateur a activé la réduction des animations — mesuré : scrollTo à 500 px rend
+        // 500 en "auto" et 0 en "smooth", sur la même page. Le bouton ne faisait donc rien du
+        // tout pour ces utilisateurs, en silence. Aller droit au but est de toute façon le bon
+        // geste ici : on a demandé à être emmené quelque part, pas à regarder un travelling.
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "auto" });
       }),
     );
   }
