@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { COMMUNES_GUADELOUPE } from "@/lib/communes";
@@ -185,6 +185,17 @@ export default function CreateMissionPage() {
   // d'abord), ouvert en édition (on modifie des champs précis).
   const [showManual, setShowManual] = useState(false);
 
+  // Bouton d'envoi à DEUX ÉTATS plutôt qu'un grisé silencieux : tant qu'il manque quelque
+  // chose il reste ACTIF et conduit aux champs — sur mobile il les révèle, puis fait défiler
+  // jusqu'à eux. Un bouton désactivé dit « non » sans dire où aller, alors que le geste
+  // attendu est justement d'ouvrir des champs masqués. (Voir le formulaire de disponibilité,
+  // même traitement.)
+  const blocChampsRef = useRef<HTMLDivElement | null>(null);
+  function allerAuxChamps() {
+    setShowManual(true);
+    setTimeout(() => blocChampsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  }
+
   // Item 15 — préserver le formulaire lors de la redirection photo obligatoire.
   // Le brouillon est sauvegardé en localStorage avant d'aller sur /compte, puis
   // restauré (et effacé) au retour sur le formulaire.
@@ -293,6 +304,11 @@ export default function CreateMissionPage() {
   // Annonce rattachée à un poste du Planning : sans date de début, la brique ne se place sur
   // aucune ligne. On le dit AVANT publication plutôt que de laisser partir une annonce fantôme.
   if (cabinetPostId && needType !== "remplacement" && !form.startDate) missingRequired.push("la date de prise de poste");
+
+  // Publication possible : les prérequis nommés, plus les deux gardes qui vivaient jusqu'ici
+  // uniquement dans l'attribut `disabled` du bouton — durée minimale et photo de profil.
+  const pretAPublier =
+    missingRequired.length === 0 && !under90Days && (isEdit || hasPhoto !== false);
 
   // La date de DÉBUT est toujours nécessaire : c'est elle qui positionne la brique sur la
   // timeline du Planning (MissionBrick renvoie null sans startDate). Elle était masquée pour
@@ -616,7 +632,7 @@ export default function CreateMissionPage() {
         {/* ── Colonne DROITE (desktop) / repli (mobile) : « ce que j'ai compris » + champs
             structurés éditables. Toujours visible sur desktop (lg:block) ; sur mobile, révélée
             après extraction (showManual passe à true) ou via le toggle. ── */}
-        <div className={formType !== "TITULAIRE" ? "space-y-5" : `space-y-5 ${showManual ? "" : "hidden lg:block"}`}>
+        <div ref={blocChampsRef} className={formType !== "TITULAIRE" ? "space-y-5" : `space-y-5 ${showManual ? "" : "hidden lg:block"}`}>
 
         {/* Sans colonne gauche (remplaçant/assistant hors couverture), le titre n'a pas été
             rendu au-dessus — on le place ici. En mode couverture la colonne gauche EXISTE :
@@ -1023,11 +1039,16 @@ export default function CreateMissionPage() {
             {isEdit ? "Annuler" : "Plus tard"}
           </Link>
           <button
-            type="submit"
-            disabled={loading || missingRequired.length > 0 || !!under90Days || (!isEdit && hasPhoto === false)}
+            type={pretAPublier ? "submit" : "button"}
+            onClick={pretAPublier ? undefined : allerAuxChamps}
+            disabled={loading}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
-            {loading ? (isEdit ? "Enregistrement…" : "Publication…") : isEdit ? "Enregistrer les modifications" : cfg.submitLabel}
+            {loading
+              ? (isEdit ? "Enregistrement…" : "Publication…")
+              : !pretAPublier ? "Compléter ma fiche →"
+              : isEdit ? "Enregistrer les modifications"
+              : cfg.submitLabel}
           </button>
         </div>
       </form>

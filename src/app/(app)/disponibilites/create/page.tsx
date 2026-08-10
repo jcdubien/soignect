@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
@@ -141,6 +141,18 @@ export default function CreateDisponibilitePage() {
   if (under90Days)                 missingReqs.push("une durée d'au moins 90 jours");
   if (hasPhoto === false)          missingReqs.push("une photo de profil");
   const canSubmit = missingReqs.length === 0;
+
+  // Le bouton d'envoi a DEUX ÉTATS plutôt qu'un grisé silencieux. Tant qu'il manque quelque
+  // chose, il reste ACTIF et conduit aux champs à remplir — sur mobile il les révèle, puis
+  // fait défiler jusqu'à eux. Un bouton désactivé est une impasse : il dit « non » sans dire
+  // où aller, alors que le geste attendu est justement d'ouvrir des champs qui, sur mobile,
+  // sont masqués. Il ne devient « Publier » que quand la fiche est complète.
+  const blocChampsRef = useRef<HTMLDivElement | null>(null);
+  function allerAuxChamps() {
+    setShowManual(true);
+    setTimeout(() => blocChampsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  }
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -398,6 +410,15 @@ export default function CreateDisponibilitePage() {
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
 
+        {/* ── Grille 2 colonnes sur desktop, alignée sur le formulaire d'annonce cabinet :
+            à gauche le texte libre et l'assistance, à droite les champs structurés. Empilé sur
+            mobile. Ce formulaire-ci ne l'avait pas — ses champs étaient masqués sur TOUS les
+            écrans derrière un lien discret, alors que rien ne peut être publié sans eux. ── */}
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0">
+
+        {/* ── Colonne GAUCHE : texte libre + assistance IA + titre ── */}
+        <div className="space-y-5">
+
         {/* ── Refonte saisie : texte libre + assistance IA ── */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-kine-700">
@@ -496,8 +517,10 @@ export default function CreateDisponibilitePage() {
             </div>
           )}
 
+          {/* Repli MOBILE uniquement : sur desktop les champs vivent dans la colonne de droite,
+              toujours visibles — proposer de les « ouvrir » n'y aurait aucun sens. */}
           <button type="button" onClick={() => setShowManual((s) => !s)}
-            className="text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
+            className="lg:hidden text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
             {showManual ? "Masquer les champs détaillés" : "Vérifier / compléter les champs à la main"}
           </button>
         </div>
@@ -527,8 +550,13 @@ export default function CreateDisponibilitePage() {
           />
         </div>
 
-        {/* ── Formulaire manuel (repli) — masqué par défaut ── */}
-        <div className={showManual ? "space-y-5" : "hidden"}>
+        </div>
+        {/* ── fin colonne GAUCHE ── */}
+
+        {/* ── Colonne DROITE (desktop) / repli (mobile) : champs structurés éditables.
+            TOUJOURS visibles à partir de lg ; sur mobile, révélés après extraction ou via le
+            lien ci-dessus. ── */}
+        <div ref={blocChampsRef} className={`space-y-5 ${showManual ? "" : "hidden lg:block"}`}>
 
         {/* Type de poste recherché — ouvert à TOUS les candidats. Le sélecteur ne peut pas être
             conditionné par `isAssistant`, qu'il pilote : choisir « Remplacement » le ferait
@@ -822,7 +850,10 @@ export default function CreateDisponibilitePage() {
         {/* Taux de rétrocession retiré (section 88) — se négocie dans la discussion/le contrat */}
 
         </div>
-        {/* ── fin du formulaire manuel (repli) ── */}
+        {/* ── fin colonne DROITE ── */}
+
+        </div>
+        {/* ── fin grille 2 colonnes ── */}
 
         {/* Avertissement 90j minimum pour les assistants */}
         {under90Days && (
@@ -868,11 +899,12 @@ export default function CreateDisponibilitePage() {
             Plus tard
           </Link>
           <button
-            type="submit"
-            disabled={loading || !canSubmit}
+            type={canSubmit ? "submit" : "button"}
+            onClick={canSubmit ? undefined : allerAuxChamps}
+            disabled={loading}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
-            {loading ? "Publication…" : "Publier mes disponibilités →"}
+            {loading ? "Publication…" : canSubmit ? "Publier mes disponibilités →" : "Compléter ma fiche →"}
           </button>
         </div>
       </form>
