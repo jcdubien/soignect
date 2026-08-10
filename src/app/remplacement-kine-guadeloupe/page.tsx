@@ -210,11 +210,14 @@ export default async function GuadeloupePage() {
           assistanat et collaboration libérale — s&apos;y négocient au fil de l&apos;eau, et les
           cabinets peinent souvent à les pourvoir.
         </p>
-        <p>
-          Le taux de rétrocession moyen en Guadeloupe se situe entre 65% et 80%.
-          Les communes de zone intermédiaire (Bouillante, Deshaies, Capesterre-Belle-Eau, Sainte-Rose…)
-          peuvent offrir des perspectives d&apos;installation aidées par l&apos;ARS.
-        </p>
+        {/* Un paragraphe se trouvait ici : « taux de rétrocession moyen entre 65 % et 80 % » et
+            « perspectives d'installation aidées par l'ARS » dans les communes de zone
+            intermédiaire. RETIRÉ le 10/08 — Jean-Charles le signale comme FAUX. Il énonçait des
+            chiffres de marché et un dispositif d'aide publique sans source, sur une page de
+            campagne : sur ce terrain une approximation n'est pas une maladresse de rédaction,
+            c'est une information erronée donnée à des professionnels qui décident. Ne pas
+            réintroduire de chiffre de rétrocession ni de mention de dispositif ARS sans source
+            vérifiable. */}
         <p>
           Soignect référence les postes de kinésithérapie sur l&apos;ensemble du territoire guadeloupéen —
           remplacements ponctuels, assistanats et collaborations — des cabinets de Pointe-à-Pitre aux
