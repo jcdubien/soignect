@@ -171,7 +171,10 @@ export default function CreateDisponibilitePage() {
         // Assistant = poste long terme SANS dates (section 179, Option 1) : on n'envoie jamais de
         // dates, même si le query en contient (cohérence : une dispo assistant reste sans dates,
         // pilotée par la durée minimale). Le matching assistant repose sur l'accroche, pas les dates.
-        startDate: isAssistant ? null : (form.startDate ? new Date(form.startDate).toISOString() : null),
+        // La date de DEBUT vaut pour les deux : un cabinet qui recrute veut savoir quand la
+        // personne peut commencer, et « 12 mois minimum » ne le dit pas. Seule la date de FIN
+        // n'a pas de sens sur un poste durable — minMonths la remplace.
+        startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
         endDate: isAssistant ? null : (form.endDate ? new Date(form.endDate).toISOString() : null),
         minMonths: form.minMonths ? parseInt(form.minMonths) : null,
         missionType: postKind,
@@ -681,9 +684,24 @@ export default function CreateDisponibilitePage() {
           </div>
         )}
 
-        {/* Durée minimale (ASSISTANT) */}
+        {/* Disponibilité et durée (poste long terme) */}
         {isAssistant && (
           <div>
+            {/* Ce champ manquait. L'IA extrayait pourtant une date de début du texte libre, la
+                fusion l'ecrivait dans le formulaire et la puce « Ce que j'ai compris » l'affichait
+                — mais aucun champ ne l'exposait, donc elle etait ni corrigeable ni supprimable,
+                et la soumission la jetait. On voyait une date qu'on n'avait jamais saisie, qui
+                n'etait pas enregistree. Elle est desormais demandee, visible et modifiable. */}
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Disponible à partir du
+              <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
+            </label>
+            <input
+              type="date"
+              value={form.startDate}
+              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm mb-4"
+            />
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Durée minimale souhaitée
             </label>
