@@ -760,8 +760,12 @@ export default function CreateDisponibilitePage() {
                 — mais aucun champ ne l'exposait, donc elle etait ni corrigeable ni supprimable,
                 et la soumission la jetait. On voyait une date qu'on n'avait jamais saisie, qui
                 n'etait pas enregistree. Elle est desormais demandee, visible et modifiable. */}
+            {/* Même règle et même vocabulaire que le formulaire cabinet : « prise de poste »
+                des deux côtés, marqueur d'optionalité au même endroit. Le cabinet annonce quand
+                le poste commence, le candidat quand il peut commencer — c'est la même date, vue
+                de chaque bord. */}
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Disponible à partir du
+              Date de prise de poste souhaitée
               <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
             </label>
             <input

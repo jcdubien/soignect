@@ -814,12 +814,23 @@ export default function CreateMissionPage() {
              timeline) ; la FIN uniquement en remplacement. ── */}
         {showStartDate && (
           <div>
+            {/* RÈGLE ALIGNÉE SUR LE FORMULAIRE CANDIDAT (10/08) : la date de début est
+                OPTIONNELLE des deux côtés, et ne devient obligatoire que là où son absence
+                casse quelque chose — une annonce rattachée à un poste du Planning sans date de
+                début ne se place sur aucune ligne. Le libellé le disait nulle part : rien ne
+                distinguait un champ exigé d'un champ facultatif, ce que le candidat voit
+                pourtant écrit. */}
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {formType !== "TITULAIRE"
                 ? "Mes dates de disponibilité"
                 : showEndDate
                 ? "Période de remplacement"
                 : "Date de prise de poste"}
+              {formType === "TITULAIRE" && !showEndDate && (
+                cabinetPostId
+                  ? <span className="text-red-500 font-normal ml-1">· obligatoire</span>
+                  : <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
+              )}
             </label>
             <div className={showEndDate ? "grid grid-cols-2 gap-3" : ""}>
               <div>
