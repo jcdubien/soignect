@@ -202,26 +202,24 @@ export default async function GuadeloupePage() {
 
       {/* SEO content */}
       <div className="mt-12 border-t border-gray-100 pt-8 space-y-4 text-sm text-gray-400">
-        <h2 className="text-base font-semibold text-gray-600">Remplacement kiné en Guadeloupe — tout savoir</h2>
+        {/* NE GARDER ICI QUE CE QUI EST VRAI PAR CONSTRUCTION (10/08). Ce bas de page portait
+            des affirmations de marché écrites pour le référencement, sans source : taux de
+            rétrocession, dispositifs ARS, nombre de cabinets, saisonnalité, niveaux de
+            rémunération. L'une d'elles s'est révélée fausse. Sur une page qui s'adresse à des
+            professionnels décidant d'un contrat, une affirmation invérifiable coûte plus en
+            crédibilité qu'elle ne rapporte en référencement.
+            Ne subsistent que des faits vérifiables dans le code lui-même : les territoires
+            couverts, les types de poste, et ce que fait Soignect. */}
+        <h2 className="text-base font-semibold text-gray-600">Kinésithérapie en Guadeloupe — ce que couvre Soignect</h2>
         <p>
-          La Guadeloupe compte plus de 300 cabinets de kinésithérapie répartis sur Grande-Terre,
-          Basse-Terre, Marie-Galante, les Saintes et la Désirade. Le marché du remplacement y est actif
-          toute l&apos;année, avec des pics en juillet-août et en décembre. Les postes durables —
-          assistanat et collaboration libérale — s&apos;y négocient au fil de l&apos;eau, et les
-          cabinets peinent souvent à les pourvoir.
+          Soignect référence les postes de kinésithérapie sur l&apos;ensemble du territoire
+          guadeloupéen — remplacements ponctuels, assistanats et collaborations libérales — sur
+          Grande-Terre, Basse-Terre, Marie-Galante, les Saintes et la Désirade.
         </p>
-        {/* Un paragraphe se trouvait ici : « taux de rétrocession moyen entre 65 % et 80 % » et
-            « perspectives d'installation aidées par l'ARS » dans les communes de zone
-            intermédiaire. RETIRÉ le 10/08 — Jean-Charles le signale comme FAUX. Il énonçait des
-            chiffres de marché et un dispositif d'aide publique sans source, sur une page de
-            campagne : sur ce terrain une approximation n'est pas une maladresse de rédaction,
-            c'est une information erronée donnée à des professionnels qui décident. Ne pas
-            réintroduire de chiffre de rétrocession ni de mention de dispositif ARS sans source
-            vérifiable. */}
         <p>
-          Soignect référence les postes de kinésithérapie sur l&apos;ensemble du territoire guadeloupéen —
-          remplacements ponctuels, assistanats et collaborations — des cabinets de Pointe-à-Pitre aux
-          structures rurales de Marie-Galante.
+          Les postes affichés ci-dessus sont publiés par les cabinets et les kinésithérapeutes
+          eux-mêmes. La liste est celle du moment : les périodes déjà terminées n&apos;y figurent
+          pas. L&apos;inscription est gratuite pour qui cherche un poste.
         </p>
         <div className="flex flex-wrap gap-2 pt-2">
           <Link href="/remplacement-kine-saint-martin" className="underline hover:text-kine-600">Remplacement kiné Saint-Martin</Link>

@@ -106,10 +106,19 @@ export default async function SaintBarthPage() {
 
       <div className="mt-12 border-t border-gray-100 pt-8 space-y-3 text-sm text-gray-400">
         <h2 className="text-base font-semibold text-gray-600">Remplacement kiné à Saint-Barthélemy</h2>
+        {/* NE GARDER ICI QUE CE QUI EST VRAI PAR CONSTRUCTION (10/08). Ce bas de page portait
+            des affirmations de marché écrites pour le référencement, sans source : taux de
+            rétrocession, dispositifs ARS, nombre de cabinets, saisonnalité, niveaux de
+            rémunération. L'une d'elles s'est révélée fausse. Sur une page qui s'adresse à des
+            professionnels décidant d'un contrat, une affirmation invérifiable coûte plus en
+            crédibilité qu'elle ne rapporte en référencement.
+            Ne subsistent que des faits vérifiables dans le code lui-même : les territoires
+            couverts, les types de poste, et ce que fait Soignect. */}
         <p>
-          Saint-Barthélemy est une collectivité d&apos;outre-mer française distincte de la Guadeloupe
-          et de Saint-Martin. Avec environ 10 000 habitants permanents et un tourisme de luxe important,
-          les besoins en kinésithérapie sont réguliers tout au long de l&apos;année.
+          Saint-Barthélemy est une collectivité d&apos;outre-mer française, distincte de la
+          Guadeloupe et de Saint-Martin. Soignect y référence les postes de kinésithérapie publiés
+          par les cabinets et les kinésithérapeutes eux-mêmes. L&apos;inscription est gratuite pour
+          qui cherche un poste.
         </p>
         <div className="flex flex-wrap gap-2 pt-2">
           <Link href="/remplacement-kine-guadeloupe" className="underline hover:text-kine-600">Guadeloupe</Link>
