@@ -83,6 +83,11 @@ function RegisterForm() {
   //
   // Valeur inconnue ou absente : ignorée en silence, parcours normal. Le paramètre vient de
   // l'URL, donc de n'importe qui : il choisit un écran de départ, jamais un droit.
+  // Provenance (section 86) : d'où vient la personne qui s'inscrit. Sans ça, on peut compter
+  // les visites d'une page d'entrée mais jamais savoir si elles aboutissent — or c'est la
+  // conversion qui décide si une campagne vaut d'être relancée. Borné et assaini : c'est un
+  // paramètre d'URL, donc de n'importe qui.
+  const src = (searchParams.get("src") ?? "").replace(/[^a-z0-9_-]/gi, "").slice(0, 40) || undefined;
   const rawProfileType = searchParams.get("profileType");
   const preselected = (["TITULAIRE", "REMPLACANT", "ASSISTANT"] as const).find((t) => t === rawProfileType) ?? null;
 
@@ -169,6 +174,7 @@ function RegisterForm() {
         emailOptIn,
         acceptedTerms, // consentement légal enregistré (section 150)
         inviteToken: inviteToken ?? undefined, // rattachement automatique au poste invité
+        src, // provenance, pour mesurer la conversion des pages d'entrée
       });
     } catch {
       setError("Problème de connexion. Vérifiez votre réseau et réessayez.");

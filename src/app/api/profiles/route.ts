@@ -4,6 +4,7 @@ import { hash } from "bcryptjs";
 import { z } from "zod";
 import { ProfileType, TitulaireKind } from "@prisma/client";
 import { sendWelcomeEmail } from "@/lib/email";
+import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ const createProfileSchema = z.object({
   acceptedTerms: z.boolean().optional(),
   // Invitation à rejoindre un poste (section 187) : rattachement automatique à l'inscription.
   inviteToken: z.string().max(200).optional(), // consentement légal (section 150)
+  src: z.string().max(40).optional(), // provenance (page d'entrée, campagne) — section 86
 });
 
 // POST /api/profiles — inscription (profil simple, sans mission)
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email: rawEmail, password, type, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, acceptedTerms, inviteToken } = parsed.data;
+  const { email: rawEmail, password, type, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, acceptedTerms, inviteToken, src } = parsed.data;
   // Email normalisé à la source : la connexion, check-email et forgot-password comparent tous
   // en minuscules. Enregistrer une saisie capitalisée créait un compte que son propriétaire ne
   // pouvait plus retrouver — et un doublon possible face à un compte déjà existant.
@@ -97,6 +99,15 @@ export async function POST(req: NextRequest) {
   // Email de bienvenue (fire-and-forget, respecte emailOptIn)
   const firstName = (name ?? "").trim().split(" ")[0] || "à vous";
   const cibleLabel = type === "TITULAIRE" ? "remplaçants" : "cabinets";
+  // Création de compte tracée (section 86) — aucun événement ne la capturait, si bien qu'on ne
+  // pouvait pas relier une inscription à la page qui l'avait amenée. `src` vient d'un paramètre
+  // d'URL : il documente une provenance, il n'accorde aucun droit.
+  logTraceEvent({
+    eventType: "SIGNUP",
+    profileId: user.profile?.id ?? null,
+    metadata: { type, src: src ?? "direct", parInvitation: !!inviteToken },
+  });
+
   await sendWelcomeEmail(email, { firstName, cibleLabel, optIn });
 
   return NextResponse.json(

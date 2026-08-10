@@ -2,6 +2,8 @@ import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import type { ZoneGeographique } from "@prisma/client";
+import { headers } from "next/headers";
+import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -62,8 +64,39 @@ async function getMissions() {
   });
 }
 
+// Robots connus. On ne les EXCLUT pas — savoir qu'on est indexé a de la valeur — on les
+// ÉTIQUETTE, pour que le comptage humain reste lisible. Sans ça, un passage de Googlebot et une
+// visite réelle pèsent pareil, et le chiffre ne veut plus rien dire.
+const ROBOTS = /bot|crawl|spider|slurp|facebookexternalhit|preview|headless|lighthouse|curl|wget|python-requests/i;
+
 export default async function GuadeloupePage() {
   const missions = await getMissions();
+
+  // Trace de fréquentation (section 86). Cette page n'en posait AUCUNE : il n'existait, avant
+  // ce jour, aucun moyen de savoir si elle recevait du trafic — ni compteur d'audience installé
+  // dans le projet, ni événement ici. On relançait donc une campagne à l'aveugle, sans pouvoir
+  // dire un mois plus tard si elle avait converti.
+  //
+  // Le référent et la campagne sont conservés parce que c'est EUX la question : distinguer une
+  // arrivée depuis Facebook d'une arrivée par recherche organique. Aucune donnée personnelle —
+  // ni IP, ni identifiant : on compte des provenances, pas des personnes.
+  try {
+    const h = await headers();
+    const ua = h.get("user-agent") ?? "";
+    const referent = h.get("referer");
+    logTraceEvent({
+      eventType: "LANDING_VIEW",
+      metadata: {
+        page: "remplacement-kine-guadeloupe",
+        robot: ROBOTS.test(ua),
+        // Domaine référent seul, jamais l'URL complète : elle peut porter des paramètres privés.
+        referent: referent ? (() => { try { return new URL(referent).hostname; } catch { return "invalide"; } })() : null,
+        annonces: missions.length,
+      },
+    });
+  } catch {
+    // Une trace ne doit jamais empêcher la page de s'afficher.
+  }
 
   const formatDate = (d: Date | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : null;
@@ -100,7 +133,7 @@ export default async function GuadeloupePage() {
           </p>
         </div>
         <Link
-          href="/register?profileType=REMPLACANT"
+          href="/register?profileType=REMPLACANT&src=gp-landing"
           className="flex-shrink-0 px-5 py-3 bg-white text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition"
         >
           S&apos;inscrire →
@@ -160,7 +193,7 @@ export default async function GuadeloupePage() {
       <div className="mt-8 text-center">
         <p className="text-gray-400 text-sm mb-3">Voir toutes les annonces disponibles</p>
         <Link
-          href="/register?profileType=REMPLACANT"
+          href="/register?profileType=REMPLACANT&src=gp-landing"
           className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition"
         >
           Créer mon compte gratuitement →
