@@ -111,7 +111,7 @@ export default async function GuadeloupePage() {
           Kiné en Guadeloupe : remplacement, assistanat, collaboration
         </h1>
         <p className="text-gray-500 text-base leading-relaxed">
-          Soignect est le job board Tinder des kinésithérapeutes de Guadeloupe.
+          Soignect est le job board des kinésithérapeutes de Guadeloupe.
           Une mission de quelques semaines, un assistanat sur la durée ou une collaboration
           libérale : cabinets et candidats se trouvent en quelques swipes, sans intermédiaire.
           Gratuit pour qui cherche un poste.

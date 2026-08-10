@@ -236,7 +236,7 @@ function MissionSheet({
             </div>
           )}
 
-          {/* Bio Tinder */}
+          {/* Accroche de la carte */}
           {bioText && (
             <p className="text-kine-700 text-sm italic border-l-2 border-kine-400 pl-3 mb-3 bg-kine-50 rounded-r-xl py-2 pr-2">
               {bioText}
