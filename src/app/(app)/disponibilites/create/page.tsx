@@ -77,10 +77,18 @@ export default function CreateDisponibilitePage() {
   // Phase 3, sans y toucher : l'identité ne bouge pas, seule la recherche devient un choix.
   const typeInitial = searchParams.get("type");
   const [postKind, setPostKind] = useState<"REMPLACEMENT" | "ASSISTANAT" | "COLLABORATION">(
-    typeInitial === "ASSISTANAT" || typeInitial === "COLLABORATION" ? typeInitial
-      : profileType === "ASSISTANT" ? "ASSISTANAT"
-      : "REMPLACEMENT",
+    typeInitial === "ASSISTANAT" || typeInitial === "COLLABORATION" ? typeInitial : "REMPLACEMENT",
   );
+  // La session n'est pas encore chargée au premier rendu : `profileType` y vaut undefined, et
+  // un état initial ne se recalcule jamais. Un compte ASSISTANT ouvrait donc le formulaire sur
+  // « Remplacement ». Le défaut était invisible en le testant via ?type=ASSISTANAT, qui court-
+  // circuite justement ce chemin. On rattrape à l'arrivée de la session — une seule fois, et
+  // seulement si l'URL n'impose rien et que l'utilisateur n'a pas encore choisi.
+  const [kindTouche, setKindTouche] = useState(false);
+  useEffect(() => {
+    if (typeInitial || kindTouche) return;
+    if (profileType === "ASSISTANT") setPostKind("ASSISTANAT");
+  }, [profileType, typeInitial, kindTouche]);
 
   // Ce drapeau ne dit pas « je suis assistant » mais « la recherche porte sur un poste long
   // terme » — c'est déjà le sens de ses vingt lectures (dates masquées, durée minimale exigée,
@@ -563,14 +571,14 @@ export default function CreateDisponibilitePage() {
             disparaître et l'utilisateur ne pourrait plus revenir sur son choix. */}
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Type de poste recherché</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               {([["REMPLACEMENT", "Remplacement", "Dates précises, court terme"],
                  ["ASSISTANAT", "Assistanat", "Long terme, patientèle du cabinet"],
                  ["COLLABORATION", "Collaboration libérale", "Je me constitue ma patientèle"]] as const).map(([val, title, sub]) => (
                 <button
                   key={val}
                   type="button"
-                  onClick={() => setPostKind(val)}
+                  onClick={() => { setPostKind(val); setKindTouche(true); }}
                   className={`text-left rounded-xl border px-3 py-2.5 transition ${
                     postKind === val ? "border-kine-500 bg-kine-50 ring-1 ring-kine-400" : "border-gray-200 hover:border-kine-300"
                   }`}
