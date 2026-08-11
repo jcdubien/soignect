@@ -412,6 +412,17 @@ function SlotEditModal({ slot, onClose, onSaved }: {
             </Link>
           </div>
 
+          {/* Édition complète (section 192) : la modale garde l'essentiel — intitulé et dates,
+              le geste courant — et renvoie vers le formulaire pour le reste. Y verser les
+              quinze champs du formulaire aurait donné une colonne de 384 px à faire défiler
+              par-dessus le fond assombri, sur mobile comme sur desktop. */}
+          <Link
+            href={`/disponibilites/create?editId=${encodeURIComponent(slot.id)}`}
+            className="block text-center px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition"
+          >
+            Modifier tous les détails →
+          </Link>
+
           {/* Partager ma disponibilité (section 162) — copier le lien + natif Android/iPhone + FB.
               Le lien mène à la page publique, qui demande auth/inscription au visiteur. */}
           <div className="pt-1">

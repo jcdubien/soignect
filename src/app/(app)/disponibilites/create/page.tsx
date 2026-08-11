@@ -75,6 +75,18 @@ export default function CreateDisponibilitePage() {
   // sélecteur réservé aux profils ASSISTANT. Son seul recours était qu'un administrateur change
   // son type de compte. C'est le pas minimal vers la bascule chercheur/pourvoyeur documentée en
   // Phase 3, sans y toucher : l'identité ne bouge pas, seule la recherche devient un choix.
+  // Mode ÉDITION (section 192) — /disponibilites/create?editId=…
+  //
+  // Le formulaire d'annonce cabinet avait ce mode depuis longtemps ; celui du candidat n'en
+  // avait aucun. Une disponibilité publiée n'était donc modifiable que sur son intitulé et ses
+  // dates, via la modale du planning : changer une zone, l'accroche ou une attente imposait de
+  // supprimer et republier — en perdant au passage les candidatures reçues.
+  //
+  // On réutilise CET écran plutôt que de reverser ses quinze champs dans une modale de 384 px :
+  // un seul formulaire, donc aucune divergence possible entre création et édition.
+  const editId = searchParams.get("editId");
+  const isEdit = !!editId;
+
   const typeInitial = searchParams.get("type");
   const [postKind, setPostKind] = useState<"REMPLACEMENT" | "ASSISTANAT" | "COLLABORATION">(
     typeInitial === "ASSISTANAT" || typeInitial === "COLLABORATION" ? typeInitial : "REMPLACEMENT",
@@ -206,8 +218,8 @@ export default function CreateDisponibilitePage() {
         ? "Toute la Guadeloupe"
         : form.zones.map((z) => ZONE_LABELS[z]).join(", ");
 
-    const res = await fetch("/api/missions", {
-      method: "POST",
+    const res = await fetch(isEdit ? `/api/missions/${editId}` : "/api/missions", {
+      method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: form.title,
@@ -282,6 +294,38 @@ export default function CreateDisponibilitePage() {
     }));
     setDetectedTags({ methode: typeof f.methode === "string" ? f.methode : undefined });
   }
+
+  // Préremplissage en édition. Même mécanique que le formulaire cabinet : on lit l'annonce,
+  // on pose chaque champ, et le type de poste repositionne le formulaire (dates ou durée).
+  useEffect(() => {
+    if (!editId) return;
+    fetch(`/api/missions/${editId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => {
+        if (!m) return;
+        if (m.missionType === "ASSISTANAT" || m.missionType === "COLLABORATION" || m.missionType === "REMPLACEMENT") {
+          setPostKind(m.missionType);
+          setKindTouche(true); // choix déjà arrêté : l'arrivée de la session ne doit pas l'écraser
+        }
+        setForm((prev) => ({
+          ...prev,
+          title: m.title ?? "",
+          description: m.description ?? "",
+          bioTinder: (m.bioTinder ?? m.pitch ?? "") as string,
+          rawText: m.rawText ?? "",
+          zones: Array.isArray(m.zones) ? m.zones : [],
+          specialties: m.specialties ?? [],
+          startDate: m.startDate ? String(m.startDate).slice(0, 10) : "",
+          endDate: m.endDate ? String(m.endDate).slice(0, 10) : "",
+          minMonths: m.minMonths ? String(m.minMonths) : "",
+          dateFlexibility: m.dateFlexibility ?? 0,
+        }));
+        // Les attentes (logement, véhicule, secrétariat, coordination, salariat) vivent sur le
+        // PROFIL et non sur la mission : elles sont déjà préremplies au montage depuis le profil.
+        setShowManual(true); // en édition on vient corriger un champ précis : ne pas le cacher
+      })
+      .catch(() => { /* annonce illisible : le formulaire reste en création */ });
+  }, [editId]);
 
   // Informations déjà renseignées — évite que « Qu'est-ce qui manque ? » suggère du déjà-là.
   function knownFields(): string[] {
@@ -443,7 +487,7 @@ export default function CreateDisponibilitePage() {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xl">{profileType === "ASSISTANT" ? "👩‍⚕️" : "🩺"}</span>
-          <h1 className="text-2xl font-bold text-gray-800">Publier mes disponibilités</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{isEdit ? "Modifier ma disponibilité" : "Publier mes disponibilités"}</h1>
         </div>
         <p className="text-gray-400 text-sm">
           {isAssistant
@@ -989,7 +1033,11 @@ export default function CreateDisponibilitePage() {
             disabled={loading}
             className="flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
           >
-            {loading ? "Publication…" : canSubmit ? "Publier mes disponibilités →" : "Compléter ma fiche →"}
+            {loading
+              ? (isEdit ? "Enregistrement…" : "Publication…")
+              : !canSubmit ? "Compléter ma fiche →"
+              : isEdit ? "Enregistrer les modifications"
+              : "Publier mes disponibilités →"}
           </button>
         </div>
       </form>
