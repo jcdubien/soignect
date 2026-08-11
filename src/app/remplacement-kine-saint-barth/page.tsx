@@ -5,10 +5,12 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/remplacement-kine-saint-barth" },
   title: "Remplacement kiné Saint-Barthélemy — Annonces & disponibilités | Soignect",
   description:
     "Trouvez un remplacement en kinésithérapie à Saint-Barthélemy. Annonces de cabinets et remplaçants kinés disponibles à Gustavia et sur toute la collectivité de Saint-Barth.",
   openGraph: {
+    url: "/remplacement-kine-saint-barth",
     title: "Remplacement kiné Saint-Barth | Soignect",
     description: "Le job board des kinésithérapeutes de Saint-Barthélemy.",
     type: "website",

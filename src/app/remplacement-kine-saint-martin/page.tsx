@@ -5,10 +5,12 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/remplacement-kine-saint-martin" },
   title: "Remplacement kiné Saint-Martin — Annonces & disponibilités | Soignect",
   description:
     "Trouvez un remplacement en kinésithérapie à Saint-Martin. Annonces de cabinets et remplaçants kinés disponibles à Marigot, Grand Case et sur toute la collectivité de Saint-Martin.",
   openGraph: {
+    url: "/remplacement-kine-saint-martin",
     title: "Remplacement kiné Saint-Martin | Soignect",
     description: "Le job board des kinésithérapeutes de Saint-Martin.",
     type: "website",

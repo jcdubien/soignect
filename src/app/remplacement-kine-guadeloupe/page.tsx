@@ -9,6 +9,7 @@ import { logTraceEvent } from "@/lib/trace";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/remplacement-kine-guadeloupe" },
   // Le titre garde « remplacement kiné Guadeloupe » en tête — c'est la requête réellement
   // tapée — mais nomme aussi l'assistanat et la collaboration, que la page montrait déjà sans
   // jamais les annoncer.
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
   description:
     "Postes de kinésithérapie en Guadeloupe : remplacements ponctuels, assistanats et collaborations libérales. Annonces de cabinets et kinés disponibles sur toute la Guadeloupe (Grande-Terre, Basse-Terre, Marie-Galante, Les Saintes, La Désirade).",
   openGraph: {
+    url: "/remplacement-kine-guadeloupe",
     title: "Postes de kiné en Guadeloupe | Soignect",
     description: "Le job board des kinésithérapeutes de Guadeloupe : remplacement, assistanat, collaboration. Trouvez un cabinet ou un candidat en quelques swipes.",
     type: "website",
