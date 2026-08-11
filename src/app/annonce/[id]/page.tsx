@@ -101,6 +101,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       description,
       type: "website",
       siteName: "Soignect",
+      // URL canonique de CETTE annonce. Le bloc openGraph d'une page ECRASE celui de la
+      // racine : sans cette ligne, une annonce partagée n'avait aucun og:url, et Facebook
+      // comptait « /annonce/x », « /annonce/x?fbclid=… » et le lien copié depuis l'app comme
+      // trois pages différentes. C'est la page la plus partagée du produit.
+      url: `/annonce/${id}`,
       // og:image généré dynamiquement par annonce (opengraph-image.tsx, section 158) —
       // 1200×630 avec titre + lieu sur un visuel de marque. Next l'ajoute automatiquement.
     },
