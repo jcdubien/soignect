@@ -435,7 +435,11 @@ export default function CreateDisponibilitePage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-8 animate-fade-up">
+    // Conteneur ELARGI sur desktop, comme le formulaire d'annonce. Il etait reste a max-w-lg
+    // (512 px) alors qu'on y a mis deux colonnes : chacune tombait a ~230 px, d'ou des champs
+    // tasses et un selecteur de type dont les libelles se chevauchaient. On avait traite le
+    // symptome en empilant le selecteur ; la cause etait la largeur de la page.
+    <div className="max-w-lg lg:max-w-5xl mx-auto px-4 py-8 animate-fade-up">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xl">{profileType === "ASSISTANT" ? "👩‍⚕️" : "🩺"}</span>
@@ -640,7 +644,7 @@ export default function CreateDisponibilitePage() {
             disparaître et l'utilisateur ne pourrait plus revenir sur son choix. */}
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Type de poste recherché</label>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-2">
               {([["REMPLACEMENT", "Remplacement", "Dates précises, court terme"],
                  ["ASSISTANAT", "Assistanat", "Long terme, patientèle du cabinet"],
                  ["COLLABORATION", "Collaboration libérale", "Je me constitue ma patientèle"]] as const).map(([val, title, sub]) => (
