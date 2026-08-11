@@ -277,7 +277,8 @@ export async function sendPeriodRemovedEmail(
   opts: { optIn: boolean; cabinetName?: string | null; periode?: string | null }
 ): Promise<void> {
   if (!opts.optIn) return;
-  const who = opts.cabinetName ? escapeHtml(opts.cabinetName) : "Le cabinet";
+  // Repli neutre : un etablissement n'est pas un cabinet (section 192).
+  const who = opts.cabinetName ? escapeHtml(opts.cabinetName) : "Le recruteur";
   const quand = opts.periode ? ` (${escapeHtml(opts.periode)})` : "";
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
@@ -300,7 +301,7 @@ export async function sendPosteInvitationEmail(
   to: string,
   opts: { cabinetName: string | null; postLabel: string; token: string }
 ): Promise<void> {
-  const who = opts.cabinetName ? escapeHtml(opts.cabinetName) : "Un cabinet";
+  const who = opts.cabinetName ? escapeHtml(opts.cabinetName) : "Un recruteur";
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0 0 8px">

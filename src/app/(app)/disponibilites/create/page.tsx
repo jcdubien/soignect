@@ -964,7 +964,7 @@ export default function CreateDisponibilitePage() {
         {/* Reco n°2 (audit UX) : expliciter le geste suivant — le matching est réciproque,
             publier ne suffit pas, il faut aussi swiper les cabinets qui recrutent. */}
         <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5">
-          🔎 Après publication, vous arrivez sur le fil des cabinets qui recrutent :
+          🔎 Après publication, vous arrivez sur le fil des recruteurs — cabinets et établissements :
           <strong> swipez « Intéressé »</strong> sur ceux qui vous plaisent pour créer une mise en relation.
         </p>
 

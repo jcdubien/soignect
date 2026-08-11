@@ -98,7 +98,13 @@ export async function POST(req: NextRequest) {
 
   // Email de bienvenue (fire-and-forget, respecte emailOptIn)
   const firstName = (name ?? "").trim().split(" ")[0] || "à vous";
-  const cibleLabel = type === "TITULAIRE" ? "remplaçants" : "cabinets";
+  // « visible par les remplaçants » disait faux a un etablissement, qui recrute des salaries ;
+  // et « visible par les cabinets » disait a un candidat qu'il ne s'expose qu'aux liberaux,
+  // alors que les etablissements recrutent aussi. C'est le tout premier message recu.
+  const cibleLabel =
+    type === "TITULAIRE"
+      ? "kinésithérapeutes en recherche de poste"
+      : "cabinets et établissements qui recrutent";
   // Création de compte tracée (section 86) — aucun événement ne la capturait, si bien qu'on ne
   // pouvait pas relier une inscription à la page qui l'avait amenée. `src` vient d'un paramètre
   // d'URL : il documente une provenance, il n'accorde aucun droit.
