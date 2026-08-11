@@ -450,6 +450,43 @@ export default function CreateDisponibilitePage() {
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
 
+        {/* ── Ce qui change quand on cherche un poste long terme ──────────────────────────
+            Le bandeau de suggestion (section 191) amène ici des remplaçants qui n'ont jamais
+            fait d'assistanat. Les envoyer droit au formulaire supposait qu'ils savent déjà ce
+            qu'ils demandent. Chaque point ci-dessous est vérifiable dans le produit : durée
+            minimale imposée, sens de la rétrocession, modèles de contrat distincts.
+            Déplié d'office quand on arrive par un lien qui impose le type — c'est le cas de la
+            suggestion, donc de quelqu'un qui découvre. Replié sinon. ── */}
+        {isAssistant && (
+          <details open={!!typeInitial} className="rounded-2xl border border-violet-200 bg-violet-50/50 px-4 py-3">
+            <summary className="cursor-pointer text-sm font-semibold text-violet-800 select-none">
+              Ce qui change par rapport à un remplacement
+            </summary>
+            <ul className="mt-2.5 space-y-2 text-sm text-gray-700">
+              <li>
+                <strong>Une durée, pas des dates.</strong> Vous indiquez à partir de quand vous
+                êtes disponible et une durée minimale — au moins 3 mois. Pas de date de fin :
+                c&apos;est un poste qui dure.
+              </li>
+              <li>
+                <strong>La patientèle.</strong> En assistanat, vous travaillez celle du cabinet.
+                En collaboration libérale, vous constituez la vôtre — c&apos;est la seule vraie
+                différence entre les deux.
+              </li>
+              <li>
+                <strong>La rétrocession s&apos;inverse.</strong> En remplacement, le pourcentage
+                annoncé est ce que vous <em>gardez</em>. En assistanat et en collaboration,
+                c&apos;est ce que vous <em>reversez</em> au cabinet. Un « 25 % » ne veut donc pas
+                dire la même chose d&apos;une annonce à l&apos;autre.
+              </li>
+              <li>
+                <strong>Le contrat n&apos;est pas le même.</strong> Soignect génère un modèle
+                distinct selon le type de poste.
+              </li>
+            </ul>
+          </details>
+        )}
+
         {/* ── Grille 2 colonnes sur desktop, alignée sur le formulaire d'annonce cabinet :
             à gauche le texte libre et l'assistance, à droite les champs structurés. Empilé sur
             mobile. Ce formulaire-ci ne l'avait pas — ses champs étaient masqués sur TOUS les
