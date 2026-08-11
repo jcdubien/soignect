@@ -117,6 +117,28 @@ export async function POST(req: NextRequest) {
 
   const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, rawText, ouvertSalariat, briqueStatus, cabinetPostId } = parsed.data;
 
+  // Le SIÈGE du titulaire n'accueille que du remplacement (section 191). Un assistant occupe
+  // structurellement une autre ligne du planning — un nouveau poste, ou un poste d'assistant
+  // existant. Le formulaire ne propose déjà que « remplacement » depuis ce siège, mais il s'en
+  // remet à un paramètre d'URL : sans ce garde, il suffisait de le retirer pour rattacher un
+  // assistanat au poste du titulaire lui-même, et la ligne aurait affiché son propre
+  // remplacement du cabinet comme un recrutement d'assistant.
+  if (cabinetPostId && missionType && missionType !== MissionType.REMPLACEMENT) {
+    const poste = await prisma.cabinetPost.findUnique({
+      where: { id: cabinetPostId },
+      select: { isOwnerSeat: true },
+    });
+    if (poste?.isOwnerSeat) {
+      return NextResponse.json(
+        {
+          error:
+            "Le poste du titulaire ne peut accueillir qu'un remplacement. Pour recruter un assistant, créez d'abord un poste dédié dans le Planning, puis publiez la demande depuis sa ligne.",
+        },
+        { status: 422 }
+      );
+    }
+  }
+
   // Photo de profil obligatoire pour publier une annonce/disponibilité (ferme la brèche
   // rétroactive : un profil créé avant l'onboarding-photo pouvait publier sans photo).
   // On n'exige rien pour les "dates bloquées" (INDISPONIBLE), qui ne sont pas des annonces.

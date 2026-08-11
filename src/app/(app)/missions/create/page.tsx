@@ -131,6 +131,11 @@ export default function CreateMissionPage() {
   // match s'attribuera directement à cette ligne du Planning Board. Stateful pour
   // survivre à l'aller-retour vers /compte (photo obligatoire, item 15).
   const [cabinetPostId, setCabinetPostId] = useState<string | null>(searchParams.get("cabinetPostId"));
+  // Annonce posée depuis le SIÈGE du titulaire (section 191) : un assistant correspond
+  // structurellement à une autre ligne du planning — soit un nouveau poste, soit un poste
+  // d'assistant existant. Depuis sa propre ligne, le titulaire ne peut chercher qu'un
+  // remplaçant. Le choix du type n'est donc pas seulement pré-rempli, il est RESTREINT.
+  const seatOnly = searchParams.get("seatOnly") === "1";
 
   // Mode édition d'une annonce existante (menu CRUD Planning Board) — ?editId=…
   const editId = searchParams.get("editId");
@@ -702,12 +707,21 @@ export default function CreateMissionPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Type de besoin
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            {/* On DIT pourquoi le choix est réduit, au lieu de faire disparaître deux options
+                sans explication — sinon le titulaire cherche ce qu'il a mal fait. */}
+            {seatOnly && (
+              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 mb-2">
+                Depuis votre propre ligne, vous ne pouvez chercher qu&apos;un <strong>remplaçant</strong>.
+                Un assistant occupe un poste distinct : créez d&apos;abord ce poste dans le Planning,
+                puis publiez la demande depuis sa ligne.
+              </p>
+            )}
+            <div className={seatOnly ? "grid grid-cols-1 gap-2" : "grid grid-cols-3 gap-2"}>
               {[
                 { value: "remplacement"  as NeedType, icon: "📅", label: needTypeLabels.remplacement,  sub: needTypeSubLabels.remplacement },
                 { value: "assistant"     as NeedType, icon: "📋", label: needTypeLabels.assistant,     sub: needTypeSubLabels.assistant },
                 { value: "collaboration" as NeedType, icon: "🤝", label: needTypeLabels.collaboration,  sub: needTypeSubLabels.collaboration },
-              ].map((opt) => (
+              ].filter((opt) => !seatOnly || opt.value === "remplacement").map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
