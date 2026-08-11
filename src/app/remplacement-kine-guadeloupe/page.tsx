@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import type { ZoneGeographique } from "@prisma/client";
+import { libelleTypePoste, estEtablissement } from "@/lib/libellesPoste";
 import { headers } from "next/headers";
 import { logTraceEvent } from "@/lib/trace";
 
@@ -58,7 +59,7 @@ async function getMissions() {
         { OR: [{ endDate: null }, { endDate: { gte: maintenant } }] },
       ],
     },
-    include: { profile: { select: { type: true, name: true, ratingAvg: true } } },
+    include: { profile: { select: { type: true, titulaireKind: true, name: true, ratingAvg: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     take: 20,
   });
@@ -154,14 +155,11 @@ export default async function GuadeloupePage() {
               ? `${formatDate(m.startDate)} → ${formatDate(m.endDate)}`
               : m.minMonths ? `${m.minMonths} mois min.` : null;
 
-            // Le badge disait seulement QUI publie (« Cabinet »), jamais CE QUI est proposé :
-            // un assistanat de 12 mois et un remplacement de trois semaines s'affichaient à
-            // l'identique. Même cadrage que la carte de partage — un cabinet PROPOSE, un
-            // candidat SE PROPOSE.
-            const estCandidat = m.profile.type === "REMPLACANT" || m.profile.type === "ASSISTANT";
-            const typeLabel = estCandidat
-              ? { REMPLACEMENT: "Remplaçant disponible", ASSISTANAT: "Cherche un assistanat", COLLABORATION: "Cherche une collaboration" }[m.missionType]
-              : { REMPLACEMENT: "Remplacement", ASSISTANAT: "Assistanat · long terme", COLLABORATION: "Collaboration libérale" }[m.missionType];
+            // Le badge dit ce qui est PROPOSÉ, pas seulement qui publie — et dans le
+            // vocabulaire de celui qui publie : un CDI d'établissement s'affichait
+            // « Collaboration libérale ». Table unique dans lib/libellesPoste.
+            const typeLabel = libelleTypePoste(m.missionType, m.profile);
+            const estEtab = estEtablissement(m.profile);
 
             return (
               <div key={m.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
@@ -169,6 +167,7 @@ export default async function GuadeloupePage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                        estEtab ? "bg-slate-100 text-slate-700" :
                         m.missionType === "ASSISTANAT" ? "bg-violet-100 text-violet-700" :
                         m.missionType === "COLLABORATION" ? "bg-amber-100 text-amber-700" :
                         "bg-blue-100 text-blue-700"

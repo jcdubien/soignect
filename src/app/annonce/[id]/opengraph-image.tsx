@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/prisma";
 import { BriqueStatus } from "@prisma/client";
+import { libelleTypePoste } from "@/lib/libellesPoste";
 
 // Image de partage Open Graph générée dynamiquement par annonce (section 158) — 1200×630.
 // Priorité aux 3 infos essentielles pour un candidat qui scrolle (mobile) : TYPE, DATES, COMMUNE.
@@ -12,21 +13,9 @@ export const contentType = "image/png";
 export const alt = "Annonce Soignect";
 
 // Le badge est cadré selon le PROPRIÉTAIRE de l'annonce : un cabinet PROPOSE un poste, un
-// candidat (remplaçant/assistant) SE PROPOSE. Même page /annonce/[id] pour les deux.
-const CABINET_TYPE: Record<string, string> = {
-  REMPLACEMENT: "Remplacement",
-  ASSISTANAT: "Assistanat · long terme",
-  COLLABORATION: "Collaboration libérale",
-};
-const CANDIDAT_TYPE: Record<string, string> = {
-  REMPLACEMENT: "Remplaçant disponible",
-  ASSISTANAT: "Assistant · recherche poste",
-  COLLABORATION: "Collaboration · recherche",
-};
-function badgeLabel(profileType: string | undefined, missionType: string): string {
-  const isCandidate = profileType === "REMPLACANT" || profileType === "ASSISTANT";
-  return (isCandidate ? CANDIDAT_TYPE : CABINET_TYPE)[missionType] ?? missionType;
-}
+// candidat SE PROPOSE, un établissement EMBAUCHE. Les trois tables de libellés vivent dans
+// lib/libellesPoste — elles étaient écrites en dur ici, si bien qu'un CDI hospitalier se
+// partageait sur Facebook sous le libellé « Collaboration libérale ».
 
 // Dates « jour seul » stockées à minuit UTC → format en UTC (cf. lib/dates.ts).
 const MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
@@ -79,7 +68,9 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
         title: true, location: true, missionType: true,
         startDate: true, endDate: true, minMonths: true,
         // photoUrl : fond de la carte (section 158). type : cadre le badge (cabinet propose / candidat se propose).
-        profile: { select: { type: true, photoUrl: true } },
+        // titulaireKind : distingue un établissement d'un cabinet libéral, sans quoi le
+        // badge traduit un CDI en vocabulaire libéral.
+        profile: { select: { type: true, titulaireKind: true, photoUrl: true } },
       },
     });
   } catch {
@@ -94,7 +85,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   if (!m) return new Response("Not found", { status: 404 });
 
   const location = m.location;
-  const type = badgeLabel(m.profile?.type, m.missionType);
+  const type = libelleTypePoste(m.missionType, m.profile);
   const dates = datesLabel(m);
 
   // Zone de sécurité : beaucoup de destinations de partage (messageries, aperçus système via

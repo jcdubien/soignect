@@ -15,6 +15,7 @@ import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
 import { fmtDay } from "@/lib/dates";
 import MissionSelector, { TitulaireMission } from "./MissionSelector";
+import { libelleAuteur } from "@/lib/libellesPoste";
 import MissionDetailSheet from "./MissionDetailSheet";
 
 type MissionWithProfile = Mission & { profile: Profile };
@@ -240,8 +241,12 @@ function Card({
   onSwitchMission?: (id: string) => void;
 }) {
   const p = mission.profile;
-  const tc = TYPE_CONFIG[p.type as keyof typeof TYPE_CONFIG]
+  // « Cabinet » était affiché pour tout profil TITULAIRE — un hôpital, un EHPAD ou une clinique
+  // s'y retrouvaient étiquetés ainsi sur la carte de swipe. Le libellé vient maintenant de
+  // lib/libellesPoste, qui lit titulaireKind (déjà transmis par le feed, jamais expurgé).
+  const base = TYPE_CONFIG[p.type as keyof typeof TYPE_CONFIG]
     ?? { label: p.type, color: "bg-gray-500", emoji: "👤" };
+  const tc = { ...base, label: libelleAuteur(p) };
 
   const dateRange =
     mission.startDate && mission.endDate

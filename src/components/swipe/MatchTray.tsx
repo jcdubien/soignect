@@ -8,6 +8,7 @@ import { Mission, Profile } from "@prisma/client";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
 import { fmtDay } from "@/lib/dates";
 import type { TitulaireMission } from "@/components/swipe/MissionSelector";
+import { libelleAuteur } from "@/lib/libellesPoste";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import Button from "@/components/ui/md3/Button";
 import { lectureQualitative, PROFILE_LABEL } from "@/lib/compatibilite";
@@ -483,7 +484,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
     const isUnread  = item.matchId ? unreadIds.has(item.matchId) : false;
     const shortName = p.name
       ? p.name.split(" ")[0].slice(0, 10)
-      : { TITULAIRE: "Cabinet", REMPLACANT: "Kine", ASSISTANT: "Assist." }[p.type] ?? "Profil";
+      : libelleAuteur(p, true); // « Cabinet » masquait les établissements (section 192)
 
     return (
       <button
@@ -545,7 +546,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
     const initials  = getInitials(p.name);
     const initColor = getInitialsColor(p.name);
     const isUnread  = item.matchId ? unreadIds.has(item.matchId) : false;
-    const name = p.name ?? ({ TITULAIRE: "Cabinet", REMPLACANT: "Remplaçant", ASSISTANT: "Assistant" } as Record<string, string>)[p.type] ?? "Profil";
+    const name = p.name ?? libelleAuteur(p); // repli quand le profil n'a pas de nom
     return (
       <button
         key={item.mission.id}
