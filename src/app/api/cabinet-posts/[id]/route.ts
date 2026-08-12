@@ -17,9 +17,22 @@ export async function PATCH(
   if (post.cabinetId !== session.user.profileId) return NextResponse.json({ error: "Interdit" }, { status: 403 });
 
   const body = await req.json();
-  const { isActive, label } = body as { isActive?: unknown; label?: unknown };
+  const { isActive, label, suiviNote } = body as { isActive?: unknown; label?: unknown; suiviNote?: unknown };
 
-  const data: { isActive?: boolean; label?: string } = {};
+  const data: { isActive?: boolean; label?: string; suiviNote?: string | null; suiviUpdatedAt?: Date | null } = {};
+
+  // Note de suivi du poste (section 200) — porte le suivi des ZONES NON COUVERTES, qui
+  // n'existent comme aucun objet en base. Accepte null/vide pour effacer.
+  if (suiviNote !== undefined) {
+    if (suiviNote !== null && typeof suiviNote !== "string") {
+      return NextResponse.json({ error: "suiviNote doit être une chaîne ou null" }, { status: 400 });
+    }
+    const t = typeof suiviNote === "string" ? suiviNote.trim() : "";
+    // Coupe à 500 comme la colonne. Aligner la borne applicative sur la colonne évite le
+    // P2000 déjà rencontré deux fois en production sur bioTinder/pitch (leçon Sentry).
+    data.suiviNote = t ? t.slice(0, 500) : null;
+    data.suiviUpdatedAt = t ? new Date() : null;
+  }
 
   // Renommage du poste (item 6 / section 65) — PATCH CabinetPost.label
   if (typeof label === "string") {
@@ -41,13 +54,13 @@ export async function PATCH(
   }
 
   if (Object.keys(data).length === 0) {
-    return NextResponse.json({ error: "Aucun champ à mettre à jour (label ou isActive)" }, { status: 400 });
+    return NextResponse.json({ error: "Aucun champ à mettre à jour (label, isActive ou suiviNote)" }, { status: 400 });
   }
 
   const updated = await prisma.cabinetPost.update({
     where: { id },
     data,
-    select: { id: true, isActive: true, label: true },
+    select: { id: true, isActive: true, label: true, suiviNote: true, suiviUpdatedAt: true },
   });
 
   return NextResponse.json(updated);

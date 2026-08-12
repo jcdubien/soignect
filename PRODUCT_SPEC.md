@@ -811,6 +811,86 @@ déblocage du formulaire jusqu'au retrait).
 
 ### Titulaire — planning, visibilité, facturation
 
+#### BLOC-NOTE DE SUIVI SUR LA TIMELINE (12/08) — livré
+
+##### Ce qui existait déjà, et n'était pas su
+
+Le panneau au clic prévu par la spec du 10/07 **est construit depuis longtemps** : un
+`BottomSheet` multi-étapes s'ouvre sur une brique ou une zone vide (Poser une annonce,
+Modifier, Préavis, Fermer, Renommer, Voir les relations, Retirer). Ce n'est pas un survol —
+et c'est le bon choix : un survol sur une timeline dense se déclencherait sans arrêt.
+
+**`Mission.statusNote` existait, plombé de bout en bout sauf le robinet** : colonne en base,
+validée en Zod par le PATCH, et déjà AFFICHÉE dans le panneau « couvert ». Aucune interface ne
+l'écrivait, jamais.
+
+La cause était mécanique, côté serveur : `statusNote` était imbriquée dans le bloc
+`briqueStatus !== undefined`. **Écrire la note exigeait de changer aussi le statut du créneau.**
+Le champ a donc attendu des mois un formulaire qui ne pouvait pas exister. Découplé le 12/08 —
+la note se met à jour seule désormais.
+
+Deux colonnes mortes trouvées au passage : `CabinetPost.maxSlots` mis à part, `maxCandidates`
+(défaut 10) et `singleSlot` ne sont lus **nulle part** dans `src/`. La « limite de 3 matchs
+actifs » de la spec du 10/07 n'existe pas et n'a jamais existé.
+
+##### Le troisième axe de statut
+
+Le produit portait déjà deux statuts qu'il ne fallait pas dupliquer :
+
+| | Ce qu'il décrit |
+|---|---|
+| `BriqueStatus` | l'état du CRÉNEAU — et c'est lui qui donne sa couleur à la brique |
+| `MatchStatus` | l'état TECHNIQUE de la mise en relation |
+| **`SuiviStatut`** *(nouveau)* | **ce que l'humain a fait ou attend, hors plateforme** |
+
+Cinq valeurs, plus l'absence de valeur par défaut : `A_RELANCER`, `APPEL_FAIT`,
+`REPONSE_ATTENDUE`, `ECHANGE_HORS_PLATEFORME`, `SANS_SUITE`.
+
+**« Contrat édité » a été écarté**, alors qu'il figurait dans la demande. Le produit connaît
+déjà l'état réel d'un contrat (`MatchStatus`, routes de signature) : un drapeau manuel en
+parallèle finirait par le contredire dès que quelqu'un oublie de le remettre à jour. C'est la
+famille de défaut la plus coûteuse de ce produit — « l'écran affirme ce qu'il n'a pas
+vérifié ». Un cran de ce genre doit être DÉRIVÉ de l'état réel, jamais saisi.
+
+**Règle de composition qui en découle** : n'entre dans cet enum que ce que la plateforme ne
+peut pas observer seule.
+
+##### Où vit la note — et pourquoi la zone non couverte a fallu traiter à part
+
+Une brique est une `Mission`. **Une zone non couverte n'est aucun objet en base** : c'est un
+intervalle calculé entre deux briques. Rien à quoi accrocher une note.
+
+L'accrocher à un triplet (poste + début + fin) l'aurait rendue orpheline au premier décalage
+de dates — ce qui arrive réellement (bug B9, dates d'absence modifiées). Le suivi des trous est
+donc porté par le **poste**, seul support stable :
+
+```
+Mission     .suiviStatut    (SuiviStatut?)   ← la brique
+            .suiviUpdatedAt                     date PROPRE : savoir quand on a appelé n'a
+            .statusNote      (200 car.)          rien à voir avec le dernier changement de créneau
+CabinetPost .suiviNote       (500 car.)       ← le poste, donc les trous
+            .suiviUpdatedAt
+```
+
+Pas de niveau `Match` séparé : 0 mise en relation en base et une mission couverte n'en affiche
+qu'une. Un troisième niveau maintenant reviendrait à construire pour un cas absent.
+
+##### Restitution sur la timeline
+
+Une **pastille de 6 px superposée en coin**, en position absolue, jamais dans le flux — et
+**aucun changement de couleur** : la couleur appartient à `briqueStatus`, un second code
+chromatique rendrait les deux illisibles. Seul `A_RELANCER` reçoit un accent distinct, c'est le
+seul état qui appelle une action.
+
+La pastille **n'agrandit pas la brique**, contrainte explicite : une brique de 47 px a déjà
+disparu sous une autre faute de place (défaut 3 du 03/08 — un recrutement actif invisible en
+production). Appliqué desktop et mobile.
+
+Migration additive appliquée à la main via `prisma db execute --url $DIRECT_URL` : Vercel ne
+joue pas `migrate deploy`.
+
+---
+
 #### AUDIT CHAÎNE — Complément : 3e défaut découvert, plus grave que les deux autres (03/08)
 
 ##### Réponse définitive à la question centrale : NON, sur les deux vues

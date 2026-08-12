@@ -107,6 +107,24 @@ enum MatchStatus {
   EXPIRE
 }
 
+// Suivi HUMAIN d'une brique du Planning (section 200) — troisième axe, à ne confondre
+// ni avec BriqueStatus (état du créneau, qui pilote la couleur) ni avec MatchStatus (état
+// technique de la relation). Il note ce que le titulaire a fait ou attend, hors plateforme.
+//
+// RÈGLE DE COMPOSITION : n'y mettre QUE ce que la plateforme ne peut pas savoir seule.
+// « Contrat édité » a été explicitement écarté (12/08) : le produit connaît déjà l'état réel
+// d'un contrat (MatchStatus, routes de signature). Un drapeau manuel en parallèle finirait par
+// le contredire le jour où personne ne le remet à jour — la famille de défaut la plus coûteuse
+// de ce produit, « l'écran affirme ce qu'il n'a pas vérifié ». Un cran de ce genre doit être
+// DÉRIVÉ de l'état réel, jamais saisi.
+enum SuiviStatut {
+  A_RELANCER
+  APPEL_FAIT
+  REPONSE_ATTENDUE
+  ECHANGE_HORS_PLATEFORME
+  SANS_SUITE
+}
+
 model User {
   id               String    @id @default(cuid())
   email            String    @unique
@@ -342,7 +360,13 @@ model Mission {
   // Statut manuel de la brique Planning Board (section 33)
   briqueStatus    BriqueStatus @default(RECHERCHE)
   statusUpdatedAt DateTime?
+  // Note libre de suivi. La colonne, sa validation Zod et son AFFICHAGE existaient depuis
+  // l'origine ; seule la saisie manquait — le champ est resté muet des mois (section 200).
   statusNote      String?      @db.VarChar(200)
+
+  // Suivi humain de la brique (section 200) — voir SuiviStatut. Nullable = aucun suivi noté.
+  suiviStatut     SuiviStatut?
+  suiviUpdatedAt  DateTime?
 
   // Nom du remplaçant/successeur matché — affiché sur le segment RECRUTEMENT/CONFIRME (section 1c / 6)
   matchedName     String?      @db.VarChar(120)
@@ -566,6 +590,14 @@ model CabinetPost {
   // multiples sont autorisés en Postgres). Null = poste géré uniquement par le titulaire.
   linkedUserId String?   @unique
   linkedUser   User?     @relation("AssistantPost", fields: [linkedUserId], references: [id])
+
+  // Note de suivi du POSTE (section 200). C'est elle qui couvre les ZONES NON COUVERTES :
+  // un trou de planning n'est aucun objet en base — c'est un intervalle calculé entre deux
+  // briques. L'accrocher à un triplet (poste + début + fin) la rendrait orpheline au premier
+  // décalage de dates, ce qui arrive (bug B9, dates d'absence modifiées). Le poste, lui, est
+  // stable : la note lui survit quel que soit le redécoupage des périodes.
+  suiviNote      String?   @db.VarChar(500)
+  suiviUpdatedAt DateTime?
 }
 
 // Back-office de traçabilité (section 86) — table d'événements horodatés, écrite

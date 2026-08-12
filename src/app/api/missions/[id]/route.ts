@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { BriqueStatus, MissionType, ZoneGeographique } from "@prisma/client";
+import { BriqueStatus, MissionType, SuiviStatut, ZoneGeographique } from "@prisma/client";
 import { logMatchCancelled } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +66,8 @@ const updateSchema = z.object({
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),
   statusNote: z.string().max(200).optional().nullable(),
   statusUpdatedAt: z.string().datetime().optional(),
+  // Suivi humain de la brique (section 200). Indépendant de briqueStatus — voir plus bas.
+  suiviStatut: z.nativeEnum(SuiviStatut).nullable().optional(),
   departureDate: z.string().datetime().optional().nullable(), // date de départ prévue (section 6)
 });
 
@@ -88,7 +90,7 @@ export async function PATCH(
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { briqueStatus, statusNote, statusUpdatedAt, startDate, endDate, departureDate, ...rest } = parsed.data;
+  const { briqueStatus, statusNote, statusUpdatedAt, suiviStatut, startDate, endDate, departureDate, ...rest } = parsed.data;
 
   const updated = await prisma.mission.update({
     where: { id },
@@ -99,9 +101,16 @@ export async function PATCH(
       ...(departureDate !== undefined && { departureDate: departureDate ? new Date(departureDate) : null }),
       ...(briqueStatus !== undefined && {
         briqueStatus,
-        statusNote: statusNote ?? null,
         statusUpdatedAt: statusUpdatedAt ? new Date(statusUpdatedAt) : new Date(),
       }),
+      // statusNote ÉTAIT imbriquée dans le bloc ci-dessus : impossible d'écrire la note sans
+      // changer aussi le statut du créneau. C'est la raison mécanique pour laquelle ce champ,
+      // pourtant présent en base, validé ici et déjà affiché dans le panneau, n'a jamais reçu
+      // une seule valeur (section 200). Elle se met à jour seule désormais.
+      ...(statusNote !== undefined && { statusNote }),
+      // Le suivi humain porte sa PROPRE date : savoir quand on a appelé n'a rien à voir avec
+      // la date du dernier changement de créneau.
+      ...(suiviStatut !== undefined && { suiviStatut, suiviUpdatedAt: suiviStatut ? new Date() : null }),
     },
   });
 

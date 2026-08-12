@@ -30,6 +30,8 @@ interface MissionData {
   briqueStatus: string;
   statusUpdatedAt: Date | string | null;
   statusNote: string | null;
+  // Suivi humain (section 200) — null = rien de noté.
+  suiviStatut?: string | null;
   matchedName?: string | null;        // nom du successeur matché (section 1c/6)
   departureDate?: Date | string | null; // date de départ prévue — fin effective (section 6)
   matchesA: MatchInfo[];
@@ -49,6 +51,9 @@ interface PostData {
   // Compte ASSISTANT rattaché à ce poste (section 153) — null si géré uniquement par le titulaire.
   linkedUserId?: string | null;
   linkedUser?: { id: string; email: string; profile: { name: string | null } | null } | null;
+  // Note de suivi du poste (section 200) — porte le suivi des zones NON COUVERTES, qui
+  // n'existent comme aucun objet en base.
+  suiviNote?: string | null;
 }
 
 interface UnlinkedMission {
@@ -149,6 +154,22 @@ const BRIQUE_STATUS: Record<string, { bg: string; text: string; label: string }>
   ANNULE:           { bg: "bg-gray-300",               text: "text-gray-600",    label: "Annulé" },
 };
 
+// ── Suivi humain de la relation (section 200) ─────────────────────────────────
+// Troisième axe, distinct de BRIQUE_STATUS (état du créneau, qui donne la couleur) et de
+// MatchStatus (état technique de la mise en relation). Il ne consigne QUE ce que la
+// plateforme ne peut pas observer : un appel, un mail hors produit, une intention.
+//
+// LA COULEUR DE LA BRIQUE NE CHANGE PAS. Elle appartient déjà à briqueStatus ; y superposer
+// un second code chromatique rendrait les deux illisibles. Le suivi s'affiche en pastille.
+const SUIVI: Record<string, { label: string; court: string; dot: string }> = {
+  A_RELANCER:              { label: "À relancer",            court: "À relancer",  dot: "bg-[var(--corail-signal)]" },
+  APPEL_FAIT:              { label: "Appel passé",           court: "Appelé",      dot: "bg-white/90" },
+  REPONSE_ATTENDUE:        { label: "En attente de réponse",  court: "En attente",  dot: "bg-white/90" },
+  ECHANGE_HORS_PLATEFORME: { label: "Échangé par mail / SMS", court: "Hors produit", dot: "bg-white/90" },
+  SANS_SUITE:              { label: "Sans suite",             court: "Sans suite",  dot: "bg-gray-900/40" },
+};
+const SUIVI_ORDRE = ["A_RELANCER", "APPEL_FAIT", "REPONSE_ATTENDUE", "ECHANGE_HORS_PLATEFORME", "SANS_SUITE"];
+
 // ── Segment helpers ────────────────────────────────────────────────────────────
 
 
@@ -227,6 +248,7 @@ interface MobileBrick {
   widthPct: number;
   colorCls: string;   // "bg-... text-..." ou "timeline-hatch text-white"
   urgent?: boolean;
+  suiviDot?: string;  // pastille de suivi (section 200) — classe de couleur, ou absente
   label: string;
   title: string;
   onClick: (e: React.MouseEvent) => void;
@@ -279,6 +301,11 @@ function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
             }}
           >
             <span className="text-[9px] font-medium truncate leading-none">{b.label}</span>
+            {/* Pastille de suivi (section 200) — superposée, jamais dans le flux : la piste
+                mobile est déjà étroite et une brique poussée sortirait de sa sous-ligne. */}
+            {b.suiviDot && (
+              <span aria-hidden className={`absolute top-[2px] right-[2px] w-[5px] h-[5px] rounded-full ring-1 ring-black/20 ${b.suiviDot}`} />
+            )}
           </button>
         ))}
         {/* Ligne "aujourd'hui" verticale à l'intérieur de la carte */}
@@ -1061,6 +1088,7 @@ function MissionBrick({
   const width = right - left;
   if (width <= 0) return null;
 
+  const suivi = mission.suiviStatut ? SUIVI[mission.suiviStatut] : null;
   const st = BRIQUE_STATUS[effectiveStatus] ?? BRIQUE_STATUS["RECHERCHE"];
   // Fermé volontairement → gris hachuré (section 47)
   const isHatch = effectiveStatus === "FERME";
@@ -1099,11 +1127,21 @@ function MissionBrick({
       style={{ left, width: Math.max(width, 24), position: "absolute", ...laneStyle(lane, laneCount, trackHeight) }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      title={`${mission.title} · ${fmtDate(mission.startDate)} → ${fmtDate(mission.endDate)} · ${st.label}`}
+      title={`${mission.title} · ${fmtDate(mission.startDate)} → ${fmtDate(mission.endDate)} · ${st.label}${suivi ? ` · ${suivi.label}` : ""}`}
     >
       {/* Libellé masqué si brique trop petite (< 40px) — vue condensée (section 47) */}
       {Math.max(width, 24) >= 40 && (
         <span className="text-[11px] font-medium truncate">{brickLabel}</span>
+      )}
+      {/* Pastille de suivi (section 200) : superposée en coin, en position absolue, pour ne
+          RIEN ajouter au flux. Une brique de 47 px avait déjà disparu sous une autre faute de
+          place (défaut 3 du 03/08, un recrutement actif invisible en production) — ce repère
+          ne doit jamais pousser la brique ni la faire grandir. */}
+      {suivi && (
+        <span
+          aria-hidden
+          className={`absolute top-[3px] right-[3px] w-[6px] h-[6px] rounded-full ring-1 ring-black/20 ${suivi.dot}`}
+        />
       )}
     </div>
   );
@@ -1394,6 +1432,132 @@ function PostAssistantLink({ post, onChanged }: { post: PostData; onChanged: () 
   );
 }
 
+// ── Bloc-note de suivi (section 200) ──────────────────────────────────────────
+//
+// Deux points d'ancrage, parce que la timeline montre deux natures d'objets :
+//   • une BRIQUE est une Mission → statut + note portés par elle ;
+//   • une ZONE NON COUVERTE n'est AUCUN objet en base — c'est un intervalle calculé entre
+//     deux briques. Son suivi est donc porté par le POSTE, seul support stable : accroché à
+//     un triplet (poste + début + fin), il deviendrait orphelin au premier décalage de dates,
+//     ce qui arrive réellement (bug B9, dates d'absence modifiées).
+
+function SuiviMission({ mission, onSaved }: { mission: MissionData; onSaved: () => void }) {
+  const [statut, setStatut] = useState<string | null>(mission.suiviStatut ?? null);
+  const [note, setNote]     = useState(mission.statusNote ?? "");
+  const [busy, setBusy]     = useState(false);
+  const [ok, setOk]         = useState(false);
+
+  const modifie = (statut ?? null) !== (mission.suiviStatut ?? null) || note !== (mission.statusNote ?? "");
+
+  async function save() {
+    setBusy(true); setOk(false);
+    try {
+      const res = await fetch(`/api/missions/${mission.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        // statusNote voyage SEULE, sans briqueStatus : elle était auparavant imbriquée dans
+        // la mise à jour du statut de créneau côté serveur, si bien qu'on ne pouvait pas
+        // écrire la note sans changer le créneau. C'est pour ça que ce champ, présent en base
+        // et déjà affiché, n'avait jamais reçu une valeur (section 200).
+        body: JSON.stringify({ suiviStatut: statut, statusNote: note.trim() || null }),
+      });
+      if (res.ok) { setOk(true); onSaved(); }
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-xl p-3">
+      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Suivi</p>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {SUIVI_ORDRE.map((k) => {
+          const actif = statut === k;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => { setStatut(actif ? null : k); setOk(false); }}
+              aria-pressed={actif}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition ${
+                actif
+                  ? "bg-kine-600 text-white border-kine-600"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-kine-300"
+              }`}
+            >
+              {SUIVI[k].label}
+            </button>
+          );
+        })}
+      </div>
+      <textarea
+        value={note}
+        onChange={(e) => { setNote(e.target.value.slice(0, 200)); setOk(false); }}
+        rows={2}
+        maxLength={200}
+        placeholder="Note libre — « rappelé le 30/10, dispo en novembre »"
+        className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-kine-200 resize-none"
+      />
+      <div className="flex items-center justify-between mt-2">
+        <span className="text-[10px] text-gray-400">{note.length}/200</span>
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy || !modifie}
+          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-kine-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-kine-700 transition"
+        >
+          {busy ? "…" : ok && !modifie ? "Enregistré ✓" : "Enregistrer"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SuiviPoste({ post, onSaved }: { post: PostData; onSaved: () => void }) {
+  const [note, setNote] = useState(post.suiviNote ?? "");
+  const [busy, setBusy] = useState(false);
+  const [ok, setOk]     = useState(false);
+  const modifie = note !== (post.suiviNote ?? "");
+
+  async function save() {
+    setBusy(true); setOk(false);
+    try {
+      const res = await fetch(`/api/cabinet-posts/${post.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ suiviNote: note.trim() || null }),
+      });
+      if (res.ok) { setOk(true); onSaved(); }
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-xl p-3">
+      <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">Note de suivi du poste</p>
+      <p className="text-[11px] text-gray-400 mb-2">
+        Attachée au poste, pas à une période : elle survit à un changement de dates.
+      </p>
+      <textarea
+        value={note}
+        onChange={(e) => { setNote(e.target.value.slice(0, 500)); setOk(false); }}
+        rows={3}
+        maxLength={500}
+        placeholder="« Annonce postée sur le groupe Facebook le 12/08, deux réponses à rappeler »"
+        className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-kine-200 resize-none"
+      />
+      <div className="flex items-center justify-between mt-2">
+        <span className="text-[10px] text-gray-400">{note.length}/500</span>
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy || !modifie}
+          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-kine-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-kine-700 transition"
+        >
+          {busy ? "…" : ok && !modifie ? "Enregistré ✓" : "Enregistrer"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Panel latéral droit ────────────────────────────────────────────────────────
 
 function SidePanel({
@@ -1469,6 +1633,7 @@ function SidePanel({
         >
           Voir tous les matchs
         </Link>
+        <SuiviPoste post={post} onSaved={() => router.refresh()} />
         {/* Rattachement d'un compte assistant à ce poste (section 153) */}
         <PostAssistantLink post={post} onChanged={() => { onClose(); router.refresh(); }} />
         {post.isActive && (
@@ -1492,6 +1657,7 @@ function SidePanel({
           <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold mb-2">PRÉAVIS</span>
           <h3 className="font-bold text-gray-900">{post.label}</h3>
         </div>
+        <SuiviMission mission={mission} onSaved={() => router.refresh()} />
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm">
           <p className="font-semibold text-yellow-800">Préavis de {post.noticeMonths} mois</p>
           {endDate && <p className="text-yellow-700 text-xs mt-1">Fin de contrat : {fmtDate(endDate)}</p>}
@@ -1537,10 +1703,8 @@ function SidePanel({
         )}
         <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-500">
           <p>{fmtDate(mission.startDate)} → {fmtDate(mission.endDate)}</p>
-          {mission.statusNote && (
-            <p className="mt-1 text-gray-600 italic">{mission.statusNote}</p>
-          )}
         </div>
+        <SuiviMission mission={mission} onSaved={() => router.refresh()} />
         {match && (
           <Link
             href={`/match/${match.id}`}
@@ -2061,10 +2225,12 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
       const st = BRIQUE_STATUS[status] ?? BRIQUE_STATUS["RECHERCHE"];
       const isHatch = status === "FERME";
       const brickLabel = m.matchedName || m.title;
+      const suivi = m.suiviStatut ? SUIVI[m.suiviStatut] : null;
       bricks.push({
         key: m.id, lane: lanes.get(m) ?? 0, leftPct: mpct(start), widthPct: w,
         colorCls: isHatch ? "timeline-hatch text-white" : `${st.bg} ${st.text}`,
-        label: brickLabel, title: `${brickLabel} · ${st.label}`,
+        suiviDot: suivi?.dot,
+        label: brickLabel, title: `${brickLabel} · ${st.label}${suivi ? ` · ${suivi.label}` : ""}`,
         onClick: (e: React.MouseEvent) => openDropdown(m, post, false, e),
       });
     });
