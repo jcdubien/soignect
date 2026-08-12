@@ -470,8 +470,12 @@ export default function CreateMissionPage() {
       ...(typeof f.endDate === "string" ? { endDate: f.endDate } : {}),
       ...(typeof f.minMonths === "number" ? { minMonths: String(f.minMonths) } : {}),
       ...(typeof f.commune === "string" ? { location: f.commune } : {}),
-      ...(typeof f.retrocessionRate === "number" ? { retrocessionRate: String(f.retrocessionRate) } : {}),
-      ...(typeof f.caMensuelEstime === "number" ? { caMensuelEstime: String(f.caMensuelEstime) } : {}),
+      // Chaque monde ne recoit que ses propres chiffres. Sans ce filtre, l'extraction ecrivait
+      // retrocession et CA dans l'etat d'un employeur : invisibles a l'ecran (les champs sont
+      // masques), mais affiches dans les puces « Ce que j'ai compris ».
+      ...(!isEmployeur && typeof f.retrocessionRate === "number" ? { retrocessionRate: String(f.retrocessionRate) } : {}),
+      ...(!isEmployeur && typeof f.caMensuelEstime === "number" ? { caMensuelEstime: String(f.caMensuelEstime) } : {}),
+      ...(isEmployeur && typeof f.remunerationBrute === "number" ? { remunerationBrute: String(f.remunerationBrute) } : {}),
       ...(typeof f.demiJourneesLibres === "number" ? { demiJourneesLibres: String(f.demiJourneesLibres) } : {}),
       ...(f.logementPropose === true ? { logementPropose: true } : {}),
       ...(f.vehiculePropose === true ? { vehiculePropose: true } : {}),
@@ -704,8 +708,9 @@ export default function CreateMissionPage() {
               {form.location && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📍 {form.location}</span>}
               {form.startDate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📅 {form.startDate}{form.endDate ? ` → ${form.endDate}` : ""}</span>}
               {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
-              {form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Rétro {form.retrocessionRate}%</span>}
-              {form.caMensuelEstime && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.caMensuelEstime}€/mois</span>}
+              {!isEmployeur && form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Rétro {form.retrocessionRate}%</span>}
+              {!isEmployeur && form.caMensuelEstime && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.caMensuelEstime}€/mois</span>}
+              {isEmployeur && form.remunerationBrute && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.remunerationBrute}€/mois brut</span>}
               {form.demiJourneesLibres && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗓️ {form.demiJourneesLibres} dj/sem.</span>}
               {form.logementPropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Logement</span>}
               {form.vehiculePropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Véhicule</span>}

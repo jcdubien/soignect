@@ -125,6 +125,7 @@ export interface ExtractedFields {
   commune?: string;
   retrocessionRate?: number; // 0-100
   caMensuelEstime?: number;
+  remunerationBrute?: number; // employeur : salaire brut mensuel (section 194)
   logementPropose?: boolean;
   vehiculePropose?: boolean;
   secretairePresente?: boolean; // secrétariat sur place
@@ -160,6 +161,7 @@ const rawExtractionSchema = z.object({
   commune: fieldWithEvidence,
   retrocessionRate: fieldWithEvidence,
   caMensuelEstime: fieldWithEvidence,
+  remunerationBrute: fieldWithEvidence,
   logementPropose: fieldWithEvidence,
   vehiculePropose: fieldWithEvidence,
   secretairePresente: fieldWithEvidence,
@@ -202,6 +204,14 @@ export async function extractAnnonceFields(
   "endDate":           {"value":"yyyy-mm-dd","evidence":"..."} | null,
   "minMonths":         {"value":<entier mois>,"evidence":"..."} | null,  // durée minimale (assistanat/collaboration)
   "methode":           {"value":"<ex: Mézières, sport>","evidence":"..."} | null`;
+  // Un EMPLOYEUR verse un salaire : ni retrocession ni chiffre d'affaires. Lui demander un
+  // « caMensuelEstime » revenait a ranger sa remuneration dans le champ du liberal — champ que
+  // le formulaire employeur n'affiche plus et que la soumission met a null. Le chiffre saisi
+  // dans le texte libre etait donc extrait, puis PERDU.
+  const employeurFields = `  "commune":           {"value":"<commune de Guadeloupe>","evidence":"..."} | null,
+  "remunerationBrute": {"value":<entier euros/mois>,"evidence":"..."} | null, // salaire BRUT mensuel. Un « 2600 € brut » se saisit 2600. Ne JAMAIS remplir retrocessionRate ni caMensuelEstime pour un employeur : un salarie ne retrocede rien et ne realise pas de chiffre d'affaires.
+  "demiJourneesLibres":{"value":<entier 0-10>,"evidence":"..."} | null,
+  "repartition":       {"value":"<ex: plateau technique + chambres>","evidence":"..."} | null`;
   const cabinetFields = `  "commune":           {"value":"<commune de Guadeloupe>","evidence":"..."} | null,
   "retrocessionRate":  {"value":<entier 0-100>,"evidence":"..."} | null, // CONVENTION IMPÉRATIVE : pour un REMPLACEMENT, la part que le REMPLAÇANT CONSERVE (« 75/25 » → 75) ; pour un ASSISTANAT ou une COLLABORATION, la redevance REVERSÉE AU CABINET (« 75/25 » → 25). C'est ce chiffre qui ira au contrat.
   "caMensuelEstime":   {"value":<entier euros/mois>,"evidence":"..."} | null,
@@ -217,7 +227,10 @@ export async function extractAnnonceFields(
   "rechercheSecretariat":{"value":true,"evidence":"..."} | null,         // true UNIQUEMENT si le candidat DEMANDE un cabinet avec secrétariat
   "rechercheExerciceCoordonne":{"value":true,"evidence":"..."} | null,   // true UNIQUEMENT si le candidat SOUHAITE exercer en MSP / centre de santé / structure coordonnée
   "ouvertSalariat":    {"value":true,"evidence":"..."} | null`;          // true si ouvert aux postes salariés (CDD/CDI/vacation)
-  const fieldsBlock = publieUneOffre(role) ? `${commonFields},\n${cabinetFields}` : `${commonFields},\n${candidatFields}`;
+  const fieldsBlock =
+    role === "employeur" ? `${commonFields},\n${employeurFields}`
+    : role === "cabinet" ? `${commonFields},\n${cabinetFields}`
+    : `${commonFields},\n${candidatFields}`;
   // L'accroche (carte de swipe) est extraite DANS LE MÊME APPEL : l'utilisateur ne saisit plus
   // qu'une seule zone de texte, l'accroche en est une condensation qu'il pourra corriger.
   const accrocheField = `  "accroche": "<une seule phrase, ${accrocheTarget} caractères max>" | null`;
@@ -299,6 +312,9 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
 
     const ca = acceptedNumber(r.caMensuelEstime);
     if (ca !== undefined && ca >= 0 && ca <= 1000000) out.caMensuelEstime = ca;
+
+    const rb = acceptedNumber(r.remunerationBrute);
+    if (rb !== undefined && rb >= 0 && rb <= 1000000) out.remunerationBrute = rb;
 
     if (accepted(r.logementPropose) === true) out.logementPropose = true;
     if (accepted(r.vehiculePropose) === true) out.vehiculePropose = true;
