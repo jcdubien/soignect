@@ -145,6 +145,64 @@ professionnels décidant d'un contrat, ça coûte plus en crédibilité que ça 
 référencement. Le nettoyage a dû être fait deux fois — bas de page le 10/08, accroches le
 12/08 — parce que la première passe avait visé un ENDROIT, pas une catégorie de texte.
 
+### Notifications — chaque type mène à une action (passe complète du 12/08)
+
+Passe demandée le 03/08 après le bug B12 (« une notification qui alerte sans donner prise »).
+Les quatre types existants, avec leur destination réelle :
+
+| Type | Destination | Action possible au bout |
+|---|---|---|
+| `consultation` | `/annonces?card=<id>` | fiche décisionnelle du visiteur, Passer / Intéressé |
+| `match` | `/matches?matchId=<id>` | ouvre la mise en relation |
+| `message` | `/match/<id>?chat=1` | ouvre la conversation |
+| `signature` | `/match/<id>/contrat` | signer à son tour |
+
+**Aucune impasse.** Le seul repli — visiteur sans annonce publiée — renvoie vers l'espace du
+destinataire (`/planning` ou `/disponibilites`) et non vers un flux générique. L'email de
+consultation garde délibérément le lien PUBLIC, son lecteur pouvant être déconnecté ; c'est la
+notification in-app, elle, qui pointe la fiche décisionnelle.
+
+### Robustesse du match automatique — une fenêtre de course existe (lecture seule, 12/08)
+
+Question posée le 29/07, jamais instruite. Réponse vérifiée dans `api/swipe/route.ts` :
+
+Un swipe RIGHT est d'abord **écrit** (`upsert`), puis le code **cherche** un swipe réciproque
+en face. Si les deux parties swipent quasi simultanément, chaque requête peut lire avant que
+l'écriture de l'autre ne soit visible : **aucune des deux ne détecte l'autre, et aucun match
+n'est créé** alors que les deux personnes étaient d'accord. Silencieux — ni erreur, ni trace.
+
+Ce qui protège déjà : `@@unique([profileAId, profileBId])` sur `Match` + un `findUnique` avant
+création. Le risque n'est donc PAS le doublon — c'est le **match manquant**. Symétriquement, si
+les deux se détectent, la seconde création viole la contrainte et lève un P2002 non intercepté.
+
+**Portée réelle** : la fenêtre dure quelques millisecondes et demande deux swipes croisés
+dedans. 74 `SWIPE_RIGHT` depuis l'origine du produit — ce n'est pas arrivé et n'arrivera pas à
+ce volume. Noté comme dette, pas comme urgence.
+
+**Correctif minimal proposé, NON implémenté** (la consigne d'origine demandait de proposer
+avant de coder) : intercepter P2002 à la création et le traiter comme un succès (idempotence),
+puis relire la réciprocité une fois le swipe commité. Moins coûteux qu'une transaction
+`Serializable` autour de l'ensemble, et ça couvre les deux moitiés du problème.
+
+### Taux de rétrocession inversé — aucun contrat concerné retrouvable (12/08)
+
+Point marqué 🔴 critique le 03/08 : un bug affichait le taux à l'envers de sa valeur au
+contrat, d'où la question « des contrats signés pendant la fenêtre sont-ils concernés ? ».
+
+Fenêtre fermée par le commit `13202d6`, le **30/07 à 23h54**. Le défaut vivait dans le
+placeholder du formulaire de création, qui invitait à corriger un taux pourtant correctement
+extrait (« 75/25 » extrait à 75, le placeholder suggérait 25).
+
+Mesuré en base le 12/08 : **zéro annonce créée avant le correctif ne porte de taux de
+rétrocession** (les 5 annonces qui en portent un sont toutes postérieures). Les deux seules
+signatures jamais enregistrées — `CONTRACT_SIGNED` du 18/07 (remplacement) et du 23/07
+(assistanat) — ne peuvent donc pas véhiculer un taux inversé issu de ce champ.
+
+⚠️ **Portée de cette réponse** : les deux `Match` correspondants ont depuis été supprimés
+(0 mise en relation en base), le contenu exact des PDF signés n'est donc plus inspectable. La
+conclusion est « aucun contrat concerné retrouvable dans les données actuelles », pas « aucun
+contrat n'a été affecté ». On ne peut pas aller plus loin sans les archives.
+
 ---
 
 ## PARTIE II — PARCOURS UTILISATEUR
