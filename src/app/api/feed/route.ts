@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ProfileType, TitulaireKind, Prisma, BriqueStatus } from "@prisma/client";
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
-import { getDesirabilityPercent } from "@/lib/desirability";
+import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +40,17 @@ export async function GET(req: NextRequest) {
 
   // When TITULAIRE selects a specific mission chip, filter candidats whose dates overlap
   let dateFilter: { startDate?: object; endDate?: object } = {};
+  // Période visée par le cabinet — déjà chargée pour le filtre de dates, on la garde pour le
+  // bonus saisonnier (section 197), qui ne s'applique que si le besoin recoupe mai-octobre.
+  let besoinPeriode: { startDate: Date | null; endDate: Date | null } | null = null;
   if (myProfile.type === ProfileType.TITULAIRE && targetMissionId) {
     const targetMission = await prisma.mission.findUnique({
       where: { id: targetMissionId },
       select: { startDate: true, endDate: true },
     });
+    // Conservée même sans date de fin : un poste long terme a un début et pas de fin, et son
+    // besoin recoupe la fenêtre tout autant. Le FILTRE, lui, exige toujours les deux bornes.
+    if (targetMission) besoinPeriode = { startDate: targetMission.startDate, endDate: targetMission.endDate };
     if (targetMission?.startDate && targetMission?.endDate) {
       dateFilter = {
         startDate: { lte: targetMission.endDate },
@@ -101,8 +107,18 @@ export async function GET(req: NextRequest) {
   // Le tri SQL se faisait sur la colonne desirabilityScore brute, qui ignore le plan, le statut
   // fondateur et les arbitrages admin ; on trie donc sur la désirabilité EFFECTIVE, après
   // récupération de la page (au plus `limit` lignes, 50 max).
+  //
+  // S'y ajoute le BONUS SAISONNIER (section 197) : une disponibilité qui couvre mai-octobre
+  // remonte, mais UNIQUEMENT devant un cabinet dont le besoin recoupe lui aussi cette fenêtre.
+  // Sans cette condition, un cabinet recrutant pour décembre aurait vu des candidats d'août en
+  // tête — l'ordre l'aurait mis en avant avant que le score ne dise « dates éloignées ».
   const desirabilite = new Map<string, number>();
-  for (const m of missions) desirabilite.set(m.id, getDesirabilityPercent(m.profile));
+  for (const m of missions) {
+    desirabilite.set(
+      m.id,
+      getDesirabilityPercent(m.profile) + bonusSaisonnier({ startDate: m.startDate, endDate: m.endDate }, besoinPeriode),
+    );
+  }
   missions.sort((a, b) => (desirabilite.get(b.id) ?? 0) - (desirabilite.get(a.id) ?? 0));
 
   // Nombre de candidats/annonces DISPONIBLES que l'utilisateur a DÉJÀ VUS (swipés) — mêmes

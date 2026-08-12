@@ -818,7 +818,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             se cache simplement plus à l'intérieur du score de compatibilité, où elle affirmait
             quelque chose de faux sur l'autre partie. Elle est dite, en clair, une fois. */}
         <p className="px-4 pb-1 text-[10px] leading-snug text-gray-400 shrink-0">
-          Ordre d&apos;affichage : les comptes abonnés, partenaires et zones prioritaires apparaissent en premier.
+          Ordre d&apos;affichage : les comptes abonnés, partenaires et zones prioritaires
+          apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}.
           Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
         </p>
 
