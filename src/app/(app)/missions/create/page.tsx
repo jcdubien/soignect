@@ -22,6 +22,8 @@ const CONFIG = {
     communeLabel:     "Commune du cabinet",
     specialtiesLabel: "Spécialités pratiquées au cabinet",
     pitchTitle:       "En une phrase, ce que vous proposez",
+    rawPlaceholder:   "Ex : Cabinet à Sainte-Anne cherche remplaçant à partir du 1er septembre pour 3 semaines. Rétro 25%, CA ~8000€/mois. Logement et voiture à disposition. Ambiance familiale, 3 demi-journées libres par semaine, patientèle variée.",
+    pitchPlaceholder: "Ex : Cabinet familial à Sainte-Anne, patientèle variée, logement et véhicule à disposition.",
     submitLabel:      "Publier le poste →",
   },
   TITULAIRE_EMPLOYEUR: {
@@ -34,6 +36,9 @@ const CONFIG = {
     communeLabel:     "Commune de l'établissement",
     specialtiesLabel: "Spécialités requises",
     pitchTitle:       "En une phrase, ce que vous proposez",
+    // Exemple SALARIÉ : ni rétrocession ni CA, qui n'existent pas dans un contrat de travail.
+    rawPlaceholder:   "Ex : Notre clinique aux Abymes recrute un kiné en CDI temps plein dès septembre. Rémunération 2 600 € brut, plateau technique complet, équipe de 4 kinés et 2 ergothérapeutes. Formation continue financée, logement possible les premiers mois.",
+    pitchPlaceholder: "Ex : Clinique aux Abymes, équipe pluridisciplinaire, plateau technique complet, formation continue.",
     submitLabel:      "Ouvrir le poste →",
   },
   REMPLACANT: {
@@ -46,6 +51,8 @@ const CONFIG = {
     communeLabel:     "Commune ou zone souhaitée",
     specialtiesLabel: "Mes spécialités",
     pitchTitle:       "En une phrase, qui vous êtes",
+    rawPlaceholder:   "Ex : Kiné diplômé, disponible du 1er au 30 septembre sur le Sud Grande-Terre. Mobile, méthode Mézières et respiratoire. Je recherche un logement.",
+    pitchPlaceholder: "Ex : Kiné mobile, méthodes Mézières et respiratoire, patientèle variée appréciée.",
     submitLabel:      "Publier ma disponibilité →",
   },
   ASSISTANT: {
@@ -58,6 +65,8 @@ const CONFIG = {
     communeLabel:     "Commune ou zone souhaitée",
     specialtiesLabel: "Mes spécialités",
     pitchTitle:       "En une phrase, votre projet",
+    rawPlaceholder:   "Ex : Kiné diplômé, je recherche un assistanat longue durée sur Grande-Terre à partir de septembre, minimum 12 mois. Formé en thérapie manuelle et sport. Je cherche un logement.",
+    pitchPlaceholder: "Ex : Kiné formé en thérapie manuelle et sport, je cherche un poste durable en équipe.",
     submitLabel:      "Publier ma recherche →",
   },
 } as const;
@@ -504,7 +513,10 @@ export default function CreateMissionPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action, role: "cabinet", text: form.rawText,
+          // Un établissement n'est pas un cabinet libéral : le modèle recevait « tu aides un
+          // cabinet de kinésithérapie » pour une offre de CDI, et suggérait d'ajouter un CA et
+          // un taux de rétrocession (section 195).
+          action, role: isEmployeur ? "employeur" : "cabinet", text: form.rawText,
           ...(action === "optimize" ? { known: knownFields() } : {}),
         }),
       });
@@ -592,7 +604,7 @@ export default function CreateMissionPage() {
               rows={6}
               maxLength={8000}
               className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800"
-              placeholder={"Ex : Cabinet à Sainte-Anne cherche remplaçant à partir du 1er septembre pour 3 semaines. Rétro 25%, CA ~8000€/mois. Logement et voiture à disposition. Ambiance familiale, 3 demi-journées libres par semaine, patientèle variée."}
+              placeholder={cfg.rawPlaceholder}
             />
             {/* Boutons d'assistance — chacun = 1 appel IA explicite (jamais à la frappe).
                 Libellés décrivant le RÉSULTAT, pas l'action : « Analyser » et « Optimiser »
@@ -786,7 +798,7 @@ export default function CreateMissionPage() {
             onBlur={() => setAccrocheFocused(false)}
             rows={3}
             className="w-full py-2.5 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800 not-italic break-words whitespace-pre-wrap placeholder:text-gray-400 placeholder:italic"
-            placeholder="Ex : Cabinet familial à Sainte-Anne, patientèle variée, logement et véhicule à disposition."
+            placeholder={cfg.pitchPlaceholder}
           />
           <div className="flex justify-end items-center min-h-[16px]">
             {!accrocheValid ? (

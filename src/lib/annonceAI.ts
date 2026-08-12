@@ -10,7 +10,16 @@
 import { z } from "zod";
 import { COMMUNES_GUADELOUPE, ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
 
-export type AnnonceRole = "cabinet" | "candidat";
+// TROIS rôles, pas deux (section 195). « cabinet » couvrait indistinctement le cabinet libéral
+// et l'établissement employeur : le modèle recevait donc « tu aides un cabinet de
+// kinésithérapie » pour une offre de CDI hospitalier, et se voyait demander de suggérer en
+// priorité un CHIFFRE D'AFFAIRES et un TAUX DE RÉTROCESSION — deux notions sans objet pour un
+// salarié, et deux champs que le formulaire employeur ne propose plus.
+export type AnnonceRole = "cabinet" | "candidat" | "employeur";
+
+// Un employeur PUBLIE une offre, comme un cabinet : les champs extraits sont les mêmes.
+// Seul le vocabulaire des consignes change.
+export const publieUneOffre = (r: AnnonceRole) => r === "cabinet" || r === "employeur";
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 
@@ -208,13 +217,13 @@ export async function extractAnnonceFields(
   "rechercheSecretariat":{"value":true,"evidence":"..."} | null,         // true UNIQUEMENT si le candidat DEMANDE un cabinet avec secrétariat
   "rechercheExerciceCoordonne":{"value":true,"evidence":"..."} | null,   // true UNIQUEMENT si le candidat SOUHAITE exercer en MSP / centre de santé / structure coordonnée
   "ouvertSalariat":    {"value":true,"evidence":"..."} | null`;          // true si ouvert aux postes salariés (CDD/CDI/vacation)
-  const fieldsBlock = role === "cabinet" ? `${commonFields},\n${cabinetFields}` : `${commonFields},\n${candidatFields}`;
+  const fieldsBlock = publieUneOffre(role) ? `${commonFields},\n${cabinetFields}` : `${commonFields},\n${candidatFields}`;
   // L'accroche (carte de swipe) est extraite DANS LE MÊME APPEL : l'utilisateur ne saisit plus
   // qu'une seule zone de texte, l'accroche en est une condensation qu'il pourra corriger.
   const accrocheField = `  "accroche": "<une seule phrase, ${accrocheTarget} caractères max>" | null`;
 
   const system = `Tu es un extracteur d'informations pour une plateforme de mise en relation de kinésithérapeutes en Guadeloupe.
-On te donne une annonce ${role === "cabinet" ? "de cabinet qui recrute" : "d'un remplaçant/assistant qui se propose"}, rédigée en texte libre.
+On te donne une annonce ${role === "employeur" ? "d'un établissement de santé qui EMBAUCHE un salarié (vacation, CDD ou CDI)" : role === "cabinet" ? "de cabinet libéral qui recrute" : "d'un remplaçant/assistant qui se propose"}, rédigée en texte libre.
 Tu dois extraire UNIQUEMENT les informations EXPLICITEMENT présentes dans le texte.
 
 RÈGLE ABSOLUE : n'invente JAMAIS une valeur. Si une information n'est pas clairement dans le texte, mets le champ à null.
@@ -223,7 +232,7 @@ Un taux de rétrocession ou un chiffre d'affaires inventé finirait dans un cont
 Pour CHAQUE champ non nul, tu dois fournir "evidence" = un extrait VERBATIM (copié mot pour mot depuis le texte) qui justifie la valeur. Sans extrait verbatim, mets null.
 
 SEULE EXCEPTION — le champ "accroche" : c'est une phrase libre, pas une copie. Tu CONDENSES en UNE phrase courte et percutante ce que la personne a écrit, pour l'afficher sur sa carte d'annonce. Contraintes :
-- ${role === "cabinet" ? "écrite du point de vue du cabinet" : "écrite à la première personne, du point de vue du candidat"}, ton naturel, sans guillemets ;
+- ${publieUneOffre(role) ? (role === "employeur" ? "écrite du point de vue de l'établissement" : "écrite du point de vue du cabinet") : "écrite à la première personne, du point de vue du candidat"}, ton naturel, sans guillemets ;
 - ${accrocheTarget} caractères maximum, une seule phrase ;
 - AUCUNE promesse, AUCUN argument, AUCUN chiffre qui ne figure pas déjà dans le texte : tu condenses, tu n'ajoutes rien ;
 - si le texte est trop pauvre pour en tirer une phrase, mets null.
@@ -281,7 +290,7 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
   const met = accepted(r.methode);
   if (typeof met === "string" && met.trim()) out.methode = met.trim().slice(0, 120);
 
-  if (role === "cabinet") {
+  if (publieUneOffre(role)) {
     const com = accepted(r.commune);
     if (typeof com === "string") { const m = matchCommune(com); if (m) out.commune = m; }
 
@@ -325,7 +334,7 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
 export async function proposeAnnonceTitle(text: string, role: AnnonceRole): Promise<string | null> {
   const source = text.trim();
   if (source.length < 10) return null;
-  const system = `Tu proposes un titre court et accrocheur pour une annonce ${role === "cabinet" ? "de cabinet de kinésithérapie qui recrute" : "d'un kinésithérapeute qui se propose"} en Guadeloupe.
+  const system = `Tu proposes un titre court et accrocheur pour une annonce ${role === "employeur" ? "d'un établissement de santé qui embauche un kinésithérapeute salarié" : role === "cabinet" ? "de cabinet de kinésithérapie qui recrute" : "d'un kinésithérapeute qui se propose"} en Guadeloupe.
 Le titre : localisation + type de poste + une ou deux caractéristiques fortes RÉELLEMENT présentes dans le texte. Max 90 caractères, sans guillemets, sans point final. N'invente rien.
 Réponds en JSON : {"title":"..."}.`;
   const parsed = await deepseekJSON(system, source, 60);
@@ -344,7 +353,17 @@ export async function redactionHelp(
 ): Promise<string | null> {
   const draft = text.trim();
   const refs = pastTexts.map((t) => t.trim()).filter(Boolean).slice(0, 3);
-  const system = `Tu aides un ${role === "cabinet" ? "cabinet de kinésithérapie" : "kinésithérapeute remplaçant/assistant"} en Guadeloupe à rédiger son annonce en texte libre, chaleureux et concret.
+  const qui =
+    role === "employeur" ? "établissement de santé (clinique, EHPAD, centre) en Guadeloupe qui EMBAUCHE un kinésithérapeute SALARIÉ"
+    : role === "cabinet" ? "cabinet de kinésithérapie libéral en Guadeloupe"
+    : "kinésithérapeute remplaçant/assistant en Guadeloupe";
+  // Un employeur ne rétrocède rien et n'a pas de patientèle à partager : le vocabulaire libéral
+  // produisait un texte hors sujet sur une offre de CDI.
+  const interdits =
+    role === "employeur"
+      ? `\nVOCABULAIRE : il s'agit d'un CONTRAT DE TRAVAIL, pas d'un exercice libéral. N'emploie jamais « rétrocession », « redevance », « patientèle du cabinet », « collaboration libérale » ni « chiffre d'affaires ». Parle de rémunération, de contrat, d'équipe, de conditions de travail.`
+      : "";
+  const system = `Tu aides un ${qui} à rédiger son annonce en texte libre, chaleureux et concret.${interdits}
 ${refs.length ? "Inspire-toi du STYLE et du niveau de détail de ses annonces précédentes ci-dessous, mais n'invente aucun fait nouveau : reprends uniquement les informations du brouillon actuel." : "N'invente aucun fait : reprends uniquement les informations du brouillon."}
 Améliore la clarté, le ton et la structure. Garde un texte court (une dizaine de lignes max). Ne rajoute pas d'informations chiffrées (dates, taux, CA) absentes du brouillon.
 Réponds en JSON : {"text":"annonce améliorée"}.`;
@@ -374,11 +393,14 @@ export async function optimizeAnnonce(
     ? `\n\nDÉJÀ RENSEIGNÉ — ne suggère JAMAIS d'ajouter ces informations, elles sont acquises :\n${knownList.map((k) => `- ${k}`).join("\n")}`
     : "";
   const roleGuidance =
-    role === "cabinet"
+    role === "employeur"
+      ? `Côté établissement employeur, ce qui rend une offre attractive : rémunération brute, type de contrat et durée, temps de travail et horaires, composition de l'équipe, plateau technique, formation continue, logement possible.
+NE SUGGÈRE JAMAIS un chiffre d'affaires ni un taux de rétrocession : un salarié ne rétrocède rien et ne réalise pas de chiffre d'affaires. La rémunération est l'information qui pèse le plus.`
+      : role === "cabinet"
       ? `Côté cabinet, ce qui rend une annonce attractive et que les meilleures annonces contiennent : logement, véhicule, demi-journées libres, plateau technique/équipement, ambiance d'équipe, chiffre d'affaires estimé, taux de rétrocession, répartition cabinet/domicile.
 Le chiffre d'affaires estimé et le taux de rétrocession sont les deux informations qui pèsent le plus : si — ET SEULEMENT SI — ils sont absents à la fois du texte et de la liste « déjà renseigné », propose-les en premier, avec un argument concret pour le candidat. Ils restent facultatifs : c'est une incitation, jamais une obligation.`
       : `Côté candidat, ce qui le sécurise et évite les oublis : disponibilités précises (dates), mobilité/zones, méthodes pratiquées, attentes sur le taux, logement/véhicule recherchés, expérience.`;
-  const system = `Tu analyses une annonce ${role === "cabinet" ? "de cabinet" : "de candidat"} kiné en Guadeloupe et proposes 1 à 3 AJOUTS concrets et actionnables qui MANQUENT dans le texte. ${roleGuidance}
+  const system = `Tu analyses une annonce ${role === "employeur" ? "d'établissement employeur" : role === "cabinet" ? "de cabinet libéral" : "de candidat"} kiné en Guadeloupe et proposes 1 à 3 AJOUTS concrets et actionnables qui MANQUENT dans le texte. ${roleGuidance}
 RÈGLE ABSOLUE : relis le texte avant chaque suggestion. Si l'information y figure — même en abrégé, même en style télégraphique (« clim », « logé », « 75/25 », « ca 8000 »), même formulée négativement (« véhicule non fourni » = l'information EST donnée) — alors elle n'est PAS manquante : ne la suggère pas.
 Mieux vaut renvoyer 0 suggestion qu'une suggestion portant sur quelque chose de déjà écrit.
 Sois concret (pas de généralité). Formulation courte, à l'impératif.

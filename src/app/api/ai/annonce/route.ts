@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 // (le formulaire manuel reste pleinement utilisable côté UI : jamais de blocage de publication).
 const bodySchema = z.object({
   action: z.enum(["extract", "title", "redaction", "optimize"]),
-  role: z.enum(["cabinet", "candidat"]).default("cabinet"),
+  role: z.enum(["cabinet", "candidat", "employeur"]).default("cabinet"),
   text: z.string().max(8000).default(""),
   // Informations déjà renseignées côté client (champs extraits ou saisis) — permet à
   // « Qu'est-ce qui manque ? » de ne pas suggérer ce qui est déjà là.
