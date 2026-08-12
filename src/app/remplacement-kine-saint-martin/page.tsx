@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { tracerVueLanding } from "@/lib/traceLanding";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
@@ -33,6 +34,10 @@ async function getMissions() {
 
 export default async function SaintMartinPage() {
   const missions = await getMissions();
+
+  // Trace de frequentation (section 86) : ces deux pages n'en avaient aucune, et affichaient
+  // « non tracee » dans /admin/diffusion — faute de mesure, pas faute de trafic.
+  await tracerVueLanding("remplacement-kine-saint-martin", missions.length);
 
   const formatDate = (d: Date | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : null;

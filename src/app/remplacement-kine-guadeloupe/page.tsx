@@ -3,8 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import type { ZoneGeographique } from "@prisma/client";
 import { libelleTypePoste, estEtablissement } from "@/lib/libellesPoste";
-import { headers } from "next/headers";
-import { logTraceEvent } from "@/lib/trace";
+import { tracerVueLanding } from "@/lib/traceLanding";
 
 export const dynamic = "force-dynamic";
 
@@ -67,39 +66,11 @@ async function getMissions() {
   });
 }
 
-// Robots connus. On ne les EXCLUT pas — savoir qu'on est indexé a de la valeur — on les
-// ÉTIQUETTE, pour que le comptage humain reste lisible. Sans ça, un passage de Googlebot et une
-// visite réelle pèsent pareil, et le chiffre ne veut plus rien dire.
-const ROBOTS = /bot|crawl|spider|slurp|facebookexternalhit|preview|headless|lighthouse|curl|wget|python-requests/i;
-
 export default async function GuadeloupePage() {
   const missions = await getMissions();
 
-  // Trace de fréquentation (section 86). Cette page n'en posait AUCUNE : il n'existait, avant
-  // ce jour, aucun moyen de savoir si elle recevait du trafic — ni compteur d'audience installé
-  // dans le projet, ni événement ici. On relançait donc une campagne à l'aveugle, sans pouvoir
-  // dire un mois plus tard si elle avait converti.
-  //
-  // Le référent et la campagne sont conservés parce que c'est EUX la question : distinguer une
-  // arrivée depuis Facebook d'une arrivée par recherche organique. Aucune donnée personnelle —
-  // ni IP, ni identifiant : on compte des provenances, pas des personnes.
-  try {
-    const h = await headers();
-    const ua = h.get("user-agent") ?? "";
-    const referent = h.get("referer");
-    logTraceEvent({
-      eventType: "LANDING_VIEW",
-      metadata: {
-        page: "remplacement-kine-guadeloupe",
-        robot: ROBOTS.test(ua),
-        // Domaine référent seul, jamais l'URL complète : elle peut porter des paramètres privés.
-        referent: referent ? (() => { try { return new URL(referent).hostname; } catch { return "invalide"; } })() : null,
-        annonces: missions.length,
-      },
-    });
-  } catch {
-    // Une trace ne doit jamais empêcher la page de s'afficher.
-  }
+  // Trace de fréquentation (section 86) — mécanique partagée par les trois pages d'entrée.
+  await tracerVueLanding("remplacement-kine-guadeloupe", missions.length);
 
   const formatDate = (d: Date | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : null;

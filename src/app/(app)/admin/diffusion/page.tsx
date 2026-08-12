@@ -9,9 +9,10 @@ export const dynamic = "force-dynamic";
 // Jean-Charles ignorait que Saint-Martin et Saint-Barth étaient en ligne. On les rassemble ici,
 // avec de quoi les ouvrir, les partager, et voir si elles reçoivent du trafic.
 //
-// `trace` = clé metadata.page de l'événement LANDING_VIEW. Seule la page guadeloupéenne en pose
-// une aujourd'hui ; les deux autres affichent « non tracée » plutôt qu'un zéro, qui se lirait
-// comme une absence de visites alors que c'est une absence de mesure.
+// `trace` = clé metadata.page de l'événement LANDING_VIEW. Les trois pages en posent une
+// désormais. La branche « non tracée » du rendu est conservée pour une page qu'on ajouterait
+// sans l'instrumenter : un zéro se lirait comme une absence de VISITES, alors que ce serait une
+// absence de MESURE.
 const PAGES = [
   {
     chemin: "/remplacement-kine-guadeloupe",
@@ -23,13 +24,13 @@ const PAGES = [
     chemin: "/remplacement-kine-saint-martin",
     titre: "Postes de kiné à Saint-Martin",
     sousTitre: "Collectivité d'outre-mer, distincte de la Guadeloupe",
-    trace: null,
+    trace: "remplacement-kine-saint-martin",
   },
   {
     chemin: "/remplacement-kine-saint-barth",
     titre: "Postes de kiné à Saint-Barthélemy",
     sousTitre: "Collectivité d'outre-mer, distincte de la Guadeloupe et de Saint-Martin",
-    trace: null,
+    trace: "remplacement-kine-saint-barth",
   },
 ];
 
