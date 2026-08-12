@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { BriqueStatus, MissionType, SuiviStatut, ZoneGeographique } from "@prisma/client";
+import { BriqueStatus, MissionType, SuiviStatut, ZonageType, ZoneGeographique } from "@prisma/client";
 import { logMatchCancelled } from "@/lib/trace";
+import { getCommuneZonage } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
 
@@ -92,10 +93,23 @@ export async function PATCH(
 
   const { briqueStatus, statusNote, statusUpdatedAt, suiviStatut, startDate, endDate, departureDate, ...rest } = parsed.data;
 
+  // Le zonage ARS (section 201) est DÉRIVÉ de la commune — il n'est pas saisi. Il n'était
+  // calculé qu'à la CRÉATION : changer la commune d'une annonce laissait l'ancien classement
+  // en place. Constaté en production le 12/08 sur une annonce du Gosier portée en
+  // INTERMEDIAIRE, alors que Le Gosier est non prioritaire depuis toujours dans le barème —
+  // la valeur ne venait pas du calcul, elle avait survécu à une édition de commune.
+  // On recalcule dès que la commune bouge : une donnée dérivée qui ne suit pas sa source
+  // devient un mensonge silencieux (même famille que Match.aiScore figé).
+  const zonageRecalcule =
+    rest.location !== undefined && rest.location !== mission.location
+      ? { zonage: getCommuneZonage(rest.location) as ZonageType | null }
+      : {};
+
   const updated = await prisma.mission.update({
     where: { id },
     data: {
       ...rest,
+      ...zonageRecalcule,
       startDate: startDate ? new Date(startDate) : startDate,
       endDate: endDate ? new Date(endDate) : endDate,
       ...(departureDate !== undefined && { departureDate: departureDate ? new Date(departureDate) : null }),

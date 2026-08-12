@@ -2807,6 +2807,97 @@ pré-sélection du profil rédigé ci-dessous, en attente d'envoi.
 
 ---
 
+### Zonage ARS et données APL
+
+#### ZONAGE ARS — vérifié contre la source officielle (12/08)
+
+##### Le barème codé est exact et à jour
+
+`src/lib/communes.ts` porte deux `Set` de communes, référencés à l'**arrêté n°971-2024 du
+31 décembre 2024**. Confronté au PDF officiel de l'ARS Guadeloupe (annexes 1 et 2) : **zéro
+écart**. 12 communes en zone intermédiaire, 20 en zone non prioritaire, classées à l'identique
+une par une. La cartographie de l'annexe 2 porte la légende « 3-Zone Intermédiaire (12) /
+4-Zone non prioritaire (20) » — le code nomme ses Sets `ZONE_3_` et `ZONE_4_`.
+
+L'arrêté ne compte que **2 catégories** : aucune zone sous-dotée ni très sous-dotée en
+Guadeloupe aujourd'hui. `ZonageType` conserve `SOUS_DOTEE` et `TRES_SOUS_DOTEE` pour d'autres
+professions et territoires — ce n'est pas un résidu.
+
+Les libellés du code suffixent `Grand-Bourg (Marie-Galante)`, `Terre-de-Bas (Les Saintes)`…
+là où l'arrêté écrit `Grand-Bourg`, `Terre-de-Bas`. C'est **volontaire** : la comparaison est un
+`Set.has()` exact sur `Mission.location`, qui utilise le vocabulaire de `COMMUNES_GUADELOUPE`.
+
+##### Trois couches à ne pas confondre
+
+| Couche | Portée | Où elle vit |
+|---|---|---|
+| Méthodologie de calcul APL (arrêté du 20/03/2024) | nationale, propre au métier de kiné | nulle part — c'est un document |
+| **Donnée APL brute DREES**, par commune et profession | **nationale** | `CommuneAPL.aplKine…` |
+| **Zonage régional** (arrêté ARS 971-2024) | **Guadeloupe seule** | `communes.ts`, Sets codés |
+
+Seule la troisième est territoriale : elle applique des seuils régionaux sur la donnée
+nationale. L'arrêté 971-2024 vise d'ailleurs nommément celui du 20/03/2024 — la chaîne est
+explicite dans la source.
+
+**Le Set ne mélange pas ces couches** : il ne contient aucune valeur APL, seulement le
+résultat du seuillage. La séparation est respectée.
+
+##### Correctif livré le 12/08 — le zonage n'était calculé qu'à la création
+
+`Mission.zonage` est **dérivé** de la commune, jamais saisi. Il n'était calculé qu'au POST :
+`PATCH /api/missions/[id]` acceptait `location` sans jamais recalculer le classement. Changer
+la commune d'une annonce laissait l'ancien.
+
+Constaté en production : une annonce du **Gosier** portait `INTERMEDIAIRE`, alors que Le Gosier
+est non prioritaire **depuis toujours** dans le barème (Sets inchangés dans tout l'historique
+git). La valeur ne venait donc pas du calcul — elle avait survécu à une édition de commune.
+
+Corrigé : le zonage se recalcule dès que la commune bouge. La ligne fautive a été rectifiée en
+base ; **0 écart sur 21 annonces** après vérification.
+
+Le second trou n'est PAS corrigé : `location` contient parfois une macro-zone
+(« Sud Basse-Terre ») ou du texte libre (« Cabinet des ravines »). Le `Set.has()` échoue en
+silence et rend `null` — **12 annonces sur 21 n'ont aucun zonage**. Ce n'est pas un défaut du
+barème mais du champ `location`, qui porte deux natures.
+
+**Impact réel aujourd'hui : nul.** `Mission.zonage` et `Profile.zonage` ne sont lus NULLE PART
+— ni scoring, ni contrat, ni affichage. Donnée écrite et jamais relue. Le correctif empêche
+qu'elle se dégrade avant d'avoir un usage.
+
+#### CommuneAPL — structure nationale, alimentation absente (constaté le 12/08)
+
+```
+112 lignes · 971 (32) · 972 (34) · 973 (22) · 974 (24)
+codeInsee unique — exactement la clé « Code commune » de l'annexe 1 de l'arrêté
+aplKine renseigné 112/112 · min 0 · médiane 144,9 · max 405
+```
+
+**La structure est nationale par construction** : rien n'y suppose l'outre-mer. Alimentée, elle
+servirait n'importe quelle commune de France sans une ligne de code supplémentaire. C'est le
+bon porteur si le zonage doit un jour sortir du code.
+
+Trois manques à connaître avant d'y verser quoi que ce soit :
+
+1. **Le script d'alimentation n'existe pas.** Le schéma annonce « Alimenté par
+   `scripts/update_apl.py` (cron annuel) » : ce fichier n'est nulle part dans le dépôt, et
+   `vercel.json` ne déclare que le cron des relances de message. Toutes les lignes portent le
+   même `updatedAt` — **28/06/2026**, un import unique. Un commentaire qui décrit un mécanisme
+   absent.
+2. **Aucun millésime.** La donnée APL est un jeu ANNUEL. La table n'a ni `annee`, ni `source`,
+   ni référence de publication — seulement `updatedAt`, qui dit quand la ligne a bougé, pas de
+   quelle année sont les chiffres. On ne peut ni savoir ce qu'on détient, ni recharger sans
+   écraser à l'aveugle.
+3. **Elle mélange déjà deux natures.** Les colonnes `boost*` ne sont pas de la DREES : ce sont
+   des leviers produit éditables en admin (−10 à +10), et **16 des 32 communes de Guadeloupe en
+   portent un non nul**. Donnée externe immuable et réglage maison cohabitent sans rien qui les
+   distingue.
+
+L'écran `/admin/apl` liste la table et permet d'éditer les 5 boosts. Si le zonage la rejoignait,
+il devrait y être **en lecture seule, avec sa référence d'arrêté** : c'est un acte du directeur
+général de l'ARS, pas un réglage.
+
+---
+
 ### Exploitation, incidents, veille
 
 #### ÉTAT CONSOLIDÉ DU PRODUIT — 26/07/2026
