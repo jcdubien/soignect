@@ -44,7 +44,15 @@ export interface Territoire {
   cleTrace: string;
   /** Accroche sous le titre. Elle DIFFÈRE réellement d'un territoire à l'autre (la page
    *  guadeloupéenne annonce les trois types de poste, les deux autres situent la collectivité) :
-   *  ce n'est pas un gabarit à variables, c'est un texte propre à chacune. */
+   *  ce n'est pas un gabarit à variables, c'est un texte propre à chacune.
+   *
+   *  MÊME RÈGLE QUE LES BAS DE PAGE (10/08) : n'y écrire que ce qui est vrai par construction —
+   *  le statut administratif du territoire, les types de poste, ce que fait Soignect. Pas de
+   *  caractérisation de marché (« son propre marché », « conditions avantageuses », « patientèle
+   *  internationale ») : personne ici ne peut la sourcer, et sur une page qui s'adresse à des
+   *  professionnels décidant d'un contrat, l'invérifiable coûte plus en crédibilité qu'il ne
+   *  rapporte en référencement. Le nettoyage du 10/08 n'avait porté que sur les bas de page ;
+   *  les accroches y ont échappé jusqu'au 12/08. */
   accroche: (p: Profession) => string;
   metaTitre: (p: Profession) => string;
   metaDescription: (p: Profession) => string;
@@ -82,7 +90,7 @@ export const TERRITOIRES: Record<string, Territoire> = {
     chemin: "/remplacement-kine-saint-martin",
     cleTrace: "remplacement-kine-saint-martin",
     accroche: (p) =>
-      `Soignect connecte les ${p.pluriel} de Saint-Martin — collectivité d'outre-mer distincte de la Guadeloupe, avec son propre marché du remplacement. Cabinets et remplaçants se trouvent sans intermédiaire.`,
+      `Soignect connecte les ${p.pluriel} de Saint-Martin — collectivité d'outre-mer française, distincte de la Guadeloupe. Cabinets et remplaçants s'y trouvent sans intermédiaire. Gratuit pour qui cherche un poste.`,
     metaTitre: (p) => `Remplacement ${p.court} Saint-Martin — Annonces & disponibilités | Soignect`,
     metaDescription: (p) =>
       `Trouvez un remplacement en ${p.discipline} à Saint-Martin. Annonces de cabinets et remplaçants ${p.court}s disponibles à Marigot, Grand Case et sur toute la collectivité de Saint-Martin.`,
@@ -96,7 +104,7 @@ export const TERRITOIRES: Record<string, Territoire> = {
     chemin: "/remplacement-kine-saint-barth",
     cleTrace: "remplacement-kine-saint-barth",
     accroche: (p) =>
-      `Soignect connecte les ${p.pluriel} de Saint-Barthélemy — collectivité d'outre-mer au marché unique, avec une patientèle internationale et des conditions de remplacement souvent avantageuses.`,
+      `Soignect connecte les ${p.pluriel} de Saint-Barthélemy — collectivité d'outre-mer française, distincte de la Guadeloupe et de Saint-Martin. Cabinets et remplaçants s'y trouvent sans intermédiaire. Gratuit pour qui cherche un poste.`,
     metaTitre: (p) => `Remplacement ${p.court} Saint-Barthélemy — Annonces & disponibilités | Soignect`,
     metaDescription: (p) =>
       `Trouvez un remplacement en ${p.discipline} à Saint-Barthélemy. Annonces de cabinets et remplaçants ${p.court}s disponibles à Gustavia et sur toute l'île de Saint-Barth.`,
