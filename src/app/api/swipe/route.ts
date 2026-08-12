@@ -8,6 +8,7 @@ import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { sendNewRelationEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { logTraceEvent } from "@/lib/trace";
+import { bonusSaisonnier } from "@/lib/desirability";
 import { pickBestPeriode } from "@/lib/periodes";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +64,9 @@ export async function POST(req: NextRequest) {
   }
 
   let affinityScore: number | undefined;
+  // Période visée par le swipeur, conservée hors du bloc de scoring : la trace saisonnière en a
+  // besoin plus bas, et la recalculer ferait un second appel à la base pour rien.
+  let periodeSwipeur: { startDate: Date | null; endDate: Date | null } | null = null;
   let scoreDetails: object | undefined;
 
   if (direction === SwipeDirection.RIGHT) {
@@ -80,6 +84,8 @@ export async function POST(req: NextRequest) {
             .findMany({ where: { profileId: swiperId, isActive: true }, orderBy: { createdAt: "desc" } })
             .then((mes) => pickBestPeriode(mes, (m) => m, swipedMission)),
     ]);
+
+    if (swiperMission) periodeSwipeur = { startDate: swiperMission.startDate, endDate: swiperMission.endDate };
 
     if (swiperProfile) {
       const missionProfile = swipedMission.profile;
@@ -164,7 +170,17 @@ export async function POST(req: NextRequest) {
       missionId: swipedMissionId,
       commune: swipedMission.location,
       missionType: swipedMission.missionType,
-      metadata: affinityScore !== undefined ? { affinityScore } : undefined,
+      // `saisonnier` : la carte retenue beneficiait-elle du bonus mai-octobre (section 197) ?
+      // Compter les declenchements ne suffit pas — c'est la CONVERSION qui dira si remonter ces
+      // profils produit des mises en relation, ou seulement du mouvement dans l'ordre.
+      metadata: {
+        ...(affinityScore !== undefined ? { affinityScore } : {}),
+        saisonnier:
+          bonusSaisonnier(
+            { startDate: swipedMission.startDate, endDate: swipedMission.endDate },
+            periodeSwipeur,
+          ) > 0,
+      },
     });
 
     let reciprocalMissionFilter: { swipedMissionId: string | { in: string[] } };

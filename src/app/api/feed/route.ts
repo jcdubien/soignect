@@ -5,6 +5,7 @@ import { ProfileType, TitulaireKind, Prisma, BriqueStatus } from "@prisma/client
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
+import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -120,6 +121,27 @@ export async function GET(req: NextRequest) {
     );
   }
   missions.sort((a, b) => (desirabilite.get(b.id) ?? 0) - (desirabilite.get(a.id) ?? 0));
+
+  // Trace du bonus saisonnier (section 197). Une regle qui MODIFIE l'ordre vu par les cabinets
+  // doit pouvoir se mesurer, sinon on ne saura jamais si elle sert a quelque chose — et la
+  // premisse qui la justifie (creux mai-octobre) est une observation terrain, pas une mesure.
+  //
+  // Journalise UNIQUEMENT quand le bonus s'applique vraiment : sinon chaque affichage de feed
+  // produirait une ligne, et le signal se noierait dans le bruit.
+  const boostes = missions.filter((m) => bonusSaisonnier({ startDate: m.startDate, endDate: m.endDate }, besoinPeriode) > 0);
+  if (boostes.length > 0) {
+    logTraceEvent({
+      eventType: "FEED_BOOST_SAISONNIER",
+      profileId: myProfile.id,
+      metadata: {
+        boostes: boostes.length,
+        surTotal: missions.length,
+        // Combien le sont SANS date : c'est l'arbitrage n°2, celui qui evite de declasser les
+        // recherches d'assistanat. Le mesurer permettra de le rediscuter sur des chiffres.
+        sansDate: boostes.filter((m) => !m.startDate).length,
+      },
+    });
+  }
 
   // Nombre de candidats/annonces DISPONIBLES que l'utilisateur a DÉJÀ VUS (swipés) — mêmes
   // filtres que le feed (type, match actif, gating, zone/dates), mais uniquement les déjà-swipés.
