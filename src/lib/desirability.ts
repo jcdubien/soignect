@@ -64,6 +64,23 @@ export function getDesirabilityPercent(profile: DesirabilityProfile, now: Date =
 //    palier Premium (50), pour qu'une offre payante reste devant si elle voit le jour.
 export const BONUS_SAISONNIER = 30;
 
+// ── La fenêtre est une propriété du TERRITOIRE, pas du métier ni de la saison en général ─────
+//
+// Observation de Jean-Charles (12/08) : ce creux n'a rien de propre à la kinésithérapie. Il
+// tient au fait que l'activité suive une saison touristique — territoires insulaires, stations
+// balnéaires, stations de montagne. En Guadeloupe le pic de demande est l'été austral ; dans
+// une station de ski ce serait décembre-mars, soit exactement l'inverse.
+//
+// La fenêtre est donc NOMMÉE plutôt que laissée en nombres nus dans la boucle. Elle n'est pas
+// paramétrable pour autant : il n'existe aujourd'hui qu'un territoire actif, et rendre la règle
+// configurable pour un cas qui n'existe pas serait de l'architecture à vide.
+//
+// LE JOUR OÙ UNE DEUXIÈME RÉGION AURA DES UTILISATEURS : l'enum Region existe déjà (8 valeurs),
+// et le produit a un précédent de table indexée par région (TERRITORY dans commune-summary).
+// C'est cette constante-ci qu'il faudra remplacer par une donnée, pas la logique autour.
+const MAI = 4, OCTOBRE = 9; // getUTCMonth() est indexé à zéro
+const FENETRE_TENSION_GUADELOUPE = { premierMois: MAI, dernierMois: OCTOBRE };
+
 export interface Periode { startDate?: Date | string | null; endDate?: Date | string | null }
 
 const toDate = (v: Date | string | null | undefined): Date | null => {
@@ -72,17 +89,17 @@ const toDate = (v: Date | string | null | undefined): Date | null => {
   return isNaN(d.getTime()) ? null : d;
 };
 
-// Vrai si la période touche au moins un mois entre mai et octobre. On parcourt les mois plutôt
+// Vrai si la période touche au moins un mois de la fenêtre de tension du territoire. On parcourt les mois plutôt
 // que de comparer des dates : une période peut enjamber le 31 décembre, et un test sur les
 // bornes seules manquerait une période longue qui traverse la fenêtre sans y commencer.
-export function toucheMaiOctobre(p: Periode): boolean {
+export function toucheFenetreTension(p: Periode): boolean {
   const debut = toDate(p.startDate);
   if (!debut) return true; // sans date = disponible quand on veut, donc aussi en mai-octobre
   const fin = toDate(p.endDate) ?? debut;
   const cur = new Date(Date.UTC(debut.getUTCFullYear(), debut.getUTCMonth(), 1));
   for (let i = 0; i < 24 && cur <= fin; i++) {
     const m = cur.getUTCMonth();
-    if (m >= 4 && m <= 9) return true; // mai (4) à octobre (9)
+    if (m >= FENETRE_TENSION_GUADELOUPE.premierMois && m <= FENETRE_TENSION_GUADELOUPE.dernierMois) return true;
     cur.setUTCMonth(cur.getUTCMonth() + 1);
   }
   return false;
@@ -93,5 +110,5 @@ export function toucheMaiOctobre(p: Periode): boolean {
 // pertinent. Mieux vaut un feed non boosté qu'un feed boosté à tort.
 export function bonusSaisonnier(candidat: Periode, besoin: Periode | null): number {
   if (!besoin) return 0;
-  return toucheMaiOctobre(besoin) && toucheMaiOctobre(candidat) ? BONUS_SAISONNIER : 0;
+  return toucheFenetreTension(besoin) && toucheFenetreTension(candidat) ? BONUS_SAISONNIER : 0;
 }
