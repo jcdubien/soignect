@@ -659,6 +659,10 @@ function PostMenu({
             <Button variant="text" onClick={() => setStep("renommer")} className="w-full !py-2 !text-gray-600 hover:!bg-gray-50">
               ✎ Renommer ce poste
             </Button>
+            {mission && <SuiviMission mission={mission} onSaved={onDone} />}
+            {/* Poste vide = la ZONE NON COUVERTE, qui n'est aucun objet en base : son suivi
+                est porté par le poste (section 200). */}
+            {!mission && <SuiviPoste post={post} onSaved={onDone} />}
             {mission && (
               <Button variant="text" onClick={onDetail} className="w-full !py-2 !text-kine-600 hover:!bg-kine-50">
                 Voir le détail
@@ -697,6 +701,12 @@ function PostMenu({
             <Button variant="text" onClick={() => setStep("retour")} className="w-full !py-2 !text-gray-600 hover:!bg-gray-50">
               ↩ Je ne cherche plus pour cette période
             </Button>
+            {/* Suivi (section 200) — DANS le menu, pas deux niveaux plus bas. Vérification à
+                l'écran du 12/08 : le bloc n'avait été branché que sur les panneaux « couvert »
+                et « préavis », or un clic sur une brique EN RECRUTEMENT ouvre ce menu-ci et
+                n'y mène pas. C'est pourtant le cas qui appelle le plus une note : c'est là
+                qu'on rappelle un candidat et qu'on attend une réponse. */}
+            {mission && <SuiviMission mission={mission} onSaved={onDone} />}
             {/* Partager l'annonce (section 159) — copier le lien + partage natif Android/iPhone
                 + Facebook. Le lien mène à la page publique /annonce/[id] (garde auth/inscription). */}
             {mission && (
