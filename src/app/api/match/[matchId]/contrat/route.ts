@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { professionLabel } from "@/lib/professions";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { renderToBuffer } from "@react-pdf/renderer";
@@ -16,15 +17,6 @@ export const dynamic = "force-dynamic";
 // Force Node.js runtime — @react-pdf/renderer uses Node APIs
 export const runtime = "nodejs";
 
-function professionLabel(p: string): string {
-  const map: Record<string, string> = {
-    KINESITHERAPEUTE: "Masseur-kinésithérapeute",
-    OSTEOPATHE:       "Ostéopathe",
-    CHIROPRACTEUR:    "Chiropracteur",
-  };
-  return map[p] ?? p;
-}
-
 function partyFromProfile(
   profile: {
     name: string | null; profession: string; location?: string | null;
@@ -35,7 +27,9 @@ function partyFromProfile(
 ): ContractParty {
   return {
     name:        profile.name ?? "",
-    profession:  professionLabel(profile.profession),
+    // Dénomination légale, pas l'usage courant : un contrat désigne un
+    // « masseur-kinésithérapeute ». Source unique et typée dans lib/professions.
+    profession:  professionLabel(profile.profession, "contrat"),
     location,
     rpps:        profile.rpps ?? null,
     numeroOrdre: profile.numeroOrdre ?? null,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PROFESSION_LABELS } from "@/lib/professions";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
@@ -15,11 +16,6 @@ const REGION_LABELS: Record<Region, string> = {
   GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
   MARTINIQUE: "Martinique", GUYANE: "Guyane", REUNION: "La Réunion",
   MAYOTTE: "Mayotte", METROPOLE: "Métropole",
-};
-
-const PROFESSION_LABELS: Record<Profession, string> = {
-  KINESITHERAPEUTE: "Kinésithérapeute", INFIRMIER: "Infirmier·ère",
-  ORTHOPHONISTE: "Orthophoniste", SAGE_FEMME: "Sage-femme", MEDECIN: "Médecin",
 };
 
 const PLAN_LABELS: Record<SubscriptionPlan, string> = {
