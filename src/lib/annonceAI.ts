@@ -371,12 +371,17 @@ export async function redactionHelp(
   const refs = pastTexts.map((t) => t.trim()).filter(Boolean).slice(0, 3);
   const qui =
     role === "employeur" ? "établissement de santé (clinique, EHPAD, centre) en Guadeloupe qui EMBAUCHE un kinésithérapeute SALARIÉ"
-    : role === "cabinet" ? "cabinet de kinésithérapie libéral en Guadeloupe"
+    : role === "cabinet" ? "cabinet de kinésithérapie LIBÉRAL en Guadeloupe, qui ne salarie personne"
     : "kinésithérapeute remplaçant/assistant en Guadeloupe";
   // Un employeur ne rétrocède rien et n'a pas de patientèle à partager : le vocabulaire libéral
   // produisait un texte hors sujet sur une offre de CDI.
+  // Symétrique de l'interdit employeur : le modèle proposait spontanément « le taux de
+  // rétrocession OU LE SALAIRE FIXE » à un cabinet libéral. La mention ne venait d'aucune
+  // consigne — c'était une production libre —, il faut donc l'interdire explicitement.
   const interdits =
-    role === "employeur"
+    role === "cabinet"
+      ? `\nVOCABULAIRE : exercice LIBÉRAL. Ne parle jamais de salaire, de rémunération fixe ni de contrat de travail : un cabinet libéral ne salarie pas.`
+      : role === "employeur"
       ? `\nVOCABULAIRE : il s'agit d'un CONTRAT DE TRAVAIL, pas d'un exercice libéral. N'emploie jamais « rétrocession », « redevance », « patientèle du cabinet », « collaboration libérale » ni « chiffre d'affaires ». Parle de rémunération, de contrat, d'équipe, de conditions de travail.`
       : "";
   const system = `Tu aides un ${qui} à rédiger son annonce en texte libre, chaleureux et concret.${interdits}
@@ -414,7 +419,8 @@ export async function optimizeAnnonce(
 NE SUGGÈRE JAMAIS un chiffre d'affaires ni un taux de rétrocession : un salarié ne rétrocède rien et ne réalise pas de chiffre d'affaires. La rémunération est l'information qui pèse le plus.`
       : role === "cabinet"
       ? `Côté cabinet, ce qui rend une annonce attractive et que les meilleures annonces contiennent : logement, véhicule, demi-journées libres, plateau technique/équipement, ambiance d'équipe, chiffre d'affaires estimé, taux de rétrocession, répartition cabinet/domicile.
-Le chiffre d'affaires estimé et le taux de rétrocession sont les deux informations qui pèsent le plus : si — ET SEULEMENT SI — ils sont absents à la fois du texte et de la liste « déjà renseigné », propose-les en premier, avec un argument concret pour le candidat. Ils restent facultatifs : c'est une incitation, jamais une obligation.`
+Le chiffre d'affaires estimé et le taux de rétrocession sont les deux informations qui pèsent le plus : si — ET SEULEMENT SI — ils sont absents à la fois du texte et de la liste « déjà renseigné », propose-les en premier, avec un argument concret pour le candidat. Ils restent facultatifs : c'est une incitation, jamais une obligation.
+NE MENTIONNE JAMAIS de salaire ni de rémunération fixe : un cabinet libéral ne salarie pas. Un recruteur qui embauche s'inscrit comme établissement, et relève d'un autre cadre. Pour le champ économique, ne parle que de rétrocession et de chiffre d'affaires.`
       : `Côté candidat, ce qui le sécurise et évite les oublis : disponibilités précises (dates), mobilité/zones, méthodes pratiquées, attentes sur le taux, logement/véhicule recherchés, expérience.`;
   const system = `Tu analyses une annonce ${role === "employeur" ? "d'établissement employeur" : role === "cabinet" ? "de cabinet libéral" : "de candidat"} kiné en Guadeloupe et proposes 1 à 3 AJOUTS concrets et actionnables qui MANQUENT dans le texte. ${roleGuidance}
 RÈGLE ABSOLUE : relis le texte avant chaque suggestion. Si l'information y figure — même en abrégé, même en style télégraphique (« clim », « logé », « 75/25 », « ca 8000 »), même formulée négativement (« véhicule non fourni » = l'information EST donnée) — alors elle n'est PAS manquante : ne la suggère pas.
