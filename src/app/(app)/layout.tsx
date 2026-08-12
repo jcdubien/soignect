@@ -64,6 +64,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Lien du logo adapté au profil (item 6) — accueil = booking
   const homeHref = profileType === "TITULAIRE" ? "/planning" : "/disponibilites";
 
+  // Le bouton de CONSULTATION ne se distinguait de celui de CRÉATION que par un « s » :
+  // « + Disponibilité » contre « Disponibilités ». Le titulaire, lui, a deux mots distincts —
+  // « + Annonce » et « Planning ». On donne donc au candidat un mot à lui aussi.
+  //
+  // Et il en faut DEUX, pas un : la page cible porte déjà deux titres selon le profil —
+  // « Mes disponibilités » pour un remplaçant, « Ma recherche de poste » pour un assistant.
+  // Un libellé unique aurait été faux pour l'un des deux. Le bouton nomme sa destination.
+  const listeLabel =
+    profileType === "TITULAIRE" ? "Planning"
+    : profileType === "ASSISTANT" ? "Ma recherche"
+    : "Mon calendrier";
+  const listeLabelCourt =
+    profileType === "TITULAIRE" ? "Planning"
+    : profileType === "ASSISTANT" ? "Recherche"
+    : "Calendrier";
+
   // Build contextual summary for header
   const emailPrefix = (session.user.email ?? "").split("@")[0];
   const displayName = profile?.name ?? emailPrefix;
@@ -180,21 +196,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 candidat déclare une « disponibilité ». */}
             {profileType === "TITULAIRE" ? "+ Annonce" : "+ Disponibilité"}
           </Link>
-          {profileType === "TITULAIRE" ? (
-            <Link
-              href="/planning"
-              className="text-xs px-3 py-1.5 border border-kine-200 text-kine-700 rounded-lg font-semibold hover:bg-kine-50 transition hidden sm:inline-flex items-center gap-1"
-            >
-              📋 Planning
-            </Link>
-          ) : (
-            <Link
-              href="/disponibilites"
-              className="text-xs px-3 py-1.5 border border-kine-200 text-kine-700 rounded-lg font-semibold hover:bg-kine-50 transition hidden sm:inline-flex items-center gap-1"
-            >
-              📅 Disponibilités
-            </Link>
-          )}
+          <Link
+            href={homeHref}
+            className="text-xs px-3 py-1.5 border border-kine-200 text-kine-700 rounded-lg font-semibold hover:bg-kine-50 transition hidden sm:inline-flex items-center gap-1"
+          >
+            {profileType === "TITULAIRE" ? "📋" : "📅"} {listeLabel}
+          </Link>
           {/* Pastille d'état de plan (F1) — dit clairement le plan courant et invite à
               Premium. Gratuit = ambre (incite) ; payé = vert (rassure). ✨/Gratuit compact
               sur mobile, libellé complet sur desktop.
@@ -291,7 +298,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          <span className="text-[10px] font-medium truncate max-w-full">{profileType === "TITULAIRE" ? "Planning" : "Dispo"}</span>
+          <span className="text-[10px] font-medium truncate max-w-full">{listeLabelCourt}</span>
         </Link>
 
         <Link href="/matches" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-gray-500 hover:text-kine-600 transition">
