@@ -1,19 +1,23 @@
 import { Metadata } from "next";
+import { KINESITHERAPEUTE, TERRITOIRES, titrePage } from "@/lib/pagesDiffusion";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+// Textes portés par lib/pagesDiffusion : {profession × territoire}, plus dupliqués ici.
+const PRO = KINESITHERAPEUTE;
+const TERR = TERRITOIRES.SAINT_MARTIN;
+
 export const metadata: Metadata = {
   alternates: { canonical: "/remplacement-kine-saint-martin" },
-  title: "Remplacement kiné Saint-Martin — Annonces & disponibilités | Soignect",
-  description:
-    "Trouvez un remplacement en kinésithérapie à Saint-Martin. Annonces de cabinets et remplaçants kinés disponibles à Marigot, Grand Case et sur toute la collectivité de Saint-Martin.",
+  title: TERR.metaTitre(PRO),
+  description: TERR.metaDescription(PRO),
   openGraph: {
     url: "/remplacement-kine-saint-martin",
-    title: "Remplacement kiné Saint-Martin | Soignect",
-    description: "Le job board des kinésithérapeutes de Saint-Martin.",
+    title: TERR.ogTitre(PRO),
+    description: TERR.ogDescription(PRO),
     type: "website",
   },
 };
@@ -46,15 +50,13 @@ export default async function SaintMartinPage() {
     <div className="max-w-2xl mx-auto px-4 py-10">
       <div className="mb-8">
         <span className="inline-block px-3 py-1 bg-kine-100 text-kine-700 rounded-full text-xs font-semibold mb-3">
-          📍 Saint-Martin
+          📍 {TERR.nom}
         </span>
         <h1 className="text-3xl font-black text-gray-900 mb-3">
-          Remplacement kiné Saint-Martin
+          {titrePage(PRO, TERR)}
         </h1>
         <p className="text-gray-500 text-base leading-relaxed">
-          Soignect connecte les kinésithérapeutes de Saint-Martin — collectivité d&apos;outre-mer distincte
-          de la Guadeloupe, avec son propre marché du remplacement. Cabinets et remplaçants se trouvent
-          sans intermédiaire.
+          {TERR.accroche(PRO)}
         </p>
       </div>
 

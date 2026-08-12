@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { KINESITHERAPEUTE, TERRITOIRES, titrePage } from "@/lib/pagesDiffusion";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import type { ZoneGeographique } from "@prisma/client";
@@ -7,18 +8,21 @@ import { tracerVueLanding } from "@/lib/traceLanding";
 
 export const dynamic = "force-dynamic";
 
+// Textes portés par lib/pagesDiffusion : {profession × territoire}, plus dupliqués ici.
+const PRO = KINESITHERAPEUTE;
+const TERR = TERRITOIRES.GUADELOUPE;
+
 export const metadata: Metadata = {
   alternates: { canonical: "/remplacement-kine-guadeloupe" },
   // Le titre garde « remplacement kiné Guadeloupe » en tête — c'est la requête réellement
   // tapée — mais nomme aussi l'assistanat et la collaboration, que la page montrait déjà sans
   // jamais les annoncer.
-  title: "Remplacement, assistanat, collaboration kiné en Guadeloupe | Soignect",
-  description:
-    "Postes de kinésithérapie en Guadeloupe : remplacements ponctuels, assistanats et collaborations libérales. Annonces de cabinets et kinés disponibles sur toute la Guadeloupe (Grande-Terre, Basse-Terre, Marie-Galante, Les Saintes, La Désirade).",
+  title: TERR.metaTitre(PRO),
+  description: TERR.metaDescription(PRO),
   openGraph: {
     url: "/remplacement-kine-guadeloupe",
-    title: "Postes de kiné en Guadeloupe | Soignect",
-    description: "Le job board des kinésithérapeutes de Guadeloupe : remplacement, assistanat, collaboration. Trouvez un cabinet ou un candidat en quelques swipes.",
+    title: TERR.ogTitre(PRO),
+    description: TERR.ogDescription(PRO),
     type: "website",
   },
 };
@@ -79,16 +83,13 @@ export default async function GuadeloupePage() {
     <div className="max-w-2xl mx-auto px-4 py-10">
       <div className="mb-8">
         <span className="inline-block px-3 py-1 bg-kine-100 text-kine-700 rounded-full text-xs font-semibold mb-3">
-          📍 Guadeloupe
+          📍 {TERR.nom}
         </span>
         <h1 className="text-3xl font-black text-gray-900 mb-3">
-          Kiné en Guadeloupe : remplacement, assistanat, collaboration
+          {titrePage(PRO, TERR)}
         </h1>
         <p className="text-gray-500 text-base leading-relaxed">
-          Soignect est le job board des kinésithérapeutes de Guadeloupe.
-          Une mission de quelques semaines, un assistanat sur la durée ou une collaboration
-          libérale : cabinets et candidats se trouvent en quelques swipes, sans intermédiaire.
-          Gratuit pour qui cherche un poste.
+          {TERR.accroche(PRO)}
         </p>
       </div>
 
