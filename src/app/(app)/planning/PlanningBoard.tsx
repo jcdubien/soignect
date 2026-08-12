@@ -608,7 +608,14 @@ function PostMenu({
 
   return (
     <BottomSheet open onClose={onClose} zClass="z-[60]">
-      <div className="p-6">
+      {/* BottomSheet plafonne à max-h-[85vh] et délègue le défilement à son contenu (« passez
+          un header/scroll/footer à l'intérieur ») — mais aucun appelant ne le faisait. Ce menu
+          est le plus long de l'application : au-delà de 85vh, le bas était PUREMENT INATTEIGNABLE,
+          ni visible ni atteignable au doigt. Constaté à l'écran le 12/08 en ajoutant le bloc de
+          suivi, dont le bouton « Enregistrer » tombait hors cadre. Défaut préexistant, aggravé
+          par cet ajout : le partage et les actions du poste étaient déjà dans cette zone morte
+          sur un écran court. */}
+      <div className="p-6 overflow-y-auto min-h-0">
         <div className="mb-4">
           <h3 className="font-bold text-gray-900 text-base leading-tight">{post.label}</h3>
           <p className="text-xs text-gray-400 mt-0.5">
