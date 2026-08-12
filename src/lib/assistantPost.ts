@@ -35,8 +35,24 @@ export async function attachAssistantPostForMatch(matchId: string): Promise<void
     const cabinetId = aIsTitulaire ? match.profileAId : match.profileBId;
     const cabinetMission = aIsTitulaire ? match.missionA : match.missionB;
 
-    // Sécurité : l'autre partie doit bien être un ASSISTANT (sinon on ne rattache rien).
-    if (cabinet.type !== ProfileType.TITULAIRE || assistant.type !== ProfileType.ASSISTANT) return;
+    // Le côté cabinet DOIT être un TITULAIRE : c'est lui qui détermine quel camp porte le
+    // poste. Sans cette condition, un match sans titulaire inverserait les rôles.
+    // (TITULAIRE couvre aussi les établissements — une STRUCTURE est un TITULAIRE dont
+    // titulaireKind vaut STRUCTURE.)
+    //
+    // Le côté candidat accepte REMPLACANT **et** ASSISTANT (section 201, décision du 03/08).
+    // Auparavant seul ASSISTANT passait — or le feed propose les postes d'assistanat aux DEUX
+    // types (api/feed : oppositeTypes = [REMPLACANT, ASSISTANT]). Un remplaçant pouvait donc
+    // signer un assistanat sans jamais être rattaché : en silence, sans erreur, sans trace.
+    // Le seul contrat d'assistanat jamais signé (23/07) est passé par ce trou.
+    //
+    // Le type de profil décrit CE QU'ON CHERCHE, pas ce qu'on devient : on ne le modifie pas
+    // ici. C'est la mission signée qui fait foi, et elle est déjà vérifiée plus haut.
+    // On ne supprime pas le contrôle pour autant — le laisser tomber ferait passer un match
+    // TITULAIRE↔TITULAIRE, où l'« assistant » désigné serait le propriétaire d'un autre cabinet.
+    const candidatEligible =
+      assistant.type === ProfileType.ASSISTANT || assistant.type === ProfileType.REMPLACANT;
+    if (cabinet.type !== ProfileType.TITULAIRE || !candidatEligible) return;
     const assistantUserId = assistant.userId;
 
     // Un compte ne peut être rattaché qu'à UN poste : on détache d'abord un éventuel poste
@@ -94,7 +110,10 @@ export async function detachAssistantPostForMatch(match: {
     const aIsTitulaire = match.profileA.type === ProfileType.TITULAIRE;
     const cabinetId = aIsTitulaire ? match.profileAId : match.profileBId;
     const assistant = aIsTitulaire ? match.profileB : match.profileA;
-    if (assistant.type !== ProfileType.ASSISTANT) return;
+    // Même élargissement que côté attache (section 201) — et il est INDISSOCIABLE : relâcher
+    // l'attache sans relâcher le détachement créerait des rattachements qu'aucune annulation
+    // ne viendrait défaire. Le poste resterait occupé par quelqu'un dont le contrat est rompu.
+    if (assistant.type !== ProfileType.ASSISTANT && assistant.type !== ProfileType.REMPLACANT) return;
 
     await prisma.cabinetPost.updateMany({
       where: { cabinetId, linkedUserId: assistant.userId },

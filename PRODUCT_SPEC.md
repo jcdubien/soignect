@@ -2403,20 +2403,53 @@ condition à 2 endroits : attache + détache), pas une réécriture de
 ProfileType partout - traité maintenant, pas différé.
 ```
 
-##### Statut
+##### ✅ CORRIGÉ LE 13/08 — dix jours après la décision
 
-```
-🔴 NON CORRIGÉ — décision prise (interprétation 2 : élargir au type 
-de MISSION plutôt qu'au type de candidat), mais AUCUN PROMPT ENVOYÉ 
-NI EXÉCUTÉ. Confirmé par relecture indépendante le [date de cette 
-correction] : git log sur src/lib/assistantPost.ts ne montre que 3 
-commits, tous antérieurs à la session marathon du 03/08 ; le garde 
-reste en place aux lignes 39 et 97, inchangé.
+La décision du 03/08 est restée dix jours sans exécution : documentée, jamais livrée. C'était
+le plus ancien défaut fonctionnel ouvert du produit.
 
-⚠️ PRÉCÉDENT DIRECT DE CETTE MÊME ERREUR (le "malentendu du 23/07", 
-voir section dédiée plus bas) : une décision documentée n'est pas 
-une correction livrée. Prompt à rédiger et ENVOYER, pas encore fait.
-```
+**Ce que « rattaché » veut dire, concrètement** : `CabinetPost.linkedUserId = userId` du
+candidat — le lien entre le compte et le poste du Planning. **Le `ProfileType` n'est pas
+touché**, conformément à la décision : « le type de profil décrit ce qu'on cherche, pas ce
+qu'on devient ». C'est la mission signée qui fait foi, et son type est vérifié en amont.
+
+**La garde n'était pas entièrement un oubli** — vérifié avant de la lever. Elle portait deux
+conditions dans une seule ligne :
+
+| Condition | Verdict |
+|---|---|
+| `cabinet.type !== TITULAIRE` | **protection réelle, conservée** — c'est elle qui détermine quel camp porte le poste ; sans elle, un match sans titulaire inverserait les rôles |
+| `assistant.type !== ASSISTANT` | **l'oubli** — le feed propose les assistanats aux DEUX types (`oppositeTypes = [REMPLACANT, ASSISTANT]`) |
+
+Le côté candidat accepte désormais `REMPLACANT` **ou** `ASSISTANT`. Le contrôle n'a pas été
+supprimé : le laisser tomber ferait passer un match TITULAIRE↔TITULAIRE, où l'« assistant »
+désigné serait le propriétaire d'un autre cabinet.
+
+**Les deux points sont indissociables.** Le détachement (l.97) portait la même garde :
+relâcher l'attache seule aurait créé des rattachements qu'aucune annulation ne défait — un
+poste resterait occupé par quelqu'un dont le contrat est rompu.
+
+##### Vérification — fonction réelle, base réelle
+
+Le module TypeScript a été chargé tel quel (via `jiti`) et exercé contre la base de
+production, sur le poste « Mathéo » du cabinet de Jean-Charles :
+
+| Cas | Rattaché | Attendu | |
+|---|---|---|---|
+| REMPLACANT (John Doe) | oui | oui | ✅ le correctif |
+| ASSISTANT (Paul) | oui | oui | ✅ pas de régression |
+| TITULAIRE (Cabinet la Palmeraie) | non | non | ✅ protection intacte |
+
+Le détachement a été vérifié dans la foulée : `linkedUserId` repasse à `null`. État restauré
+après essai — 0 mise en relation, 0 poste rattaché, 5 postes pour le cabinet (inchangé, le cas
+TITULAIRE n'a créé aucun poste parasite).
+
+⚠️ **Portée de cette vérification** : elle couvre la fonction de rattachement et son
+détachement, contre de vraies données. Elle **NE couvre PAS** le parcours complet depuis
+l'interface — un enchaînement swipe → match → double signature aurait signé un contrat au nom
+d'un tiers réel, action sortante hors du cadre d'une vérification technique. La route de
+signature appelle cette fonction sans condition supplémentaire
+(`signature/route.ts:222`), le maillon non rejoué est donc l'appel lui-même, pas la logique.
 
 ---
 
