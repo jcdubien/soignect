@@ -24,8 +24,9 @@ export default async function AdminDesirabilityPage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
+      {/* Même défaut que la table des utilisateurs : overflow-hidden coupait sans recours. */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="px-4 py-3 text-left text-gray-500 font-medium">Email</th>

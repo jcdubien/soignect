@@ -82,8 +82,10 @@ export default function UsersClient({ initialUsers }: { initialUsers: User[] }) 
         />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
+      {/* overflow-hidden COUPAIT les colonnes trop larges sur mobile : le contenu n'etait pas
+          seulement hors champ, il etait inatteignable. overflow-x-auto le rend accessible. */}
+      <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
+        <table className="w-full text-sm min-w-[760px]">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="px-4 py-3 text-left text-gray-500 font-medium">Email</th>

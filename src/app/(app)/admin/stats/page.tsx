@@ -106,7 +106,8 @@ export default async function AdminStatsPage() {
         <div className="px-4 py-3 border-b border-gray-100">
           <h2 className="text-sm font-semibold text-gray-600">10 dernières inscriptions</h2>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-2 text-left text-gray-500 font-medium">Email</th>
@@ -147,6 +148,7 @@ export default async function AdminStatsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
