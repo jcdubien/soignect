@@ -23,6 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       briqueStatus: true,
       missionType: true, dateFlexibility: true, cabinetPostId: true,
       logementPropose: true, vehiculePropose: true, secretairePresente: true, exerciceCoordonne: true,
+      remunerationBrute: true,
       demiJourneesLibres: true, caMensuelEstime: true,
       retrocessionRate: true, rawText: true,
     },
@@ -59,6 +60,7 @@ const updateSchema = z.object({
   exerciceCoordonne: z.boolean().optional(),  // MSP / centre de santé / ESP (section 190)
   demiJourneesLibres: z.number().int().min(0).max(10).optional().nullable(),
   caMensuelEstime: z.number().int().min(0).max(1000000).optional().nullable(),
+  remunerationBrute: z.number().int().min(0).max(1000000).optional().nullable(), // section 194
   retrocessionRate: z.number().int().min(0).max(100).optional().nullable(), // (ré)introduit dans le parcours cabinet
   rawText: z.string().max(8000).optional().nullable(),                       // texte libre de l'annonce
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),

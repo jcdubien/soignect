@@ -41,7 +41,7 @@ async function getMission(id: string) {
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
       minMonths: true, missionType: true, pitch: true, bioTinder: true,
-      demiJourneesLibres: true, caMensuelEstime: true, // feature terrain — affichage fiche
+      demiJourneesLibres: true, caMensuelEstime: true, remunerationBrute: true, // feature terrain
       createdAt: true, updatedAt: true,
       profile: { select: { profession: true, name: true, region: true, titulaireKind: true, type: true } },
     },
@@ -159,11 +159,17 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
           <p className="text-sm text-gray-500 mt-0.5">📅 {periodLabel(m)}</p>
 
           {/* Qualité de vie / revenu (feature terrain) — affichés si renseignés */}
-          {(m.demiJourneesLibres != null || m.caMensuelEstime != null) && (
+          {(m.demiJourneesLibres != null || m.caMensuelEstime != null || m.remunerationBrute != null) && (
             <div className="mt-2 flex flex-wrap gap-2">
               {m.demiJourneesLibres != null && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-1">
                   🗓️ {m.demiJourneesLibres} demi-journée{m.demiJourneesLibres > 1 ? "s" : ""} libre{m.demiJourneesLibres > 1 ? "s" : ""}/sem.
+                </span>
+              )}
+              {/* Salaire pour un poste salarié, CA pour un exercice libéral — jamais les deux. */}
+              {m.remunerationBrute != null && (
+                <span className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">
+                  💶 {m.remunerationBrute.toLocaleString("fr-FR")} €/mois brut
                 </span>
               )}
               {m.caMensuelEstime != null && (

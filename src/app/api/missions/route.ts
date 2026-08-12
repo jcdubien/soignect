@@ -35,6 +35,7 @@ const createMissionSchema = z.object({
   rechercheExerciceCoordonne: z.boolean().optional(), // dispo candidat : souhaite l'exercice coordonné (→ Profile)
   demiJourneesLibres: z.number().int().min(0).max(10).optional().nullable(),      // affichage seul (hors score)
   caMensuelEstime: z.number().int().min(0).max(1000000).optional().nullable(),    // affichage seul, optionnel
+  remunerationBrute: z.number().int().min(0).max(1000000).optional().nullable(), // équivalent salarié (section 194)
   rawText: z.string().max(8000).optional().nullable(),                            // texte libre de l'annonce (refonte saisie)
   ouvertSalariat: z.boolean().optional(),    // dispo candidat : ouvert au salariat (→ Profile, section 154)
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, rawText, ouvertSalariat, briqueStatus, cabinetPostId } = parsed.data;
+  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, remunerationBrute, rawText, ouvertSalariat, briqueStatus, cabinetPostId } = parsed.data;
 
   // Le SIÈGE du titulaire n'accueille que du remplacement (section 191). Un assistant occupe
   // structurellement une autre ligne du planning — un nouveau poste, ou un poste d'assistant
@@ -297,6 +298,7 @@ export async function POST(req: NextRequest) {
       exerciceCoordonne: exerciceCoordonne ?? false,
       demiJourneesLibres: demiJourneesLibres ?? null,
       caMensuelEstime: caMensuelEstime ?? null,
+      remunerationBrute: remunerationBrute ?? null,
       rawText: rawText ?? null,
       briqueStatus: briqueStatus ?? BriqueStatus.RECHERCHE,
       cabinetPostId: cabinetPostId ?? null,

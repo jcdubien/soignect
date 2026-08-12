@@ -317,6 +317,13 @@ model Mission {
   // spontanément par les titulaires. Affichage seul (hors score). Cap UI 0-10.
   demiJourneesLibres Int?
 
+  // Rémunération brute mensuelle en euros (section 194) — équivalent SALARIÉ du CA estimé.
+  // Colonne distincte et non réutilisation de caMensuelEstime : un chiffre d'affaires et un
+  // salaire brut ne se comparent pas, ne se calculent pas pareil et n'intéressent pas les mêmes
+  // personnes. Les mélanger dans une colonne rendrait toute analyse ultérieure fausse — et le
+  // formulaire employeur demandait justement un « CA mensuel estimé » à qui embauche.
+  remunerationBrute Int?
+
   // CA mensuel estimé en euros (feature terrain) — publié spontanément par certains titulaires.
   // Optionnel, affichage seul. Alimentera plus tard le calculateur de revenu net (B4).
   caMensuelEstime Int?

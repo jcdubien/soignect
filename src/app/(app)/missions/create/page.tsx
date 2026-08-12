@@ -170,6 +170,7 @@ export default function CreateMissionPage() {
     exerciceCoordonne: false,  // MSP / centre de santé / ESP (section 190)
     demiJourneesLibres: "", // demi-journées libres/semaine (feature terrain) — vide = non renseigné
     caMensuelEstime: "",    // CA mensuel estimé € (feature terrain) — optionnel, vide = non renseigné
+    remunerationBrute: "", // rémunération brute mensuelle € — équivalent salarié (section 194)
     retrocessionRate: "",   // taux de rétrocession % — (ré)introduit dans le parcours cabinet
     rawText: "",            // texte libre de l'annonce (refonte saisie texte-libre)
   });
@@ -288,6 +289,7 @@ export default function CreateMissionPage() {
           exerciceCoordonne: m.exerciceCoordonne ?? false,
           demiJourneesLibres: m.demiJourneesLibres != null ? String(m.demiJourneesLibres) : "",
           caMensuelEstime: m.caMensuelEstime != null ? String(m.caMensuelEstime) : "",
+          remunerationBrute: m.remunerationBrute != null ? String(m.remunerationBrute) : "",
           retrocessionRate: m.retrocessionRate != null ? String(m.retrocessionRate) : "",
           rawText: m.rawText ?? "",
           // Le titre d'une absence (« Congés ») n'est pas un titre d'annonce : on repart
@@ -399,8 +401,12 @@ export default function CreateMissionPage() {
       secretairePresente: form.secretairePresente,
       exerciceCoordonne: form.exerciceCoordonne,
       demiJourneesLibres: form.demiJourneesLibres ? parseInt(form.demiJourneesLibres, 10) : null,
-      caMensuelEstime: form.caMensuelEstime ? parseInt(form.caMensuelEstime, 10) : null,
-      retrocessionRate: form.retrocessionRate ? parseInt(form.retrocessionRate, 10) : null,
+      // Un employeur ne declare ni chiffre d'affaires ni retrocession : il verse un salaire.
+      // Un cabinet liberal, l'inverse. On n'envoie donc jamais les champs de l'autre monde —
+      // sans quoi une extraction IA pourrait remplir en base un champ que l'ecran n'affiche pas.
+      caMensuelEstime: isEmployeur ? null : (form.caMensuelEstime ? parseInt(form.caMensuelEstime, 10) : null),
+      retrocessionRate: isEmployeur ? null : (form.retrocessionRate ? parseInt(form.retrocessionRate, 10) : null),
+      remunerationBrute: isEmployeur ? (form.remunerationBrute ? parseInt(form.remunerationBrute, 10) : null) : null,
       rawText: rawTextTrim || null,
       // Transformation d'une absence en annonce : la période cesse d'être « absent sans
       // rien de prévu » et devient une recherche — c'est ce qui éteint l'alerte.
@@ -478,7 +484,8 @@ export default function CreateMissionPage() {
     if (form.endDate) k.push(`date de fin : ${form.endDate}`);
     if (form.minMonths) k.push(`durée minimale : ${form.minMonths} mois`);
     if (form.retrocessionRate) k.push(`taux de rétrocession : ${form.retrocessionRate}%`);
-    if (form.caMensuelEstime) k.push(`chiffre d'affaires estimé : ${form.caMensuelEstime} €/mois`);
+    if (isEmployeur && form.remunerationBrute) k.push(`rémunération brute : ${form.remunerationBrute} €/mois`);
+    if (!isEmployeur && form.caMensuelEstime) k.push(`chiffre d'affaires estimé : ${form.caMensuelEstime} €/mois`);
     if (form.demiJourneesLibres) k.push(`demi-journées libres : ${form.demiJourneesLibres}/semaine`);
     if (form.logementPropose) k.push("logement proposé");
     if (form.vehiculePropose) k.push("véhicule mis à disposition");
@@ -1001,19 +1008,33 @@ export default function CreateMissionPage() {
               placeholder="Ex : 3"
             />
           </div>
+          {/* Un SALARIÉ n'a pas de chiffre d'affaires : on lui demandait pourtant un « CA mensuel
+              estimé ». Le champ change de nature selon qui publie, et va dans une colonne
+              distincte — un CA et un salaire brut ne se comparent pas. */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              CA mensuel estimé <span className="text-gray-400 font-normal">€ (opt.)</span>
+              {isEmployeur ? "Rémunération brute mensuelle" : "CA mensuel estimé"}{" "}
+              <span className="text-gray-400 font-normal">€ (opt.)</span>
             </label>
             <input
               type="number"
               min={0}
               step={100}
-              value={form.caMensuelEstime}
-              onChange={(e) => setForm({ ...form, caMensuelEstime: e.target.value })}
+              value={isEmployeur ? form.remunerationBrute : form.caMensuelEstime}
+              onChange={(e) =>
+                setForm(isEmployeur
+                  ? { ...form, remunerationBrute: e.target.value }
+                  : { ...form, caMensuelEstime: e.target.value })
+              }
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-              placeholder="Ex : 8000"
+              placeholder={isEmployeur ? "Ex : 2600" : "Ex : 8000"}
             />
+            {isEmployeur && (
+              <p className="text-xs text-gray-400 mt-1">
+                Brut mensuel du poste. Pour une vacation, indiquez l&apos;équivalent mensuel ou
+                laissez vide et précisez-le dans le texte.
+              </p>
+            )}
           </div>
         </div>
 
@@ -1026,6 +1047,10 @@ export default function CreateMissionPage() {
              Le libellé figé « Taux de rétrocession » avec le placeholder « Ex : 25 » invitait à
              saisir la part du cabinet : un remplacement à 75/25 se retrouvait contractualisé à
              25% pour le remplaçant. */}
+        {/* MASQUÉ POUR UN EMPLOYEUR — un salarié ne reverse rien et ne conserve pas une part
+            d'honoraires : il est payé. Le champ n'était pas seulement mal nommé, il était sans
+            objet, et « Redevance versée au cabinet » s'affichait sur une offre de CDI. */}
+        {!isEmployeur && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {needType === "remplacement"
@@ -1049,6 +1074,7 @@ export default function CreateMissionPage() {
               : "Part des honoraires que l'assistant reverse au cabinet — c'est ce chiffre qui figurera au contrat."}
           </p>
         </div>
+        )}
 
         </div>
         {/* ── fin colonne droite ── */}

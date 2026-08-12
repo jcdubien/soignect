@@ -18,6 +18,7 @@ export interface DetailMission {
   bioTinder?: string | null;
   demiJourneesLibres?: number | null; // feature terrain — affichage fiche
   caMensuelEstime?: number | null;    // feature terrain — affichage fiche (optionnel)
+  remunerationBrute?: number | null;  // équivalent salarié du précédent (section 194)
   profile: {
     name: string | null;
     type: string;
@@ -206,11 +207,18 @@ export default function MissionDetailSheet({
         )}
 
         {/* Qualité de vie / revenu (feature terrain) — affichés seulement si renseignés (hors score). */}
-        {(mission.demiJourneesLibres != null || mission.caMensuelEstime != null) && (
+        {(mission.demiJourneesLibres != null || mission.caMensuelEstime != null || mission.remunerationBrute != null) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {mission.demiJourneesLibres != null && (
               <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-1">
                 🗓️ {mission.demiJourneesLibres} demi-journée{mission.demiJourneesLibres > 1 ? "s" : ""} libre{mission.demiJourneesLibres > 1 ? "s" : ""}/sem.
+              </span>
+            )}
+            {/* Un poste salarié affiche un SALAIRE, pas un chiffre d'affaires. Les deux vivent
+                dans des colonnes distinctes : on n'affiche que celle qui a un sens ici. */}
+            {mission.remunerationBrute != null && (
+              <span className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">
+                💶 {mission.remunerationBrute.toLocaleString("fr-FR")} €/mois brut
               </span>
             )}
             {mission.caMensuelEstime != null && (
