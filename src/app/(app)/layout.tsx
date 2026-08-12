@@ -279,7 +279,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          <span className="text-[10px] font-semibold">{profileType === "TITULAIRE" ? "Annonce" : "Dispo"}</span>
+          {/* « Dispo » était une troncature, là où le titulaire a « Annonce » en toutes lettres —
+              « Disponibilité » ne tient pas dans la barre du bas. Un VERBE dit mieux l'action que
+              le nom tronqué de l'objet, et se distingue nettement de « Calendrier » juste à côté. */}
+          <span className="text-[10px] font-semibold">{profileType === "TITULAIRE" ? "Annonce" : "Publier"}</span>
         </Link>
 
         <Link href="/compte" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-gray-500 hover:text-kine-600 transition">
