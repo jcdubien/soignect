@@ -2855,14 +2855,35 @@ git). La valeur ne venait donc pas du calcul — elle avait survécu à une édi
 Corrigé : le zonage se recalcule dès que la commune bouge. La ligne fautive a été rectifiée en
 base ; **0 écart sur 21 annonces** après vérification.
 
-Le second trou n'est PAS corrigé : `location` contient parfois une macro-zone
-(« Sud Basse-Terre ») ou du texte libre (« Cabinet des ravines »). Le `Set.has()` échoue en
-silence et rend `null` — **12 annonces sur 21 n'ont aucun zonage**. Ce n'est pas un défaut du
-barème mais du champ `location`, qui porte deux natures.
+##### Les 12 lignes « sans zonage » ne sont PAS un défaut (rectifié le 12/08)
+
+Une version antérieure de cette section présentait « 12 annonces sur 21 sans zonage » comme un
+second trou à corriger, et le champ `location` comme portant deux natures confondues.
+**C'est faux.** Jean-Charles a posé la règle métier : le zonage ne qualifie que **le lieu où le
+kiné va effectivement exercer**, donc la commune du cabinet cible. La granularité commune est
+la bonne, et les 12 lignes se répartissent en trois natures, toutes légitimement sans zonage :
+
+| Nature | Exemples | Pourquoi aucun zonage |
+|---|---|---|
+| 6 disponibilités de CANDIDAT | `location` = « Sud Basse-Terre », « Sud Grande-Terre » | le candidat déclare où il ACCEPTE d'aller, pas où il travaillera |
+| 5 occupations de poste | `location` vide — « Léa », « Mathéo », « Marion »… | briques de planning, pas des offres |
+| 1 absence déclarée | « Cabinet des ravines », titre « Congés » | pas une offre |
+
+**Les 7 vraies annonces de cabinet portent toutes leur zonage, et il est juste.** Aucune
+exception. `location` n'est donc pas ambigu : il est cohérent avec le côté qui publie — un
+cabinet ancre une commune, un candidat déclare des zones. Deux vocabulaires pour deux
+intentions, pas une confusion à réparer.
+
+**Conséquence de conception** : si le zonage sert un jour côté candidat, ce ne sera pas à la
+publication mais **au match**, en héritant du zonage du cabinet retenu — c'est à ce moment que
+le lieu d'exercice devient connu.
 
 **Impact réel aujourd'hui : nul.** `Mission.zonage` et `Profile.zonage` ne sont lus NULLE PART
 — ni scoring, ni contrat, ni affichage. Donnée écrite et jamais relue. Le correctif empêche
 qu'elle se dégrade avant d'avoir un usage.
+
+**Après ce correctif, la base est exacte : 0 écart sur 21 lignes** entre le zonage stocké et
+celui que le barème calcule.
 
 #### CommuneAPL — structure nationale, alimentation absente (constaté le 12/08)
 
