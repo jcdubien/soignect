@@ -2305,6 +2305,69 @@ prompt toujours en attente d'envoi, indépendant.
 
 ---
 
+### Mise en relation — unicité
+
+#### UNICITÉ D'UN MATCH — de la paire de personnes à la paire de missions (13/08) — livré
+
+##### Ce qui contraignait
+
+`@@unique([profileAId, profileBId])` : **une seule relation par paire de personnes**, tous
+types confondus. Un cabinet et un candidat ouverts à la fois au remplacement et à l'assistanat
+ne pouvaient pas mener les deux — invisible à 0 mise en relation, mais coûteux à changer une
+fois le volume arrivé.
+
+##### La contrainte, désormais
+
+```sql
+UNIQUE (COALESCE("missionAId","profileAId"), COALESCE("missionBId","profileBId"))
+-- index Match_paire_missions_key
+```
+
+**Le `COALESCE` n'est pas un ornement.** `missionBId` est nullable — une relation peut naître
+sans mission côté candidat — et **Postgres traite chaque `NULL` comme DISTINCT** dans un index
+unique. Un `UNIQUE(missionAId, missionBId)` nu aurait donc laissé passer autant de relations
+« cabinet ↔ Jean sans mission » qu'on voudrait. Le repli sur `profileXId` ramène l'unicité à
+celle de la personne dans ce cas précis — exactement le comportement voulu.
+
+##### Arbitrage retenu
+
+| | Objets à maintenir | Déclarable dans Prisma |
+|---|---|---|
+| **Index d'expression `COALESCE`** *(retenu)* | **1** | non |
+| `@@unique([missionAId, missionBId])` + 2 index partiels | 3 | partiellement — les partiels échappent de toute façon à Prisma |
+
+Une règle vaut mieux que trois. La contrepartie — pas de clé composée typée, donc pas de
+`findUnique` sur cette paire — est sans coût réel : le garde applicatif devait changer de
+sémantique de toute façon et utilise `findFirst`.
+
+**La contrainte n'apparaît pas dans `schema.prisma`** (Prisma ne sait pas déclarer un index
+d'expression) : un commentaire l'y signale, à l'emplacement de l'ancien `@@unique`.
+
+##### Le garde applicatif suit
+
+`api/swipe` vérifiait « ces deux personnes ont-elles déjà une relation ? ». Il vérifie
+désormais « cette **paire de missions** a-t-elle déjà une relation ? » — code et base disent la
+même chose.
+
+##### Migration
+
+`DROP CONSTRAINT` + `CREATE UNIQUE INDEX`, appliqués à la main via
+`prisma db execute --url $DIRECT_URL`. **0 mise en relation en base** : aucune donnée à
+réconcilier, aucun risque. C'est précisément la fenêtre où l'opération est gratuite.
+
+##### Ce que cela ouvre, et qui n'est pas encore exercé
+
+Deux personnes peuvent désormais avoir **plusieurs relations**, sur des missions différentes.
+Rien ne l'exploite aujourd'hui : `NO_ACTIVE_MATCH_FILTER` retire du feed toute mission déjà
+engagée, si bien qu'une seconde relation ne peut pas naître spontanément.
+
+⚠️ Deux endroits raisonnent encore **par personne** et devront être revus le jour où ce cas
+existera : `detachAssistantPostForMatch` (détache par cabinet + assistant) et le calcul
+`enRelation` de `api/missions/[id]/interesses` (exclut une personne dès qu'une relation existe,
+quelle qu'elle soit).
+
+---
+
 ### Contrat, identité contractuelle, déontologie
 
 #### SUIVI — Vérification déontologique du système de notation (29/07)

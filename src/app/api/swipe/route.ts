@@ -217,9 +217,19 @@ export async function POST(req: NextRequest) {
       const profileAId = swiperId < swipedMission.profileId ? swiperId : swipedMission.profileId;
       const profileBId = swiperId < swipedMission.profileId ? swipedMission.profileId : swiperId;
 
-      const existing = await prisma.match.findUnique({
-        where: { profileAId_profileBId: { profileAId, profileBId } },
-      });
+      // missionA = côté A du couple ordonné, missionB = côté B — mêmes conventions que la
+      // création ci-dessous, calculées ici pour servir aussi au garde d'unicité.
+      const mySideMissionId = targetMissionId ?? reciprocalSwipe.swipedMissionId;
+      const missionAId = profileAId === swiperId ? mySideMissionId : swipedMissionId;
+      const missionBId = profileAId === swiperId ? swipedMissionId : mySideMissionId;
+
+      // Le garde portait sur la PAIRE DE PERSONNES : deux profils ne pouvaient avoir qu'une
+      // seule relation, tous types confondus (section 209). Il porte désormais sur la PAIRE DE
+      // MISSIONS, comme l'index en base — un cabinet et un candidat ouverts à la fois au
+      // remplacement et à l'assistanat peuvent mener les deux.
+      // findFirst et non findUnique : la contrainte est un index d'expression, Prisma ne génère
+      // pas de clé composée pour elle.
+      const existing = await prisma.match.findFirst({ where: { missionAId, missionBId } });
 
       if (!existing) {
         // Score du match = INSTANTANÉ du score de compatibilité au moment de la mise en
@@ -231,15 +241,12 @@ export async function POST(req: NextRequest) {
         const aiScore   = affinityScore;
         const aiFactors = scoreJson;
 
-        // missionAId = TITULAIRE's mission, missionBId = candidat's mission
-        const mySideMissionId = targetMissionId ?? reciprocalSwipe.swipedMissionId;
-
         match = await prisma.match.create({
           data: {
             profileAId,
             profileBId,
-            missionAId: profileAId === swiperId ? mySideMissionId : swipedMissionId,
-            missionBId: profileAId === swiperId ? swipedMissionId : mySideMissionId,
+            missionAId,
+            missionBId,
             aiScore,
             aiFactors,
           },

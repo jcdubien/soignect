@@ -454,7 +454,22 @@ model Match {
   signatureRemplacantUrl  String?
   signatureRemplacantAt   DateTime?
 
-  @@unique([profileAId, profileBId])
+  // UNICITÉ (section 209) — elle porte désormais sur la PAIRE DE MISSIONS, plus sur la paire
+  // de personnes : un cabinet et un candidat ouverts à la fois au remplacement et à
+  // l'assistanat doivent pouvoir mener les deux relations.
+  //
+  // Elle N'EST PAS déclarable ici : c'est un index d'EXPRESSION, que Prisma ne sait pas
+  // exprimer. Il vit en base sous le nom `Match_paire_missions_key` :
+  //
+  //   UNIQUE (COALESCE(missionAId, profileAId), COALESCE(missionBId, profileBId))
+  //
+  // Le COALESCE n'est pas un ornement : missionBId est nullable, et Postgres traite chaque
+  // NULL comme DISTINCT dans un index unique. Un UNIQUE(missionAId, missionBId) nu laisserait
+  // passer autant de relations « cabinet ↔ Jean sans mission » qu'on voudrait. Le repli sur
+  // profileXId ramène alors l'unicité à celle de la personne — le comportement voulu.
+  //
+  // CONSÉQUENCE POUR QUI LIT CE FICHIER : aucune clé composée typée n'est générée, donc pas de
+  // findUnique sur cette paire. Le garde applicatif (api/swipe) utilise findFirst.
 }
 
 model Message {
