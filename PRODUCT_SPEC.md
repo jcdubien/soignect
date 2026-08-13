@@ -3783,6 +3783,92 @@ contre l'état actuel du code. À creuser si Jean-Charles le juge utile.
 
 ## PARTIE VI — RÈGLES DE MÉTHODE ÉTABLIES
 
+### Les 7 règles, rapatriées ici le 13/08
+
+Elles vivaient dans `PLAN_PASSATION_SPRINTS.md`, que plus personne ne tient. Ce document les
+citait sans les contenir — trois renvois, dont deux vers une règle n°7 **qui n'a jamais existé
+dans ce fichier** : il n'en comptait que 6. La règle 7 était pourtant décidée et écrite ici
+même (évaluation UX/UI du 03/08), avec la mention « désormais ajoutée au protocole permanent » —
+ajout jamais fait. Encore une décision documentée comme livrée sans l'être.
+
+1. **LE GEL** — pousser une idée vers un sprint ultérieur plutôt que la construire tout de
+   suite.
+2. **LA CHECKLIST DE CHAÎNE** — tout nouveau type / enum / acteur se vérifie sur toute la
+   chaîne : inscription → feed → matching → contrat → notifications → partage. *(Le défaut du
+   rattachement assistant est exactement ce que cette règle attrape : le feed ouvrait
+   l'assistanat aux remplaçants, le rattachement ne suivait pas.)*
+3. **LA RELANCE SYSTÉMATIQUE** — tout point « à tester / décider » est relancé à chaque session
+   tant qu'il n'est pas confirmé.
+4. **L'ALIGNEMENT VARCHAR / ZOD** — toute colonne texte a une limite DB alignée sur le plafond
+   de validation du formulaire. *(Deux P2000 en production l'ont imposée.)*
+5. **LA VÉRIFICATION AVANT RECONSTRUCTION** — avant de déclarer un fichier perdu ou de
+   reconstruire quoi que ce soit, vérifier l'état réel de chaque fichier. Ne pas supposer.
+6. **LA VIGILANCE DÉONTOLOGIQUE** — toute feature de notation entre profils respecte
+   l'asymétrie de l'article R.4321-99 avant d'être construite.
+7. **L'ÉCRITURE OPPOSABLE** — un écran n'affirme jamais ce qu'il n'a pas vérifié. Chaque
+   message est rédigé pour le cas nominal ET pour « et si c'est faux ? ». C'est le défaut de
+   fond unique identifié le 03/08 après manipulation des 4 parcours.
+
+À quoi s'ajoute la **convention de portée** (en tête de ce document) : tout ✅ dit ce qu'il
+couvre.
+
+### Absorption de PRODUCT_SPEC_v1_1_addendum.md (13/08)
+
+L'addendum « ParaBoard v1.1 » (juin 2026, ancien nom du produit) n'était pas une spec mais un
+**plan de construction — et il a été exécuté**. Vérifié pièce par pièce contre le code :
+
+| Ce qu'il prévoyait | État réel |
+|---|---|
+| `/admin/desirability` | ✅ existe |
+| `/premium` | ✅ existe |
+| Webhook Stripe | ✅ existe |
+| `Profile.desirabilityScore/Override/Expiry`, `subscriptionPlan`, `isFounding` | ✅ tous en base |
+| `/dashboard/billing` | ❌ jamais construit |
+
+**Trois divergences, le code faisant foi :**
+
+- **`bioTinder` : 280 → 700 caractères.** L'addendum décrit 280 ; la colonne vaut 700 des deux
+  côtés (profil et annonce), alignée après deux P2000 en production.
+- **Grille tarifaire divisée par ~4, et un 4ᵉ plan.** L'addendum annonce PREMIUM 39 €/BOOST 79 €.
+  Réel : PREMIUM **9 €**, BOOST **29 €**, plus un plan **STRUCTURE** (89 €/mois + 20 €/contrat)
+  qui n'existait pas — c'est lui qui porte la question de compérage signalée à l'audit
+  déontologique.
+- **La désirabilité n'ajoute plus de points au score.** L'addendum la décrit comme
+  « jusqu'à 10 points ajoutés au score d'affinité ». **Faux depuis le 03/08** : elle a été
+  sortie du score et vit uniquement dans l'ORDRE DU FEED, avec disclosure explicite. C'est la
+  divergence la plus importante — elle contredit un mécanisme de fond.
+
+Le reste de l'addendum (algorithme de score DeepSeek, comportement des cartes, ordre
+d'implémentation par sprints) est soit périmé, soit déjà décrit ailleurs dans ce document, en
+version vérifiée. **Rien d'autre n'en a été repris**, et le fichier n'a plus lieu d'être
+consulté.
+
+### Éléments livrés pendant le gel de ce document, revérifiés contre le code (13/08)
+
+Entre le 06/08 et le 12/08, ce document était gelé : des travaux ont été livrés sans jamais y
+entrer. Revérifiés dans le code, pas recopiés depuis `ROADMAP.md`.
+
+- **`professionLabel` — divergence rendue impossible à la compilation.** `src/lib/professions.ts`
+  type ses deux tables en `Record<Profession, string>` : ajouter une valeur à l'enum sans la
+  traduire ne compile plus. Deux registres distincts, courant et contractuel.
+- **`remunerationBrute` — chaîne complète.** Colonne en base, extraction IA (`annonceAI.ts`,
+  5 occurrences), formulaire de création (8), routes POST et PATCH. C'est l'équivalent salarié
+  du CA estimé, pour un établissement à qui « rétrocession » ne veut rien dire.
+- **Édition d'annonce par `?editId=`** — le formulaire de création sert aussi de formulaire
+  d'édition, côté annonce (`missions/create`) comme côté disponibilité
+  (`disponibilites/create`). Un seul écran, deux usages.
+- **Cartographie générique / kiné-spécifique** — investigation en lecture seule, aucun code.
+  Son résultat vit dans `ROADMAP.md` (principe de factorisation) ; rien à documenter ici comme
+  comportement.
+
+⚠️ **La « vue liste desktop titulaire » n'existe PAS.** `ROADMAP.md` la porte à la fois comme
+close (à verser ici) et comme prompt en file, non envoyé. Le code tranche : **aucune
+occurrence**. C'est la file qui a raison. Elle n'est donc pas documentée ici — l'y écrire aurait
+créé une spec décrivant une fonctionnalité inexistante, exactement le malentendu du 23/07.
+
+---
+
+
 #### 🎓 LE MALENTENDU DU 23/07 — quand un ✅ valide une marche et déclare l'escalier praticable
 
 > Trouvé par relecture intégrale d'Opus (03/08, après-coup de la 
