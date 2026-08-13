@@ -69,7 +69,14 @@ export default async function EmbedTerritoirePage(
   };
 
   return (
-    <div className="p-4 bg-white text-[#1f2937]" style={{ fontSize: 14 }}>
+    <>
+      {/* Le <body> de l'application porte `background-color: var(--md-background)` (globals.css).
+          Dans une iframe plus haute que le contenu, cette couleur déborde et dessine une bande
+          étrangère sur le site hôte — constaté à l'écran. Un module embarquable ne doit imposer
+          AUCUN fond : on le rend transparent pour que celui de l'hôte passe au travers, quel
+          qu'il soit, clair ou sombre. */}
+      <style>{`body { background: transparent !important; }`}</style>
+      <div className="p-4 text-[#1f2937]" style={{ fontSize: 14 }}>
       <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
         <h2 className="text-base font-bold m-0">
           Postes de kinésithérapie — {ZONE_LABELS[cfg.zone]}
@@ -129,6 +136,7 @@ export default async function EmbedTerritoirePage(
       <p className="text-[11px] text-gray-400 text-center mt-2 mb-0">
         Propulsé par Soignect · gratuit pour les professionnels en recherche
       </p>
-    </div>
+      </div>
+    </>
   );
 }

@@ -2999,6 +2999,82 @@ code. En attente d'envoi.
 
 ---
 
+### Module embarquable pour sites de territoire
+
+#### /embed/territoire/[zone] — v1 postes ouverts (13/08) — livré
+
+##### URL et intégration
+
+```
+https://www.soignect.fr/embed/territoire/nord-basse-terre
+```
+
+```html
+<iframe src="https://www.soignect.fr/embed/territoire/nord-basse-terre"
+        title="Postes de kinésithérapie — Nord Basse-Terre"
+        style="width:100%; height:520px; border:0;"
+        loading="lazy"></iframe>
+```
+
+Hauteur conseillée **520 px** pour 5 postes (~70 px par ligne + en-tête + CTA). La largeur suit
+l'hôte, la mise en page est fluide. Une iframe ne s'auto-dimensionne pas : au-delà d'une
+dizaine d'annonces, prévoir un `height` plus grand ou accepter le défilement interne.
+
+##### Trois mécanismes déjà en place — rien à créer
+
+| Besoin | Ce qui existait |
+|---|---|
+| Rendu sans chrome | le layout **racine** n'a ni en-tête ni menu ; la navigation vit dans le groupe `(app)`. Être hors de ce groupe suffit — comme `/annonce/[id]` et les pages de campagne |
+| Accès public | **aucun middleware** dans le produit : chaque route appelle `auth()` si elle en a besoin. Celle-ci ne le fait pas |
+| Iframe autorisée | **aucun `X-Frame-Options` ni `frame-ancestors`** servi en production (vérifié par `curl`) |
+
+##### Filtre partagé, pas réécrit
+
+`lib/annoncesTerritoire.filtreAnnoncesVivantes(zones, communes)` porte les deux corrections
+apprises sur la page de campagne, qu'une réécriture aurait refaites :
+
+- **macro-zones ET communes acceptées** — les annonces antérieures au système de zones n'ont
+  qu'un `location` en texte libre ; ne comparer que les zones en écartait 3 sur 10 ;
+- **expiration écrite en positif** — `NOT (null < maintenant)` ne vaut pas vrai en SQL et
+  faisait disparaître toutes les annonces sans date de fin.
+
+La page `/remplacement-kine-guadeloupe` l'utilise désormais aussi : une seule source.
+
+##### Neutralité visuelle — dont un défaut trouvé à l'écran
+
+Gris, une seule couleur d'accent pour le CTA, aucun aplat de marque.
+
+**Le `<body>` de l'application impose `background-color: var(--md-background)`** (globals.css).
+Dans une iframe plus haute que son contenu, cette couleur débordait et dessinait une bande
+étrangère sur le site hôte. Le fond est désormais **transparent** sur cette route : celui de
+l'hôte passe au travers, clair ou sombre.
+
+Le CTA s'ouvre **hors de l'iframe** (`target="_blank"`) : enfermer une inscription dans un
+cadre de quelques centaines de pixels sur un site tiers ne mènerait nulle part.
+
+##### Périmètre du territoire
+
+`NORD_BASSE_TERRE` au sens du produit — **Pointe-Noire, Deshaies, Sainte-Rose, Lamentin**.
+5 annonces actives au 13/08, toutes à Pointe-Noire.
+
+⚠️ **Le périmètre réel de la CPTS Nord Basse-Terre n'a pas été vérifié** et peut différer de
+cette macro-zone, qui est un découpage produit. À confirmer avec Jean-Charles avant diffusion :
+un module qui prétend couvrir un territoire doit couvrir le bon.
+
+##### v2 non construite, emplacement réservé
+
+L'**indicateur de tension** est marqué en commentaire dans le code, non implémenté. Sa source
+n'est pas tranchée : le zonage ARS (arrêté 971-2024, 2 catégories en Guadeloupe) est un
+classement réglementaire régional, l'APL de la DREES est une donnée nationale brute — deux
+couches distinctes. Un indicateur de tension faux sur le site d'une CPTS coûterait plus cher
+que son absence.
+
+La page est **non indexée** (`robots: noindex`) : son contenu duplique la page de campagne, qui
+reste canonique. Sa fréquentation est tracée sous la clé `embed-nord-basse-terre`, visible dans
+`/admin/diffusion`.
+
+---
+
 ### Diffusion et acquisition
 
 #### VISION — Multiples points d'entrée adressés par cible (27/07)
