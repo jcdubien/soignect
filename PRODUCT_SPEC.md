@@ -957,6 +957,64 @@ joue pas `migrate deploy`.
 
 ---
 
+#### SIGNALER MON INTÉRÊT — rendre lisible un geste qui existait déjà (13/08) — livré
+
+##### Le geste n'a pas été créé, il a été nommé
+
+Un visiteur sans recherche publiée **pouvait déjà** manifester son intérêt : la fiche porte
+Passer / Intéressé, le swipe RIGHT est enregistré même sans mission de son côté, et le cabinet
+le compte — `layout.tsx:93-100` agrège les swipes RIGHT par annonce en « N candidatures en
+attente ».
+
+Construire un second signal aurait fait doublon avec le premier, en plus faible. Ce qui
+manquait était la **lisibilité, des deux côtés**.
+
+##### Côté visiteur — le même geste, deux portées
+
+Le drapeau `relation.aPublieUneRecherche` (route card, `count` indexé borné à 1) distingue les
+deux situations. Sans recherche publiée, « Intéressé » devient **« Signaler mon intérêt »**,
+suivi de la portée réelle : le cabinet verra son nom pour **cette annonce et aucune autre**,
+son profil n'est publié nulle part, et une mise en relation suppose une recherche publiée.
+
+Taire cette différence laissait croire à une réciprocité impossible — le cabinet n'a rien à
+swiper en face (règle de méthode n°7).
+
+##### Côté cabinet — l'angle mort mesuré
+
+Le badge ⏳ mène au feed, **qui liste des ANNONCES**. Un candidat sans publication n'y figure
+jamais : le compteur annonçait des intérêts inatteignables. **Mesuré le 13/08 : 2 des 8 swipes
+RIGHT** venaient de personnes sans recherche active.
+
+`GET /api/missions/[id]/interesses` — réservée au **propriétaire de l'annonce** (403 sinon) —
+liste les swipes RIGHT reçus, en excluant les personnes déjà en relation (atteignables par les
+écrans habituels). Une bande repliée, au-dessus du carrousel de l'annonce sélectionnée, ne
+montre **que celles sans recherche publiée**, avec ce qui est possible ou non.
+
+##### Ce que ce n'est pas
+
+**Ni profil navigable, ni feed de profils sans annonce** — décision de positionnement du 13/08
+respectée. Chaque ligne résulte d'un **geste explicite sur cette annonce précise** et n'existe
+que là. Aucune visibilité permanente, aucune disponibilité implicite exposée.
+
+Aucune table ajoutée : le signal reste le `Swipe` existant.
+
+##### Vérifié à l'écran, sur un cas réel de production
+
+Annonce « Kiné à Pointe-Noire : 3 postes » — la bande affiche « 1 personne s'est signalée sur
+cette annonce · sans recherche publiée — invisible dans le fil », dépliée sur John Doe et son
+accroche.
+
+⚠️ **Portée** : le rendu et le classement sont vérifiés ; le bouton visiteur n'a pas été
+déclenché — il écrirait un swipe au nom d'un compte tiers.
+
+##### Reste ambigu, non traité
+
+Le libellé « candidatures en attente » compte **ensemble** les personnes atteignables et celles
+qui ne le sont pas. La bande corrige l'effet, pas la cause : distinguer les deux dans le badge
+serait un choix d'affichage à trancher.
+
+---
+
 #### EMAIL DE CONSULTATION — ce que le lien peut et ne peut pas faire (13/08)
 
 ##### Le constat, et ce qu'il n'était pas
