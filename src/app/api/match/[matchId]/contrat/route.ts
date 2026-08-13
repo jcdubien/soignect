@@ -136,9 +136,30 @@ export async function GET(req: NextRequest, { params }: Params) {
   const missionTitulaire  = match.profileA.type === "TITULAIRE" ? match.missionA : match.missionB;
   const missionAutre      = match.profileA.type === "TITULAIRE" ? match.missionB : match.missionA;
 
-  // Déterminer le type de contrat depuis la mission du titulaire (sinon mission de l'autre)
-  const missionType: MissionType =
-    (missionTitulaire?.missionType ?? missionAutre?.missionType ?? MissionType.REMPLACEMENT) as MissionType;
+  // Type de contrat : mission du titulaire, sinon mission de l'autre partie.
+  //
+  // AUCUN REPLI (section 210). Ce calcul retombait sur REMPLACEMENT quand aucune des deux
+  // missions n'existait — un gabarit choisi par défaut, sans le moindre signal à l'écran ni
+  // dans le PDF. Inoffensif tant qu'un match porte toujours au moins une mission, mais c'est
+  // désormais possible : l'unicité repose sur la paire de missions (section 209) et missionBId
+  // est nullable. Le jour où une mise en relation naîtra sans mission des deux côtés, deviner
+  // produirait un contrat de REMPLACEMENT pour un assistanat — un document juridique faux,
+  // signé, sans que rien ne l'ait dit.
+  //
+  // On refuse. Un contrat absent se remarque et se corrige ; un contrat faux se découvre trop
+  // tard. C'est la règle d'écriture opposable appliquée au document lui-même.
+  const missionType = (missionTitulaire?.missionType ?? missionAutre?.missionType) as MissionType | undefined;
+  if (!missionType) {
+    return NextResponse.json(
+      {
+        error:
+          "Impossible de générer le contrat : aucune annonce n'est rattachée à cette mise en " +
+          "relation, le type de contrat ne peut donc pas être déterminé. Rattachez l'annonce " +
+          "concernée avant de poursuivre.",
+      },
+      { status: 422 },
+    );
+  }
 
   const locationTitulaire = missionTitulaire?.location ?? profileTitulaire.name ?? "cabinet";
   const locationAutre     = missionAutre?.location ?? profileAutre.name ?? "domicile";
