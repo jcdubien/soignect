@@ -94,9 +94,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // sur l'espace du destinataire (comportement historique).
       const viewerListingPath = viewerMission ? `/annonce/${viewerMission.id}` : null;
       const linkUrl = viewerListingPath ?? (ownerIsCabinet ? "/planning" : "/disponibilites");
+      // Le libellé de repli annonçait « Voir mes annonces » alors que le lien mène au
+      // Planning — qui n'est pas une liste d'annonces (section 205). On nomme la destination
+      // réelle : quand le visiteur n'a rien publié, il n'y a rien de LUI à aller voir, et le
+      // bouton ne doit pas le suggérer.
       const ctaLabel = viewerListingPath
         ? (viewerType === "TITULAIRE" ? "Voir son annonce →" : "Voir sa recherche →")
-        : "Voir mes annonces";
+        : (ownerIsCabinet ? "Voir mon planning" : "Voir mes disponibilités");
       // Notification in-app (section 155) — en parallèle de l'email. Le destinataire est
       // connecté par construction : on l'envoie directement sur la fiche DÉCISIONNELLE du
       // visiteur (?card=), pas sur la page publique. Celle-ci ne sait que présenter l'annonce

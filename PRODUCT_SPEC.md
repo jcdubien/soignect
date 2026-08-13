@@ -957,6 +957,56 @@ joue pas `migrate deploy`.
 
 ---
 
+#### EMAIL DE CONSULTATION — ce que le lien peut et ne peut pas faire (13/08)
+
+##### Le constat, et ce qu'il n'était pas
+
+Signalé sur capture : l'email « Un remplaçant vient de consulter votre annonce » proposait
+« Voir mes annonces », qui ramène le cabinet à son propre espace — pas au visiteur.
+
+Vérifié dans `api/missions/[id]/card/route.ts` : **le visiteur est TOUJOURS identifié.**
+L'email part d'une session authentifiée, `swiperId` est connu. Le lien direct existe déjà et
+fonctionne — `/annonce/<id>` avec le libellé « Voir sa recherche → » — **à une condition** :
+que le visiteur ait une annonce active.
+
+##### Le vrai obstacle : identifié ne veut pas dire atteignable
+
+Un visiteur qui n'a rien publié est **hors d'atteinte**, et pas par oubli d'un lien :
+
+- **Aucune page de profil n'existe** dans le produit. La seule page publique d'une personne est
+  `/annonce/[id]` — une ANNONCE, pas un profil.
+- **Le feed interroge les missions, jamais les profils** (`api/feed`, `include: { profile }` sur
+  une requête de missions). Sans publication, la personne n'apparaît nulle part, ne peut être
+  ni swipée ni appariée.
+
+Il n'y a donc littéralement rien vers quoi pointer. **Le lien de repli était le seul honnête.**
+
+**Mesuré en base le 13/08 : 9 visiteurs distincts ont déclenché cet email, 5 n'ont aucune
+annonce active.** Le repli n'est pas un cas marginal, c'est la majorité.
+
+##### Ce qui a changé — le texte, pas le lien
+
+Le défaut n'était pas la destination mais la **promesse**. L'email nommait un événement précis
+et offrait un bouton qui laissait croire à une action possible ; le lecteur cliquait et
+atterrissait chez lui, sans savoir pourquoi.
+
+- Quand le visiteur n'a rien publié, l'email le dit : « Cette personne n'a pas encore publié de
+  recherche : il n'est donc pas possible de la contacter ni de se positionner pour l'instant.
+  Elle apparaîtra parmi les profils à consulter dès qu'elle en publiera une. »
+- Le libellé de repli annonçait **« Voir mes annonces » alors que le lien mène au Planning**,
+  qui n'est pas une liste d'annonces. Il nomme désormais sa destination réelle — « Voir mon
+  planning » côté cabinet, « Voir mes disponibilités » côté candidat.
+
+Le cas nominal est inchangé : visiteur ayant publié → lien direct vers sa recherche.
+
+##### Piste non prise
+
+Rendre ces visiteurs atteignables demanderait soit une **page de profil**, soit l'entrée des
+profils sans annonce dans le feed. Les deux touchent au principe « le feed présente des
+annonces, pas des personnes » et dépassent un correctif d'email.
+
+---
+
 #### INVITER QUELQU'UN SANS COMPTE À REPRENDRE UN POSTE (13/08) — livré
 
 ##### Le cul-de-sac

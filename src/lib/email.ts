@@ -187,11 +187,24 @@ export async function sendConsultationEmail(
   if (!opts.optIn) return;
   const listingWord = opts.listingWord ?? "annonce";
   const about = opts.missionTitle ? ` « ${escapeHtml(opts.missionTitle)} »` : "";
-  const invite = opts.cta && opts.cta.path.startsWith("/annonce/")
+  // Deux situations, deux messages (section 205). Le visiteur est TOUJOURS identifié — c'est
+  // une session authentifiée — mais il n'est ATTEIGNABLE que s'il a publié quelque chose :
+  // le produit n'a pas de page de profil, et le feed interroge les annonces, jamais les
+  // profils. Sans publication de sa part, il n'y a littéralement rien à consulter ni à
+  // swiper. Mesuré le 13/08 : 5 visiteurs sur 9 sont dans ce cas.
+  //
+  // Le message ne doit donc pas laisser croire à une action possible quand il n'y en a
+  // aucune — c'est le défaut de fond du produit (règle de méthode n°7).
+  const visiteurJoignable = Boolean(opts.cta && opts.cta.path.startsWith("/annonce/"));
+  const invite = visiteurJoignable
     ? `<p style="font-size:14px;line-height:1.5;margin:8px 0 0;color:#4b5563">
          Découvrez son profil et son annonce d'un coup d'œil.
        </p>`
-    : "";
+    : `<p style="font-size:14px;line-height:1.5;margin:8px 0 0;color:#4b5563">
+         Cette personne n'a pas encore publié de recherche : il n'est donc pas possible de la
+         contacter ni de se positionner pour l'instant. Elle apparaîtra parmi les profils à
+         consulter dès qu'elle en publiera une.
+       </p>`;
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0">
