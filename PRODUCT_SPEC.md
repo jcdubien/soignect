@@ -957,6 +957,56 @@ joue pas `migrate deploy`.
 
 ---
 
+#### INVITER QUELQU'UN SANS COMPTE À REPRENDRE UN POSTE (13/08) — livré
+
+##### Le cul-de-sac
+
+Depuis le Planning, « + Rattacher un compte assistant » appelle `/api/cabinet-posts/[id]/link`,
+qui exige un compte **déjà existant** de type ASSISTANT. Sans compte, la réponse était
+« Aucun compte trouvé pour cet email » — et le parcours s'arrêtait là. Aucun chemin ne partait
+de cette erreur.
+
+##### Ce qui existait sans interface
+
+La route `POST /api/cabinet-posts/[id]/invite` était **complète depuis longtemps** : création
+d'une `PosteInvitation` (token + expiration à 7 jours), email nommant le cabinet et le poste,
+et rattachement automatique à la finalisation de l'inscription via `?inviteToken=`
+(`profiles/route.ts:75`). **Aucun fichier `.tsx` ne l'appelait.**
+
+Les deux routes étaient même conçues comme complémentaires : `/invite` refuse en 409 un email
+déjà inscrit en renvoyant vers « Rattacher un compte assistant ». Chacune pointait vers
+l'autre ; l'interface n'en connaissait qu'une.
+
+Même motif que `statusNote` (section 200) : moitié serveur livrée, moitié interface jamais.
+
+##### Ce qui a changé
+
+Les deux chemins s'enchaînent dans `PostAssistantLink` :
+
+- **404 sur `/link`** (aucun compte) → ce n'est plus une erreur mais une proposition :
+  « Aucun compte Soignect pour cet email. Vous pouvez l'inviter à en créer un et à reprendre la
+  gestion de « *nom du poste* ». » avec **Corriger l'email** / **Inviter par email**. L'email
+  déjà saisi est réutilisé — rien à retaper.
+- **409 sur `/invite`** (un compte existe finalement) → retour au rattachement.
+
+##### L'écran d'après ne ment pas
+
+Après envoi : « **Invitation envoyée** — *email* va recevoir un lien pour créer son compte. Le
+rattachement à « *poste* » se fera automatiquement quand elle ou il aura terminé son
+inscription — rien à refaire de votre côté. »
+
+Le rattachement **n'est pas encore fait** à cet instant, et l'écran le dit. Annoncer un poste
+rattaché aurait été exactement le défaut que la règle 7 vise.
+
+##### Vérification
+
+Chaîne complète jouée en production sur le poste « Mathéo », avec une adresse en `.invalid`
+(TLD réservé, non routable — aucune personne réelle destinataire) : 404 → proposition nommant
+le poste → envoi → `PosteInvitation` créée en base (PENDING, expiration à 7 jours) → écran de
+confirmation. Ligne d'essai supprimée, 0 invitation restante.
+
+---
+
 #### RELANCES EN ATTENTE — vue agrégée tous postes (13/08) — livré
 
 ##### Le manque
