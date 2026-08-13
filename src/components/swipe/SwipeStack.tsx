@@ -428,6 +428,71 @@ function Card({
 // annonces. On présélectionne donc la première annonce encore d'actualité — sans date de
 // fin, ou dont la fin n'est pas passée — et on ne retombe sur la première que si toutes
 // sont expirées.
+// ── Ligne de la vue liste (section 202) ───────────────────────────────────────
+// Reprend les éléments décisionnels de la carte — auteur, intitulé, commune, dates, accroche,
+// compatibilité — dans une densité qui permet la comparaison. Les deux actions sont SUR la
+// ligne : sans elles, la liste ne serait qu'un inventaire à consulter, et il faudrait rouvrir
+// une fiche pour décider, ce qui la rendrait plus lente que le carrousel.
+function LigneListe({
+  mission, compat, onChoisir, onOuvrir,
+}: {
+  mission: MissionWithProfile;
+  compat: { pct: number; label: string; barColor: string; textColor: string } | null;
+  onChoisir: (direction: "LEFT" | "RIGHT") => void;
+  onOuvrir: () => void;
+}) {
+  const p = mission.profile;
+  const base = TYPE_CONFIG[p.type as keyof typeof TYPE_CONFIG]
+    ?? { label: p.type, color: "bg-gray-500", emoji: "👤" };
+  const tc = { ...base, label: libelleAuteur(p) };
+  const dateRange =
+    mission.startDate && mission.endDate ? `${fmt(mission.startDate)} → ${fmt(mission.endDate)}`
+    : mission.startDate ? `Dès le ${fmt(mission.startDate)}`
+    : mission.minMonths ? `${mission.minMonths} mois min.`
+    : null;
+  const bio =
+    (mission as MissionWithProfile & { bioTinder?: string | null }).bioTinder ??
+    (p as Profile & { bioTinder?: string | null }).bioTinder ?? null;
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex gap-4 items-start">
+      <button type="button" onClick={onOuvrir} className="flex-1 min-w-0 text-left">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full text-white ${tc.color}`}>{tc.label}</span>
+          {p.name && <span className="text-sm font-black text-gray-900 truncate">{p.name}</span>}
+          {compat && (
+            <span className={`text-[11px] font-bold ${compat.textColor}`}>
+              {compat.label}{compat.pct > 0 ? ` · ${compat.pct}%` : ""}
+            </span>
+          )}
+        </div>
+        <p className="text-sm font-semibold text-gray-800 truncate">{mission.title}</p>
+        <p className="text-xs text-gray-400 mt-0.5 truncate">
+          📍 {mission.location}{dateRange ? ` · ${dateRange}` : ""}
+        </p>
+        {bio && <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 italic">{bio}</p>}
+      </button>
+
+      <div className="flex flex-col gap-2 shrink-0 w-32">
+        <button
+          type="button"
+          onClick={() => onChoisir("RIGHT")}
+          className="px-3 py-2 rounded-xl bg-kine-600 text-white text-xs font-bold hover:bg-kine-700 transition"
+        >
+          Intéressé
+        </button>
+        <button
+          type="button"
+          onClick={() => onChoisir("LEFT")}
+          className="px-3 py-2 rounded-xl border border-gray-200 text-gray-500 text-xs font-semibold hover:bg-gray-50 transition"
+        >
+          Passer
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function defaultMissionId(missions?: TitulaireMission[]): string | null {
   if (!missions || missions.length === 0) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -452,6 +517,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   const [swiping,          setSwiping]           = useState(false);
   const [match,            setMatch]             = useState<MatchData | null>(null);
   const [filter,           setFilter]            = useState<MissionFilter>("ALL");
+  // Vue alternative (section 202) — desktop TITULAIRE uniquement. Les cartes restent le défaut :
+  // la liste est un complément de comparaison, pas un remplacement du geste de décision.
+  const [vue,              setVue]               = useState<"cartes" | "liste">("cartes");
   const [activeMissionId,  setActiveMissionId]   = useState<string | null>(
     initialMissionId ?? defaultMissionId(titulaireMissions)
   );
@@ -495,6 +563,25 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
     const m = titulaireMissions.find(m => m.id === activeMissionId);
     return m ? { id: m.id, title: m.title, startDate: m.startDate, endDate: m.endDate } : null;
   }, [isTitulaire, activeMissionId, titulaireMissions]);
+
+  // Classement de la vue liste : compatibilité de DATES avec l'annonce sélectionnée, la plus
+  // forte en premier. C'est le seul signal de compatibilité disponible côté client — le score
+  // d'affinité complet est calculé côté serveur au moment du swipe, le feed ne le renvoie pas.
+  // On classe donc sur ce que la carte affiche déjà, pas sur une valeur inventée ici.
+  const listeMissions = useMemo(
+    () => displayMissions
+      .map((mission) => ({
+        mission,
+        compat: activeMissionData
+          ? computeCompatibility(
+              toDate(mission.startDate), toDate(mission.endDate),
+              toDate(activeMissionData.startDate), toDate(activeMissionData.endDate),
+            )
+          : null,
+      }))
+      .sort((a, b) => (b.compat?.pct ?? -1) - (a.compat?.pct ?? -1)),
+    [displayMissions, activeMissionData],
+  );
 
   // Other missions for "compatible aussi avec" badge
   const otherMissionsData: ActiveMissionData[] = useMemo(() => {
@@ -592,28 +679,14 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missions.length]);
 
-  // ── Swipe ───────────────────────────────────────────────────────────────────
-  const doSwipe = useCallback(async (direction: "LEFT" | "RIGHT") => {
-    if (swiping || displayMissions.length === 0) return;
-    const top = displayMissions[0];
-    setSwiping(true);
-
-    await controls.start({
-      x:       direction === "RIGHT" ? 620 : -620,
-      rotate:  direction === "RIGHT" ? 22  : -22,
-      opacity: 0,
-      transition: { duration: 0.28, ease: "easeOut" },
-    });
-
-    setMissions(prev => prev.filter(m => m.id !== top.id));
-    x.set(0);
-    controls.set({ x: 0, rotate: 0, opacity: 1 });
-    setSwiping(false);
-
-    const payload: Record<string, unknown> = { swipedMissionId: top.id, direction };
-    if (isTitulaire && activeMissionId) {
-      payload.targetMissionId = activeMissionId;
-    }
+  // ── Enregistrement d'un choix ───────────────────────────────────────────────
+  // Extrait de doSwipe pour être appelé AUSSI depuis la vue liste (section 202) : l'appariement
+  // et la modale de match doivent emprunter le MÊME chemin quelle que soit la vue. Dupliquer
+  // l'appel aurait fait diverger les deux présentations d'un même choix — le score se calcule
+  // ici, côté serveur, et rien dans la vue ne doit pouvoir l'influencer.
+  const enregistrerChoix = useCallback(async (mission: MissionWithProfile, direction: "LEFT" | "RIGHT") => {
+    const payload: Record<string, unknown> = { swipedMissionId: mission.id, direction };
+    if (isTitulaire && activeMissionId) payload.targetMissionId = activeMissionId;
 
     if (direction === "RIGHT") {
       onSwipeRight?.();
@@ -628,7 +701,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           if (data.match) {
             const m = data.match;
             const theirProfile: Profile | null =
-              m.profileA?.id !== top.profileId ? m.profileA : m.profileB;
+              m.profileA?.id !== mission.profileId ? m.profileA : m.profileB;
             setMatch({
               matchId: m.id,
               affinityScore: data.affinityScore ?? null,
@@ -648,7 +721,34 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
         body: JSON.stringify(payload),
       }).catch(console.error);
     }
-  }, [swiping, displayMissions, controls, x, onSwipeRight, isTitulaire, activeMissionId]);
+  }, [isTitulaire, activeMissionId, onSwipeRight]);
+
+  // Choix depuis la LISTE : pas d'animation de carte à jouer, la ligne disparaît simplement.
+  const choisirDepuisListe = useCallback(async (mission: MissionWithProfile, direction: "LEFT" | "RIGHT") => {
+    setMissions(prev => prev.filter(m => m.id !== mission.id));
+    await enregistrerChoix(mission, direction);
+  }, [enregistrerChoix]);
+
+  // ── Swipe ───────────────────────────────────────────────────────────────────
+  const doSwipe = useCallback(async (direction: "LEFT" | "RIGHT") => {
+    if (swiping || displayMissions.length === 0) return;
+    const top = displayMissions[0];
+    setSwiping(true);
+
+    await controls.start({
+      x:       direction === "RIGHT" ? 620 : -620,
+      rotate:  direction === "RIGHT" ? 22  : -22,
+      opacity: 0,
+      transition: { duration: 0.28, ease: "easeOut" },
+    });
+
+    setMissions(prev => prev.filter(m => m.id !== top.id));
+    x.set(0);
+    controls.set({ x: 0, rotate: 0, opacity: 1 });
+    setSwiping(false);
+
+    await enregistrerChoix(top, direction);
+  }, [swiping, displayMissions, controls, x, enregistrerChoix]);
 
   function handleDragEnd(_: unknown, info: { offset: { x: number } }) {
     const ox = info.offset.x;
@@ -767,6 +867,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
 
   const stack = displayMissions.slice(0, 3);
 
+
   return (
     <>
       <AnimatePresence>
@@ -812,15 +913,50 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
               {FILTER_LABELS[f]}
             </button>
           ))}
+
+          {/* Bascule cartes / liste (section 202). Placée AU BOUT de la barre de filtres :
+              c'est la zone des contrôles « comment je parcours », juste au-dessus de ce
+              qu'elle change. `hidden lg:flex` — la liste n'existe pas sous 1024 px, où la
+              comparaison côte à côte n'aurait pas la place, et `isTitulaire` la réserve au
+              côté employeur (le candidat garde le geste rapide, mobile-first). */}
+          {isTitulaire && (
+            <div className="hidden lg:flex items-center gap-1 ml-auto shrink-0 bg-gray-100 rounded-full p-0.5">
+              {([["cartes", "Cartes"], ["liste", "Liste"]] as const).map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setVue(v)}
+                  aria-pressed={vue === v}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+                    vue === v ? "bg-white text-kine-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Transparence sur l'ORDRE d'affichage. La mise en avant commerciale existe — elle ne
             se cache simplement plus à l'intérieur du score de compatibilité, où elle affirmait
             quelque chose de faux sur l'autre partie. Elle est dite, en clair, une fois. */}
         <p className="px-4 pb-1 text-[10px] leading-snug text-gray-400 shrink-0">
-          Ordre d&apos;affichage : les comptes abonnés, partenaires et zones prioritaires
-          apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}.
-          Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
+          {/* La liste n'est PAS triée comme les cartes : elle classe par compatibilité de dates.
+              Garder le même texte aurait affirmé un ordre qui n'est plus celui affiché — la
+              règle d'écriture opposable s'applique aussi aux mentions de transparence. */}
+          {vue === "liste" ? (
+            <>
+              Ordre d&apos;affichage : classé par compatibilité de dates avec l&apos;annonce
+              sélectionnée, la plus forte en premier. Aucun abonnement n&apos;entre dans ce
+              classement — contrairement à la vue Cartes, qui met en avant les comptes abonnés.
+            </>
+          ) : (
+            <>
+              Ordre d&apos;affichage : les comptes abonnés, partenaires et zones prioritaires
+              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}.
+              Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
+            </>
+          )}
         </p>
 
         {/* ── Pile de cartes ── (desktop >=1024px : largeur fixe 480px, centrée — section 63)
@@ -829,7 +965,24 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             Desktop : `lg:w-[480px]` (largeur DÉFINIE) et non `lg:max-w-[480px]` — car `lg:mx-auto`
             désactive le stretch flex, et les cartes étant en `absolute inset-0` (0 largeur en flux),
             un simple max-width laissait le conteneur s'effondrer à 0 → carrousel desktop vide. */}
-        {stack.length === 0 ? emptyState : (
+        {/* Vue LISTE (section 202) — même jeu de missions, classé par compatibilité de dates
+            décroissante. Le score ORDONNE, il ne décide pas : chaque ligne porte les deux
+            actions et l'utilisateur tranche, exactement comme au carrousel. */}
+        {vue === "liste" && isTitulaire ? (
+          listeMissions.length === 0 ? emptyState : (
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-3">
+              {listeMissions.map(({ mission, compat }) => (
+                <LigneListe
+                  key={mission.id}
+                  mission={mission}
+                  compat={compat}
+                  onChoisir={(d) => { void choisirDepuisListe(mission, d); }}
+                  onOuvrir={() => { registerConsultation(mission.id); setDetailMission(mission); }}
+                />
+              ))}
+            </div>
+          )
+        ) : stack.length === 0 ? emptyState : (
         <div className="relative flex-1 mx-4 mt-2 mb-4 min-h-0 lg:w-[480px] lg:mx-auto">
           {/* Cartes du fond */}
           {stack.slice(1).reverse().map((mission, ri) => {
