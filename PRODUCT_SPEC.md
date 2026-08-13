@@ -2307,6 +2307,58 @@ prompt toujours en attente d'envoi, indépendant.
 
 ### Mise en relation — unicité
 
+#### CONTRAT — refus explicite plutôt qu'un type deviné (13/08) — livré
+
+##### Le repli
+
+`contrat/route.ts` déterminait le gabarit ainsi :
+
+```ts
+missionTitulaire?.missionType ?? missionAutre?.missionType ?? MissionType.REMPLACEMENT
+```
+
+Sans mission d'aucun côté, il choisissait **REMPLACEMENT par défaut** — sans le moindre signal
+à l'écran ni dans le PDF. Un contrat de remplacement aurait pu être généré, puis **signé**,
+pour un assistanat.
+
+##### Pourquoi maintenant
+
+Inoffensif tant qu'un match portait toujours au moins une mission. **Ça ne l'est plus** :
+l'unicité repose désormais sur la paire de missions (section 209) et `missionBId` est nullable.
+Le repli est passé de « inatteignable » à « atteignable un jour », sur un document juridique.
+
+##### Vérifié inatteignable AUJOURD'HUI, avant de pousser
+
+- `Mission.missionType` est **NOT NULL** au schéma — les 22 missions en base en portent une ;
+- l'**unique** chemin de création d'un `Match` (`api/swipe:244`) renseigne toujours les deux
+  `missionId` ;
+- aucun code ne remet un `missionId` à `null`.
+
+Aucun cas légitime n'est donc cassé.
+
+##### Ce qui remplace le repli
+
+Un **422** nommant la cause et l'action : « aucune annonce n'est rattachée à cette mise en
+relation, le type de contrat ne peut donc pas être déterminé. Rattachez l'annonce concernée
+avant de poursuivre. »
+
+Un contrat absent se remarque et se corrige ; un contrat faux se découvre trop tard. C'est la
+règle d'écriture opposable appliquée au document lui-même.
+
+##### Vérifié en production, en atteignant réellement le garde
+
+Le refus est **le troisième** de la route : signature, puis identité contractuelle, puis type.
+Pour l'atteindre il a fallu une mise en relation entre les **deux seuls comptes à identité
+complète** (Jean-Charles DUBIEN et Julien MORISOT), sans aucune mission, appelée en
+`?draft=true` pour franchir le garde de signature. Le message attendu s'affiche. Base
+restaurée — 0 mise en relation.
+
+`contrat-info` rend déjà `null` sans deviner : rien à y changer. Les autres occurrences de
+`MissionType.REMPLACEMENT` sont des valeurs par défaut **à la création** (absence, présence,
+type de poste), où l'utilisateur choisit — pas la même famille.
+
+---
+
 #### UNICITÉ D'UN MATCH — de la paire de personnes à la paire de missions (13/08) — livré
 
 ##### Ce qui contraignait
