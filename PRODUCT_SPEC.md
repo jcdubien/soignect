@@ -957,6 +957,53 @@ joue pas `migrate deploy`.
 
 ---
 
+#### LISTE NOMINATIVE DES INTÉRÊTS REÇUS (13/08) — livré
+
+##### Ce que le compteur savait, et ce qu'il taisait
+
+Le badge ⏳ d'une annonce affichait « N candidatures en attente » — un `groupBy` sur les swipes
+RIGHT reçus (`layout.tsx:93-100`), moins les relations confirmées. Il savait dire **3**, jamais
+**qui**. Et il menait au fil, filtré sur l'annonce.
+
+##### Le badge ouvre désormais la liste
+
+Même motif de repli inline que le partage, déjà en place dans `ActiveAnnoncesList` : pas de
+nouvel écran, la liste s'ouvre dans la ligne de l'annonce concernée. Chaque entrée porte **le
+nom, le type, l'ancienneté du geste et l'accroche** quand elle existe.
+
+Source : `GET /api/missions/[id]/interesses`, **réservée au propriétaire de l'annonce**
+(403 sinon), déjà créée pour la bande « personnes signalées ». Elle exclut les personnes déjà
+en relation — atteignables par les écrans habituels.
+
+##### La distinction que le compteur écrasait
+
+| Situation | Ce que la ligne propose |
+|---|---|
+| Recherche publiée | « Se prononcer dans le fil → » — la personne y figure, on peut décider |
+| Aucune recherche publiée | « Pas encore de recherche publiée — vous ne pouvez pas encore vous prononcer » |
+
+Le badge renvoyait auparavant tout le monde vers le fil, **qui liste des ANNONCES** : une
+personne sans publication n'y apparaît jamais. Le compteur promettait donc une action
+impossible pour une partie de ce qu'il comptait — mesuré, 2 des 8 swipes RIGHT.
+
+##### Vérifié à l'écran, en production
+
+Annonce « Kiné à Pointe-Noire : 3 postes », badge ⏳ 2 → deux lignes, une de chaque nature :
+**John Doe** (il y a 6 jours, sans recherche publiée) et **Julien MORISOT** (il y a 9 jours,
+« Se prononcer dans le fil → »).
+
+##### Ce qui n'est PAS construit
+
+**Répondre depuis cette liste.** La tâche s'arrête à la visibilité : créer une mise en relation
+sans annonce en face bute sur `Match.missionBId` et sur `@@unique([profileAId, profileBId])`
+— une seule relation par paire de personnes, tous types confondus. Contrainte de schéma à
+trancher avant, chantier séparé.
+
+Ni profil navigable, ni exposition permanente : ces lignes n'existent que pour le propriétaire
+de l'annonce, et seulement parce que ces personnes ont swipé **cette annonce précise**.
+
+---
+
 #### SIGNALER MON INTÉRÊT — rendre lisible un geste qui existait déjà (13/08) — livré
 
 ##### Le geste n'a pas été créé, il a été nommé
