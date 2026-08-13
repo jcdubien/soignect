@@ -2355,6 +2355,21 @@ même chose.
 `prisma db execute --url $DIRECT_URL`. **0 mise en relation en base** : aucune donnée à
 réconcilier, aucun risque. C'est précisément la fenêtre où l'opération est gratuite.
 
+##### Vérifié par l'échec, contre la base réelle (13/08)
+
+Trois insertions successives entre **Jean-Charles DUBIEN** et **John Doe** — ce dernier n'ayant
+aucune mission, donc `missionBId = NULL` des deux côtés, ce qui est précisément le cas piège :
+
+| | Résultat |
+|---|---|
+| 1. Relation sur l'annonce A | créée |
+| 2. Seconde relation, **mêmes personnes**, autre annonce | **créée** — refusée sous l'ancienne contrainte |
+| 3. Doublon sur la **même paire de missions** | **refusé, P2002** |
+
+Le cas 3 est la démonstration du `COALESCE` : les deux lignes portaient `missionBId = NULL`, et
+un `UNIQUE(missionAId, missionBId)` nu les aurait acceptées toutes les deux. Base restaurée
+après essai — 0 mise en relation.
+
 ##### Ce que cela ouvre, et qui n'est pas encore exercé
 
 Deux personnes peuvent désormais avoir **plusieurs relations**, sur des missions différentes.
