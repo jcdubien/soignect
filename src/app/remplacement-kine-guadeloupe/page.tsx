@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { KINESITHERAPEUTE, TERRITOIRES, titrePage } from "@/lib/pagesDiffusion";
 import { prisma } from "@/lib/prisma";
+import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import Link from "next/link";
 import type { ZoneGeographique } from "@prisma/client";
 import { libelleTypePoste, estEtablissement } from "@/lib/libellesPoste";
@@ -45,25 +46,10 @@ const GUADELOUPE_ZONES: ZoneGeographique[] = [
 ];
 
 async function getMissions() {
-  const maintenant = new Date();
+  // Filtre partagé avec le module embarquable (lib/annoncesTerritoire) : il porte les deux
+  // corrections apprises ici — macro-zones ET communes acceptées, expiration écrite en positif.
   return prisma.mission.findMany({
-    where: {
-      isActive: true,
-      AND: [
-        // Le produit est passé aux MACRO-ZONES (section 138), la page était restée sur une
-        // liste figée de communes comparée au champ libre `location`. Elle écartait donc en
-        // silence tout ce qui n'était pas une commune exacte — 3 annonces actives sur 10, dont
-        // les DEUX SEULES disponibilités de remplaçants, qui portaient « Sud Basse-Terre » ou
-        // une liste de zones. La page ne montrait que des cabinets.
-        // Les communes restent acceptées : les annonces antérieures aux zones n'en ont pas.
-        { OR: [{ zones: { hasSome: GUADELOUPE_ZONES } }, { location: { in: GUADELOUPE_COMMUNES } }] },
-        // Une annonce terminée n'est pas une preuve d'activité, c'est le contraire. Pas de date
-        // de fin = annonce ouverte (« dès septembre »), surtout pas périmée : il faut l'écrire
-        // explicitement, car en SQL `NOT (null < maintenant)` ne vaut pas vrai et les faisait
-        // toutes disparaître — 3 des 9 lors du test.
-        { OR: [{ endDate: null }, { endDate: { gte: maintenant } }] },
-      ],
-    },
+    where: filtreAnnoncesVivantes(GUADELOUPE_ZONES, GUADELOUPE_COMMUNES),
     include: { profile: { select: { type: true, titulaireKind: true, name: true, ratingAvg: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     take: 20,
