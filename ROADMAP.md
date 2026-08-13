@@ -287,16 +287,16 @@ inexistante juste parce que ROADMAP l'affirmait.
    parallèles (ex. remplacement + assistanat). Migration à trancher
    avant que le volume ne la rende coûteuse à changer, pas urgente
    maintenant.
-3. **Investigation transfert de conventionnement 1-pour-1** — le
+4. **Investigation transfert de conventionnement 1-pour-1** — le
    module n'existe pas dans le code ; investigation sur un courrier
    assisté avec règle d'auteur spécifique (titulaire signataire si
    le cédant est assistant)
-4. **Extension du module de factorisation aux nouvelles portes
+5. **Extension du module de factorisation aux nouvelles portes
    d'entrée** — cabinet, chercheur de poste, MSP/CPTS/territoire,
    hôpitaux/centres/CAMSP. Doit intégrer la distinction commune
    (proposeur) / zone (chercheur) / territoire (page) — voir
    investigation ci-dessous, prérequis avant d'écrire ce prompt
-5. **Investigation correspondance commune ↔ zone dans le matching**
+6. **Investigation correspondance commune ↔ zone dans le matching**
    — envoyée le 12/08, conditionne le point 4. Élargie en cours de
    route sur trois couches distinctes à ne pas confondre :
    (1) méthodologie nationale de calcul APL, spécifique au métier de
@@ -324,7 +324,7 @@ inexistante juste parce que ROADMAP l'affirmait.
    (existe, éditable en admin, lu par aucune logique produit
    aujourd'hui). Seul `desirabilityScore` (niveau profil) est
    réellement branché à ce jour.
-6. **Investigation "chercheur d'opportunités" multi-préférences
+7. **Investigation "chercheur d'opportunités" multi-préférences
    (v1.1) — largement répondue le 13/08, pas un chantier à
    construire.** Le multi-préférences existe déjà en production, non
    planifié : `Profile` ne porte aucun type, seul `missionType` par
@@ -338,22 +338,22 @@ inexistante juste parce que ROADMAP l'affirmait.
    garde son utilité pour les libellés et la direction du feed, ne
    pas le supprimer). Décision de fond sur les profils navigables
    (voir ci-dessus) inchangée — non liée à ce constat.
-7. **Email de réinitialisation non reçu** — compte
+8. **Email de réinitialisation non reçu** — compte
    secretaire@cpts-nord-basse-terre.fr, investigation avant fix
-8. **Espace "Mes contrats" dans Mon compte** — persistance et
+9. **Espace "Mes contrats" dans Mon compte** — persistance et
    récupération des contrats édités, dépend d'une investigation
    préalable (contrats persistés ou générés à la volée ?)
-9. **Bouton "Reprendre un texte précédent"** — 5ᵉ bouton du
-   formulaire d'édition d'annonce, reprend le texte libre d'une
-   annonce précédente du même cabinet (texte seul, pas les champs
-   structurés — évite de reporter des données obsolètes sans que
-   l'utilisateur s'en rende compte)
-10. **Lien direct depuis le message anti-doublon vers l'annonce en
+10. **Bouton "Reprendre un texte précédent"** — 5ᵉ bouton du
+    formulaire d'édition d'annonce, reprend le texte libre d'une
+    annonce précédente du même cabinet (texte seul, pas les champs
+    structurés — évite de reporter des données obsolètes sans que
+    l'utilisateur s'en rende compte)
+11. **Lien direct depuis le message anti-doublon vers l'annonce en
     conflit** — le message actuel décrit l'annonce qui bloque une
     publication mais n'offre aucun moyen de l'atteindre, surtout si
     ses dates sont hors de la période affichée sur le Planning.
     Réutiliser `?editId=`
-11. **Annonces limitées sur les pages de propagande, classées
+12. **Annonces limitées sur les pages de propagande, classées
     désirabilité + proximité géo du visiteur** — investigation
     d'abord (les pages affichent-elles déjà des annonces en direct
     aujourd'hui ? désirabilité déjà consommée par une logique
