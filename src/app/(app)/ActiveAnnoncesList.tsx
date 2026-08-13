@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ShareActions from "@/components/share/ShareActions";
+import InteressesAnnonce from "@/components/swipe/InteressesAnnonce";
 
 export interface ActiveMission {
   id: string;
@@ -40,6 +41,11 @@ export default function ActiveAnnoncesList({
   // poste » d'une brique de la timeline ; une annonce non rattachée à un poste (créée via
   // « + Annonce ») restait impartageable. On l'expose ici pour TOUTE annonce active.
   const [sharingId, setSharingId] = useState<string | null>(null);
+  // Liste nominative des intérêts reçus (section 207) — même motif de repli inline que le
+  // partage ci-dessus, dans la ligne de l'annonce concernée. Le compteur disait « 3 » sans
+  // jamais dire qui ; il ouvre désormais la liste au lieu de renvoyer au fil, où les
+  // personnes sans recherche publiée n'apparaîtront jamais.
+  const [interessesId, setInteressesId] = useState<string | null>(null);
 
   async function doDelete(id: string) {
     setBusyId(id);
@@ -122,10 +128,12 @@ export default function ActiveAnnoncesList({
             <div className="shrink-0 flex items-center gap-1.5 pr-1 my-2">
               <button
                 type="button"
-                onClick={() => { router.push(`/annonces?missionId=${encodeURIComponent(m.id)}`); onItemClick?.(); }}
-                title={`${pending} candidature${pending > 1 ? "s" : ""} en attente — swiper`}
+                onClick={() => setInteressesId((cur) => (cur === m.id ? null : m.id))}
+                aria-expanded={interessesId === m.id}
+                title={`${pending} personne${pending > 1 ? "s" : ""} intéressée${pending > 1 ? "s" : ""} — voir qui`}
                 className={`flex items-center gap-1 px-2 h-8 rounded-lg text-xs font-bold transition ${
-                  pending > 0 ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                  interessesId === m.id ? "bg-amber-200 text-amber-800"
+                  : pending > 0 ? "bg-amber-100 text-amber-700 hover:bg-amber-200" : "bg-gray-100 text-gray-400 hover:bg-gray-200"
                 }`}
               >
                 <span>⏳</span><span>{pending}</span>
@@ -175,6 +183,11 @@ export default function ActiveAnnoncesList({
             </button>
           </div>
           {/* Panneau de partage inline (section 187) */}
+          {interessesId === m.id && (
+            <div className="bg-gray-50 border-b border-gray-100">
+              <InteressesAnnonce missionId={m.id} onNavigate={onItemClick} />
+            </div>
+          )}
           {sharingId === m.id && (
             <div className="px-4 pb-3 pt-1 bg-gray-50 border-b border-gray-100">
               <ShareActions path={`/annonce/${m.id}`} title={m.title} />
