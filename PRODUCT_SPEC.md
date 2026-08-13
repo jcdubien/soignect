@@ -811,6 +811,72 @@ déblocage du formulaire jusqu'au retrait).
 
 ### Titulaire — planning, visibilité, facturation
 
+#### VUE LISTE, alternative au carrousel (13/08) — livré
+
+##### Périmètre
+
+**Desktop (`lg`, ≥ 1024 px) ET titulaire uniquement.** Sous ce seuil la bascule n'est pas
+rendue — la comparaison côte à côte n'y a pas la place ; côté candidat elle n'existe pas du
+tout, le geste rapide mobile-first reste son seul mode. **Les cartes restent la vue par
+défaut** : la liste est un complément de comparaison, jamais un remplacement.
+
+La bascule est placée **au bout de la barre de filtres**, alignée à droite : c'est la zone des
+contrôles « comment je parcours », directement au-dessus de ce qu'elle change.
+
+##### Un seul chemin d'enregistrement, pas deux
+
+L'enregistrement du choix a été **extrait** de `doSwipe` dans `enregistrerChoix(mission,
+direction)` — appel `POST /api/swipe` et modale de match. Le carrousel l'appelle après son
+animation, la liste l'appelle directement.
+
+Ce n'est pas de la cosmétique : dupliquer l'appel aurait fait diverger deux présentations d'un
+même choix. Le score et l'appariement se calculent **côté serveur**, et aucune vue ne peut les
+influencer.
+
+##### Ce que porte chaque ligne
+
+Auteur (badge de type + nom), intitulé, commune, dates ou durée minimale, extrait d'accroche,
+et l'étiquette de compatibilité. **Les deux actions sont sur la ligne** — « Intéressé » et
+« Passer » : sans elles, la liste ne serait qu'un inventaire à consulter, et il faudrait rouvrir
+une fiche pour décider, ce qui la rendrait plus lente que le carrousel. Un clic sur le corps de
+la ligne ouvre la fiche détaillée et enregistre la consultation, comme un tap sur une carte.
+
+##### Le classement, et sa limite honnête
+
+La liste classe par **compatibilité de DATES** avec l'annonce sélectionnée, décroissante.
+
+C'est le seul signal de compatibilité disponible côté client : `/api/feed` **ne renvoie aucun
+score par mission**, et le score d'affinité complet n'est calculé qu'au moment du swipe, côté
+serveur. Le classement s'appuie donc sur ce que la carte affiche déjà (`computeCompatibility`),
+pas sur une valeur inventée pour l'occasion.
+
+Conséquence à connaître : **quand l'annonce sélectionnée n'a pas de date de fin** — cas d'un
+assistanat — la compatibilité vaut « Dates non renseignées » pour tout le monde et le tri est
+sans effet. La liste retombe alors sur l'ordre du feed.
+
+##### La mention de transparence suit la vue
+
+L'ordre n'est PAS le même dans les deux vues : les cartes suivent la désirabilité (abonnés,
+partenaires, boost saisonnier), la liste suit la compatibilité. La ligne de transparence a donc
+été dédoublée — en vue Liste elle annonce le classement par compatibilité et précise
+qu'**aucun abonnement n'y entre**, contrairement aux cartes.
+
+Garder le texte d'origine aurait affiché un ordre qui n'est plus celui présenté : la règle
+d'écriture opposable (n°7) vaut aussi pour les mentions de transparence.
+
+##### Ce qui n'a pas changé
+
+Le score **ORDONNE**, il ne décide jamais. Aucun appariement automatique fondé sur le
+classement : la liste est une autre présentation du même choix humain.
+
+⚠️ **Portée de la vérification** : rendu, bascule, classement, repli sous 1024 px et texte de
+transparence vérifiés à l'écran en production. Les deux boutons **n'ont pas été déclenchés** —
+« Intéressé » engagerait une relation avec un candidat réel, « Passer » l'écarterait
+définitivement du feed. Ils appellent la fonction déjà en service pour le carrousel.
+
+---
+
+
 #### BLOC-NOTE DE SUIVI SUR LA TIMELINE (12/08) — livré
 
 ##### Ce qui existait déjà, et n'était pas su
