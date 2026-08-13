@@ -2044,6 +2044,9 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
   const [dropdown, setDropdown] = useState<DropdownState | null>(null);
   const [confirmModal, setConfirmModal] = useState<ConfirmState | null>(null);
   const [uncoveredChoice, setUncoveredChoice] = useState<UncoveredChoiceState | null>(null);
+  // Bande « Relances en attente » (section 203) — repliée par défaut : elle informe sans
+  // repousser la timeline, qui reste l'objet principal de l'écran.
+  const [relancesOuvertes, setRelancesOuvertes] = useState(false);
   // Overrides de statut locaux (lecture seule ici — le menu poste agit via l'API + refresh)
   const [localStatuses] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -2194,6 +2197,25 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
   const topAlert = alertList[0] ?? null;
   const alertIsRed = topAlert !== null && topAlert.days < 30;
 
+  // ── Relances en attente (section 203) ───────────────────────────────────────
+  // AUCUNE REQUÊTE AJOUTÉE : planning/page.tsx charge déjà tous les postes du cabinet avec
+  // leurs missions (`include`, pas `select`) — suiviStatut, statusNote et suiviNote arrivent
+  // donc avec. La vue agrégée n'est qu'une lecture transverse de ce qui est déjà en mémoire,
+  // là où la pastille de 6 px oblige à parcourir la timeline brique par brique.
+  const relances = posts.flatMap((post) =>
+    post.missions
+      .filter((m) => m.suiviStatut)
+      .map((mission) => ({ post, mission, statut: mission.suiviStatut as string })),
+  );
+  // A_RELANCER d'abord : c'est le seul état qui appelle une action, déjà distingué sur la
+  // timeline par un accent propre — on tient la même hiérarchie ici.
+  const aRelancer = relances.filter((r) => r.statut === "A_RELANCER");
+  const autresSuivis = relances.filter((r) => r.statut !== "A_RELANCER");
+  // Les notes de POSTE n'ont pas de statut (elles couvrent les zones non couvertes, qui ne
+  // sont aucun objet en base) : elles forment un troisième groupe, sans hiérarchie d'action.
+  const notesPoste = posts.filter((p) => p.suiviNote);
+  const totalSuivi = relances.length + notesPoste.length;
+
   // Handler zone non couverte partagé desktop/mobile — ouvre le menu universel
   // (section 64) pré-rempli avec les dates de la zone cliquée.
   function handleUncoveredClick(p: PostData, clickedDate: Date) {
@@ -2281,6 +2303,93 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
           </button>
         </div>
       )}
+      {/* ── Relances en attente (section 203) ──────────────────────────────────
+          Placée sous le bandeau d'alerte, dans la même zone « ce qui appelle une action » :
+          l'alerte dit ce que le CALENDRIER réclame, cette bande ce que le SUIVI réclame.
+          Ne s'affiche que s'il y a quelque chose à montrer — un bandeau permanent à zéro
+          apprendrait à l'ignorer. */}
+      {totalSuivi > 0 && (
+        <div className="flex-shrink-0 border-b border-gray-200 bg-white">
+          <button
+            type="button"
+            onClick={() => setRelancesOuvertes((v) => !v)}
+            aria-expanded={relancesOuvertes}
+            className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition"
+          >
+            <span className={`transition-transform ${relancesOuvertes ? "rotate-90" : ""}`}>▸</span>
+            <span>Suivi</span>
+            {aRelancer.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-[var(--corail-signal)] text-[#3D1508] font-bold">
+                {aRelancer.length} à relancer
+              </span>
+            )}
+            <span className="text-gray-400 font-normal">
+              {totalSuivi} élément{totalSuivi > 1 ? "s" : ""} suivi{totalSuivi > 1 ? "s" : ""}, tous postes confondus
+            </span>
+          </button>
+
+          {relancesOuvertes && (
+            <div className="px-4 pb-3 space-y-3">
+              {[
+                { titre: "À relancer", items: aRelancer, accent: true },
+                { titre: "Autres suivis", items: autresSuivis, accent: false },
+              ].filter((g) => g.items.length > 0).map((g) => (
+                <div key={g.titre}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">{g.titre}</p>
+                  <div className="space-y-1.5">
+                    {g.items.map(({ post, mission, statut }) => (
+                      <button
+                        key={mission.id}
+                        type="button"
+                        /* Retour à la brique : on rouvre EXACTEMENT le panneau du clic sur la
+                           timeline, plutôt que de faire défiler jusqu'à elle. Plus direct, et
+                           surtout : aucune duplication, c'est le même Panel. */
+                        onClick={() => { setDropdown(null); setPanel({ type: "covered", mission, post }); }}
+                        className={`w-full text-left rounded-xl border px-3 py-2 hover:bg-gray-50 transition ${
+                          g.accent ? "border-[var(--corail-signal)]/40 bg-[var(--corail-signal)]/5" : "border-gray-150 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-gray-800">{post.label}</span>
+                          <span className="text-[11px] font-semibold text-gray-500">{SUIVI[statut]?.label ?? statut}</span>
+                          <span className="text-[11px] text-gray-400 truncate">
+                            {mission.title}
+                            {toDate(mission.startDate) ? ` · ${fmtDate(mission.startDate)}` : ""}
+                            {toDate(mission.endDate) ? ` → ${fmtDate(mission.endDate)}` : ""}
+                          </span>
+                        </div>
+                        {mission.statusNote && (
+                          <p className="text-[11px] text-gray-600 italic mt-0.5 line-clamp-1">{mission.statusNote}</p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {notesPoste.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">Notes de poste</p>
+                  <div className="space-y-1.5">
+                    {notesPoste.map((post) => (
+                      <button
+                        key={post.id}
+                        type="button"
+                        onClick={() => { setDropdown(null); setPanel({ type: "uncovered", post }); }}
+                        className="w-full text-left rounded-xl border border-gray-150 bg-white px-3 py-2 hover:bg-gray-50 transition"
+                      >
+                        <span className="text-xs font-bold text-gray-800">{post.label}</span>
+                        <p className="text-[11px] text-gray-600 italic mt-0.5 line-clamp-1">{post.suiviNote}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       {confirmModal && (
         <ConfirmModal
