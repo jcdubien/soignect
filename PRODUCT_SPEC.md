@@ -957,6 +957,52 @@ joue pas `migrate deploy`.
 
 ---
 
+#### RELANCES EN ATTENTE — vue agrégée tous postes (13/08) — livré
+
+##### Le manque
+
+Le bloc-note de suivi (section 200) n'exposait ses statuts que par une **pastille de 6 px** en
+coin de brique. Repérer « qu'est-ce qui attend une action de ma part » imposait de parcourir la
+timeline visuellement, poste par poste — la donnée existait, l'interface ne la rassemblait pas.
+
+##### Emplacement
+
+Une bande **sous le bandeau d'alerte du Planning**, dans la même zone « ce qui appelle une
+action » : l'alerte dit ce que le CALENDRIER réclame (postes non couverts), cette bande ce que
+le SUIVI réclame.
+
+**Repliée par défaut** — elle informe sans repousser la timeline, qui reste l'objet de l'écran.
+Le titre replié porte déjà l'essentiel : un compteur « N à relancer » en corail, et le total
+suivi tous postes confondus. **Elle ne s'affiche pas du tout s'il n'y a rien à montrer** : un
+bandeau permanent à zéro apprend à être ignoré.
+
+##### Aucune requête ajoutée
+
+`planning/page.tsx` charge déjà tous les postes du cabinet avec leurs missions
+(`include`, pas `select`) : `suiviStatut`, `statusNote` et `suiviNote` arrivent avec. La vue
+n'est qu'une **lecture transverse de ce qui est déjà en mémoire** — dérivation client, zéro
+appel réseau, aucune logique de feed ou de tray dupliquée.
+
+##### Trois groupes, une seule hiérarchie d'action
+
+| Groupe | Contenu | Traitement |
+|---|---|---|
+| **À relancer** | `A_RELANCER` | en tête, bordure et fond corail — même accent que la pastille sur la timeline |
+| **Autres suivis** | les 4 autres statuts | second, neutre |
+| **Notes de poste** | `CabinetPost.suiviNote` | troisième — ces notes n'ont pas de statut, elles couvrent les zones non couvertes |
+
+##### Retour à la brique
+
+Un clic sur une ligne **rouvre exactement le panneau du clic sur la timeline**
+(`setPanel({ type: "covered", mission, post })`), plutôt que de faire défiler jusqu'à elle.
+Plus direct, et surtout : aucune duplication, c'est le même `Panel`. Une note de poste ouvre le
+panneau du poste.
+
+Vérifié à l'écran en production : bande repliée puis dépliée, groupes dans l'ordre, pastilles
+de la timeline concordant avec le contenu de la bande.
+
+---
+
 #### AUDIT CHAÎNE — Complément : 3e défaut découvert, plus grave que les deux autres (03/08)
 
 ##### Réponse définitive à la question centrale : NON, sur les deux vues
