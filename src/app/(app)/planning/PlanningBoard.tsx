@@ -670,6 +670,12 @@ function PostMenu({
             {/* Poste vide = la ZONE NON COUVERTE, qui n'est aucun objet en base : son suivi
                 est porté par le poste (section 200). */}
             {!mission && <SuiviPoste post={post} onSaved={onDone} />}
+            {/* Rattacher / inviter (section 204) — le bloc ne vivait QUE dans le panneau
+                latéral, atteignable par le seul bouton « Voir le poste » du bandeau d'alerte,
+                qui ne cible qu'un poste. Cliquer la ligne d'un autre poste n'y menait pas :
+                on pouvait gérer son occupation, la renommer, la retirer — mais pas y rattacher
+                quelqu'un. Le menu du poste est pourtant le chemin naturel pour ça. */}
+            <PostAssistantLink post={post} onChanged={onDone} />
             {mission && (
               <Button variant="text" onClick={onDetail} className="w-full !py-2 !text-kine-600 hover:!bg-kine-50">
                 Voir le détail
