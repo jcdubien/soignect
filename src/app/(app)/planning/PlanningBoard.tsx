@@ -1378,11 +1378,18 @@ function PostAssistantLink({ post, onChanged }: { post: PostData; onChanged: () 
   const [email, setEmail] = useState("");
   const [busy, setBusy]   = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Le rattachement (/link) exige un compte EXISTANT. Quand il n'y en a pas, le parcours
+  // s'arrêtait sur « Aucun compte trouvé pour cet email » — cul-de-sac (section 204).
+  // La route d'invitation (/invite) existait pourtant depuis longtemps, complète : token,
+  // email, rattachement automatique à la finalisation de l'inscription. Elle n'avait
+  // simplement AUCUN appelant côté interface. On enchaîne les deux ici.
+  const [sansCompte, setSansCompte] = useState(false);
+  const [invitee, setInvitee] = useState<string | null>(null);
   const linked = post.linkedUser;
 
   async function attach() {
     if (!email.trim() || busy) return;
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setSansCompte(false);
     try {
       const res = await fetch(`/api/cabinet-posts/${post.id}/link`, {
         method: "POST",
@@ -1391,9 +1398,31 @@ function PostAssistantLink({ post, onChanged }: { post: PostData; onChanged: () 
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
+        // 404 = aucun compte pour cet email. Ce n'est pas une impasse, c'est exactement le
+        // cas que l'invitation couvre : on propose la suite au lieu d'afficher une erreur.
+        if (res.status === 404) { setSansCompte(true); setBusy(false); return; }
         setError(typeof d?.error === "string" ? d.error : "Rattachement impossible."); setBusy(false); return;
       }
       onChanged();
+    } catch { setError("Erreur réseau."); setBusy(false); }
+  }
+
+  async function inviter() {
+    if (!email.trim() || busy) return;
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(`/api/cabinet-posts/${post.id}/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        // 409 = un compte existe finalement (créé entre-temps) : on repasse au rattachement.
+        if (res.status === 409) { setSansCompte(false); setError(typeof d?.error === "string" ? d.error : null); setBusy(false); return; }
+        setError(typeof d?.error === "string" ? d.error : "L'invitation n'a pas pu être envoyée."); setBusy(false); return;
+      }
+      setInvitee(email.trim()); setSansCompte(false); setBusy(false);
     } catch { setError("Erreur réseau."); setBusy(false); }
   }
 
@@ -1431,18 +1460,58 @@ function PostAssistantLink({ post, onChanged }: { post: PostData; onChanged: () 
         </button>
       ) : (
         <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Email du compte assistant</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="assistant@email.fr"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
-          {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-          <div className="flex gap-2 mt-2">
-            <button onClick={() => { setOpen(false); setError(null); }} disabled={busy}
-              className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:opacity-40">Annuler</button>
-            <button onClick={attach} disabled={busy || !email.trim()}
-              className="flex-1 py-2 bg-violet-600 text-white rounded-lg text-sm font-bold hover:bg-violet-700 disabled:opacity-40">
-              {busy ? "…" : "Rattacher"}
-            </button>
-          </div>
+          {invitee ? (
+            /* L'invitation est partie : on le dit franchement, avec ce qui va se passer
+               ensuite. Le rattachement n'est PAS encore fait — il se produira quand la
+               personne aura créé son compte. Ne pas laisser croire que c'est réglé. */
+            <>
+              <p className="text-[11px] font-bold text-violet-700 uppercase tracking-wide mb-0.5">✉️ Invitation envoyée</p>
+              <p className="text-sm text-gray-700">
+                <strong>{invitee}</strong> va recevoir un lien pour créer son compte.
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Le rattachement à « {post.label} » se fera automatiquement quand elle ou il
+                aura terminé son inscription — rien à refaire de votre côté.
+              </p>
+              <button onClick={() => { setInvitee(null); setOpen(false); setEmail(""); }}
+                className="mt-2 text-xs font-semibold text-violet-700 hover:text-violet-800">Fermer</button>
+            </>
+          ) : (
+            <>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Email du compte assistant</label>
+              <input type="email" value={email}
+                onChange={e => { setEmail(e.target.value); setSansCompte(false); setError(null); }}
+                placeholder="assistant@email.fr"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-300" />
+              {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+
+              {sansCompte ? (
+                <div className="mt-2">
+                  <p className="text-xs text-gray-600">
+                    Aucun compte Soignect pour cet email. Vous pouvez l&apos;inviter à en créer
+                    un et à reprendre la gestion de « {post.label} ».
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => { setSansCompte(false); }} disabled={busy}
+                      className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:opacity-40">Corriger l&apos;email</button>
+                    <button onClick={inviter} disabled={busy}
+                      className="flex-1 py-2 bg-violet-600 text-white rounded-lg text-sm font-bold hover:bg-violet-700 disabled:opacity-40">
+                      {busy ? "…" : "Inviter par email"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => { setOpen(false); setError(null); }} disabled={busy}
+                    className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:opacity-40">Annuler</button>
+                  <button onClick={attach} disabled={busy || !email.trim()}
+                    className="flex-1 py-2 bg-violet-600 text-white rounded-lg text-sm font-bold hover:bg-violet-700 disabled:opacity-40">
+                    {busy ? "…" : "Rattacher"}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
