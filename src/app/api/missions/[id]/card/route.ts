@@ -123,6 +123,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     })().catch(() => {});
   }
 
+  // Le lecteur a-t-il lui-même publié une recherche (section 206) ? De la réponse dépend le
+  // SENS de son geste : avec une recherche, « Intéressé » ouvre une réciprocité possible — le
+  // cabinet peut swiper la sienne en retour. Sans recherche, le cabinet ne peut RIEN swiper en
+  // face : le geste ne vaut que comme signalement, et l'écran doit le dire.
+  // Requête indexée sur profileId, bornée à 1 : coût négligeable.
+  const aPublieUneRecherche =
+    (await prisma.mission.count({ where: { profileId: swiperId, isActive: true }, take: 1 })) > 0;
+
   return NextResponse.json({
     mission,
     relation: {
@@ -130,6 +138,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       matchId: match?.id ?? null,
       // Sa propre annonce : on ne peut pas la swiper → l'UI masque les boutons de décision.
       isOwn: mission.profileId === swiperId,
+      aPublieUneRecherche,
     },
   });
 }

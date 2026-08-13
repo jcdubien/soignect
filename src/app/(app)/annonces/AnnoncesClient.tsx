@@ -9,6 +9,7 @@ import RecentMissionsTray, { RecentMission, removeRecentMission } from "@/compon
 import LaunchOfferBanner from "@/components/ui/LaunchOfferBanner";
 import MissionDetailSheet, { DetailMission, MissionRelation } from "@/components/swipe/MissionDetailSheet";
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
+import InteressesSansRecherche from "@/components/swipe/InteressesSansRecherche";
 import ShareActions from "@/components/share/ShareActions";
 
 interface Props {
@@ -147,6 +148,13 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
           menu — fini le grand vide gris sous les trays. */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-h-0">
+          {/* Personnes signalées sur l'annonce sélectionnée (section 206) — celles qui n'ont
+              rien publié, donc absentes du fil. Rendue dans l'espace de CETTE annonce, au-dessus
+              du carrousel qui, lui, ne peut pas les montrer. Se masque toute seule s'il n'y en
+              a aucune. */}
+          {profileType === "TITULAIRE" && initialMissionId && (
+            <InteressesSansRecherche missionId={initialMissionId} />
+          )}
           <SwipeStack
             onSwipeRight={() => setTrayKey(k => k + 1)}
             profileType={profileType}

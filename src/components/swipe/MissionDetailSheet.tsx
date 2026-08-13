@@ -34,6 +34,9 @@ export interface MissionRelation {
   swipeDirection: "LEFT" | "RIGHT" | null;
   matchId: string | null;
   isOwn?: boolean; // sa propre annonce → pas de boutons de décision
+  // Le lecteur a-t-il publié une recherche (section 206) ? Change le SENS du geste positif,
+  // donc son libellé et ce qu'on en promet.
+  aPublieUneRecherche?: boolean;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -73,6 +76,8 @@ export default function MissionDetailSheet({
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [swiping, setSwiping] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Lecteur sans recherche publiée : le geste positif change de nom et de promesse.
+  const sansRecherche = relation?.aPublieUneRecherche === false;
 
   // Le résumé Wikipédia n'a de sens que pour une VRAIE commune (annonce cabinet). Côté
   // remplaçant, location est désormais un libellé de zone (« Toute la Guadeloupe », etc.,
@@ -167,11 +172,25 @@ export default function MissionDetailSheet({
             type="button"
             onClick={() => handleSwipe("RIGHT")}
             disabled={swiping}
-            className="md3-ripple flex-1 max-w-[170px] px-5 py-2.5 rounded-lg border border-[#0B3D5C]/30 text-sm font-semibold text-[#0B3D5C] hover:bg-[#0B3D5C]/[0.06] transition disabled:opacity-40"
+            className="md3-ripple flex-1 max-w-[190px] px-5 py-2.5 rounded-lg border border-[#0B3D5C]/30 text-sm font-semibold text-[#0B3D5C] hover:bg-[#0B3D5C]/[0.06] transition disabled:opacity-40"
           >
-            Intéressé
+            {sansRecherche ? "Signaler mon intérêt" : "Intéressé"}
           </button>
         </div>
+        {/* Le MÊME geste (swipe RIGHT) n'a pas la même portée selon que le lecteur a publié ou
+            non (section 206). Avec une recherche, la réciprocité est possible : le cabinet
+            peut swiper la sienne en retour. Sans recherche, il n'a RIEN à swiper en face — le
+            geste ne vaut que comme signalement, et le taire reviendrait à laisser croire à une
+            mise en relation qui ne peut pas se produire (règle de méthode n°7).
+            On ne construit donc pas un second signal : on nomme la portée réelle du premier. */}
+        {sansRecherche && (
+          <p className="mt-2.5 text-[11px] leading-snug text-gray-500 text-center px-2">
+            Ce cabinet verra votre nom parmi les personnes intéressées par <strong>cette
+            annonce</strong>, et uniquement celle-ci. Votre profil n&apos;est publié nulle part
+            ailleurs. Pour qu&apos;une mise en relation devienne possible, publiez votre
+            recherche.
+          </p>
+        )}
         {actionError && (
           <p className="mt-3 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 text-center">{actionError}</p>
         )}
