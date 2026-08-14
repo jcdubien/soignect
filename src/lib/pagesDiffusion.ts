@@ -22,6 +22,14 @@ export interface Profession {
   court: string;
   /** « kinésithérapie » — nom de la discipline, pour « un remplacement en … ». */
   discipline: string;
+  /** « kine » — forme SANS ACCENT ni espace, pour les URL. Déclarée plutôt que dérivée de
+   *  `court` : une translittération automatique produirait « kine » ici mais échouerait sur
+   *  d'autres professions, et surtout elle serait invisible. Le chemin d'une page est une
+   *  adresse publique — il se lit, il ne se devine pas.
+   *  Le défaut trouvé le 14/08 venait de là : `court` (« kiné ») servait à construire l'URL,
+   *  qui pointait donc vers /emploi-kiné-guadeloupe quand la route est /emploi-kine-guadeloupe.
+   *  Les pages répondaient, mais le lien de /admin/diffusion et les canoniques étaient faux. */
+  slug: string;
 }
 
 export const KINESITHERAPEUTE: Profession = {
@@ -29,6 +37,7 @@ export const KINESITHERAPEUTE: Profession = {
   pluriel: "kinésithérapeutes",
   court: "kiné",
   discipline: "kinésithérapie",
+  slug: "kine",
 };
 
 export interface Territoire {
@@ -160,7 +169,7 @@ export function cheminPage(porte: Porte, p: Profession, t: Territoire): string {
   // partagé, et cité dans les traces depuis des semaines. Le reconstruire le casserait.
   return porte.slug === "remplacement"
     ? t.chemin
-    : `/${porte.slug}-${p.court}-${slugTerritoire(t)}`;
+    : `/${porte.slug}-${p.slug}-${slugTerritoire(t)}`;
 }
 
 /** Clé de trace — identique au chemin sans la barre initiale (convention de traceLanding). */
