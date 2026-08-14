@@ -3363,6 +3363,110 @@ pré-sélection du profil rédigé ci-dessous, en attente d'envoi.
 
 ---
 
+### Géographie du matching
+
+#### COMMUNE ↔ ZONE — comment le score géographique est résolu (13/08)
+
+##### Trois granularités, deux portées par le même modèle
+
+| Rôle | Champ | Remarque |
+|---|---|---|
+| Proposeur | `Mission.location` (`String`) | commune, obligatoire |
+| Chercheur | `Mission.zones` (`ZoneGeographique[]`) | macro-zones souhaitées |
+| Territoire | `Profile.region` | Guadeloupe / Saint-Martin / Saint-Barth — **pas** une zone |
+
+Les deux premiers vivent sur `Mission`, pas un par camp : la distinction cabinet/candidat est
+un **usage**, pas une contrainte de schéma.
+
+##### La correspondance EST résolue — par une constante, pas par la base
+
+`scoreGeo` (`deepseek.ts:101`) pivote sur `zoneOfCommune()`, qui n'est qu'un accès à
+`COMMUNE_ZONE` — 35 entrées en TypeScript.
+
+```
+25 pts — la commune de l'un tombe dans les zones souhaitées de l'autre
+25 pts — communes identiques
+18 pts — communes différentes, MÊME macro-zone
+12 pts — commune manquante d'un côté
+ 6 pts — rien en commun
+```
+
+La comparaison est **toujours commune ↔ zones de l'autre**, jamais zones ↔ zones : la
+flexibilité géographique n'existe que côté candidat, le cabinet a une adresse fixe.
+
+**Le poids réel n'est pas 20/100** : `geoRaw` est sur 25, puis renormalisé au socle —
+**30 en remplacement, 25 en long terme**, eux-mêmes au prorata des bonus en jeu.
+
+##### Les couches ne sont PAS mélangées
+
+`communes.ts` porte deux objets distincts, sans aucune valeur APL :
+
+- `COMMUNE_ZONE` — commune → **macro-zone produit**, découpage maison, sans rapport avec l'ARS ;
+- `ZONE_3_INTERMEDIAIRE` / `ZONE_4_NON_PRIORITAIRE` — le **zonage réglementaire** (arrêté
+  971-2024).
+
+Le seul piège est le mot « zone », qui désigne deux choses. `CommuneAPL` porte bien la donnée
+DREES (couche 2), nationale par construction.
+
+---
+
+#### COMMUNEZONE — table générée depuis COMMUNE_ZONE (13/08) — livré
+
+##### Deux référentiels d'accord par chance
+
+`CommuneZone` (table Prisma, 35 lignes) dupliquait `COMMUNE_ZONE` (35 entrées). Comparés entrée
+par entrée le 13/08 : **zéro écart** — mais **rien ne les synchronisait**. Aujourd'hui ils
+coïncident ; demain, rien ne le garantissait.
+
+La table n'est lue par **aucun code produit** : elle sert les analyses SQL par territoire
+(Soignect Observatoire). C'est la constante qui décide du matching.
+
+##### La constante est désormais la source, la table en est dérivée
+
+`scripts/sync-commune-zone.mjs`, dans la convention maison (`.mjs`, idempotent, mode simulation
+par défaut) :
+
+```
+node scripts/sync-commune-zone.mjs           → rapporte les écarts, n'écrit rien, sortie 1
+node scripts/sync-commune-zone.mjs --apply   → régénère        (npm run db:sync-zones)
+                                                                 npm run db:check-zones
+```
+
+Il lit `COMMUNE_ZONE` **depuis le vrai module TypeScript** (via `jiti`), jamais une copie : le
+script et `scoreGeo` voient forcément la même chose. Une recopie aurait recréé le problème
+qu'on ferme.
+
+Régénération par `upsert`, pas `TRUNCATE` + `INSERT` : la table n'est jamais vide, même une
+fraction de seconde.
+
+**`scoreGeo` et `zoneOfCommune` sont inchangés** — le scoring reste synchrone et lit toujours
+la constante. Aucun changement de comportement.
+
+##### Vérifié en provoquant la divergence
+
+La conformité seule ne prouvait rien (les deux étaient déjà d'accord). Trois écarts ont donc été
+introduits en base, un de chaque nature :
+
+| Écart | Détecté | Corrigé par `--apply` |
+|---|---|---|
+| `Deshaies` classée en `MARIE_GALANTE` | ✅ | ✅ → `NORD_BASSE_TERRE` |
+| « Commune fantôme » absente de la source | ✅ | ✅ supprimée |
+| `Goyave` retirée de la table | ✅ | ✅ recréée |
+
+Sortie **1** en mode vérification, **0** après régénération, table revenue à ses 35 lignes
+d'origine. La sortie 1 rend le script utilisable tel quel comme garde-fou — **le projet n'a ni
+CI ni hook de pré-commit** (aucun `.github/workflows`, aucun `.husky`), donc rien à y brancher
+aujourd'hui : `npm run db:check-zones` est le crochet prêt à l'emploi le jour où l'un des deux
+existera.
+
+##### Le commentaire du schéma dit maintenant le danger
+
+Une modification faite dans la table serait effacée à la régénération **et**, plus grave,
+n'aurait aucun effet sur le matching entre-temps — le scoring ne la lit pas. C'est écrit
+au-dessus du modèle, avec le renvoi vers la source et la commande.
+
+---
+
 ### Zonage ARS et données APL
 
 #### ZONAGE ARS — vérifié contre la source officielle (12/08)

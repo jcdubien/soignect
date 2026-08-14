@@ -11,7 +11,9 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:sync-zones": "node --env-file=.env.local scripts/sync-commune-zone.mjs --apply",
+    "db:check-zones": "node --env-file=.env.local scripts/sync-commune-zone.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

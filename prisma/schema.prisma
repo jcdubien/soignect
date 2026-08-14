@@ -404,10 +404,22 @@ enum ZoneGeographique {
   SAINT_BARTHELEMY
 }
 
-// Table de correspondance commune → zone (mapping figé, section 138).
-// Le mapping applicatif de référence vit dans src/lib/communes.ts (COMMUNE_ZONE) ;
-// cette table le matérialise en base pour d'éventuelles analyses SQL par zone
-// (ex: futur TensionScore par zone, sections 82-84).
+// Correspondance commune → macro-zone — TABLE GÉNÉRÉE, NE JAMAIS L'ÉDITER À LA MAIN.
+//
+// LA SOURCE est `COMMUNE_ZONE` (src/lib/communes.ts). C'est elle que lit `zoneOfCommune`,
+// donc `scoreGeo` : elle décide du score de proximité géographique. Cette table n'en est
+// qu'une matérialisation, pour les analyses SQL par territoire (Soignect Observatoire).
+// Aucun code produit ne la lit à ce jour.
+//
+// Une modification faite ICI serait EFFACÉE à la prochaine régénération, et — plus grave —
+// n'aurait aucun effet sur le matching entre-temps : le scoring ne lit pas cette table.
+// Toute correction de zonage se fait dans `COMMUNE_ZONE`, puis :
+//
+//   node scripts/sync-commune-zone.mjs           → rapporte les écarts, n'écrit rien (sortie 1)
+//   node scripts/sync-commune-zone.mjs --apply   → régénère (npm run db:sync-zones)
+//
+// Les deux référentiels étaient identiques au 13/08 — par chance, rien ne les synchronisait
+// (section 211).
 model CommuneZone {
   commune String           @id
   zone    ZoneGeographique
