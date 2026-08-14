@@ -67,6 +67,111 @@ export function titrePage(p: Profession, t: Territoire): string {
   return `Je souhaite organiser mon temps d'activité de ${p.singulier} ${t.preposition} ${t.nom}`;
 }
 
+// ── Troisième axe : la PORTE, c'est-à-dire À QUI la page s'adresse (section 212) ────────
+//
+// POURQUOI ÇA N'EXPLOSE PAS EN MATRICE. Trois axes pourraient laisser craindre 3 professions
+// × N territoires × 4 portes de textes à écrire. Ce n'est pas le cas, parce que chaque axe ne
+// déclare QUE ce qui varie avec lui :
+//   • Profession → le vocabulaire (4 formes du même mot) ;
+//   • Territoire → le nom, la préposition, la forme courte — des données, pas des phrases ;
+//   • Porte      → les phrases, écrites COMME FONCTIONS de (profession, territoire).
+// La porte compose, les deux autres sont ses ingrédients. Ajouter une porte = une entrée ;
+// ajouter un territoire = une entrée. Jamais un produit cartésien à maintenir.
+//
+// La porte CHERCHEUR délègue aux champs déjà portés par Territoire : ces textes SONT les
+// siens depuis l'origine, ils y vivaient sans être nommés. On les nomme sans les réécrire —
+// les trois pages géographiques, vérifiées à l'écran, ne changent pas d'un caractère.
+export interface Porte {
+  /** Segment d'URL, préfixe du motif {porte}-{profession}-{territoire}. */
+  slug: string;
+  /** Nom de la porte pour l'administration — pas affiché au public. */
+  libelle: string;
+  /** Sous-titre dans /admin/diffusion : à qui cette porte parle. */
+  cible: string;
+  titre: (p: Profession, t: Territoire) => string;
+  accroche: (p: Profession, t: Territoire) => string;
+  metaTitre: (p: Profession, t: Territoire) => string;
+  metaDescription: (p: Profession, t: Territoire) => string;
+  /** Libellé du bouton d'inscription — l'intention diffère radicalement d'une porte à l'autre. */
+  cta: string;
+  /** Ce que le visiteur vient chercher, sous le CTA. */
+  ctaSous: string;
+}
+
+export const PORTES: Record<string, Porte> = {
+  CHERCHEUR: {
+    slug: "remplacement",
+    libelle: "Chercheur de poste",
+    cible: "Remplaçants et assistants — page principale de campagne",
+    titre: titrePage,
+    accroche: (p, t) => t.accroche(p),
+    metaTitre: (p, t) => t.metaTitre(p),
+    metaDescription: (p, t) => t.metaDescription(p),
+    cta: "S'inscrire →",
+    ctaSous: "Remplaçants : accès à vie, sans aucun frais.",
+  },
+  CABINET: {
+    slug: "recrutement",
+    libelle: "Cabinet",
+    cible: "Cabinets libéraux qui recrutent",
+    titre: (p, t) => `Je recherche un ${p.singulier} pour renforcer mon cabinet ${t.preposition} ${t.nom}`,
+    accroche: (p, t) =>
+      `Publiez votre poste et voyez qui s'y intéresse. Remplacement de quelques semaines, assistanat sur la durée ou collaboration libérale : vous décidez du cadre, les ${p.pluriel} disponibles ${t.preposition} ${t.nom} vous répondent sans intermédiaire.`,
+    metaTitre: (p, t) => `Recruter un ${p.court} ${t.preposition} ${t.nom} — remplaçant, assistant, collaborateur | Soignect`,
+    metaDescription: (p, t) =>
+      `Cabinets de ${t.nom} : publiez votre recherche de ${p.singulier} et recevez des candidatures. Remplacement, assistanat, collaboration libérale — contrat CNOMK pré-rempli, sans commission sur les honoraires.`,
+    cta: "Publier mon poste →",
+    ctaSous: "Publication gratuite pendant la bêta.",
+  },
+  ETABLISSEMENT: {
+    slug: "emploi",
+    libelle: "Établissement",
+    cible: "Hôpitaux, cliniques, EHPAD, SSR, CAMSP — recrutement salarié",
+    titre: (p, t) => `Nous recrutons un ${p.singulier} pour notre établissement ${t.preposition} ${t.nom}`,
+    accroche: (p, t) =>
+      `CDI, CDD, vacation : publiez votre offre et touchez les ${p.pluriel} ouverts au salariat ${t.preposition} ${t.nom}. Vous décrivez le poste et la rémunération ; le contrat reste le vôtre, Soignect ne s'y substitue pas.`,
+    metaTitre: (p, t) => `Recrutement ${p.court} salarié ${t.preposition} ${t.nom} — CDI, CDD, vacation | Soignect`,
+    metaDescription: (p, t) =>
+      `Établissements de ${t.nom} — hôpital, clinique, EHPAD, SSR, CAMSP : publiez vos postes de ${p.singulier} salarié et touchez les candidats ouverts au salariat.`,
+    cta: "Publier une offre →",
+    ctaSous: "Le contrat de travail relève de votre établissement.",
+  },
+  // La porte TERRITOIRE ne suit PAS le gabarit des trois autres — voir la page dédiée.
+  // Elle est déclarée ici pour le slug, la trace et /admin/diffusion ; son contenu est un
+  // argumentaire, pas un couple titre + accroche.
+  TERRITOIRE: {
+    slug: "territoire",
+    libelle: "MSP / CPTS / territoire",
+    cible: "Structures territoriales — pitch institutionnel, pas une page d'acquisition",
+    titre: (p) => `Structurer l'offre de ${p.discipline} sur mon territoire`,
+    accroche: (p, t) =>
+      `Soignect donne à une CPTS, une MSP ou une collectivité une vue sur les postes ouverts et les tensions de recrutement en ${p.discipline} ${t.preposition} ${t.nom} — et un module à intégrer sur son propre site.`,
+    metaTitre: (p, t) => `Structurer l'offre de ${p.discipline} ${t.preposition} ${t.nom} — CPTS, MSP, collectivités | Soignect`,
+    metaDescription: (p, t) =>
+      `CPTS, MSP et collectivités de ${t.nom} : suivez les postes de ${p.discipline} ouverts sur votre territoire et intégrez-les à votre site.`,
+    cta: "Échanger sur un partenariat →",
+    ctaSous: "Gratuit pour les structures territoriales pendant la bêta.",
+  },
+};
+
+/** URL d'une page de diffusion — motif unique {porte}-{profession}-{territoire}. */
+export function cheminPage(porte: Porte, p: Profession, t: Territoire): string {
+  // La porte CHERCHEUR garde le chemin historique déclaré sur le territoire : il est indexé,
+  // partagé, et cité dans les traces depuis des semaines. Le reconstruire le casserait.
+  return porte.slug === "remplacement"
+    ? t.chemin
+    : `/${porte.slug}-${p.court}-${slugTerritoire(t)}`;
+}
+
+/** Clé de trace — identique au chemin sans la barre initiale (convention de traceLanding). */
+export function cleTracePage(porte: Porte, p: Profession, t: Territoire): string {
+  return cheminPage(porte, p, t).slice(1);
+}
+
+function slugTerritoire(t: Territoire): string {
+  return t.chemin.replace(/^\/remplacement-[^-]+-/, "");
+}
+
 export const TERRITOIRES: Record<string, Territoire> = {
   GUADELOUPE: {
     nom: "Guadeloupe",

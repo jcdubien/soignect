@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import ShareActions from "@/components/share/ShareActions";
+import { KINESITHERAPEUTE, TERRITOIRES, PORTES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
 
 export const dynamic = "force-dynamic";
 
@@ -13,24 +14,31 @@ export const dynamic = "force-dynamic";
 // désormais. La branche « non tracée » du rendu est conservée pour une page qu'on ajouterait
 // sans l'instrumenter : un zéro se lirait comme une absence de VISITES, alors que ce serait une
 // absence de MESURE.
+// Pages dérivées du module de factorisation (section 212) — plus une liste recopiée à la
+// main. Une porte ajoutée dans lib/pagesDiffusion apparaît ici sans toucher cet écran ; c'est
+// justement l'oubli qu'on veut rendre impossible, Jean-Charles ayant déjà découvert des pages
+// en ligne dont il ignorait l'existence.
 const PAGES = [
+  // Porte CHERCHEUR × 3 territoires — les pages historiques.
+  ...Object.values(TERRITOIRES).map((t) => ({
+    chemin: cheminPage(PORTES.CHERCHEUR, KINESITHERAPEUTE, t),
+    titre: `${PORTES.CHERCHEUR.libelle} — ${t.nom}`,
+    sousTitre: PORTES.CHERCHEUR.cible,
+    trace: cleTracePage(PORTES.CHERCHEUR, KINESITHERAPEUTE, t),
+  })),
+  // Les trois autres portes, sur la Guadeloupe seule aujourd'hui.
+  ...[PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.TERRITOIRE].map((porte) => ({
+    chemin: cheminPage(porte, KINESITHERAPEUTE, TERRITOIRES.GUADELOUPE),
+    titre: `${porte.libelle} — ${TERRITOIRES.GUADELOUPE.nom}`,
+    sousTitre: porte.cible,
+    trace: cleTracePage(porte, KINESITHERAPEUTE, TERRITOIRES.GUADELOUPE),
+  })),
+  // Module embarquable (section 208) — pas une page de campagne, mais tracé de la même façon.
   {
-    chemin: "/remplacement-kine-guadeloupe",
-    titre: "Postes de kiné en Guadeloupe",
-    sousTitre: "Page principale de campagne — remplacement, assistanat, collaboration",
-    trace: "remplacement-kine-guadeloupe",
-  },
-  {
-    chemin: "/remplacement-kine-saint-martin",
-    titre: "Postes de kiné à Saint-Martin",
-    sousTitre: "Collectivité d'outre-mer, distincte de la Guadeloupe",
-    trace: "remplacement-kine-saint-martin",
-  },
-  {
-    chemin: "/remplacement-kine-saint-barth",
-    titre: "Postes de kiné à Saint-Barthélemy",
-    sousTitre: "Collectivité d'outre-mer, distincte de la Guadeloupe et de Saint-Martin",
-    trace: "remplacement-kine-saint-barth",
+    chemin: "/embed/territoire/nord-basse-terre",
+    titre: "Module embarquable — Nord Basse-Terre",
+    sousTitre: "Iframe pour le site de la CPTS — postes ouverts du territoire",
+    trace: "embed-nord-basse-terre",
   },
 ];
 
