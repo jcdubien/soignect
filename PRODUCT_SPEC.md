@@ -3131,6 +3131,83 @@ code. En attente d'envoi.
 
 ### Module embarquable pour sites de territoire
 
+#### QUATRE PORTES D'ENTRÉE — troisième axe du module (14/08) — livré
+
+##### Ce qui empêche l'explosion en matrice
+
+Trois axes pourraient laisser craindre un produit cartésien de textes à maintenir. Il n'en est
+rien, parce que **chaque axe ne déclare que ce qui varie avec lui** :
+
+| Axe | Ce qu'il porte |
+|---|---|
+| `Profession` | le vocabulaire — 4 formes du même mot, plus le `slug` d'URL |
+| `Territoire` | le nom, la préposition, la forme courte — des **données**, pas des phrases |
+| `Porte` | les **phrases**, écrites comme fonctions de `(profession, territoire)` |
+
+La porte compose ; les deux autres sont ses ingrédients. **Ajouter une porte = une entrée.
+Ajouter un territoire = une entrée.** Le module tient en 220 lignes pour trois dimensions.
+
+La porte `CHERCHEUR` **délègue** aux champs déjà portés par `Territoire` : ces textes étaient
+les siens depuis l'origine, sans être nommés. Nommés sans être réécrits — les trois pages
+géographiques, vérifiées à l'écran, ne changent pas d'un caractère et **gardent leur chemin
+historique**, indexé et partagé depuis des semaines.
+
+##### Les six pages
+
+| Porte | URL | À qui |
+|---|---|---|
+| Chercheur *(existant)* | `/remplacement-kine-{territoire}` × 3 | remplaçants, assistants |
+| Cabinet | `/recrutement-kine-guadeloupe` | cabinets libéraux qui recrutent |
+| Établissement | `/emploi-kine-guadeloupe` | hôpital, clinique, EHPAD, SSR, CAMSP |
+| MSP / CPTS | `/territoire-kine-guadeloupe` | structures territoriales |
+
+Motif `{porte}-{profession}-{territoire}`, dont `remplacement-kine-guadeloupe` était déjà un cas.
+
+##### La porte territoire ne suit PAS le gabarit — délibérément
+
+Les trois premières s'adressent à quelqu'un qui vient **chercher ou pourvoir un poste** : une
+liste d'annonces y est l'argument. **Une CPTS ne cherche pas un poste**, elle pilote une offre
+de soins. Lui dérouler un fil d'annonces répondrait à côté.
+
+Sa page affiche donc une **répartition par zone, calculée en direct** via `COMMUNE_ZONE`, puis
+un argumentaire en trois points. Le **traitement de diffusion est identique** — même trace,
+même entrée admin, même partage : c'est la mise en page qui diffère, pas le régime.
+
+##### /admin/diffusion est dérivé du module, plus recopié
+
+La liste des pages y était écrite à la main. Elle est désormais **calculée** depuis `PORTES` et
+`TERRITOIRES` : une porte ajoutée y apparaît sans toucher cet écran. C'est l'oubli qu'on rend
+impossible — Jean-Charles avait déjà découvert des pages en ligne dont il ignorait l'existence.
+Le module embarquable y figure aussi, bien qu'il ne soit pas une page de campagne.
+
+##### Un défaut trouvé par la trace, pas par la compilation
+
+`cheminPage` construisait l'URL depuis `Profession.court` — **« kiné », accentué**. Les chemins
+générés pointaient vers `/emploi-kiné-guadeloupe` quand la route est `/emploi-kine-guadeloupe`.
+
+Les pages répondaient (la route existe), donc rien ne se voyait : mais le lien « Ouvrir ↗ » de
+`/admin/diffusion` aurait renvoyé un **404**, les `canonical` et `og:url` étaient faux, et les
+clés de trace divergeaient des historiques. **Les deux formes compilent aussi bien** — c'est
+la lecture des traces en base, après déploiement, qui l'a révélé.
+
+`Profession` porte maintenant un **`slug` déclaré**, pas translittéré : une normalisation
+automatique marcherait ici et échouerait ailleurs, et surtout elle serait invisible. Un chemin
+public se lit, il ne se devine pas.
+
+##### Vérification
+
+Les six pages répondent en 200, et **les sept clés de trace attendues existent en base**, avec
+la distinction humains/robots — aucune clé inattendue, aucune page en « non tracée ». Les 5
+traces accentuées, toutes issues de mes propres appels de vérification, ont été retirées pour
+ne pas scinder les compteurs.
+
+⚠️ **Non vérifié à l'écran** : l'extension navigateur s'est déconnectée avant le contrôle de
+`/admin/diffusion`. La liste y est dérivée du même module que les chemins vérifiés ci-dessus,
+et les compteurs lisent les clés confirmées en base — mais le rendu de cet écran n'a pas été
+regardé.
+
+---
+
 #### /embed/territoire/[zone] — v1 postes ouverts (13/08) — livré
 
 ##### URL et intégration
