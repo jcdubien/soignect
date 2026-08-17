@@ -157,12 +157,13 @@ seule, détail dans PRODUCT_SPEC.md) :
   rythme, entre deux tâches.
 
 **Correction (13/08)** : "vue liste desktop titulaire" avait été
-listée par erreur ci-dessus comme un élément clos — elle ne l'a
-jamais été, elle reste l'item 1 de la file ci-dessous, jamais
-envoyée. Erreur trouvée et signalée par Opus en absorbant
-PLAN_PASSATION_SPRINTS.md/l'addendum dans PRODUCT_SPEC.md : bonne
-discipline de sa part de ne pas avoir documenté une fonctionnalité
-inexistante juste parce que ROADMAP l'affirmait.
+listée par erreur ci-dessus comme un élément clos, à un moment où
+elle ne l'était pas encore — erreur trouvée et signalée par Opus en
+absorbant PLAN_PASSATION_SPRINTS.md/l'addendum dans PRODUCT_SPEC.md.
+Bonne discipline de sa part de ne pas avoir documenté une
+fonctionnalité inexistante juste parce que ROADMAP l'affirmait.
+Depuis livrée et vérifiée (6184511, 7e58344) — voir section clos
+ci-dessus, plus une référence de file d'attente.
 
 - Vue liste desktop titulaire, alternative au swipe : livrée
   (6184511, 7e58344). Bascule en fin de barre de filtres, masquée
@@ -232,7 +233,7 @@ inexistante juste parce que ROADMAP l'affirmait.
   promettait un accès inexistant ("Voir mes annonces" menait en
   réalité au Planning, pas à une liste) — remplacé par une
   explication honnête + libellé de bouton corrigé selon le
-  destinataire. Décision de fond tranchée le 13/08 : voir item 5 de
+  destinataire. Décision de fond tranchée le 13/08 : voir item 6 de
   la file et STRATEGIE_MARKETING_BUSINESS.md §3 — pas de profils
   navigables, piste retenue : geste de consentement "signaler mon
   intérêt".
@@ -263,7 +264,193 @@ inexistante juste parce que ROADMAP l'affirmait.
   si souhaité (distinguer les deux dans le badge lui-même), pas
   urgent.
 
-1. **Stocker l'id Resend à l'envoi** — `data.id` retourné par
+- **Contrainte d'unicité Match : migrée (6cc5254).** Remplace
+  `@@unique([profileAId, profileBId])` par un index d'expression
+  `UNIQUE (COALESCE(missionAId, profileAId), COALESCE(missionBId,
+  profileBId))` — 1 objet à maintenir plutôt que 3 (arbitrage
+  retenu face à `@@unique` + index partiels), ferme le trou NULL
+  identifié par l'investigation (Postgres traite chaque NULL comme
+  distinct). Non déclarable dans Prisma — commentaire laissé à
+  l'emplacement de l'ancien `@@unique` pour qu'un futur lecteur ne
+  croie pas la table sans contrainte. Garde applicatif (`api/swipe`)
+  réécrit pour vérifier la paire de missions plutôt que la paire de
+  personnes. Ouvre la possibilité de deux relations sur des missions
+  différentes entre les mêmes personnes — comportement inchangé
+  aujourd'hui (le feed filtre déjà toute mission engagée). Deux
+  endroits qui raisonnent encore "par personne"
+  (`detachAssistantPostForMatch`, calcul `enRelation`) documentés
+  dans PRODUCT_SPEC.md plutôt que corrigés à l'aveugle — à revoir
+  le jour où ce cas existera réellement. **Vérifiée par l'échec le
+  13/08 (72cf766)** : 3 insertions réelles, base restaurée à 0.
+  Relation sur annonce A créée, seconde relation mêmes personnes/
+  autre annonce créée (confirme le déblocage), doublon sur la même
+  paire de missions refusé (P2002). Le test utilisait un profil
+  sans aucune mission (`missionBId = NULL` des deux côtés) —
+  scénario exact que le COALESCE devait fermer, confirmé.
+
+- **Repli silencieux `?? REMPLACEMENT` du contrat : fermé et
+  vérifié (13/08).** Remplacé par un refus explicite ("impossible
+  de générer le contrat : aucune annonce n'est rattachée..."),
+  confirmé inatteignable aujourd'hui avant modification (aucun
+  match existant n'en dépendait). Refus vérifié en conditions
+  réelles — a fallu franchir deux gardes antérieurs (signature,
+  identité contractuelle complète) pour l'atteindre, confirmant que
+  la chaîne de génération de contrat est protégée à plusieurs
+  niveaux. **Incident de méthode pendant la vérification** : coupure
+  de la connexion locale d'Opus (pas de la production — l'app
+  continuait de servir les annonces normalement) a retardé le
+  nettoyage d'un match de test "confirmé" entre le compte de
+  Jean-Charles et son propre compte de test Julien MORISOT (pas un
+  tiers — confirmé le 13/08). Base restaurée à 0 mise en relation
+  une fois la connexion rétablie. **Leçon retenue, généralise celle
+  d'hier** : ne pas créer de données de test sans un chemin de
+  retrait garanti — la fiche d'un match sans mission n'offrait
+  aucun bouton d'annulation, le seul chemin de nettoyage dépendait
+  d'un accès qui venait de tomber.
+
+- **Module Soignect embarquable, v1 : livré (13/08).**
+  `/embed/territoire/nord-basse-terre`, iframe-ready (520px conseillé
+  pour 5 postes), 3 mécanismes existants réutilisés (rendu sans
+  chrome, absence de middleware, absence de X-Frame-Options —
+  vérifiée par curl). Filtre d'annonces partagé avec la page de
+  campagne (bénéfice croisé : `/remplacement-kine-guadeloupe`
+  l'utilise maintenant aussi). Bug trouvé et corrigé : fond de
+  l'app débordait hors du contenu dans une iframe plus haute que
+  prévu, colorant le site hôte — fond rendu transparent. CTA hors
+  iframe (`target="_blank"`). Page non indexée, trafic tracé
+  (`embed-nord-basse-terre`, visible `/admin/diffusion`). v2
+  (indicateur de tension) volontairement non construite —
+  l'investigation commune/zone (voir section clos ci-dessus) a
+  confirmé que `CommuneAPL` porte la bonne donnée mais reste non
+  alimentée (script d'alimentation absent, aucun millésime) ; v2
+  attend cette alimentation, pas un diagnostic supplémentaire.
+  Périmètre géographique `NORD_BASSE_TERRE` (Pointe-Noire, Deshaies,
+  Sainte-Rose, Lamentin) confirmé correct par Jean-Charles le 13/08.
+  **Confirmé le 13/08** : périmètre géographique validé par
+  Jean-Charles. **Exigence ajoutée le 13/08** : le module ne doit
+  pas rester architecturalement enfermé dans le kiné — dès que le
+  produit évolue vers d'autres professions (séquence fondatrice,
+  pas d'accélération), le module doit pouvoir afficher les postes
+  d'une CPTS toutes professions confondues sans reconstruction. À
+  vérifier maintenant : le filtre `filtreAnnoncesVivantes` et les
+  libellés/titre/méta de la page ne doivent rien supposer de
+  "kiné" en dur. Rejoint directement l'exigence de généricité déjà
+  posée sur le module de factorisation profession×territoire×porte,
+  livré depuis (voir section clos ci-dessus) — traité en parallèle :
+  prompt d'investigation + correctif envoyé le 13/08, rapport pas
+  encore reçu.
+
+## ✅ Clos depuis — 13/08, investigation commune ↔ zone
+
+- **Investigation correspondance commune ↔ zone : répondue le
+  13/08.** Champs confirmés : `Mission.location` (commune,
+  proposeur), `Mission.zones` (`ZoneGeographique[]`, chercheur),
+  `Profile.region` (territoire, pas une zone) — les deux premiers
+  vivent sur `Mission`, distinction d'usage, pas de schéma.
+  Correspondance déjà résolue dans `deepseek.ts` (`scoreGeo`,
+  25/25/18/12/6 pts selon la qualité du match géo, poids réel 30/100
+  en remplacement, 25/100 en long terme après renormalisation) via
+  `zoneOfCommune()` lisant `COMMUNE_ZONE` (35 entrées codées en dur).
+  Logique délibérée : flexibilité côté candidat uniquement, le
+  cabinet a une commune fixe — jamais de comparaison zone↔zone.
+  **Duplication silencieuse trouvée** : une table Prisma
+  `CommuneZone` (35 lignes) existe déjà, strictement identique à
+  `COMMUNE_ZONE` (comparée entrée par entrée), mais lue par aucun
+  code — deux sources d'accord par chance, sans garantie de le
+  rester. **Correctif livré, voir plus bas dans cette même
+  section** : génération
+  automatique depuis `COMMUNE_ZONE`, source unique. `CommuneAPL`
+  confirmée porter la couche 2 (donnée APL brute nationale) —
+  nationale par nature, réutilisable pour toute commune de France
+  une fois alimentée, ses 3 manques (script d'alimentation,
+  millésime, `boost*` mélangeant réglage et donnée externe)
+  inchangés. Zonage réglementaire (couche 3,
+  `ZONE_3_INTERMEDIAIRE`/`ZONE_4_NON_PRIORITAIRE`) confirmé
+  proprement séparé de la couche produit — même mot "zone", deux
+  choses différentes, piège de vocabulaire pas de conception. Rien
+  ne bloque l'extension du module embarquable aux nouvelles portes
+  (`filtreAnnoncesVivantes` gère déjà commune-ou-zone). Écran admin
+  "Données APL" : rien à y changer pour cette investigation.
+
+- **CommuneZone généré depuis COMMUNE_ZONE : livré (7e5f501).**
+  Convention maison réutilisée (`scripts/backfill-owner-seat.mjs`
+  comme modèle, `.mjs` idempotent, mode simulation) plutôt qu'un
+  `prisma db seed` inventé. `npm run db:check-zones` (rapporte,
+  n'écrit rien, sortie 1 sur écart) et `npm run db:sync-zones`
+  (régénère). Point critique respecté : le script lit `COMMUNE_ZONE`
+  via `jiti` depuis le vrai module TypeScript, jamais une copie —
+  recopier la constante aurait recréé la duplication qu'on ferme.
+  Régénération par upsert, jamais TRUNCATE+INSERT — table jamais
+  vide. **Vérifié en cassant la table de 3 façons** (commune
+  reclassée, commune fantôme ajoutée, commune supprimée) — les 3
+  détectées et corrigées, table revenue à ses 35 lignes exactes.
+  Commentaire de schéma documente le vrai piège : une édition
+  manuelle en base n'aurait aucun effet sur le matching (`scoreGeo`
+  lit la constante) puis serait effacée à la régénération —
+  confusion silencieuse si non documentée. `scoreGeo`/`zoneOfCommune`
+  inchangés, scoring toujours synchrone. **CI/pre-commit non
+  construit** — projet sans CI ni hooks existants, disproportionné
+  d'en bâtir un pour cette seule vérification ; le script est prêt
+  (sortie 1 sur divergence) pour le jour où l'un des deux existe.
+  **Décision différée, pas bloquante** : la vérification nécessite
+  `DATABASE_URL` — l'exposer dans une CI GitHub n'est pas anodin, un
+  hook pre-commit local serait plus sobre. À trancher quand CI/hooks
+  existeront réellement dans le projet.
+
+- **4 pages persona (portes d'entrée) : livré (eda2558, f98e80a,
+  05f5038), avec une réserve.** Module de 3 axes composables
+  {profession × territoire × porte} — chaque axe déclare seulement
+  ce qui varie avec lui (profession = vocabulaire, territoire =
+  nom/préposition, porte = phrases composant les deux). Ajouter une
+  porte = une entrée, pas une multiplication. 220 lignes pour 3
+  dimensions. URLs : `/recrutement-kine-guadeloupe` (cabinet),
+  `/emploi-kine-guadeloupe` (établissement),
+  `/territoire-kine-guadeloupe` (MSP/CPTS) — motif cohérent avec
+  `/remplacement-kine-guadeloupe` existant, réutilisé tel quel sans
+  réécriture (vérifié inchangé caractère près). Porte territoire
+  volontairement hors gabarit : une CPTS ne cherche pas de poste,
+  page dédiée (répartition par zone en direct via `COMMUNE_ZONE`,
+  argumentaire en 3 points) plutôt qu'un fil d'annonces qui aurait
+  répondu à côté — même trace/admin/partage, mise en page
+  différente. `/admin/diffusion` désormais DÉRIVÉ du module
+  (PORTES × TERRITOIRES) plutôt que recopié à la main — ferme le
+  risque récurrent de pages découvertes après coup (Saint-Martin/
+  Saint-Barth). **Bug trouvé via inspection des traces en base, pas
+  par le build** : `Profession.court` ("kiné" accentué) générait des
+  URLs fausses (`/emploi-kiné-guadeloupe` au lieu de
+  `/emploi-kine-guadeloupe`) — les pages répondaient quand même
+  (les deux formes compilent), donc rien de visible, mais le lien
+  admin "Ouvrir ↗" aurait 404, canoniques fausses, clés de trace
+  divergentes. Corrigé : profession porte maintenant un slug
+  déclaré, pas translittéré. **⚠️ Réserve non close** : l'écran
+  `/admin/diffusion` lui-même n'a pas été vu (extension Chrome
+  déconnectée en cours de vérification) — le module sous-jacent est
+  vérifié, pas ce rendu précis. En attente que Jean-Charles relance
+  l'extension. **Question en attente** : un fichier
+  `Zonage MK_2024.pdf` non suivi traîne à la racine du dépôt — statut
+  à trancher (ajouter, ignorer, supprimer).
+
+## 🔴 Prêts, en file, pas encore envoyées
+
+0. **Scoping v1 "besoins déclarés par la CPTS"** — prompt envoyé le
+   13/08, rapport pas encore reçu. Voir
+   STRATEGIE_MARKETING_BUSINESS.md §4 pour le pitch complet et
+   l'écart critique identifié (le pitch mentionne "professions" au
+   pluriel, le produit n'en connaît qu'une). Objectif : un v1
+   honnête livrable avant que Jean-Charles ne fasse cet appel
+   commercial, pas la vision complète d'un coup.
+1. **Alimenter CommuneAPL depuis l'API DREES** — prompt envoyé le
+   13/08. Source confirmée : API Opendatasoft (`/api/explore/v2.1/`,
+   dataset `530_l-accessibilite-potentielle-localisee-apl`,
+   documentée, console Swagger) — pas de MCP nécessaire, une vraie
+   API REST suffit, actualisable automatiquement si la fréquence de
+   publication le justifie. Attention signalée : un dataset
+   homonyme existe pour les structures médico-sociales personnes
+   âgées, à ne pas confondre. Ferme l'un des 3 manques de
+   `CommuneAPL` identifiés depuis le 12/08 (script d'alimentation
+   absent, millésime, `boost*` mélangé — ce prompt traite les deux
+   premiers).
+2. **Stocker l'id Resend à l'envoi** — `data.id` retourné par
    `resend.emails.send()` est aujourd'hui jeté (`src/lib/email.ts`),
    rendant tout email introuvable a posteriori dans le dashboard
    Resend. Rencontré deux fois cette session (email de
@@ -274,57 +461,40 @@ inexistante juste parce que ROADMAP l'affirmait.
    différés tant que le volume d'incidents réels reste inconnu.
    **Erreur d'état corrigée le 13/08** : classé par erreur sous
    "Clos" alors que rien n'était construit — repéré par Opus.
-2. **Permettre au cabinet de répondre à un swipe entrant sans
+3. **Permettre au cabinet de répondre à un swipe entrant sans
    mission de son côté** — partie (b) de l'ancien "Signaler mon
-   intérêt", partie (a) livrée le 13/08 (voir section clos). Bute
-   sur `Match.missionBId` requis et sur la contrainte d'unicité
-   ci-dessous. Investigation déjà envoyée le 13/08, rapport pas
-   encore reçu.
-3. **Contrainte `@@unique([profileAId, profileBId])` sur Match** —
-   une seule relation possible entre deux personnes, tous types
-   confondus. Invisible à 0 mise en relation en base aujourd'hui,
-   bloquera dès qu'un cabinet et un candidat voudront deux relations
-   parallèles (ex. remplacement + assistanat). Migration à trancher
-   avant que le volume ne la rende coûteuse à changer, pas urgente
-   maintenant.
+   intérêt", partie (a) livrée le 13/08 (voir section clos).
+   Diagnostic complet reçu le 13/08 : le schéma ne bloque plus rien
+   (`missionAId`/`missionBId` déjà nullable), la contrainte
+   d'unicité est réglée (voir section clos). Repli `?? REMPLACEMENT`
+   du contrat fermé et vérifié (voir section clos). Ce qui reste :
+   la nouvelle route "répondre à un intérêt" (~60 lignes estimées),
+   qui doit créer la relation sur l'annonce du cabinet lui-même
+   (missionB reste NULL, le type vient de l'annonce existante)
+   plutôt que de laisser le cabinet inventer un type que le candidat
+   n'a jamais formulé — pas encore prompté.
 4. **Investigation transfert de conventionnement 1-pour-1** — le
    module n'existe pas dans le code ; investigation sur un courrier
    assisté avec règle d'auteur spécifique (titulaire signataire si
    le cédant est assistant)
-5. **Extension du module de factorisation aux nouvelles portes
-   d'entrée** — cabinet, chercheur de poste, MSP/CPTS/territoire,
-   hôpitaux/centres/CAMSP. Doit intégrer la distinction commune
-   (proposeur) / zone (chercheur) / territoire (page) — voir
-   investigation ci-dessous, prérequis avant d'écrire ce prompt
-6. **Investigation correspondance commune ↔ zone dans le matching**
-   — envoyée le 12/08, conditionne le point 4. Élargie en cours de
-   route sur trois couches distinctes à ne pas confondre :
-   (1) méthodologie nationale de calcul APL, spécifique au métier de
-   kiné (arrêté du 20/03/2024, Légifrance JORFTEXT000049343219),
-   (2) donnée APL brute nationale calculée annuellement par la
-   DREES par commune et par profession — probablement le niveau
-   porté par `CommuneAPL` (aplKine/aplInfirmier/aplMedecin/
-   aplSageFemme, cartographie du 12/08, non lue par le produit),
-   (3) zonage régional (arrêté ARS Guadeloupe du 31/12/2024, 2
-   catégories seulement — intermédiaire/non prioritaire, aucune
-   zone sous-dotée aujourd'hui), qui applique des seuils propres à
-   la région sur la donnée brute. Seule la couche 3 est spécifique
-   à un territoire ; les couches 1 et 2 sont nationales par nature.
-   Si `CommuneAPL` porte bien la couche 2, elle est réutilisable
-   pour toute commune de France sans travail supplémentaire, sous
-   réserve d'être alimentée. Impact potentiel sur l'écran admin
-   "Données APL" à évaluer une fois le diagnostic connu.
-   **Complément DREES à intégrer si non pris en compte** : si le
-   rapport revient sans tenir compte de la distinction des 3 couches
-   ci-dessus, la renvoyer avant de considérer le diagnostic final.
-   **Confirmé séparément le 13/08** : le pilotage territorial
-   (mise en avant selon les besoins déclarés par une CPTS) n'est PAS
-   un prérequis du multi-préférences (v. item 6) — sujet distinct,
-   qui nécessite d'abord de brancher `CommuneAPL.boostKine`
-   (existe, éditable en admin, lu par aucune logique produit
-   aujourd'hui). Seul `desirabilityScore` (niveau profil) est
-   réellement branché à ce jour.
-7. **Investigation "chercheur d'opportunités" multi-préférences
+5. **Pilotage territorial** (mise en avant selon les besoins
+   déclarés par une CPTS) — pas un prérequis du multi-préférences
+   (v. item 6), sujet distinct, nécessite d'abord de brancher
+   `CommuneAPL.boostKine` (existe, éditable en admin, lu par aucune
+   logique produit aujourd'hui). Seul `desirabilityScore` (niveau
+   profil) est réellement branché à ce jour. Devenu plus pressant
+   depuis que la CPTS Nord Basse-Terre est le premier client/PoC
+   (STRATEGIE §4) — plus une anticipation sans consommateur.
+   **Vision produit explicite, formulée le 13/08** : une CPTS
+   pourrait définir ELLE-MÊME ses propres critères de priorisation
+   (santé publique, ex. pénurie d'une spécialité sur son territoire)
+   plutôt que de dépendre d'un curseur admin unique côté Soignect.
+   N'EXISTE PAS aujourd'hui. Candidate naturelle pour le PoC CPTS
+   Nord Basse-Terre une fois `CommuneAPL.boostKine` branché, mais
+   nécessite une vraie interface de configuration côté CPTS, pas
+   juste la donnée branchée — chantier plus lourd que le simple
+   branchement. Rejoint le scoping de l'item 0.
+6. **Investigation "chercheur d'opportunités" multi-préférences
    (v1.1) — largement répondue le 13/08, pas un chantier à
    construire.** Le multi-préférences existe déjà en production, non
    planifié : `Profile` ne porte aucun type, seul `missionType` par
@@ -338,22 +508,22 @@ inexistante juste parce que ROADMAP l'affirmait.
    garde son utilité pour les libellés et la direction du feed, ne
    pas le supprimer). Décision de fond sur les profils navigables
    (voir ci-dessus) inchangée — non liée à ce constat.
-8. **Email de réinitialisation non reçu** — compte
+7. **Email de réinitialisation non reçu** — compte
    secretaire@cpts-nord-basse-terre.fr, investigation avant fix
-9. **Espace "Mes contrats" dans Mon compte** — persistance et
+8. **Espace "Mes contrats" dans Mon compte** — persistance et
    récupération des contrats édités, dépend d'une investigation
    préalable (contrats persistés ou générés à la volée ?)
-10. **Bouton "Reprendre un texte précédent"** — 5ᵉ bouton du
+9. **Bouton "Reprendre un texte précédent"** — 5ᵉ bouton du
     formulaire d'édition d'annonce, reprend le texte libre d'une
     annonce précédente du même cabinet (texte seul, pas les champs
     structurés — évite de reporter des données obsolètes sans que
     l'utilisateur s'en rende compte)
-11. **Lien direct depuis le message anti-doublon vers l'annonce en
+10. **Lien direct depuis le message anti-doublon vers l'annonce en
     conflit** — le message actuel décrit l'annonce qui bloque une
     publication mais n'offre aucun moyen de l'atteindre, surtout si
     ses dates sont hors de la période affichée sur le Planning.
     Réutiliser `?editId=`
-12. **Annonces limitées sur les pages de propagande, classées
+11. **Annonces limitées sur les pages de propagande, classées
     désirabilité + proximité géo du visiteur** — investigation
     d'abord (les pages affichent-elles déjà des annonces en direct
     aujourd'hui ? désirabilité déjà consommée par une logique

@@ -170,6 +170,78 @@ de vente potentiel pour ce modèle : Soignect mesure et comprend la
 tension saisonnière réelle du territoire, contrairement à un outil
 générique.
 
+### Premier client identifié — CPTS Nord Basse-Terre (13/08)
+
+Décision : la CPTS Nord Basse-Terre (dont Jean-Charles est
+secrétaire — crédibilité et accès déjà établis, voir mémoire de
+session) devient le laboratoire et le premier client de Soignect
+Territoire, à titre gratuit — un proof of concept, pas une vente.
+Objectif : valider le modèle sur un cas réel et accessible avant
+tout démarchage d'une CPTS tierce.
+
+**Conséquence directe sur les priorités techniques** : le calcul
+"pas de consommateur réel aujourd'hui" appliqué jusqu'ici à
+`CommuneAPL` et au zonage ARS (voir ROADMAP.md, principe de
+factorisation et item 6) ne tient plus de la même façon — il existe
+désormais un consommateur réel et proche, pas hypothétique. Ne
+change pas automatiquement la priorité de construction (rester
+séquencé, ne pas se précipiter), mais change la justification : le
+jour où on décide de brancher ces données, ce ne sera plus une
+anticipation, ce sera pour un client identifié.
+
+**À clarifier avant de prioriser quoi que ce soit pour ce PoC** : ce
+que "laboratoire" doit concrètement démontrer à Jean-Charles/la CPTS
+— quelles fonctionnalités de Soignect Territoire doivent être
+visibles pour ce premier cas d'usage (tableau de bord territorial ?
+zonage réel affiché ? autre ?).
+
+**Distinction à ne pas perdre** : "Jacqueline, présidente de la CPTS
+Occitanie du Sud" (section 2, exemple pour cadrer la conception du
+module de factorisation) reste un persona fictif illustratif — la
+CPTS Nord Basse-Terre est la cible réelle et concrète, différente,
+à ne pas confondre dans les prompts ou les pages construites.
+
+### Gratuités négociées, levier de crédibilité institutionnelle (13/08)
+
+Deux accès gratuits accordés, en plus du PoC ci-dessus, tous deux
+appuyés sur les rôles institutionnels de Jean-Charles (déjà notés
+comme leviers de crédibilité pour l'adoption produit) :
+
+- **CPTS Nord Basse-Terre, en tant qu'entité** — gratuité
+  conditionnée explicitement : *tant que Jean-Charles en fait
+  partie*. Pas un engagement permanent détaché de sa présence dans
+  la structure — à retenir tel quel dans toute communication ou
+  configuration, ne pas la traiter comme acquise indéfiniment.
+- **Adhérents SNMKR Guadeloupe** — gratuité pour les membres du
+  syndicat dont Jean-Charles est président. Périmètre plus large
+  que la CPTS (individus, pas une seule entité), à vérifier
+  comment l'appartenance au syndicat se constate côté produit
+  (déclaratif ? liste fournie par le syndicat ? autre ?).
+
+**Précisé le 13/08 — trois exigences fermes, pas de compromis :**
+
+1. **Usage complet, pas le plan FREE.** Distinct du plan gratuit
+   standard (limité à 1 annonce active) — ces bénéficiaires ont
+   l'usage plein du produit, sans restriction. Nécessite un
+   mécanisme séparé (flag ou plan dédié), pas une réutilisation de
+   `SubscriptionPlan.FREE`.
+2. **Borné dans le temps à la fonction, pas à la personne.**
+   Gratuit jusqu'à la fin de la relation institutionnelle de
+   Jean-Charles avec chaque structure (président SNMKR, secrétaire
+   CPTS) — pas un avantage permanent. L'expiration doit être liée
+   à cette condition, pas à une date fixe arbitraire.
+3. **Jamais silencieux — condition non négociable.** Les
+   bénéficiaires doivent savoir explicitement que leur accès est
+   gratuit *en tant que* membre/adhérent de telle structure, grâce
+   au rôle de Jean-Charles. Raison double : ça limite le risque
+   d'accusation de conflit d'intérêt (un avantage caché serait bien
+   plus suspect qu'un avantage affiché et justifié), et ça
+   transforme ces comptes en évangélisateurs du produit à bas coût
+   — un bénéficiaire qui sait pourquoi il a un accès gratuit en
+   parle plus volontiers qu'un simple utilisateur silencieux.
+   Implique un message visible dans le produit (pas juste une
+   mention légale enfouie), à formuler avant toute implémentation.
+
 ---
 
 ## 5. Points en observation, pas d'action
