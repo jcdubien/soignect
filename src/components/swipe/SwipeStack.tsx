@@ -939,7 +939,16 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
 
         {/* Transparence sur l'ORDRE d'affichage. La mise en avant commerciale existe — elle ne
             se cache simplement plus à l'intérieur du score de compatibilité, où elle affirmait
-            quelque chose de faux sur l'autre partie. Elle est dite, en clair, une fois. */}
+            quelque chose de faux sur l'autre partie. Elle est dite, en clair, une fois.
+
+            « et zones prioritaires » retiré de la vue Cartes le 17/08 : la mention l'affirmait,
+            le code ne l'a jamais fait. getDesirabilityPercent() ne contient AUCUN terme
+            géographique — ni commune, ni zone, ni CommuneAPL.boostKine (éditable en /admin/apl,
+            non nul sur 16 communes de Guadeloupe, lu par aucune logique produit). Le seul terme
+            territorial de l'ordre est le bonus saisonnier, qui porte sur des DATES et qui est
+            déjà énoncé à part. Ne remettre ces mots que le jour où une priorité territoriale
+            entre réellement dans l'ordre : une mention de transparence fausse ne remonte par
+            aucun canal — personne ne signale un classement qu'il ne peut pas vérifier. */}
         <p className="px-4 pb-1 text-[10px] leading-snug text-gray-400 shrink-0">
           {/* La liste n'est PAS triée comme les cartes : elle classe par compatibilité de dates.
               Garder le même texte aurait affirmé un ordre qui n'est plus celui affiché — la
@@ -952,7 +961,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             </>
           ) : (
             <>
-              Ordre d&apos;affichage : les comptes abonnés, partenaires et zones prioritaires
+              Ordre d&apos;affichage : les comptes abonnés et partenaires
               apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}.
               Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
             </>

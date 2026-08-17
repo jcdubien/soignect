@@ -1821,11 +1821,19 @@ TROIS CHANTIERS RESTANTS, INCHANGÉS PAR ORDRE D'IMPACT :
 ```
 1. DÉSIRABILITÉ RETIRÉE DU SCORE (pesait 10-15/100), déplacée dans 
    L'ORDRE DU FEED, avec disclosure explicite en langage clair : "les 
-   comptes abonnés, partenaires et zones prioritaires apparaissent en 
-   premier. Le score de compatibilité, lui, ne dépend d'aucun 
-   abonnement." Bug corrigé au passage : le tri SQL ne lisait que la 
-   colonne brute desirabilityScore, ignorant le plan d'abonnement, le 
-   statut fondateur (isFounding) et les arbitrages admin.
+   comptes abonnés et partenaires apparaissent en premier. Le score de 
+   compatibilité, lui, ne dépend d'aucun abonnement." Bug corrigé au 
+   passage : le tri SQL ne lisait que la colonne brute 
+   desirabilityScore, ignorant le plan d'abonnement, le statut 
+   fondateur (isFounding) et les arbitrages admin.
+   
+   CORRECTION 17/08 : la disclosure disait aussi "et zones 
+   prioritaires". Elle l'a affirmé à l'écran depuis 979ccd8 sans que 
+   ce soit vrai une seule fois — getDesirabilityPercent() ne contient 
+   aucun terme géographique. Les mots sont retirés du composant ET de 
+   cette ligne. Trouvé en scopant le PoC CPTS, pas par un incident : 
+   une disclosure fausse ne remonte par aucun canal, personne ne 
+   signale un ordre d'affichage qu'il ne peut pas vérifier.
    
    COHÉRENT avec l'intention d'origine retrouvée (section fondations, 
    "positionnement discret du cabinet de Jean-Charles" prévu dès la 
