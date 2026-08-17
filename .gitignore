@@ -6,3 +6,14 @@ node_modules/
 *.log
 .DS_Store
 prisma/dev.db
+
+# Artefact de compilation TypeScript, régénéré à chaque build.
+# Était suivi par erreur : il apparaissait modifié à chaque `git status`.
+*.tsbuildinfo
+
+# Document de travail déposé à la racine le 12/08 pendant l'investigation
+# zonage. Reste sur le disque, hors du dépôt. Volontairement nommé en
+# entier plutôt que `*.pdf` : le jour où un PDF doit être versionné comme
+# source (ex. l'arrêté derrière les Sets de `communes.ts`), rien ne
+# l'écarte en silence.
+/Zonage MK_2024.pdf

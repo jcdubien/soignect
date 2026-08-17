@@ -3,9 +3,11 @@
 > Tenu par Sonnet (décisions, arbitrages, raisonnement produit).
 > PRODUCT_SPEC.md (comportement vérifié du produit) reste sous la
 > plume exclusive d'Opus. Ne pas fusionner les deux fichiers.
-> Dernière mise à jour : 12/08 (source : version committée
-> `docs: ROADMAP resserré + fichier stratégie marketing/business`,
-> enrichie du rapport Opus sur la réorganisation de PRODUCT_SPEC.md).
+> Dernière mise à jour : 13/08 (corps du fichier), committée le
+> 17/08. La ligne annonçait encore 12/08 alors que le contenu
+> documentait le 13 — date corrigée par Opus, rien d'autre touché
+> dans ce fichier hormis la question `Zonage MK_2024.pdf`, qui lui
+> était adressée et qu'il a tranchée.
 
 ---
 
@@ -426,9 +428,16 @@ ci-dessus, plus une référence de file d'attente.
   `/admin/diffusion` lui-même n'a pas été vu (extension Chrome
   déconnectée en cours de vérification) — le module sous-jacent est
   vérifié, pas ce rendu précis. En attente que Jean-Charles relance
-  l'extension. **Question en attente** : un fichier
-  `Zonage MK_2024.pdf` non suivi traîne à la racine du dépôt — statut
-  à trancher (ajouter, ignorer, supprimer).
+  l'extension. **Question tranchée le 17/08** : le fichier
+  `Zonage MK_2024.pdf` est ignoré, pas supprimé ni versionné — il
+  reste sur le disque. Motif : c'est un PDF de formulaire scanné,
+  dont le contenu n'a pas pu être lu (aucun texte extractible), donc
+  impossible d'affirmer qu'il s'agit bien de l'arrêté source des Sets
+  de `communes.ts` ; un binaire entré dans l'historique n'en sort
+  plus, l'ignorer se défait en une ligne. Le jour où on veut le
+  versionner comme source tracée, `docs/sources/` reste ouvert — le
+  `.gitignore` nomme le fichier en entier, pas `*.pdf`, pour ne rien
+  écarter en silence.
 
 ## 🔴 Prêts, en file, pas encore envoyées
 
