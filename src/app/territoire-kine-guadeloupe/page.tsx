@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   const missions = await prisma.mission.findMany({
-    where: filtreAnnoncesVivantes(PERIMETRE_GUADELOUPE.zones, PERIMETRE_GUADELOUPE.communes),
+    where: filtreAnnoncesVivantes(PERIMETRE_GUADELOUPE.zones, PERIMETRE_GUADELOUPE.communes, PRO.enumBase),
     select: { location: true, zones: true },
     take: 200,
   });

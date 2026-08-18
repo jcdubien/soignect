@@ -13,6 +13,8 @@
 // AJOUTER UNE PROFESSION OU UN TERRITOIRE = ajouter une entrée ici. Les trois pages n'ont pas
 // à être touchées : elles lisent leur configuration par leur clé.
 
+import { Profession as ProfessionDb } from "@prisma/client";
+
 export interface Profession {
   /** « kinésithérapeute » — employé dans le titre personnifié. */
   singulier: string;
@@ -30,6 +32,13 @@ export interface Profession {
    *  qui pointait donc vers /emploi-kiné-guadeloupe quand la route est /emploi-kine-guadeloupe.
    *  Les pages répondaient, mais le lien de /admin/diffusion et les canoniques étaient faux. */
   slug: string;
+  /** La valeur de l'enum `Profession` de Prisma que ce vocabulaire désigne — le lien entre les
+   *  MOTS d'une page et les PROFILS qu'elle doit montrer. Déclaré pour la même raison que
+   *  `slug` : le nom d'affichage (« kinésithérapeute ») et la valeur en base
+   *  (`KINESITHERAPEUTE`) coïncident ici par hasard, pas par règle — les dériver l'un de
+   *  l'autre marcherait aujourd'hui et casserait en silence à la première profession dont les
+   *  deux formes divergent. */
+  enumBase: ProfessionDb;
 }
 
 export const KINESITHERAPEUTE: Profession = {
@@ -38,6 +47,7 @@ export const KINESITHERAPEUTE: Profession = {
   court: "kiné",
   discipline: "kinésithérapie",
   slug: "kine",
+  enumBase: ProfessionDb.KINESITHERAPEUTE,
 };
 
 export interface Territoire {

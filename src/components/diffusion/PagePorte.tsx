@@ -24,7 +24,7 @@ export default async function PagePorte({
   basDePage: React.ReactNode;
 }) {
   const missions = await prisma.mission.findMany({
-    where: filtreAnnoncesVivantes(zones, communes),
+    where: filtreAnnoncesVivantes(zones, communes, profession.enumBase),
     include: { profile: { select: { type: true, name: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     take: 20,

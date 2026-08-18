@@ -1,4 +1,4 @@
-import { ZoneGeographique } from "@prisma/client";
+import { Profession, ZoneGeographique } from "@prisma/client";
 
 // Filtre « annonces vivantes sur un territoire » (section 208), extrait de la page de
 // propagande guadeloupéenne pour être partagé avec le module embarquable.
@@ -13,13 +13,25 @@ import { ZoneGeographique } from "@prisma/client";
 //  2. `NOT (null < maintenant)` NE VAUT PAS VRAI EN SQL. Écrire le filtre d'expiration en
 //     négatif faisait disparaître toutes les annonces sans date de fin — « dès septembre »,
 //     qui sont ouvertes, surtout pas périmées. 3 des 9 au moment du test.
+//
+//  3. LA PROFESSION EST UN PARAMÈTRE OBLIGATOIRE depuis le 17/08, et elle n'a pas de valeur
+//     par défaut exprès. `Profile.profession` est un enum à 5 valeurs, modifiable par
+//     l'utilisateur lui-même dans /compte, et AUCUN filtre ne le lisait nulle part : un
+//     orthophoniste qui changeait sa profession serait apparu sous le titre « Postes de
+//     kinésithérapie » du module embarqué sur le site d'une CPTS. Personne ne l'a vu parce
+//     que les 15 profils en base sont tous KINESITHERAPEUTE — la fuite était réelle et sans
+//     occurrence, c'est-à-dire invisible jusqu'au premier cas.
+//     Obligatoire plutôt que défaut à KINESITHERAPEUTE : un défaut aurait refermé la fuite
+//     aujourd'hui et l'aurait rouverte en silence à la première page oubliée.
 export function filtreAnnoncesVivantes(
   zones: ZoneGeographique[],
   communes: string[],
+  profession: Profession,
   maintenant: Date = new Date(),
 ) {
   return {
     isActive: true,
+    profile: { profession },
     AND: [
       { OR: [{ zones: { hasSome: zones } }, { location: { in: communes } }] },
       { OR: [{ endDate: null }, { endDate: { gte: maintenant } }] },

@@ -49,7 +49,7 @@ async function getMissions() {
   // Filtre partagé avec le module embarquable (lib/annoncesTerritoire) : il porte les deux
   // corrections apprises ici — macro-zones ET communes acceptées, expiration écrite en positif.
   return prisma.mission.findMany({
-    where: filtreAnnoncesVivantes(GUADELOUPE_ZONES, GUADELOUPE_COMMUNES),
+    where: filtreAnnoncesVivantes(GUADELOUPE_ZONES, GUADELOUPE_COMMUNES, PRO.enumBase),
     include: { profile: { select: { type: true, titulaireKind: true, name: true, ratingAvg: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     take: 20,

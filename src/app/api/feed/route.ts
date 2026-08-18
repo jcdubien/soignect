@@ -65,9 +65,22 @@ export async function GET(req: NextRequest) {
   //    (contrats salariés CDD/CDI/Stage/Vacation). Les cabinets libéraux restent visibles.
   //  - Viewer STRUCTURE → ne voit que les candidats ayant coché « ouvert au salariat ».
   //    (Un cabinet libéral titulaire, lui, voit tous les candidats — comportement inchangé.)
+  // La PROFESSION du lecteur borne son feed (17/08). Elle ne le bornait pas du tout : l'enum
+  // `Profession` compte 5 valeurs, l'utilisateur la change lui-même dans /compte, et aucune
+  // requête du produit ne la lisait. Un infirmier passant sa profession se serait vu proposer
+  // des annonces de cabinets de kiné, et serait apparu dans le leur.
+  //
+  // Sans occurrence à ce jour — les 15 profils en base sont tous KINESITHERAPEUTE, vérifié en
+  // lecture avant d'écrire cette ligne. C'est précisément ce qui la rendait invisible : le
+  // défaut de la colonne masquait l'absence de filtre. Le filtre est donc sans effet
+  // aujourd'hui, et c'est voulu — il ferme la fuite avant le premier cas, pas après.
+  //
+  // NE PRÉPARE AUCUNE OUVERTURE au multi-profession (séquence fondatrice) : il compare le
+  // lecteur aux annonceurs, il ne rend rien configurable.
   const profileWhere: Prisma.ProfileWhereInput = {
     type: { in: oppositeTypes },
     isActive: true,
+    profession: myProfile.profession,
     id: { not: myProfile.id },
   };
   const isCandidateViewer = myProfile.type !== ProfileType.TITULAIRE;
@@ -169,7 +182,11 @@ export async function GET(req: NextRequest) {
   // -1 = sans objet (le lecteur n'est pas un établissement).
   const candidatsOptes = isStructureViewer
     ? await prisma.profile.count({
-        where: { type: { in: oppositeTypes }, isActive: true, ouvertSalariat: true, id: { not: myProfile.id } },
+        // `profession` reprise ici aussi : ce compte sert à dire « aucun candidat n'a coché
+        // l'option » plutôt que « aucun ne correspond ». Compter les candidats d'une autre
+        // profession y ferait répondre « il en existe » à un établissement qui n'en verra
+        // jamais un seul — le message d'attente redeviendrait faux, dans l'autre sens.
+        where: { type: { in: oppositeTypes }, isActive: true, ouvertSalariat: true, profession: myProfile.profession, id: { not: myProfile.id } },
       })
     : -1;
 

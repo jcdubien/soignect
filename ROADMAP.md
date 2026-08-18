@@ -442,14 +442,20 @@ ci-dessus, plus une référence de file d'attente.
 ## 🔴 Prêts, en file, pas encore envoyées
 
 0. **Scoping v1 "besoins déclarés par la CPTS"** — prompt envoyé le
-   13/08, rapport pas encore reçu. Voir
+   13/08, jamais revenu ; **relancé le 17/08**, en lecture seule
+   (un plan, pas du code). Voir
    STRATEGIE_MARKETING_BUSINESS.md §4 pour le pitch complet et
    l'écart critique identifié (le pitch mentionne "professions" au
    pluriel, le produit n'en connaît qu'une). Objectif : un v1
    honnête livrable avant que Jean-Charles ne fasse cet appel
    commercial, pas la vision complète d'un coup.
 1. **Alimenter CommuneAPL depuis l'API DREES** — prompt envoyé le
-   13/08. Source confirmée : API Opendatasoft (`/api/explore/v2.1/`,
+   13/08, jamais revenu ; **relancé le 17/08** avec une consigne
+   ajoutée : aucune écriture en base ni migration appliquée, le
+   script et la migration sont livrés pour revue de Jean-Charles,
+   et les colonnes `boost*` (saisies à la main, non reconstituables)
+   ne doivent jamais être écrasées. Source confirmée : API
+   Opendatasoft (`/api/explore/v2.1/`,
    dataset `530_l-accessibilite-potentielle-localisee-apl`,
    documentée, console Swagger) — pas de MCP nécessaire, une vraie
    API REST suffit, actualisable automatiquement si la fréquence de
