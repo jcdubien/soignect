@@ -511,6 +511,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // Candidats/annonces DISPONIBLES déjà vus (swipés) — renvoyé par le feed (header). Distingue
   // « aucun candidat n'existe » de « vous les avez déjà tous vus » dans l'état vide (section 1).
   const [seenAvailable,    setSeenAvailable]     = useState(0);
+  // Nombre d'annonces du feed courant remontées par une priorité territoriale déclarée.
+  // 0 = la mention d'ordre ne doit PAS parler de zones prioritaires (voir plus bas).
+  const [prioriteTerritoriale, setPrioriteTerritoriale] = useState(0);
   // Établissement uniquement : combien de candidats ont coché « ouvert aux postes salariés ».
   // À zéro, un feed vide n'a rien d'une attente — personne ne peut apparaître. -1 = sans objet.
   const [salariatOptIn,    setSalariatOptIn]     = useState(-1);
@@ -617,6 +620,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       if (seenHdr != null) setSeenAvailable(parseInt(seenHdr, 10) || 0);
       const optInHdr = r.headers.get("x-feed-salariat-optin");
       if (optInHdr != null) setSalariatOptIn(parseInt(optInHdr, 10));
+      const prioriteHdr = r.headers.get("x-feed-priorite-territoriale");
+      if (prioriteHdr != null) setPrioriteTerritoriale(parseInt(prioriteHdr, 10) || 0);
       const data = await r.json();
       if (!Array.isArray(data)) {
         console.error("[SwipeStack] feed response is not an array:", data);
@@ -941,14 +946,17 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             se cache simplement plus à l'intérieur du score de compatibilité, où elle affirmait
             quelque chose de faux sur l'autre partie. Elle est dite, en clair, une fois.
 
-            « et zones prioritaires » retiré de la vue Cartes le 17/08 : la mention l'affirmait,
-            le code ne l'a jamais fait. getDesirabilityPercent() ne contient AUCUN terme
-            géographique — ni commune, ni zone, ni CommuneAPL.boostKine (éditable en /admin/apl,
-            non nul sur 16 communes de Guadeloupe, lu par aucune logique produit). Le seul terme
-            territorial de l'ordre est le bonus saisonnier, qui porte sur des DATES et qui est
-            déjà énoncé à part. Ne remettre ces mots que le jour où une priorité territoriale
-            entre réellement dans l'ordre : une mention de transparence fausse ne remonte par
-            aucun canal — personne ne signale un classement qu'il ne peut pas vérifier. */}
+            « et zones prioritaires » avait été retiré le 17/08 : la mention l'affirmait, le
+            code ne l'a jamais fait — getDesirabilityPercent() ne contenait AUCUN terme
+            géographique. La priorité territoriale existe depuis (section 214), la mention est
+            donc revenue, mais CONDITIONNÉE : elle n'apparaît que si au moins une annonce du
+            feed courant est réellement remontée à ce titre, sur la même mécanique que le bonus
+            saisonnier juste avant. Elle se tait le reste du temps.
+
+            La condition n'est pas un raffinement d'affichage : une phrase écrite en dur
+            redeviendrait fausse le jour où plus aucune commune n'est déclarée prioritaire, et
+            personne ne le remarquerait — c'est exactement ainsi que la version précédente a
+            survécu depuis 979ccd8. Ne jamais réécrire cette mention en inconditionnel. */}
         <p className="px-4 pb-1 text-[10px] leading-snug text-gray-400 shrink-0">
           {/* La liste n'est PAS triée comme les cartes : elle classe par compatibilité de dates.
               Garder le même texte aurait affirmé un ordre qui n'est plus celui affiché — la
@@ -962,7 +970,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           ) : (
             <>
               Ordre d&apos;affichage : les comptes abonnés et partenaires
-              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}.
+              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}{prioriteTerritoriale > 0 ? ", ainsi que les postes situés sur une commune déclarée prioritaire par sa CPTS" : ""}.
               Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
             </>
           )}

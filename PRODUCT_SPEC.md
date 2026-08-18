@@ -3612,8 +3612,74 @@ département couvert). Les absences 977/978 sont signalées **sans** faire écho
 Sortie **1** sur le pont cassé, **0** après restauration. À l'état sain, le script affiche les
 4 libellés que seul le pont rapproche — le décalage est montré, pas supposé.
 
-**Aucun consommateur à ce jour** : le pont est construit, rien ne le lit encore. C'est le
-prérequis du branchement de la priorité territoriale, pas le branchement lui-même.
+**Aucun consommateur au moment de sa livraison** : le pont a été construit avant son premier
+lecteur. Celui-ci est arrivé le jour même — voir la priorité territoriale ci-dessous.
+
+#### PRIORITÉ TERRITORIALE DÉCLARÉE (17/08) — livrée
+
+##### Ce qui existait, et ne faisait rien
+
+`CommuneAPL.boost*` (−10 à +10, une colonne par profession) est éditable dans `/admin/apl`
+depuis longtemps. **16 des 32 communes de Guadeloupe portent une valeur non nulle**, dont trois
+des quatre communes de Nord Basse-Terre (Pointe-Noire, Deshaies, Sainte-Rose à +2). Aucune
+logique produit ne les lisait. L'écran invitait donc à régler un curseur sans effet, pendant que
+le feed affirmait à l'utilisateur que ce curseur agissait.
+
+##### Où elle vit : dans l'ordre, jamais dans le score
+
+`src/lib/territoire.ts`, appliqué dans `/api/feed` à côté de la désirabilité et du bonus
+saisonnier. La discipline du 03/08 vaut telle quelle : « cette commune manque de kinés » est un
+jugement de santé publique porté par une institution, il ne dit rien de l'accord entre deux
+personnes et n'a rien à faire dans `computeAffinityScore`.
+
+**Dosage — facteur 3, soit ±30 au maximum.** Le boost brut (±10) ajouté tel quel serait noyé
+face à un palier Premium de 50. ±30 le met à égalité avec le bonus saisonnier et sous le palier
+Premium, ce qui se défend en une phrase devant une CPTS comme devant un abonné : une commune
+déclarée prioritaire au maximum pèse autant que la fenêtre de tension, jamais autant qu'un
+abonnement payé.
+
+##### Elle ne joue que dans un sens, et c'est délibéré
+
+« Il manque des kinés à Deshaies » veut dire : montrer les **postes** de Deshaies aux candidats.
+Pas : mettre en avant les **candidats** habitant Deshaies auprès des cabinets — un cabinet de
+Deshaies cherche quelqu'un, pas quelqu'un du coin. Le bonus ne s'applique donc qu'aux lecteurs
+candidats. Le produit avait déjà un bonus directionnel en sens inverse (le saisonnier ne joue
+que devant un cabinet) : les deux ne se rencontrent jamais.
+
+##### La mention de transparence est revenue, mais conditionnée
+
+Retirée le matin faute d'être vraie, remise l'après-midi avec son mécanisme. Elle n'apparaît que
+si au moins une annonce du feed courant est réellement remontée à ce titre (en-tête
+`x-feed-priorite-territoriale`), et se tait sinon. **Ne jamais la réécrire en inconditionnel** :
+une phrase en dur redeviendrait fausse le jour où plus aucune commune n'est déclarée, et
+personne ne le remarquerait — c'est exactement ainsi que la version précédente a survécu depuis
+`979ccd8`.
+
+##### Vérifiée sur la donnée réelle
+
+| Cas | Attendu | Obtenu |
+|---|---|---|
+| Bornage `+99` / `−99` | ±30 | ±30 |
+| `Deshaies`, `Pointe-Noire`, `Sainte-Rose` (boost 2) | +6 | +6 |
+| `Lamentin` (boost 0) | 0 | 0 |
+| **`Terre-de-Bas (Les Saintes)`**, base écrit `Terre-de-Bas` | +3 | **+3** |
+| `Grand Case (Saint-Martin)`, hors périmètre APL | 0 | 0 |
+| Profession `INFIRMIER`, mêmes communes | boosts différents | 3 entrées |
+
+La ligne en gras est celle qui compte : **sans le pont `COMMUNE_INSEE`, elle aurait rendu 0 en
+silence.** C'est la démonstration que le bloc précédent n'était pas une précaution théorique.
+
+##### Effet mesuré aujourd'hui, et sa limite
+
+**6 des 12 annonces de cabinet vivantes sont à Pointe-Noire** (+6). Le levier déplace donc
+réellement quelque chose dès maintenant — le PoC est démontrable, ce qui n'allait pas de soi.
+
+**Mais `Mission.location` n'est pas toujours une commune.** Sur les annonces vivantes on trouve
+`« Cabinet des ravines »` (un nom de cabinet), `« Sud Basse-Terre »`, `« Sud Grande-Terre »`,
+`« Toute la Guadeloupe »` (des zones, saisies par des candidats). `inseeOfCommune` rend `null`
+et le bonus vaut 0 : **pas de boost plutôt qu'un mauvais boost**, ce qui est le bon échec. Il
+reste qu'une annonce de cabinet sur douze ne pourra jamais en bénéficier tant que sa `location`
+n'est pas une commune. À traiter comme une question de saisie, pas de scoring.
 
 ---
 

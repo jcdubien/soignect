@@ -5,6 +5,7 @@ import { ProfileType, TitulaireKind, Prisma, BriqueStatus } from "@prisma/client
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
+import { chargerPrioritesTerritoriales } from "@/lib/territoire";
 import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
@@ -126,11 +127,28 @@ export async function GET(req: NextRequest) {
   // remonte, mais UNIQUEMENT devant un cabinet dont le besoin recoupe lui aussi cette fenêtre.
   // Sans cette condition, un cabinet recrutant pour décembre aurait vu des candidats d'août en
   // tête — l'ordre l'aurait mis en avant avant que le score ne dise « dates éloignées ».
+  // S'y ajoute enfin la PRIORITÉ TERRITORIALE DÉCLARÉE (section 214) : une commune que la CPTS
+  // a déclarée prioritaire remonte ses annonces, via CommuneAPL.boost* (±10 → ±30 points).
+  //
+  // ELLE NE S'APPLIQUE QUE DANS UN SENS, et ce n'est pas une économie de code. Une déclaration
+  // « il manque des kinés à Deshaies » veut dire : montrer les POSTES de Deshaies aux candidats.
+  // Elle ne veut PAS dire « mettre en avant les candidats qui habitent Deshaies auprès des
+  // cabinets » — un cabinet de Deshaies cherche quelqu'un, pas quelqu'un du coin, et rien dans
+  // la déclaration de la CPTS ne dit le contraire. Appliquer le bonus dans les deux sens aurait
+  // été symétrique et faux.
+  // Le produit a déjà un bonus directionnel : le bonus saisonnier ne joue que devant un cabinet.
+  // Celui-ci ne joue que devant un candidat. Les deux ne se rencontrent donc jamais.
+  const prioritesTerritoriales = isCandidateViewer
+    ? await chargerPrioritesTerritoriales(missions.map((m) => m.location), myProfile.profession)
+    : new Map<string, number>();
+
   const desirabilite = new Map<string, number>();
   for (const m of missions) {
     desirabilite.set(
       m.id,
-      getDesirabilityPercent(m.profile) + bonusSaisonnier({ startDate: m.startDate, endDate: m.endDate }, besoinPeriode),
+      getDesirabilityPercent(m.profile)
+        + bonusSaisonnier({ startDate: m.startDate, endDate: m.endDate }, besoinPeriode)
+        + (prioritesTerritoriales.get(m.location ?? "") ?? 0),
     );
   }
   missions.sort((a, b) => (desirabilite.get(b.id) ?? 0) - (desirabilite.get(a.id) ?? 0));
@@ -154,6 +172,31 @@ export async function GET(req: NextRequest) {
         sansDate: boostes.filter((m) => !m.startDate).length,
       },
     });
+  }
+
+  // Trace de la priorité territoriale — même raison que ci-dessus, et une de plus : c'est la
+  // seule mesure qui pourra être rendue à la CPTS. « Vos communes prioritaires ont été mises en
+  // avant N fois ce mois-ci » est un fait vérifiable ; sans cette ligne, le PoC n'aurait rien à
+  // montrer qu'une intention. Les communes concernées sont nommées : l'intérêt de l'analyse est
+  // de savoir LESQUELLES portent, pas seulement combien.
+  //
+  // `profession` est renseignée ici, ce qu'aucun appelant de logTraceEvent ne faisait jusqu'à
+  // présent alors que la colonne existe — une priorité territoriale n'a de sens que rapportée à
+  // une profession, agréger sans elle mélangerait des déclarations sans rapport.
+  if (prioritesTerritoriales.size > 0) {
+    const misesEnAvant = missions.filter((m) => (prioritesTerritoriales.get(m.location ?? "") ?? 0) > 0);
+    if (misesEnAvant.length > 0) {
+      logTraceEvent({
+        eventType: "FEED_PRIORITE_TERRITORIALE",
+        profileId: myProfile.id,
+        profession: myProfile.profession,
+        metadata: {
+          misesEnAvant: misesEnAvant.length,
+          surTotal: missions.length,
+          communes: Array.from(new Set(misesEnAvant.map((m) => m.location).filter(Boolean))),
+        },
+      });
+    }
   }
 
   // Nombre de candidats/annonces DISPONIBLES que l'utilisateur a DÉJÀ VUS (swipés) — mêmes
@@ -196,6 +239,13 @@ export async function GET(req: NextRequest) {
     headers: {
       "x-feed-seen-available": String(seenAvailable),
       "x-feed-salariat-optin": String(candidatsOptes),
+      // Combien d'annonces de CE feed sont réellement remontées par une priorité territoriale.
+      // Sert uniquement à la mention de transparence : elle ne doit annoncer « zones
+      // prioritaires » que lorsque c'est vrai POUR CE LECTEUR, et se taire sinon. C'est ce qui
+      // manquait avant le 17/08 — la phrase était écrite en dur et affirmait toujours.
+      "x-feed-priorite-territoriale": String(
+        missions.filter((m) => (prioritesTerritoriales.get(m.location ?? "") ?? 0) > 0).length,
+      ),
     },
   });
 }
