@@ -3669,10 +3669,44 @@ personne ne le remarquerait — c'est exactement ainsi que la version précéden
 La ligne en gras est celle qui compte : **sans le pont `COMMUNE_INSEE`, elle aurait rendu 0 en
 silence.** C'est la démonstration que le bloc précédent n'était pas une précaution théorique.
 
-##### Effet mesuré aujourd'hui, et sa limite
+##### Effet réel aujourd'hui : AUCUN — vérifié à l'écran, contre l'attente
 
-**6 des 12 annonces de cabinet vivantes sont à Pointe-Noire** (+6). Le levier déplace donc
-réellement quelque chose dès maintenant — le PoC est démontrable, ce qui n'allait pas de soi.
+6 des 12 annonces de cabinet vivantes sont à Pointe-Noire, seule commune déclarée qui porte des
+annonces, et le bonus leur donne bien +6. **L'ordre affiché est pourtant identique avec et sans
+le bonus**, comparé ligne à ligne :
+
+```
+SANS bonus            AVEC bonus
+100  Pointe-Noire ×6   106  Pointe-Noire ×6      ← même rang
+  0  Le Gosier           0  Le Gosier
+  0  Saint-Claude        0  Saint-Claude          (…)
+```
+
+**Parce que ces 6 annonces sont celles du cabinet fondateur**, dont `isFounding` fixe la
+désirabilité à 100. Elles étaient déjà en tête, pour une raison qui n'a rien de territorial.
+Le bonus les fait passer de 100 à 106 : rien ne bouge.
+
+La première formulation de cette section affirmait « le levier déplace réellement quelque chose,
+le PoC est démontrable ». **C'était faux**, et l'erreur mérite d'être gardée : elle vient d'avoir
+lu que 6 annonces recevaient le bonus, sans vérifier ce qu'elles valaient sans lui. Un bonus qui
+s'applique n'est pas un bonus qui déplace.
+
+##### La tension structurelle que ça révèle
+
+Le plafond du levier institutionnel est **+30** ; `isFounding` vaut **100**. Une commune déclarée
+prioritaire par une CPTS ne peut donc JAMAIS faire remonter une annonce au-dessus de celles du
+cabinet fondateur. Sur un feed où ce cabinet publie, la priorité territoriale ne réordonne que
+ce qui est déjà sous lui.
+
+Ce n'est pas un défaut de dosage — remonter le facteur ferait passer une préférence gratuite
+devant un abonnement payé, ce que le §dosage écarte explicitement. C'est un arbitrage entre deux
+leviers qui n'avaient jamais eu à cohabiter, **à trancher avant la démonstration à la CPTS** :
+sur le territoire de Nord Basse-Terre, le cabinet fondateur et la commune prioritaire sont le
+même endroit (Pointe-Noire), donc la démonstration ne montrerait rien.
+
+Pour rendre l'effet visible il faudrait une commune déclarée prioritaire portant des annonces
+d'un cabinet NON fondateur — aujourd'hui Le Gosier, Saint-Claude, Baie-Mahault, Pointe-à-Pitre
+et Les Abymes sont toutes à désirabilité 0 et aucune n'est déclarée.
 
 **Mais `Mission.location` n'est pas toujours une commune.** Sur les annonces vivantes on trouve
 `« Cabinet des ravines »` (un nom de cabinet), `« Sud Basse-Terre »`, `« Sud Grande-Terre »`,
