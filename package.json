@@ -14,7 +14,9 @@
     "db:studio": "prisma studio",
     "db:sync-zones": "node --env-file=.env.local scripts/sync-commune-zone.mjs --apply",
     "db:check-zones": "node --env-file=.env.local scripts/sync-commune-zone.mjs",
-    "db:check-insee": "node --env-file=.env.local scripts/check-commune-insee.mjs"
+    "db:check-insee": "node --env-file=.env.local scripts/check-commune-insee.mjs",
+    "db:check-apl": "node --env-file=.env.local scripts/sync-commune-apl.mjs",
+    "db:sync-apl": "node --env-file=.env.local scripts/sync-commune-apl.mjs --apply"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

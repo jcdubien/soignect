@@ -16,10 +16,19 @@
 // le parseur XLSX ci-dessous : il n'y a pas d'endpoint tabulaire à interroger à la place.
 //
 // CE QU'IL N'ÉCRIT JAMAIS
-//   • les colonnes boost* — réglages produit saisis à la main en admin, irremplaçables ;
-//   • `commune` / `departement` d'une ligne existante — la base suit le vocabulaire de
-//     COMMUNE_ZONE (« Grand-Bourg (Marie-Galante) »), la DREES le sien (« Grand-Bourg ») ;
-//     les écarts sont RAPPORTÉS, jamais appliqués ;
+//   • les colonnes boost* — levier PRODUIT : éditables en admin (−10..+10) et lues par le feed
+//     via `chargerPrioritesTerritoriales` (src/lib/territoire.ts), où elles décident de l'ordre
+//     des annonces. Vérifié le 18/08 : leurs valeurs actuelles ne sont PAS des saisies humaines,
+//     elles viennent du même import de juin 2026 et dérivent d'`aplKine`. Ça ne les rend pas
+//     réécrivables — au contraire : l'écran de déclaration à venir (B3) a besoin qu'un import
+//     annuel ne puisse jamais écraser ce qu'un humain aura déclaré. Le piège serait un `upsert`
+//     Prisma sur un objet complet : il les remettrait à 0 en silence. D'où `update` + `create`
+//     séparés plus bas, chacun ne nommant que des colonnes DREES ;
+//   • `commune` / `departement` d'une ligne existante — les écarts sont RAPPORTÉS, jamais
+//     appliqués : renommer une commune est une décision, pas un effet de bord d'import.
+//     (Au 18/08 il n'y en a aucun : les 112 libellés en base sont ceux de la DREES. Le
+//     vocabulaire suffixé « Grand-Bourg (Marie-Galante) » vit dans COMMUNES_GUADELOUPE, côté
+//     produit, et c'est COMMUNE_INSEE qui fait le pont — pas cette table.) ;
 //   • `aplOrthophoniste` — cette profession n'est pas publiée dans ce jeu (voir PROFESSIONS).
 // Il ne supprime aucune ligne : une commune absente de la source est signalée, pas effacée.
 //
@@ -53,7 +62,9 @@ const SOURCE_URL = `${DOMAINE}/explore/dataset/${DATASET}/`;
 //   kiné / infirmier / sage-femme → ETP pour 100 000 habitants standardisés (ordre : 0 à ~500)
 //   médecin généraliste           → consultations-visites accessibles par habitant et par an (~0 à 8)
 // `aplKine` et `aplMedecin` ne sont donc PAS comparables entre eux. Rien dans le produit ne les
-// compare aujourd'hui (CommuneAPL n'est lue que par /admin/apl), mais la note vaut d'être ici.
+// compare aujourd'hui — le feed lit les boost*, pas les apl* (src/lib/territoire.ts), et
+// /admin/apl affiche chaque profession dans sa propre colonne. La note vaut pour le jour où un
+// écran voudra classer des communes « toutes professions confondues » : ce serait un faux.
 //
 // aplOrthophoniste n'a pas d'entrée : le jeu 530 publie kinés, infirmiers, médecins généralistes,
 // sages-femmes et chirurgiens-dentistes — pas les orthophonistes. La colonne restera vide tant
@@ -310,7 +321,7 @@ try {
   const millesimeStockable = ["aplAnnee", "aplSource", "aplImportedAt"].every((c) => colonnesTable.has(c));
   if (!millesimeStockable) {
     console.log("\n⚠️  colonnes de millésime absentes (aplAnnee/aplSource/aplImportedAt) :");
-    console.log("    la migration prisma/migrations-manuelles/2026-08-apl-millesime.sql n'a pas été jouée.");
+    console.log("    la migration prisma/migrations/20260818120000_apl_millesime/ n'a pas été appliquée.");
     console.log("    Les valeurs seront écrites SANS millésime — donc indistinguables de l'import de 2026.");
   }
 

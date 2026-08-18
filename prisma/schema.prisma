@@ -562,7 +562,19 @@ model RemplacantRating {
 }
 
 // Données APL DREES par commune — section 22
-// Alimenté par scripts/update_apl.py (cron annuel)
+//
+// Alimenté par `scripts/sync-commune-apl.mjs` (jeu DREES 530, publication annuelle), à lancer
+// à la main : il n'y a pas de cron. La mention précédente annonçait « scripts/update_apl.py
+// (cron annuel) » — ce fichier n'a jamais existé et aucun cron ne l'a jamais appelé.
+//
+// DEUX FAMILLES DE COLONNES, À NE JAMAIS CONFONDRE
+//   • apl* / aplAnnee / aplSource / aplImportedAt — DONNÉE IMPORTÉE. Le script les écrit ;
+//     personne ne les saisit.
+//   • boost* — LEVIER PRODUIT, éditable en admin (PATCH /api/admin/apl/[id], −10..+10) et lu
+//     par le feed via `chargerPrioritesTerritoriales` (src/lib/territoire.ts). Le script n'y
+//     touche JAMAIS : un import ne doit pas pouvoir remettre une priorité déclarée à zéro.
+//     Leurs valeurs actuelles viennent pourtant du même import de juin 2026 et dérivent
+//     d'`aplKine` — un héritage, pas une intention ; raison de plus pour les figer ici.
 model CommuneAPL {
   id                  Int      @id @default(autoincrement())
   codeInsee           String   @unique
@@ -573,6 +585,11 @@ model CommuneAPL {
   aplMedecin          Float?
   aplSageFemme        Float?
   aplOrthophoniste    Float?
+  // Millésime des chiffres ci-dessus. NULL = inconnu (lignes antérieures au premier passage du
+  // script) — `updatedAt` date l'écriture, pas la donnée, et ne peut pas y suppléer.
+  aplAnnee            Int?
+  aplSource           String?
+  aplImportedAt       DateTime?
   boostKine           Int      @default(0)
   boostInfirmier      Int      @default(0)
   boostMedecin        Int      @default(0)
