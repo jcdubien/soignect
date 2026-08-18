@@ -3,11 +3,15 @@
 > Tenu par Sonnet (décisions, arbitrages, raisonnement produit).
 > PRODUCT_SPEC.md (comportement vérifié du produit) reste sous la
 > plume exclusive d'Opus. Ne pas fusionner les deux fichiers.
-> Dernière mise à jour : 13/08 (corps du fichier), committée le
-> 17/08. La ligne annonçait encore 12/08 alors que le contenu
-> documentait le 13 — date corrigée par Opus, rien d'autre touché
-> dans ce fichier hormis la question `Zonage MK_2024.pdf`, qui lui
-> était adressée et qu'il a tranchée.
+> Dernière mise à jour : corps rédigé le 14/08 par Sonnet, committé
+> le 18/08 par Opus. La ligne annonçait 12/08 alors que le contenu
+> documente le 14 — date corrigée, rien d'autre touché hormis la
+> question `Zonage MK_2024.pdf` (voir plus bas), qui avait été
+> tranchée le 17/08 et que cette version rouvrait à tort.
+> **Décalage assumé** : le corps décrit B0 comme « en cours ». Depuis,
+> B0 (`a2e09fb`) et B1 (`ab1a8a7`) sont livrés, et `937c884` établit
+> que le levier territorial ne déplace rien aujourd'hui — voir
+> PRODUCT_SPEC.md. Ce fichier ne l'intègre pas encore.
 
 ---
 
@@ -439,32 +443,72 @@ ci-dessus, plus une référence de file d'attente.
   `.gitignore` nomme le fichier en entier, pas `*.pdf`, pour ne rien
   écarter en silence.
 
+- **Affirmation fausse "zones prioritaires" : livrée (f229c27).**
+  Trouvée en vérifiant le rapport de l'agent de scoping CPTS : le
+  texte de transparence affiché aux cabinets affirmait une
+  priorisation territoriale qui n'existe pas dans `desirability.ts`
+  — vue par de vrais utilisateurs en production depuis `979ccd8`,
+  documentée à tort comme vérifiée dans `PRODUCT_SPEC.md:1824`.
+  Mention retirée du composant et de la spec. En local, pas poussé.
+  Sera à réintroduire correctement une fois B1 (voir item 1
+  ci-dessous) vérifié et poussé — pas dans le même geste.
+
+- **Fuite de profession dans le feed : livrée (924e329).**
+  `filtreAnnoncesVivantes` prend désormais la profession en
+  paramètre obligatoire, sans valeur par défaut (un défaut aurait
+  refermé la fuite aujourd'hui et l'aurait rouverte en silence à la
+  première page oubliée). Les 4 appelants la déclarent, `/api/feed`
+  borne le lecteur à sa propre profession, le module embarquable la
+  porte en config plutôt qu'un titre en dur — satisfait au passage
+  l'exigence du 13/08 (ajouter une profession = une entrée, pas une
+  reconstruction). Mesuré avant/après : 19 annonces vivantes dans
+  les deux cas, rien perdu. En local, pas poussé.
+
 ## 🔴 Prêts, en file, pas encore envoyées
 
-0. **Scoping v1 "besoins déclarés par la CPTS"** — prompt envoyé le
-   13/08, jamais revenu ; **relancé le 17/08**, en lecture seule
-   (un plan, pas du code). Voir
-   STRATEGIE_MARKETING_BUSINESS.md §4 pour le pitch complet et
-   l'écart critique identifié (le pitch mentionne "professions" au
-   pluriel, le produit n'en connaît qu'une). Objectif : un v1
-   honnête livrable avant que Jean-Charles ne fasse cet appel
-   commercial, pas la vision complète d'un coup.
-1. **Alimenter CommuneAPL depuis l'API DREES** — prompt envoyé le
-   13/08, jamais revenu ; **relancé le 17/08** avec une consigne
-   ajoutée : aucune écriture en base ni migration appliquée, le
-   script et la migration sont livrés pour revue de Jean-Charles,
-   et les colonnes `boost*` (saisies à la main, non reconstituables)
-   ne doivent jamais être écrasées. Source confirmée : API
-   Opendatasoft (`/api/explore/v2.1/`,
-   dataset `530_l-accessibilite-potentielle-localisee-apl`,
-   documentée, console Swagger) — pas de MCP nécessaire, une vraie
-   API REST suffit, actualisable automatiquement si la fréquence de
-   publication le justifie. Attention signalée : un dataset
-   homonyme existe pour les structures médico-sociales personnes
-   âgées, à ne pas confondre. Ferme l'un des 3 manques de
-   `CommuneAPL` identifiés depuis le 12/08 (script d'alimentation
-   absent, millésime, `boost*` mélangé — ce prompt traite les deux
-   premiers).
+0. **Scoping v1 "besoins déclarés par la CPTS"** — rapport reçu et
+   vérifié le 14/08 par Opus avant relais (deux affirmations de
+   l'agent de scoping vérifiées, toutes deux confirmées vraies —
+   voir section clos pour le détail). Recommandation retenue et en
+   cours d'exécution : priorités CPTS saisies côté admin (pas
+   self-service), réutilisant le modèle `bonusSaisonnier` — tableau
+   de bord et indicateur de tension écartés comme disproportionnés
+   pour ~10 annonces, et afficher "zone non prioritaire" sur le site
+   d'une CPTS partenaire serait un contresens. Voir B0/B1 ci-dessous.
+1. **Alimentation DREES + pont commune↔codeInsee — mise à jour du
+   14/08, séquence B0→B4.** Deux correctifs livrés séparément
+   (f229c27 : retrait de la mention "zones prioritaires", fausse
+   depuis `979ccd8` ; 924e329 : fuite de profession fermée —
+   `filtreAnnoncesVivantes` prend la profession en paramètre
+   obligatoire sans défaut, les 4 appelants la déclarent, le module
+   embarquable la porte en config plutôt qu'un titre en dur — 19
+   annonces vivantes avant/après, rien perdu). Les deux en local,
+   pas poussés. **Trois corrections apportées par lecture directe de
+   la base (pas juste relayer le rapport de l'agent)** :
+   - `CommuneAPL` n'est PAS vide (112 lignes, 32 pour la Guadeloupe,
+     vraies valeurs `aplKine`, les 4 communes Nord Basse-Terre
+     présentes) — "alimentation absente" voulait dire "pas de
+     script", pas "pas de données". B1 n'a pas besoin de créer de
+     lignes.
+   - **`boostKine` déjà rempli** — 16/32 communes non nulles
+     (Pointe-Noire 2, Deshaies 2, Sainte-Rose 2). Quelqu'un a déjà
+     déclaré des priorités dans l'admin ; elles ne font rien. Durcit
+     le constat : l'écran invitait à régler un curseur sans effet
+     pendant que le feed affirmait à l'utilisateur qu'il agissait.
+   - Décalage de noms confirmé plus large qu'annoncé : **7 communes,
+     pas 4** (l'agent avait manqué Saint-Martin ×2 et Saint-Barth).
+   L'agent DREES a échoué (limite de session, rien livré — ni
+   script, ni migration, ni le nom du dataset identifié). Sans
+   conséquence sur B1 : B1 lit `boost*` (déjà rempli à la main), pas
+   `apl*` (importé) — seul l'indicateur de tension (hors périmètre)
+   en dépendrait. À relancer après réinitialisation de la limite
+   (21h20 Guadeloupe).
+   **Séquence retenue** : B0 (pont commune↔INSEE, ~0,5j, EN COURS —
+   rapport partiel reçu, deux découvertes non encore détaillées) →
+   B1 (bonus territorial branché sur l'ordre du feed, ~1j) → B2
+   (réintroduire la mention "zones prioritaires", vraie cette fois)
+   → B3 (écran de déclaration) → B4 (décompte par commune). B0
+   conditionne B1.
 2. **Stocker l'id Resend à l'envoi** — `data.id` retourné par
    `resend.emails.send()` est aujourd'hui jeté (`src/lib/email.ts`),
    rendant tout email introuvable a posteriori dans le dashboard
