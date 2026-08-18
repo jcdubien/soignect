@@ -3,15 +3,12 @@
 > Tenu par Sonnet (décisions, arbitrages, raisonnement produit).
 > PRODUCT_SPEC.md (comportement vérifié du produit) reste sous la
 > plume exclusive d'Opus. Ne pas fusionner les deux fichiers.
-> Dernière mise à jour : corps rédigé le 14/08 par Sonnet, committé
-> le 18/08 par Opus. La ligne annonçait 12/08 alors que le contenu
-> documente le 14 — date corrigée, rien d'autre touché hormis la
-> question `Zonage MK_2024.pdf` (voir plus bas), qui avait été
-> tranchée le 17/08 et que cette version rouvrait à tort.
-> **Décalage assumé** : le corps décrit B0 comme « en cours ». Depuis,
-> B0 (`a2e09fb`) et B1 (`ab1a8a7`) sont livrés, et `937c884` établit
-> que le levier territorial ne déplace rien aujourd'hui — voir
-> PRODUCT_SPEC.md. Ce fichier ne l'intègre pas encore.
+> Dernière mise à jour : 18/08 — corps corrigé par Sonnet après la
+> mesure d'Opus sur `CommuneAPL` (personne n'a jamais déclaré ces
+> priorités : B2 bloqué, B3 devenu son prérequis, `boost*` écarté
+> comme canal de déclaration). La ligne annonçait 12/08 pour la
+> troisième fois — date corrigée par Opus au commit, rien d'autre
+> touché.
 
 ---
 
@@ -239,7 +236,7 @@ ci-dessus, plus une référence de file d'attente.
   promettait un accès inexistant ("Voir mes annonces" menait en
   réalité au Planning, pas à une liste) — remplacé par une
   explication honnête + libellé de bouton corrigé selon le
-  destinataire. Décision de fond tranchée le 13/08 : voir item 6 de
+  destinataire. Décision de fond tranchée le 13/08 : voir item 5 de
   la file et STRATEGIE_MARKETING_BUSINESS.md §3 — pas de profils
   navigables, piste retenue : geste de consentement "signaler mon
   intérêt".
@@ -432,16 +429,15 @@ ci-dessus, plus une référence de file d'attente.
   `/admin/diffusion` lui-même n'a pas été vu (extension Chrome
   déconnectée en cours de vérification) — le module sous-jacent est
   vérifié, pas ce rendu précis. En attente que Jean-Charles relance
-  l'extension. **Question tranchée le 17/08** : le fichier
-  `Zonage MK_2024.pdf` est ignoré, pas supprimé ni versionné — il
-  reste sur le disque. Motif : c'est un PDF de formulaire scanné,
-  dont le contenu n'a pas pu être lu (aucun texte extractible), donc
-  impossible d'affirmer qu'il s'agit bien de l'arrêté source des Sets
-  de `communes.ts` ; un binaire entré dans l'historique n'en sort
-  plus, l'ignorer se défait en une ligne. Le jour où on veut le
-  versionner comme source tracée, `docs/sources/` reste ouvert — le
-  `.gitignore` nomme le fichier en entier, pas `*.pdf`, pour ne rien
-  écarter en silence.
+  l'extension. **`Zonage MK_2024.pdf` : confirmé être l'arrêté ARS
+  971-2024 (source de `ZONE_3_INTERMEDIAIRE`/
+  `ZONE_4_NON_PRIORITAIRE`)**, `.gitignore` corrigé pour le nommer
+  explicitement plutôt que `*.pdf` (évite qu'une future vraie source
+  soit silencieusement ignorée), `docs/sources/` proposé comme
+  emplacement pour le versionner à côté du code qu'il justifie —
+  même motif que `COMMUNE_ZONE`/`CommuneZone` : une donnée
+  transcrite en dur doit pouvoir être tracée jusqu'à sa source.
+  Versionnement effectif pas encore confirmé.
 
 - **Affirmation fausse "zones prioritaires" : livrée (f229c27).**
   Trouvée en vérifiant le rapport de l'agent de scoping CPTS : le
@@ -491,10 +487,10 @@ ci-dessus, plus une référence de file d'attente.
      script", pas "pas de données". B1 n'a pas besoin de créer de
      lignes.
    - **`boostKine` déjà rempli** — 16/32 communes non nulles
-     (Pointe-Noire 2, Deshaies 2, Sainte-Rose 2). Quelqu'un a déjà
-     déclaré des priorités dans l'admin ; elles ne font rien. Durcit
-     le constat : l'écran invitait à régler un curseur sans effet
-     pendant que le feed affirmait à l'utilisateur qu'il agissait.
+     (Pointe-Noire 2, Deshaies 2, Sainte-Rose 2). Une valeur y était
+     déjà présente ; elle ne faisait rien. Durcit le constat :
+     l'écran invitait à régler un curseur sans effet pendant que le
+     feed affirmait à l'utilisateur qu'il agissait.
    - Décalage de noms confirmé plus large qu'annoncé : **7 communes,
      pas 4** (l'agent avait manqué Saint-Martin ×2 et Saint-Barth).
    L'agent DREES a échoué (limite de session, rien livré — ni
@@ -503,12 +499,53 @@ ci-dessus, plus une référence de file d'attente.
    `apl*` (importé) — seul l'indicateur de tension (hors périmètre)
    en dépendrait. À relancer après réinitialisation de la limite
    (21h20 Guadeloupe).
-   **Séquence retenue** : B0 (pont commune↔INSEE, ~0,5j, EN COURS —
-   rapport partiel reçu, deux découvertes non encore détaillées) →
-   B1 (bonus territorial branché sur l'ordre du feed, ~1j) → B2
-   (réintroduire la mention "zones prioritaires", vraie cette fois)
-   → B3 (écran de déclaration) → B4 (décompte par commune). B0
-   conditionne B1.
+   **B0 et B1 livrés, B2 BLOQUÉ, ordre B2/B3 inversé (9 commits
+   locaux, rien poussé, production inchangée).**
+   - B0 : pont `COMMUNE_INSEE` confirmé load-bearing, pas théorique
+     — Terre-de-Bas (Les Saintes) rend +3 seulement grâce au pont
+     (la base écrit "Terre-de-Bas"), sinon 0 en silence.
+   - B1 (`ab1a8a7`) : `CommuneAPL.boost*` agit enfin sur l'ordre du
+     feed. Dosage : facteur 3, ±10 brut devient ±30 points d'ordre —
+     à égalité avec le bonus saisonnier, sous le palier Premium (50).
+     **Décision de conception notable : bonus unidirectionnel**,
+     pas symétrique — "il manque des kinés à Deshaies" affiche les
+     postes de Deshaies aux candidats, mais ne met PAS en avant les
+     candidats de Deshaies auprès des cabinets (un cabinet cherche
+     quelqu'un, pas quelqu'un du coin). Réutilise la structure déjà
+     directionnelle du bonus saisonnier plutôt que d'inventer un
+     nouveau motif. **Limite trouvée en mesurant, pas anticipée** :
+     `Mission.location` n'est pas toujours une commune (ex. "Cabinet
+     des ravines", "Sud Basse-Terre", "Toute la Guadeloupe" — zones
+     saisies par des candidats). Dans ces cas le bonus vaut 0 (le bon
+     échec, pas un mauvais chiffre), mais 1 annonce cabinet sur 12
+     restera hors de portée du levier tant que ce n'est pas résolu.
+     Problème de saisie, pas de scoring — non traité dans ce bloc,
+     candidat pour un futur item si le volume le justifie.
+   - **B2 BLOQUÉ — vrai problème trouvé en mesurant, pas un
+     arbitrage de dosage.** Le cabinet fondateur de Jean-Charles
+     (`isFounding`, partenaire institutionnel) porte 6 des 11
+     annonces vivantes, toutes à Pointe-Noire — exactement la
+     commune de la démo CPTS Nord Basse-Terre. Une démo sur cette
+     commune montrerait le cabinet du vendeur en tête, pour une
+     raison sans rapport avec le levier territorial qu'on veut
+     démontrer. Pas un problème de dosage entre `isFounding` et le
+     levier — un problème d'honnêteté de démonstration, peu importe
+     le réglage numérique. Deux sorties honnêtes retenues : démontrer
+     sur une commune où le cabinet fondateur ne publie pas, ou le
+     dire à voix haute pendant l'appel. Première option privilégiée
+     — plus simple, pas besoin d'expliquer une nuance en plein pitch
+     commercial.
+   - **B3 (écran de déclaration co-saisi) devient le PRÉREQUIS de
+     B2, pas sa suite** — l'ordre initialement posé était faux.
+     Mention "zones prioritaires" retirée, pas encore réintroduite
+     tant que B3 n'existe pas.
+   - **`boost*` écarté comme canal de déclaration CPTS** — contient
+     déjà une valeur dérivée (le calcul), une déclaration humaine y
+     serait indistinguable d'un résultat de calcul. Matérialise
+     concrètement le 3ᵉ manque de `CommuneAPL` identifié depuis le
+     12/08 ("`boost*` mélangeant réglage produit et donnée externe").
+     B3 doit donc introduire un canal séparé, pas réutiliser `boost*`.
+   Reste B4 (décompte par commune sur la page territoire), après B3.
 2. **Stocker l'id Resend à l'envoi** — `data.id` retourné par
    `resend.emails.send()` est aujourd'hui jeté (`src/lib/email.ts`),
    rendant tout email introuvable a posteriori dans le dashboard
@@ -536,24 +573,7 @@ ci-dessus, plus une référence de file d'attente.
    module n'existe pas dans le code ; investigation sur un courrier
    assisté avec règle d'auteur spécifique (titulaire signataire si
    le cédant est assistant)
-5. **Pilotage territorial** (mise en avant selon les besoins
-   déclarés par une CPTS) — pas un prérequis du multi-préférences
-   (v. item 6), sujet distinct, nécessite d'abord de brancher
-   `CommuneAPL.boostKine` (existe, éditable en admin, lu par aucune
-   logique produit aujourd'hui). Seul `desirabilityScore` (niveau
-   profil) est réellement branché à ce jour. Devenu plus pressant
-   depuis que la CPTS Nord Basse-Terre est le premier client/PoC
-   (STRATEGIE §4) — plus une anticipation sans consommateur.
-   **Vision produit explicite, formulée le 13/08** : une CPTS
-   pourrait définir ELLE-MÊME ses propres critères de priorisation
-   (santé publique, ex. pénurie d'une spécialité sur son territoire)
-   plutôt que de dépendre d'un curseur admin unique côté Soignect.
-   N'EXISTE PAS aujourd'hui. Candidate naturelle pour le PoC CPTS
-   Nord Basse-Terre une fois `CommuneAPL.boostKine` branché, mais
-   nécessite une vraie interface de configuration côté CPTS, pas
-   juste la donnée branchée — chantier plus lourd que le simple
-   branchement. Rejoint le scoping de l'item 0.
-6. **Investigation "chercheur d'opportunités" multi-préférences
+5. **Investigation "chercheur d'opportunités" multi-préférences
    (v1.1) — largement répondue le 13/08, pas un chantier à
    construire.** Le multi-préférences existe déjà en production, non
    planifié : `Profile` ne porte aucun type, seul `missionType` par
@@ -567,22 +587,22 @@ ci-dessus, plus une référence de file d'attente.
    garde son utilité pour les libellés et la direction du feed, ne
    pas le supprimer). Décision de fond sur les profils navigables
    (voir ci-dessus) inchangée — non liée à ce constat.
-7. **Email de réinitialisation non reçu** — compte
+6. **Email de réinitialisation non reçu** — compte
    secretaire@cpts-nord-basse-terre.fr, investigation avant fix
-8. **Espace "Mes contrats" dans Mon compte** — persistance et
+7. **Espace "Mes contrats" dans Mon compte** — persistance et
    récupération des contrats édités, dépend d'une investigation
    préalable (contrats persistés ou générés à la volée ?)
-9. **Bouton "Reprendre un texte précédent"** — 5ᵉ bouton du
+8. **Bouton "Reprendre un texte précédent"** — 5ᵉ bouton du
     formulaire d'édition d'annonce, reprend le texte libre d'une
     annonce précédente du même cabinet (texte seul, pas les champs
     structurés — évite de reporter des données obsolètes sans que
     l'utilisateur s'en rende compte)
-10. **Lien direct depuis le message anti-doublon vers l'annonce en
+9. **Lien direct depuis le message anti-doublon vers l'annonce en
     conflit** — le message actuel décrit l'annonce qui bloque une
     publication mais n'offre aucun moyen de l'atteindre, surtout si
     ses dates sont hors de la période affichée sur le Planning.
     Réutiliser `?editId=`
-11. **Annonces limitées sur les pages de propagande, classées
+10. **Annonces limitées sur les pages de propagande, classées
     désirabilité + proximité géo du visiteur** — investigation
     d'abord (les pages affichent-elles déjà des annonces en direct
     aujourd'hui ? désirabilité déjà consommée par une logique
