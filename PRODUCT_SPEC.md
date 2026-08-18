@@ -3550,6 +3550,71 @@ Une modification faite dans la table serait effacée à la régénération **et*
 n'aurait aucun effet sur le matching entre-temps — le scoring ne la lit pas. C'est écrit
 au-dessus du modèle, avec le renvoi vers la source et la commande.
 
+#### LE PONT COMMUNE → CODE INSEE (17/08) — livré
+
+##### Ce que l'investigation du 13/08 n'avait pas vu
+
+Elle avait cartographié `Mission.location`, `Mission.zones`, `CommuneAPL` et le zonage ARS, et
+conclu que `CommuneAPL` « porte la bonne donnée mais reste non alimentée ». **Deux erreurs dans
+cette phrase**, trouvées le 17/08 en interrogeant la base au lieu de lire le schéma :
+
+1. **La table EST alimentée** : 112 lignes, dont les **32 communes de Guadeloupe**, `aplKine`
+   renseigné partout. « Alimentation absente » désignait l'absence de **script**, pas de
+   données — la nuance décide s'il faut créer des lignes ou seulement les lire. Il ne faut pas.
+2. **Rien ne reliait cette table à une annonce.** `CommuneAPL` est clé par `codeInsee` ; or
+   `codeInsee` n'apparaissait **nulle part** hors du schéma et de `/admin/apl`. La donnée était
+   à la fois présente et inatteignable. C'est le vrai obstacle, et il n'était nommé dans aucune
+   des deux investigations.
+
+##### Le décalage de libellés, mesuré et non déduit
+
+La jointure évidente (`WHERE commune = location`) échoue sur **7 libellés sur 35** :
+
+| Forme du piège | Libellés | Ce que fait la jointure naïve |
+|---|---|---|
+| Produit désambiguïsé, INSEE non | `Grand-Bourg (Marie-Galante)`, `Saint-Louis (Marie-Galante)`, `Terre-de-Haut (Les Saintes)`, `Terre-de-Bas (Les Saintes)` | perd les 4, en silence |
+| Deux libellés, un territoire | `Marigot (Saint-Martin)`, `Grand Case (Saint-Martin)` | correspondance **non injective** |
+| Pas une commune du tout | `Grand Case (Saint-Martin)` | aucun code propre, emprunte celui de Saint-Martin |
+
+Le rapport de scoping annonçait « au moins 4 » sur la foi de la nomenclature INSEE. **7** après
+comptage : il avait manqué Saint-Martin (×2) et Saint-Barthélemy.
+
+##### `COMMUNE_INSEE`, déclaré et non dérivé
+
+Table dans `src/lib/communes.ts`, aux côtés de `COMMUNE_ZONE`, plus `inseeOfCommune()`.
+**Troisième application de la même règle** après le `slug` d'URL (14/08) et `Profession.enumBase`
+(17/08) : aucune normalisation automatique (retirer la parenthèse, comparer sans accents) ne
+survivrait au cas « deux libellés, un code », et surtout elle serait invisible.
+
+**Un code valide ne garantit pas une ligne APL.** `CommuneAPL` ne couvre que 971/972/973/974 :
+Saint-Martin (978) et Saint-Barthélemy (977) ont quitté la Guadeloupe en 2007. Leurs 3 codes
+sont exacts et ne trouveront jamais rien — fait administratif, pas défaut à corriger.
+
+##### `npm run db:check-insee` — rapporte, ne répare pas
+
+Volontairement **sans `--apply`**, contrairement à `db:sync-zones`. Là-bas une constante fait
+autorité et la table en est dérivée ; ici les deux côtés sont autoritaires et aucun ne peut
+réparer l'autre — un code INSEE ne s'invente pas, et la donnée DREES n'a pas à être réécrite
+depuis le produit. **Un `--apply` aurait été le vrai danger** : il aurait fabriqué des lignes APL
+vides pour faire taire l'alerte.
+
+Sortie 1 réservée au cassant (libellé non ponté, entrée orpheline, code introuvable dans un
+département couvert). Les absences 977/978 sont signalées **sans** faire échouer.
+
+##### Vérifié en cassant, comme le précédent
+
+| Écart injecté | Détecté |
+|---|---|
+| `Deshaies` → code inexistant `97199` | ✅ `INTROUVABLE dans CommuneAPL` |
+| `Goyave` retirée du pont | ✅ `dans le produit, absente du pont` |
+| « Commune Fantôme » ajoutée au pont | ✅ `dans le pont, absente du produit` + partage de code signalé |
+
+Sortie **1** sur le pont cassé, **0** après restauration. À l'état sain, le script affiche les
+4 libellés que seul le pont rapproche — le décalage est montré, pas supposé.
+
+**Aucun consommateur à ce jour** : le pont est construit, rien ne le lit encore. C'est le
+prérequis du branchement de la priorité territoriale, pas le branchement lui-même.
+
 ---
 
 ### Zonage ARS et données APL
