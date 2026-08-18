@@ -3625,6 +3625,36 @@ des quatre communes de Nord Basse-Terre (Pointe-Noire, Deshaies, Sainte-Rose à 
 logique produit ne les lisait. L'écran invitait donc à régler un curseur sans effet, pendant que
 le feed affirmait à l'utilisateur que ce curseur agissait.
 
+##### Ces valeurs ne sont pas des déclarations — mesuré le 18/08
+
+La phrase ci-dessus est vraie et a été lue de travers, ici comme dans le ROADMAP : « quelqu'un a
+déjà déclaré des priorités dans l'admin ». **Personne n'a jamais touché ces curseurs.**
+
+Les **112 lignes** de `CommuneAPL` portent un `updatedAt` identique **à la milliseconde**
+(`2026-06-28T18:16:37.780Z`). La colonne est `@updatedAt` : une seule saisie dans `/admin/apl`
+aurait décalé sa ligne. Aucune ne l'est. Les `boost*` sont entrés avec l'import initial, et
+suivent l'indicateur APL au lieu de le contredire :
+
+| `boostKine` | communes | `aplKine` observé |
+|---|---|---|
+| 3 | 11 | 0 (aucune donnée) |
+| 2 | 22 | 24,6 → 166 |
+| 1 | 23 | 117,5 → 203,7 |
+| 0 | 56 | 0,3 → 405 |
+
+Réparti uniformément sur les quatre départements — 16/32 (971), 17/34 (972), 11/22 (973),
+12/24 (974). Une CPTS de Guadeloupe n'aurait pas classé Maripasoula ni Cilaos.
+
+**Ce que le module met donc en avant est une dérivation d'un indicateur national, pas un jugement
+porté par une institution locale.** Le comportement reste défendable — une commune sous-dotée
+mérite d'être montrée. Le récit ne l'était pas : c'est la même erreur que `979ccd8` d'un cran plus
+bas. En `979ccd8` le mécanisme n'existait pas ; ici il existe, mais on attribuait à une
+institution un chiffre que personne n'avait posé. Attrapée avant tout push.
+
+Conséquence sur la colonne elle-même : `boost*` **ne peut pas devenir** le canal de déclaration
+d'une CPTS. Elle est déjà occupée par une valeur dérivée, et une colonne qui mélange les deux rend
+une déclaration indistinguable d'un calcul — c'est le manque n°3 déjà nommé sur `CommuneAPL`.
+
 ##### Où elle vit : dans l'ordre, jamais dans le score
 
 `src/lib/territoire.ts`, appliqué dans `/api/feed` à côté de la désirabilité et du bonus
@@ -3654,6 +3684,11 @@ si au moins une annonce du feed courant est réellement remontée à ce titre (e
 une phrase en dur redeviendrait fausse le jour où plus aucune commune n'est déclarée, et
 personne ne le remarquerait — c'est exactement ainsi que la version précédente a survécu depuis
 `979ccd8`.
+
+**« par sa CPTS » retiré le 18/08.** La condition portait sur le mécanisme et tenait ; c'est
+l'attribution qui était fausse (voir ci-dessus : personne n'a rien déclaré). La mention affichée
+ne nomme donc plus d'auteur — « une commune **signalée comme manquant de kinés** ». Elle
+mentionnera de nouveau la CPTS le jour où une CPTS écrit vraiment dans le produit, et pas avant.
 
 ##### Vérifiée sur la donnée réelle
 
@@ -3707,6 +3742,49 @@ même endroit (Pointe-Noire), donc la démonstration ne montrerait rien.
 Pour rendre l'effet visible il faudrait une commune déclarée prioritaire portant des annonces
 d'un cabinet NON fondateur — aujourd'hui Le Gosier, Saint-Claude, Baie-Mahault, Pointe-à-Pitre
 et Les Abymes sont toutes à désirabilité 0 et aucune n'est déclarée.
+
+##### L'arbitrage, tranché le 18/08 : le dosage n'était pas la question
+
+**Verdict : `isFounding` garde la tête, le facteur ne bouge pas — mais pas pour la raison
+avancée ci-dessus.** Le défaut n'est pas que 30 soit trop petit devant 100 : c'est que ces deux
+nombres s'**additionnent sur un seul axe** alors qu'ils sont de deux natures.
+
+| | Nature | Valeurs |
+|---|---|---|
+| Désirabilité | **échelle de rang** commerciale — qui paie, qui possède | Gratuit 0 · Premium/Structure 50 · Boost 80 · Fondateur 100 |
+| Saisonnier, territorial | **modulations** — une tension du terrain | +30 · ±30 |
+
+Les sommer oblige chaque nouveau levier à se doser contre le tarif. C'est ce qui a produit la
+fausse alternative — « trahir l'abonné » ou « un levier inerte » : les deux branches sont
+mauvaises parce que la question l'est.
+
+**La forme juste est un tri lexicographique** : rang commercial d'abord, modulations ensuite au
+sein du rang. Aucun levier gratuit ne passe alors devant un abonnement payé quel que soit son
+dosage, et `FACTEUR_PRIORITE_TERRITORIALE` cesse de porter une signification commerciale qu'il
+n'aurait jamais dû porter.
+
+**Elle n'est pas implémentée, et c'est le point.** Elle protégerait un levier institutionnel qui
+n'existe pas : la colonne lue ne contient aucune déclaration. L'écrire aujourd'hui serait de
+l'architecture à vide — la règle qui garde `FENETRE_TENSION_GUADELOUPE` en constante plutôt qu'en
+table. Le déclencheur est nommé dans le code : le jour où une institution écrit vraiment dans le
+produit, c'est le tri qu'on change, pas le facteur.
+
+##### Ce qui bloque réellement la démonstration à la CPTS
+
+Ni le dosage ni l'ordre. Deux faits mesurés le 18/08 sur les **11** annonces de cabinet vivantes :
+
+1. **Le cabinet fondateur est celui de Jean-Charles** (`isFounding`, `institutionalPartner`), et
+   il porte **6 des 11 annonces**, toutes à **Pointe-Noire** — la commune de Nord Basse-Terre
+   dont il serait question. Montrer « votre commune prioritaire remonte » y afficherait le
+   cabinet du vendeur, en tête pour une raison qui n'a rien de territorial. Aucune règle de tri
+   ne corrige ça ; seul le choix du terrain, ou le dire à voix haute, le corrige.
+2. **Rien n'a été déclaré par personne**, donc il n'y a pour l'instant aucune priorité de la CPTS
+   à lui montrer — seulement notre import du 28/06.
+
+**L'ordre des chantiers s'inverse donc.** B3 (écran de déclaration) n'est pas la suite de B2, il
+en est le **prérequis** : tant qu'une institution ne peut pas écrire dans une colonne qui ne
+contient QUE des déclarations, il n'y a pas de levier institutionnel — ni à arbitrer, ni à
+mentionner, ni à démontrer.
 
 **Mais `Mission.location` n'est pas toujours une commune.** Sur les annonces vivantes on trouve
 `« Cabinet des ravines »` (un nom de cabinet), `« Sud Basse-Terre »`, `« Sud Grande-Terre »`,
@@ -3821,7 +3899,11 @@ Trois manques à connaître avant d'y verser quoi que ce soit :
 3. **Elle mélange déjà deux natures.** Les colonnes `boost*` ne sont pas de la DREES : ce sont
    des leviers produit éditables en admin (−10 à +10), et **16 des 32 communes de Guadeloupe en
    portent un non nul**. Donnée externe immuable et réglage maison cohabitent sans rien qui les
-   distingue.
+   distingue. **Pire que prévu, mesuré le 18/08** : les `boost*` non nuls n'ont jamais été
+   saisis à la main — ils sont entrés avec l'import et dérivent de `apl*`. La colonne « réglage
+   maison » contient donc aujourd'hui une copie retraitée de la donnée externe, ce qui rend le
+   mélange invisible dans les deux sens. Conséquence directe : elle **ne peut pas** servir de
+   canal de déclaration à une institution.
 
 L'écran `/admin/apl` liste la table et permet d'éditer les 5 boosts. Si le zonage la rejoignait,
 il devrait y être **en lecture seule, avec sa référence d'arrêté** : c'est un acte du directeur

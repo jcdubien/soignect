@@ -956,7 +956,20 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             La condition n'est pas un raffinement d'affichage : une phrase écrite en dur
             redeviendrait fausse le jour où plus aucune commune n'est déclarée prioritaire, et
             personne ne le remarquerait — c'est exactement ainsi que la version précédente a
-            survécu depuis 979ccd8. Ne jamais réécrire cette mention en inconditionnel. */}
+            survécu depuis 979ccd8. Ne jamais réécrire cette mention en inconditionnel.
+
+            « PAR SA CPTS » RETIRÉ LE 18/08, avant tout push. La mention conditionnée était vraie
+            sur le MÉCANISME (elle ne s'affiche que si une annonce a réellement remonté) et fausse
+            sur la SOURCE : aucune CPTS n'a rien déclaré. Les 112 lignes de `CommuneAPL` portent
+            un `updatedAt` identique à la milliseconde (28/06/2026 18:16:37.780) — la colonne est
+            `@updatedAt`, donc une seule saisie admin aurait suffi à en décaler une. Aucune ne
+            l'est. Les `boost*` non nuls viennent de l'import initial, et suivent l'indicateur
+            APL (boost 3 ↔ apl 0 ; boost 2 ↔ apl ≤ 166 ; boost 1 ↔ apl ≤ 203,7).
+
+            C'était la même erreur que 979ccd8 d'un cran plus bas : le mécanisme existait cette
+            fois, mais on aurait attribué à une institution un chiffre que personne n'avait posé.
+            La formulation actuelle ne nomme donc plus d'auteur. « par sa CPTS » ne revient que
+            le jour où une CPTS écrit dans une colonne qui ne contient QUE des déclarations. */}
         <p className="px-4 pb-1 text-[10px] leading-snug text-gray-400 shrink-0">
           {/* La liste n'est PAS triée comme les cartes : elle classe par compatibilité de dates.
               Garder le même texte aurait affirmé un ordre qui n'est plus celui affiché — la
@@ -970,7 +983,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           ) : (
             <>
               Ordre d&apos;affichage : les comptes abonnés et partenaires
-              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}{prioriteTerritoriale > 0 ? ", ainsi que les postes situés sur une commune déclarée prioritaire par sa CPTS" : ""}.
+              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}{prioriteTerritoriale > 0 ? ", ainsi que les postes situés sur une commune signalée comme manquant de kinés" : ""}.
               Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
             </>
           )}

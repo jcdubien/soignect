@@ -13,12 +13,29 @@
 // et un remplaçant.
 //
 // LA DONNÉE EXISTAIT DÉJÀ, ET NE FAISAIT RIEN. `CommuneAPL.boost*` (−10 à +10, une colonne par
-// profession) est éditable dans /admin/apl depuis longtemps, et 16 des 32 communes de
-// Guadeloupe en portent une valeur non nulle — dont trois des quatre communes de Nord
-// Basse-Terre. Aucune logique produit ne la lisait. L'écran invitait donc à régler un curseur
-// sans effet, pendant que le feed affirmait à l'utilisateur que ce curseur agissait (mention
-// « zones prioritaires », retirée le 17/08 faute d'être vraie). Ce module est ce qui la rend
-// vraie ; la mention pourra revenir avec lui.
+// profession) est éditable dans /admin/apl depuis longtemps, et 56 des 112 communes en portent
+// une valeur non nulle — dont trois des quatre communes de Nord Basse-Terre. Aucune logique
+// produit ne la lisait. L'écran invitait donc à régler un curseur sans effet, pendant que le
+// feed affirmait à l'utilisateur que ce curseur agissait (mention « zones prioritaires »,
+// retirée le 17/08 faute d'être vraie). Ce module lit enfin la colonne.
+//
+// ⚠️ MAIS CE QUE LA COLONNE CONTIENT N'EST PAS UNE DÉCLARATION — mesuré le 18/08, contre ce que
+// la version précédente de ce commentaire laissait entendre. Les 112 lignes portent un
+// `updatedAt` identique à la milliseconde (28/06/2026 18:16:37.780) ; la colonne est `@updatedAt`,
+// donc UNE seule saisie dans /admin/apl aurait décalé sa ligne. Aucune ne l'est : personne n'a
+// jamais touché ces curseurs. Les valeurs viennent de l'import initial et suivent l'indicateur
+// APL de la DREES — boost 3 ↔ apl 0, boost 2 ↔ apl ≤ 166, boost 1 ↔ apl ≤ 203,7 — réparties
+// uniformément sur les quatre départements (16/32, 17/34, 11/22, 12/24).
+//
+// CONSÉQUENCE, ET ELLE EST STRUCTURANTE : ce module met en avant une DÉRIVATION D'UN INDICATEUR
+// NATIONAL, pas un jugement porté par une institution locale. Le comportement est défendable
+// (une commune sous-dotée mérite d'être montrée), le RÉCIT ne l'est pas — c'est pourquoi la
+// mention affichée aux candidats ne nomme plus d'auteur.
+//
+// `boost*` ne peut pas non plus DEVENIR le canal de déclaration : elle est déjà occupée par une
+// valeur dérivée, et une colonne qui mélange les deux rend une déclaration indistinguable d'un
+// calcul. C'est le manque n°3 déjà nommé sur `CommuneAPL` (donnée externe et réglage maison
+// cohabitent sans rien qui les distingue). Une CPTS qui déclare écrit ailleurs.
 
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
@@ -38,6 +55,32 @@ import { inseeOfCommune } from "@/lib/communes";
 //
 // Le jour où ce dosage se rediscute, c'est cette constante qu'on change — pas la logique.
 export const FACTEUR_PRIORITE_TERRITORIALE = 3;
+
+// ── ARBITRAGE isFounding (100) CONTRE LEVIER INSTITUTIONNEL (±30) — tranché le 18/08 ─────────
+//
+// LA QUESTION POSÉE. Une commune déclarée prioritaire ne peut jamais faire remonter une annonce
+// au-dessus de celles du cabinet fondateur (100 fixe). Fallait-il remonter le facteur ?
+//
+// RÉPONSE : NON, et le dosage n'est pas le sujet. Le vrai défaut est que ces deux nombres
+// s'additionnent sur UN SEUL AXE alors qu'ils sont de deux natures :
+//   • la désirabilité est une ÉCHELLE DE RANG commerciale — Gratuit 0, Premium/Structure 50,
+//     Boost 80, Fondateur 100. Ce sont des paliers : qui paie, qui possède.
+//   • le saisonnier (+30) et le territorial (±30) sont des MODULATIONS — ils décrivent une
+//     tension du terrain, pas un statut d'annonceur.
+// Les sommer oblige chaque nouveau levier à se doser contre le tarif. C'est ce qui a produit la
+// fausse alternative : « trahir l'abonné » ou « un levier inerte ». Les deux branches sont
+// mauvaises parce que la question l'est.
+//
+// LA FORME JUSTE est un tri lexicographique — rang commercial d'abord, modulations ensuite au
+// sein du rang. Aucun levier gratuit ne passe alors devant un abonnement payé, quel que soit son
+// dosage, et cette constante cesse de porter une signification commerciale qu'elle n'aurait
+// jamais dû porter.
+//
+// ELLE N'EST PAS IMPLÉMENTÉE AUJOURD'HUI, ET C'EST LE POINT. Elle protégerait un levier
+// institutionnel qui n'existe pas encore : la colonne lue ici ne contient aucune déclaration
+// (voir l'en-tête). Écrire ce tri maintenant serait de l'architecture à vide — la même règle qui
+// garde `FENETRE_TENSION_GUADELOUPE` en constante plutôt qu'en table. Le déclencheur est nommé :
+// le jour où une institution écrit vraiment dans le produit, c'est le tri qu'on change, pas ce 3.
 
 // ── Quelle colonne pour quelle profession ────────────────────────────────────
 //

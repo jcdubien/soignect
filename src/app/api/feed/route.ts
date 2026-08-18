@@ -127,8 +127,11 @@ export async function GET(req: NextRequest) {
   // remonte, mais UNIQUEMENT devant un cabinet dont le besoin recoupe lui aussi cette fenêtre.
   // Sans cette condition, un cabinet recrutant pour décembre aurait vu des candidats d'août en
   // tête — l'ordre l'aurait mis en avant avant que le score ne dise « dates éloignées ».
-  // S'y ajoute enfin la PRIORITÉ TERRITORIALE DÉCLARÉE (section 214) : une commune que la CPTS
-  // a déclarée prioritaire remonte ses annonces, via CommuneAPL.boost* (±10 → ±30 points).
+  // S'y ajoute enfin la PRIORITÉ TERRITORIALE (section 214) : une commune signalée comme
+  // manquant de kinés remonte ses annonces, via CommuneAPL.boost* (±10 → ±30 points).
+  // « DÉCLARÉE PAR LA CPTS » retiré le 18/08 : personne n'a jamais écrit dans cette colonne
+  // (112 lignes, un seul updatedAt à la milliseconde), ses valeurs dérivent de l'indicateur APL
+  // importé le 28/06. Le mécanisme est réel, l'auteur institutionnel ne l'est pas encore.
   //
   // ELLE NE S'APPLIQUE QUE DANS UN SENS, et ce n'est pas une économie de code. Une déclaration
   // « il manque des kinés à Deshaies » veut dire : montrer les POSTES de Deshaies aux candidats.
@@ -179,6 +182,10 @@ export async function GET(req: NextRequest) {
   // avant N fois ce mois-ci » est un fait vérifiable ; sans cette ligne, le PoC n'aurait rien à
   // montrer qu'une intention. Les communes concernées sont nommées : l'intérêt de l'analyse est
   // de savoir LESQUELLES portent, pas seulement combien.
+  //
+  // Cette phrase ne sera rendue à une CPTS QU'APRÈS que ses communes soient vraiment déclarées
+  // par elle (18/08). Aujourd'hui la trace mesure une mise en avant dérivée de l'APL : la rendre
+  // telle quelle ferait passer notre import du 28/06 pour son propre jugement.
   //
   // `profession` est renseignée ici, ce qu'aucun appelant de logTraceEvent ne faisait jusqu'à
   // présent alors que la colonne existe — une priorité territoriale n'a de sens que rapportée à
