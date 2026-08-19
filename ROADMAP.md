@@ -3,12 +3,12 @@
 > Tenu par Sonnet (décisions, arbitrages, raisonnement produit).
 > PRODUCT_SPEC.md (comportement vérifié du produit) reste sous la
 > plume exclusive d'Opus. Ne pas fusionner les deux fichiers.
-> Dernière mise à jour : 18/08 — corps corrigé par Sonnet après la
-> mesure d'Opus sur `CommuneAPL` (personne n'a jamais déclaré ces
-> priorités : B2 bloqué, B3 devenu son prérequis, `boost*` écarté
-> comme canal de déclaration). La ligne annonçait 12/08 pour la
-> troisième fois — date corrigée par Opus au commit, rien d'autre
-> touché.
+> Dernière mise à jour : 18/08 (corps), poussé le 19/08 —
+> **B0 et B1 en production (HEAD = f3e2f20), B2 toujours BLOQUÉ**.
+> Voir "Prêts, en file" pour l'état détaillé de la priorité
+> territoriale CPTS. Cette ligne annonçait « B0/B1/B2 poussés » ;
+> corrigée par Opus pour cesser de contredire le corps, qui dit
+> l'inverse dix lignes plus bas.
 
 ---
 
@@ -499,8 +499,8 @@ ci-dessus, plus une référence de file d'attente.
    `apl*` (importé) — seul l'indicateur de tension (hors périmètre)
    en dépendrait. À relancer après réinitialisation de la limite
    (21h20 Guadeloupe).
-   **B0 et B1 livrés, B2 BLOQUÉ, ordre B2/B3 inversé (9 commits
-   locaux, rien poussé, production inchangée).**
+   **B0 et B1 POUSSÉS EN PRODUCTION (HEAD = f3e2f20), B2 toujours
+   BLOQUÉ, ordre B2/B3 inversé.**
    - B0 : pont `COMMUNE_INSEE` confirmé load-bearing, pas théorique
      — Terre-de-Bas (Les Saintes) rend +3 seulement grâce au pont
      (la base écrit "Terre-de-Bas"), sinon 0 en silence.
@@ -546,6 +546,20 @@ ci-dessus, plus une référence de file d'attente.
      12/08 ("`boost*` mélangeant réglage produit et donnée externe").
      B3 doit donc introduire un canal séparé, pas réutiliser `boost*`.
    Reste B4 (décompte par commune sur la page territoire), après B3.
+   **Deux points de vigilance depuis le push** :
+   - `ab1a8a7` rend le levier territorial actif en production
+     maintenant. Mesuré comme sans effet sur les 11 annonces
+     d'hier — mais déplacera quelque chose dès qu'un cabinet NON
+     fondateur publiera sur une commune à boost > 0. À surveiller,
+     pas à corriger.
+   - Le message du commit `f3e2f20` dit "migration livrée, non
+     appliquée" — vrai à l'écriture, faux depuis le push. Historique
+     git non réécrit (bonne discipline), à corriger dans
+     PRODUCT_SPEC.md au prochain passage.
+   **Nouvelle donnée sur `db:sync-apl`, pas encore exécuté** :
+   105 des 112 lignes de `CommuneAPL` changeraient si lancé, et
+   `aplOrthophoniste` n'a aucune source dans le dataset DREES 530 —
+   à trancher avant d'exécuter la synchronisation.
 2. **Stocker l'id Resend à l'envoi** — `data.id` retourné par
    `resend.emails.send()` est aujourd'hui jeté (`src/lib/email.ts`),
    rendant tout email introuvable a posteriori dans le dashboard
