@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { Profession } from "@prisma/client";
 import { COMMUNES_GUADELOUPE, inseeOfCommune } from "@/lib/communes";
+import { libelleProfession } from "@/lib/pagesDiffusion";
 import PrioritesClient from "./PrioritesClient";
 
 export const dynamic = "force-dynamic";
@@ -29,11 +31,22 @@ export default async function AdminPrioritesPage() {
   // laisser un administrateur la choisir puis se faire jeter.
   const communes = COMMUNES_GUADELOUPE.filter((c) => inseeOfCommune(c) !== null);
 
+  // DÉRIVÉE DE L'ENUM, PLUS RECOPIÉE (19/08, audit de généricité). La liste était écrite à la
+  // main dans le composant : une 6ᵉ profession ajoutée à `Profession` n'y serait jamais apparue,
+  // sans erreur de compilation — la colonne l'aurait acceptée, le formulaire ne l'aurait pas
+  // proposée. L'enum est ce que la colonne accepte, c'est donc elle qui fait foi ici ; le
+  // vocabulaire, lui, reste déclaré (`libelleProfession`) et non translittéré.
+  const professions = Object.values(Profession).map((valeur) => ({
+    value: valeur,
+    label: libelleProfession(valeur),
+  }));
+
   return (
     <PrioritesClient
       initialData={JSON.parse(JSON.stringify(priorites))}
       initialClients={JSON.parse(JSON.stringify(clients))}
       communes={communes}
+      professions={professions}
     />
   );
 }

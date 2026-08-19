@@ -2,13 +2,10 @@
 
 import { useState } from "react";
 
-const PROFESSIONS = [
-  { value: "KINESITHERAPEUTE", label: "Kinésithérapeute" },
-  { value: "INFIRMIER", label: "Infirmier" },
-  { value: "MEDECIN", label: "Médecin" },
-  { value: "SAGE_FEMME", label: "Sage-femme" },
-  { value: "ORTHOPHONISTE", label: "Orthophoniste" },
-] as const;
+// La liste des professions n'est plus écrite ici : elle est DÉRIVÉE DE L'ENUM Prisma par la
+// page serveur et reçue en prop (19/08, audit de généricité). Recopiée à la main, une 6ᵉ
+// profession ajoutée à l'enum n'y serait jamais apparue — sans erreur de compilation.
+interface OptionProfession { value: string; label: string }
 
 const TYPES = ["CPTS", "MSP", "ARS", "CGSS", "COLLECTIVITE", "AUTRE"] as const;
 
@@ -18,7 +15,6 @@ const NATURES = [
   { value: "GRATUITE_NEGOCIEE", label: "Gratuité négociée" },
 ] as const;
 
-const LIBELLE_PROFESSION: Record<string, string> = Object.fromEntries(PROFESSIONS.map((p) => [p.value, p.label]));
 const LIBELLE_NATURE: Record<string, string> = Object.fromEntries(NATURES.map((n) => [n.value, n.label]));
 
 const FACTEUR = 3; // FACTEUR_PRIORITE_TERRITORIALE — voir src/lib/territoire.ts
@@ -65,11 +61,14 @@ export default function PrioritesClient({
   initialData,
   initialClients,
   communes,
+  professions,
 }: {
   initialData: Priorite[];
   initialClients: Client[];
   communes: string[];
+  professions: OptionProfession[];
 }) {
+  const libelleProfession = (v: string) => professions.find((p) => p.value === v)?.label ?? v;
   const [data, setData] = useState<Priorite[]>(initialData);
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -95,7 +94,7 @@ export default function PrioritesClient({
 
   const [form, setForm] = useState({
     commune: "",
-    profession: "KINESITHERAPEUTE",
+    profession: professions[0]?.value ?? "",
     niveau: 2,
     clientId: "",
     declareLe: new Date().toISOString().slice(0, 10),
@@ -349,7 +348,7 @@ export default function PrioritesClient({
               <label className="text-xs text-gray-500 space-y-1 block">
                 Profession concernée
                 <select value={form.profession} onChange={(e) => setForm({ ...form, profession: e.target.value })} className={champ}>
-                  {PROFESSIONS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  {professions.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </label>
               <label className="text-xs text-gray-500 space-y-1 block">
@@ -407,7 +406,7 @@ export default function PrioritesClient({
                   <tr key={p.id} className={`hover:bg-gray-50 transition ${agit ? "" : "opacity-60"}`}>
                     <td className="px-3 py-2.5 text-gray-700 font-medium">{p.commune}</td>
                     <td className="px-3 py-2.5 text-gray-500 text-xs font-mono">{p.codeInsee}</td>
-                    <td className="px-3 py-2.5 text-gray-600 text-xs">{LIBELLE_PROFESSION[p.profession] ?? p.profession}</td>
+                    <td className="px-3 py-2.5 text-gray-600 text-xs">{libelleProfession(p.profession)}</td>
                     <td className="px-3 py-2.5">
                       <span className="text-xs font-semibold text-kine-600">
                         {p.niveau} <span className="text-gray-400 font-normal">(+{p.niveau * FACTEUR} pts)</span>

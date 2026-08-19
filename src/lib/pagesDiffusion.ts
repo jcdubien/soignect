@@ -50,6 +50,24 @@ export const KINESITHERAPEUTE: Profession = {
   enumBase: ProfessionDb.KINESITHERAPEUTE,
 };
 
+/** Vocabulaire DÉCLARÉ, indexé par valeur d'enum. Partiel à dessein : une profession absente
+ *  d'ici n'a pas de vocabulaire, et rien ne doit lui en inventer un.
+ *
+ *  Sert à afficher un libellé lisible là où le produit manipule l'enum brute (écrans admin).
+ *  `libelleProfession` rend la valeur d'enum telle quelle quand rien n'est déclaré — délibéré :
+ *  voir « SAGE_FEMME » dans une liste déroulante SIGNALE que sa déclaration manque, là où un
+ *  « Sage-femme » fabriqué par translittération l'aurait masqué. Même raisonnement que le slug
+ *  d'URL déclaré plutôt que dérivé (14/08) : ce qui n'a pas été décidé doit se voir. */
+export const VOCABULAIRE_PROFESSION: Partial<Record<ProfessionDb, Profession>> = {
+  [ProfessionDb.KINESITHERAPEUTE]: KINESITHERAPEUTE,
+};
+
+export function libelleProfession(valeur: ProfessionDb): string {
+  const declare = VOCABULAIRE_PROFESSION[valeur];
+  if (!declare) return valeur;
+  return declare.singulier.charAt(0).toUpperCase() + declare.singulier.slice(1);
+}
+
 export interface Territoire {
   nom: string;
   /** Préposition PROPRE au territoire : « en Guadeloupe » mais « à Saint-Martin ». Ce n'est pas

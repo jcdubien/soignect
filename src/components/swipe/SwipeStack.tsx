@@ -969,7 +969,19 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             C'était la même erreur que 979ccd8 d'un cran plus bas : le mécanisme existait cette
             fois, mais on aurait attribué à une institution un chiffre que personne n'avait posé.
             La formulation actuelle ne nomme donc plus d'auteur. « par sa CPTS » ne revient que
-            le jour où une CPTS écrit dans une colonne qui ne contient QUE des déclarations. */}
+            le jour où une CPTS écrit dans une colonne qui ne contient QUE des déclarations.
+
+            « MANQUANT DE KINÉS » RETIRÉ LE 19/08, audit de généricité. La phrase nommait une
+            profession en dur alors que le feed est borné par celle du LECTEUR depuis 924e329 :
+            un infirmier aurait lu « manquant de kinés » dans son propre feed. Invisible
+            aujourd'hui — les 16 profils en base sont tous kiné — donc exactement le défaut
+            latent que 924e329 documentait, réintroduit dans la phrase voisine le lendemain.
+
+            La formulation retenue ne nomme AUCUNE profession, et ce n'est pas un contournement :
+            `chargerPrioritesTerritoriales` ne remonte que les déclarations portant sur la
+            profession du lecteur, donc « votre profession » est plus exact que n'importe quel
+            mot en dur. Aucun vocabulaire à décliner, rien à câbler, et la phrase reste vraie
+            pour toute profession future sans être retouchée. */}
         <p className="px-4 pb-1 text-[10px] leading-snug text-gray-400 shrink-0">
           {/* La liste n'est PAS triée comme les cartes : elle classe par compatibilité de dates.
               Garder le même texte aurait affirmé un ordre qui n'est plus celui affiché — la
@@ -983,7 +995,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           ) : (
             <>
               Ordre d&apos;affichage : les comptes abonnés et partenaires
-              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}{prioriteTerritoriale > 0 ? ", ainsi que les postes situés sur une commune signalée comme manquant de kinés" : ""}.
+              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}{prioriteTerritoriale > 0 ? ", ainsi que les postes situés sur une commune où votre profession est signalée comme manquante" : ""}.
               Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
             </>
           )}

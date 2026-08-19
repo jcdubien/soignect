@@ -462,6 +462,57 @@ ci-dessus, plus une référence de file d'attente.
 
 ## 🔴 Prêts, en file, pas encore envoyées
 
+⚠️⚠️⚠️. **Audit de généricité profession — retour reçu, deux
+   correctifs en cours, un troisième mis en file.** Trouvé : la
+   mention du feed a "kinés" en dur (à corriger) ; `PrioritesClient.tsx`
+   (B3) redéclare les 5 professions à la main au lieu de dériver du
+   registre — un 6ᵉ métier ajouté à l'enum n'apparaîtrait pas dans
+   le formulaire, sans erreur de compilation. Décision du 19/08 :
+   corriger les deux maintenant (coût faible, fichier déjà ouvert,
+   directement lié à la décision "anticiper Phase 2"), pas seulement
+   la mention comme proposé initialement par Opus. **Troisième
+   défaut trouvé, mis en file séparément (item ci-dessous)** :
+   `/admin/apl` n'affiche que 3 colonnes de boost sur 5 (Sage-femme
+   et Orthophoniste éditables via le formulaire mais invisibles dans
+   le tableau) — antérieur à B0, hors scope du travail en cours.
+⚠️. **`/admin/apl` — colonnes Sage-femme et Orthophoniste invisibles
+   dans le tableau** — éditables via le formulaire d'édition, jamais
+   affichées dans le tableau (3/5 colonnes seulement). Trouvé le
+   19/08 en marge de l'audit de généricité, pas encore prompté.
+⚠️⚠️. **Audit UI/UX/fonctionnalités du 19/08 + décision "anticiper
+   Phase 2 dans toute factorisation"** — voir
+   STRATEGIE_MARKETING_BUSINESS.md pour l'audit complet (App'Ines
+   comme point de comparaison, fausses bonnes idées identifiées :
+   complexité géographique possiblement en avance sur l'usage réel,
+   scoring difficile à expliquer en une phrase, multi-préférences
+   déjà vrai en base mais pas encore dans l'onboarding). Prompt
+   d'audit de généricité profession envoyé le 19/08 sur tout ce qui
+   a été construit depuis B0 (CommuneAPL, PrioriteTerritoriale,
+   scoring géo, COMMUNE_INSEE/COMMUNE_ZONE) — rapport pas encore
+   reçu. Ne construit aucune 2ᵉ profession, audite seulement si le
+   code déjà écrit le permettrait à coût faible le moment venu.
+⚠️. **Data ameli (macro, générique) + accessibilité réelle de la
+   famille REZONE** — prompt envoyé le 19/08, enrichi le même jour.
+   Deux sources pour "sur-doté/sous-doté/normal" par territoire :
+   Data ameli (Opendatasoft comme la DREES, département/région,
+   profession-générique) et REZONE (quartiles à la commune, la
+   granularité recherchée). **Correction importante** : REZONE n'est
+   PAS kiné-only — `rezonekine.ameli.fr` ET `rezonemed.ameli.fr`
+   confirmés, avec un plan de déploiement officiel Assurance Maladie
+   suivant la séquence médecins → kinés → infirmiers → sages-femmes
+   → orthophonistes, soit la même séquence de professions que la
+   Phase 2 visée. Un **"REZONE CPTS"** existe aussi, dédié au
+   diagnostic territorial pour les porteurs de projets CPTS —
+   directement pertinent pour le pitch CPTS Nord Basse-Terre, à
+   explorer comme référence ou point de comparaison. Confirmation
+   utile pour `CommuneAPL` : le zonage est bien spécifique par
+   profession pour une même commune (une commune peut être classée
+   différemment pour médecin/infirmier/kiné) — valide le choix de
+   colonnes séparées fait dès le départ, pas de l'anticipation
+   gratuite. Reste à vérifier : accessibilité programmatique réelle
+   (URL pattern trouvé `rezone.ameli.fr/rezone/cartoMed.html?cc=
+   <code_insee>`, à creuser pour une vraie API sous-jacente). Rapport
+   pas encore reçu.
 ⚠️. **URGENT — Gating client actif du boost territorial : diagnostic
    confirmé, correctif en cours.** Vérification faite : le gating
    n'existait pas, confirmé. Deux options présentées par Opus :
