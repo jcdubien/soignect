@@ -33,3 +33,9 @@ ALTER TABLE "public"."_prisma_migrations" ENABLE ROW LEVEL SECURITY;
 -- avec une policy de lecture publique — laissée telle quelle (lecture anon OK).
 ALTER TABLE "public"."CommuneAPL"        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."PosteInvitation"   ENABLE ROW LEVEL SECURITY;
+
+-- PrioriteTerritoriale (section 214, B3) : déclarations d'institutions, co-saisies en admin.
+-- PAS de policy de lecture publique, contrairement à CommuneAPL — une déclaration nomme son
+-- institution et son auteur, ce qui n'a pas à être lisible avec la clé anon du navigateur. Le
+-- produit y accède par Prisma (rôle propriétaire, BYPASSRLS), donc deny-all ne le gêne pas.
+ALTER TABLE "public"."PrioriteTerritoriale" ENABLE ROW LEVEL SECURITY;

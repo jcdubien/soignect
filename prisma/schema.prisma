@@ -150,6 +150,8 @@ model User {
   assistantPost    CabinetPost? @relation("AssistantPost")
   // Notifications in-app (section 155) — canal d'affichage en plus des emails.
   notifications    Notification[]
+  // Priorités territoriales co-saisies par cet administrateur (section 214, B3).
+  prioritesSaisies PrioriteTerritoriale[] @relation("PrioritesSaisies")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -570,11 +572,14 @@ model RemplacantRating {
 // DEUX FAMILLES DE COLONNES, À NE JAMAIS CONFONDRE
 //   • apl* / aplAnnee / aplSource / aplImportedAt — DONNÉE IMPORTÉE. Le script les écrit ;
 //     personne ne les saisit.
-//   • boost* — LEVIER PRODUIT, éditable en admin (PATCH /api/admin/apl/[id], −10..+10) et lu
-//     par le feed via `chargerPrioritesTerritoriales` (src/lib/territoire.ts). Le script n'y
-//     touche JAMAIS : un import ne doit pas pouvoir remettre une priorité déclarée à zéro.
+//   • boost* — LEVIER PRODUIT, éditable en admin (PATCH /api/admin/apl/[id], −10..+10). Le
+//     script n'y touche JAMAIS : un import ne doit pas pouvoir écraser un réglage humain.
 //     Leurs valeurs actuelles viennent pourtant du même import de juin 2026 et dérivent
 //     d'`aplKine` — un héritage, pas une intention ; raison de plus pour les figer ici.
+//
+// LE FEED NE LIT PLUS boost* (19/08). La priorité territoriale se lit désormais dans
+// `PrioriteTerritoriale` ci-dessous. Motif : ces colonnes ne contiennent aucune déclaration, et
+// un entier nu ne peut pas en porter une — voir le commentaire de ce modèle.
 model CommuneAPL {
   id                  Int      @id @default(autoincrement())
   codeInsee           String   @unique
@@ -596,6 +601,62 @@ model CommuneAPL {
   boostSageFemme      Int      @default(0)
   boostOrthophoniste  Int      @default(0)
   updatedAt           DateTime @default(now()) @updatedAt
+}
+
+// Priorité territoriale DÉCLARÉE par une institution (section 214, B3) — le canal que
+// `CommuneAPL.boost*` ne pouvait pas être.
+//
+// POURQUOI UNE TABLE, ET PAS UNE COLONNE DE PLUS
+// Le 18/08 on a mesuré que les `boost*` non nuls n'avaient jamais été saisis par personne : ils
+// dérivent de l'indicateur APL et sont entrés avec l'import. Le produit affichait pourtant aux
+// candidats « commune déclarée prioritaire par sa CPTS ». Le défaut n'était pas la valeur, c'est
+// que LE SUPPORT NE POUVAIT PAS PORTER LA VÉRITÉ : un entier nu ne dit ni qui a déclaré, ni
+// quand, ni sur quelle base. Rien dans `boostKine = 2` ne distingue un jugement de santé
+// publique d'un résultat de calcul — donc n'importe quelle phrase attribuant ce 2 à quelqu'un
+// était invérifiable par construction.
+//
+// Ce modèle rend l'attribution POSSIBLE, donc vérifiable : une ligne ne peut pas exister sans
+// nommer son institution, sa date et l'administrateur qui l'a co-saisie. C'est ce qui autorisera
+// la mention « déclarée par sa CPTS » à revenir (B2) — elle sera alors adossée à une ligne
+// qu'on peut montrer.
+//
+// CO-SAISIE, PAS SELF-SERVICE. Les déclarations sont saisies en admin pendant l'échange avec
+// l'institution (/admin/priorites), et non par un compte partenaire. Sur ~10 annonces, ouvrir un
+// portail serait disproportionné ; et `saisiParId` garde qui a tenu le stylo, ce qu'un
+// self-service perdrait.
+//
+// UNE DÉCLARATION VIEILLIT. `expireLe` permet de poser une échéance à la saisie ; passée cette
+// date la ligne cesse d'agir sans être supprimée, et reste consultable. Sans ce champ, un
+// jugement de 2026 continuerait de classer le feed en 2031 sans que personne ne le décide.
+model PrioriteTerritoriale {
+  id          String     @id @default(cuid())
+  // Le code INSEE est la clé, jamais le libellé — c'est tout l'objet du pont `COMMUNE_INSEE`
+  // (section 213) : la base écrit « Terre-de-Bas » là où le produit écrit
+  // « Terre-de-Bas (Les Saintes) ».
+  codeInsee   String
+  // Libellé figé à la saisie : une ligne doit se lire seule, sans jointure, y compris si la
+  // commune est renommée plus tard. Il n'est JAMAIS utilisé pour rapprocher quoi que ce soit.
+  commune     String
+  profession  Profession
+  // Intensité déclarée, 1..10 — même échelle brute que `boost*` pour que le facteur de
+  // conversion reste unique et documenté à un seul endroit (FACTEUR_PRIORITE_TERRITORIALE).
+  // Bornée à des valeurs POSITIVES : une institution déclare un manque, elle ne déclare pas
+  // qu'une commune mérite d'être enfoncée dans le classement.
+  niveau      Int
+  // Provenance — la raison d'être de cette table. Aucun de ces trois champs n'est optionnel.
+  institution String     // nom en clair, tel qu'il sera cité à l'utilisateur
+  declareLe   DateTime   // date de la déclaration elle-même, pas de sa saisie
+  saisiParId  String     // User.id de l'administrateur qui a co-saisi
+  saisiPar    User       @relation("PrioritesSaisies", fields: [saisiParId], references: [id])
+  note        String?    @db.VarChar(500) // contexte de l'échange, pour relire la décision plus tard
+  expireLe    DateTime?  // NULL = sans échéance déclarée
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Une seule déclaration vivante par commune ET par profession : deux lignes concurrentes
+  // poseraient la question « laquelle gagne ? », à laquelle aucune réponse ne serait honnête.
+  @@unique([codeInsee, profession])
+  @@index([profession])
 }
 
 // Poste du Planning Board (section 28) — un poste = une ligne de timeline

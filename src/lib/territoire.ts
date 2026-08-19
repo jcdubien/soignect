@@ -12,30 +12,30 @@
 // mesure, et « cette commune manque de kinés » ne dit rien de la compatibilité entre un cabinet
 // et un remplaçant.
 //
-// LA DONNÉE EXISTAIT DÉJÀ, ET NE FAISAIT RIEN. `CommuneAPL.boost*` (−10 à +10, une colonne par
-// profession) est éditable dans /admin/apl depuis longtemps, et 56 des 112 communes en portent
-// une valeur non nulle — dont trois des quatre communes de Nord Basse-Terre. Aucune logique
-// produit ne la lisait. L'écran invitait donc à régler un curseur sans effet, pendant que le
-// feed affirmait à l'utilisateur que ce curseur agissait (mention « zones prioritaires »,
-// retirée le 17/08 faute d'être vraie). Ce module lit enfin la colonne.
+// D'OÙ VIENT LE CHIFFRE — et pourquoi ce n'est plus `CommuneAPL.boost*` (19/08, B3).
 //
-// ⚠️ MAIS CE QUE LA COLONNE CONTIENT N'EST PAS UNE DÉCLARATION — mesuré le 18/08, contre ce que
-// la version précédente de ce commentaire laissait entendre. Les 112 lignes portent un
-// `updatedAt` identique à la milliseconde (28/06/2026 18:16:37.780) ; la colonne est `@updatedAt`,
-// donc UNE seule saisie dans /admin/apl aurait décalé sa ligne. Aucune ne l'est : personne n'a
-// jamais touché ces curseurs. Les valeurs viennent de l'import initial et suivent l'indicateur
-// APL de la DREES — boost 3 ↔ apl 0, boost 2 ↔ apl ≤ 166, boost 1 ↔ apl ≤ 203,7 — réparties
-// uniformément sur les quatre départements (16/32, 17/34, 11/22, 12/24).
+// Ce module a d'abord lu `CommuneAPL.boost*` (−10..+10, une colonne par profession, éditable
+// dans /admin/apl). On a mesuré le 18/08 que ces valeurs n'étaient DÉCLARÉES PAR PERSONNE : les
+// 112 lignes portent un `updatedAt` identique à la milliseconde (28/06/2026 18:16:37.780), et
+// la colonne est `@updatedAt` — une seule saisie en aurait décalé une. Aucune ne l'est. Les
+// valeurs viennent de l'import initial et suivent l'indicateur APL de la DREES (boost 3 ↔ apl 0,
+// boost 2 ↔ apl ≤ 166, boost 1 ↔ apl ≤ 203,7), uniformément sur les quatre départements.
 //
-// CONSÉQUENCE, ET ELLE EST STRUCTURANTE : ce module met en avant une DÉRIVATION D'UN INDICATEUR
-// NATIONAL, pas un jugement porté par une institution locale. Le comportement est défendable
-// (une commune sous-dotée mérite d'être montrée), le RÉCIT ne l'est pas — c'est pourquoi la
-// mention affichée aux candidats ne nomme plus d'auteur.
+// LE DÉFAUT N'ÉTAIT PAS LA VALEUR, C'ÉTAIT LE SUPPORT. Un entier nu ne dit ni qui a déclaré, ni
+// quand, ni sur quelle base : rien dans `boostKine = 2` ne distingue un jugement de santé
+// publique d'un résultat de calcul. Toute phrase attribuant ce 2 à une institution était donc
+// invérifiable par construction — c'est ce qui a produit deux affirmations fausses d'affilée
+// (979ccd8, puis la mention « par sa CPTS » retirée le 18/08).
 //
-// `boost*` ne peut pas non plus DEVENIR le canal de déclaration : elle est déjà occupée par une
-// valeur dérivée, et une colonne qui mélange les deux rend une déclaration indistinguable d'un
-// calcul. C'est le manque n°3 déjà nommé sur `CommuneAPL` (donnée externe et réglage maison
-// cohabitent sans rien qui les distingue). Une CPTS qui déclare écrit ailleurs.
+// `PrioriteTerritoriale` est le support qui peut porter la vérité : aucune ligne n'existe sans
+// nommer son institution, sa date et l'administrateur qui l'a co-saisie. C'est ce qui autorisera
+// la mention à revenir (B2), adossée à une ligne qu'on peut montrer.
+//
+// CONTREPARTIE ASSUMÉE : la table démarre vide, donc le levier est INERTE jusqu'à la première
+// déclaration réelle. Amorcer la table depuis les 56 communes à `boost != 0` aurait fabriqué 56
+// déclarations que personne n'a faites — la faute exacte qu'on répare. `boost*` reste éditable
+// dans /admin/apl et n'est plus lue par aucune logique produit ; ce qu'on en fait est une
+// question ouverte, pas un oubli.
 
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
@@ -43,15 +43,20 @@ import { inseeOfCommune } from "@/lib/communes";
 
 // ── Dosage ───────────────────────────────────────────────────────────────────
 //
-// Le boost brut est un entier −10..+10. La désirabilité est un pourcentage 0-100 et le bonus
-// saisonnier vaut 30. Un boost brut ajouté tel quel serait noyé : +2 sur Deshaies ne
-// déplacerait rien face à un palier Premium de 50. Il faut donc une échelle, et la choisir est
-// un arbitrage, pas un détail d'implémentation.
+// Le niveau déclaré est un entier 1..10. La désirabilité est un pourcentage 0-100 et le bonus
+// saisonnier vaut 30. Un niveau ajouté tel quel serait noyé : un 2 sur Deshaies ne déplacerait
+// rien face à un palier Premium de 50. Il faut donc une échelle, et la choisir est un
+// arbitrage, pas un détail d'implémentation.
 //
-// FACTEUR 3 → l'amplitude maximale vaut ±30, soit exactement le bonus saisonnier, et reste
+// FACTEUR 3 → l'amplitude maximale vaut +30, soit exactement le bonus saisonnier, et reste
 // sous le palier Premium (50). Ce qui se dit en une phrase défendable devant une CPTS ET
 // devant un abonné : une commune déclarée prioritaire au maximum pèse autant que la fenêtre de
 // tension du territoire, et jamais autant qu'un abonnement payé.
+//
+// L'ÉCHELLE EST DEVENUE POSITIVE (19/08). `boost*` allait de −10 à +10 ; le niveau déclaré va
+// de 1 à 10. Une institution déclare qu'il MANQUE des soignants quelque part — elle ne déclare
+// pas qu'une commune mérite d'être enfoncée dans le classement. Le négatif n'était pas un
+// réglage plus fin, c'était une capacité dont personne n'a jamais su quoi faire.
 //
 // Le jour où ce dosage se rediscute, c'est cette constante qu'on change — pas la logique.
 export const FACTEUR_PRIORITE_TERRITORIALE = 3;
@@ -84,23 +89,17 @@ export const FACTEUR_PRIORITE_TERRITORIALE = 3;
 
 // ── Quelle colonne pour quelle profession ────────────────────────────────────
 //
-// DÉCLARÉ, PAS DÉRIVÉ — quatrième application de la règle après le slug d'URL (14/08),
-// `Profession.enumBase` et `COMMUNE_INSEE` (17/08). Les noms de colonnes ne suivent aucune
-// règle mécanique tirable de l'enum : `KINESITHERAPEUTE` → `boostKine` (abrégé),
-// `SAGE_FEMME` → `boostSageFemme` (casse changée). Une dérivation automatique marcherait sur
-// trois des cinq et casserait en silence sur les deux autres.
-const COLONNE_BOOST: Record<Profession, "boostKine" | "boostInfirmier" | "boostMedecin" | "boostSageFemme" | "boostOrthophoniste"> = {
-  KINESITHERAPEUTE: "boostKine",
-  INFIRMIER:        "boostInfirmier",
-  MEDECIN:          "boostMedecin",
-  SAGE_FEMME:       "boostSageFemme",
-  ORTHOPHONISTE:    "boostOrthophoniste",
-};
+// La table de correspondance profession → colonne `boost*` qui vivait ici a été RETIRÉE le
+// 19/08 avec le branchement de `PrioriteTerritoriale` : la profession est maintenant une
+// colonne de la table des déclarations, donc une valeur de `where`, plus un nom de champ à
+// choisir. La règle « déclaré, pas dérivé » qu'elle illustrait reste vraie ailleurs
+// (`Profession.enumBase`, `COMMUNE_INSEE`, slug d'URL) — c'est le besoin qui a disparu, pas
+// la règle.
 
-/** Convertit un boost brut (−10..+10) en points d'ordre (−30..+30). Pure, testable seule. */
-export function bonusTerritorial(boostBrut: number | null | undefined): number {
-  if (!boostBrut) return 0;
-  return Math.min(Math.max(boostBrut, -10), 10) * FACTEUR_PRIORITE_TERRITORIALE;
+/** Convertit un niveau déclaré (1..10) en points d'ordre (3..30). Pure, testable seule. */
+export function bonusTerritorial(niveau: number | null | undefined): number {
+  if (!niveau || niveau <= 0) return 0;
+  return Math.min(niveau, 10) * FACTEUR_PRIORITE_TERRITORIALE;
 }
 
 /**
@@ -112,16 +111,27 @@ export function bonusTerritorial(boostBrut: number | null | undefined): number {
  * UNE SEULE REQUÊTE, quel que soit le nombre d'annonces — le feed en sert jusqu'à 50 et ne peut
  * pas se permettre une lecture par ligne.
  *
- * Les communes sans code INSEE (Grand Case n'est pas une commune) et celles hors périmètre APL
- * (Saint-Martin, Saint-Barthélemy — départements 977/978 absents de `CommuneAPL` depuis leur
- * séparation de la Guadeloupe en 2007) rendent simplement 0. Une absence de déclaration n'est
- * pas une anomalie : c'est le cas normal d'un territoire dont personne n'a rien dit.
+ * Les communes sans code INSEE (Grand Case n'est pas une commune) rendent simplement 0. Une
+ * absence de déclaration n'est pas une anomalie : c'est le cas normal d'un territoire dont
+ * personne n'a rien dit — et depuis le 19/08, c'est le cas de TOUS les territoires, la table
+ * des déclarations démarrant vide.
+ *
+ * ELLE LIT `PrioriteTerritoriale`, PLUS `CommuneAPL.boost*` (19/08). Les `boost*` ne portaient
+ * aucune déclaration : ils dérivaient de l'indicateur APL et personne ne les avait jamais
+ * saisis. Continuer à les lire aurait fait agir un calcul sous le nom d'un jugement
+ * institutionnel. La contrepartie est assumée : le levier est inerte tant qu'aucune institution
+ * n'a déclaré, ce qui est exactement ce qu'il doit valoir.
+ *
+ * Le périmètre n'est plus celui de `CommuneAPL` : Saint-Martin et Saint-Barthélemy (977/978),
+ * absents de la table APL depuis leur séparation de la Guadeloupe en 2007, PEUVENT désormais
+ * porter une déclaration. Une institution n'a pas à être privée de parole parce que la DREES ne
+ * publie pas d'APL chez elle.
  */
 export async function chargerPrioritesTerritoriales(
   communes: (string | null | undefined)[],
   profession: Profession,
+  maintenant: Date = new Date(),
 ): Promise<Map<string, number>> {
-  const colonne = COLONNE_BOOST[profession];
   const parCode = new Map<string, string[]>();
 
   for (const commune of communes) {
@@ -135,21 +145,21 @@ export async function chargerPrioritesTerritoriales(
   const resultat = new Map<string, number>();
   if (parCode.size === 0) return resultat;
 
-  // Les CINQ colonnes sont sélectionnées, puis la bonne est choisie en mémoire. Un `select`
-  // dynamique aurait forcé un cast qui désactive la vérification de types précisément là où
-  // elle sert : un nom de colonne erroné passerait à la compilation et rendrait 0 en silence.
-  // Cinq entiers sur au plus 50 lignes ne coûtent rien.
-  const lignes = await prisma.communeAPL.findMany({
-    where: { codeInsee: { in: Array.from(parCode.keys()) } },
-    select: {
-      codeInsee: true,
-      boostKine: true, boostInfirmier: true, boostMedecin: true,
-      boostSageFemme: true, boostOrthophoniste: true,
+  // L'EXPIRATION EST FILTRÉE EN SQL, pas après coup : une déclaration échue ne doit pas même
+  // remonter, sans quoi le prochain lecteur du code croira qu'elle compte. `expireLe: null`
+  // signifie « sans échéance déclarée », et doit passer — un `lt` seul les écarterait toutes,
+  // ce qui est le piège classique du NULL en SQL.
+  const lignes = await prisma.prioriteTerritoriale.findMany({
+    where: {
+      codeInsee: { in: Array.from(parCode.keys()) },
+      profession,
+      OR: [{ expireLe: null }, { expireLe: { gt: maintenant } }],
     },
+    select: { codeInsee: true, niveau: true },
   });
 
   for (const ligne of lignes) {
-    const points = bonusTerritorial(ligne[colonne]);
+    const points = bonusTerritorial(ligne.niveau);
     if (points === 0) continue;
     for (const libelle of parCode.get(ligne.codeInsee) ?? []) resultat.set(libelle, points);
   }
