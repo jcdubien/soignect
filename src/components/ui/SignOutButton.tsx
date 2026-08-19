@@ -1,14 +1,29 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
+// RECHARGEMENT COMPLET, PAS `router.push` (19/08). Une navigation côté client ne re-rend PAS le
+// layout : dans l'App Router, le segment `layout` est servi depuis le cache du routeur tandis que
+// le segment `page` est refetché. Après un changement de compte, la barre de tête de
+// `(app)/layout.tsx` continuait donc d'afficher le nom, la commune et le nombre d'annonces du
+// compte PRÉCÉDENT, au-dessus d'un corps de page correct.
+//
+// Constaté le 19/08 : « Cabinet des ravines · Pointe-à-Pitre · 3 annonces » en tête, 5 postes de
+// Jean-Charles DUBIEN dans le corps. Aucun mélange en base (profils et postes strictement
+// disjoints, vérifié), aucun JWT périmé (le corps prouvait que la session était la bonne) : les
+// deux moitiés dataient simplement de deux instants différents.
+//
+// `export const dynamic = "force-dynamic"` sur le layout ne protège pas de ça — il gouverne le
+// rendu serveur, pas le cache client. `router.refresh()` marcherait aussi, mais il faudrait
+// penser à l'ajouter à chaque nouveau point d'entrée ; un rechargement dur ne s'oublie pas.
+//
+// La portée n'a rien de personnel : sur tout poste où deux personnes se succèdent (cabinet
+// partagé, démonstration), la barre affichait l'identité de la précédente. Les données servies
+// restaient les bonnes — c'est le nom affiché qui mentait, ce qui suffit à faire croire à une fuite.
 export function SignOutButton() {
-  const router = useRouter();
-
   async function handleSignOut() {
     await signOut({ redirect: false });
-    router.push("/login");
+    window.location.assign("/login");
   }
 
   return (

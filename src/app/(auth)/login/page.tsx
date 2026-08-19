@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import LegalFooter from "@/components/legal/LegalFooter";
@@ -22,7 +22,6 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const router = useRouter();
   const returnTo = safeReturnTo(useSearchParams().get("return_to"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,18 +39,26 @@ function LoginForm() {
     } else {
       const session = await fetch("/api/auth/session").then(r => r.json()).catch(() => null);
       const su = session?.user;
-      // Profil incomplet → onboarding (en conservant la cible de retour)
-      if (!su?.profileId) {
-        router.push(returnTo ? `/register?return_to=${encodeURIComponent(returnTo)}` : "/register");
-      } else if (returnTo) {
-        // Retour vers l'annonce d'origine (section 3)
-        router.push(returnTo);
-      } else if (su.profileType === "TITULAIRE") {
-        router.push("/planning");
-      } else {
-        // REMPLACANT / ASSISTANT
-        router.push("/disponibilites");
-      }
+      // RECHARGEMENT COMPLET, PAS `router.push` (19/08). Une navigation côté client ne re-rend
+      // PAS le layout : le segment `layout` vient du cache du routeur, seul le segment `page` est
+      // refetché. Après une connexion sur un AUTRE compte, la barre de tête de
+      // `(app)/layout.tsx` gardait donc le nom, la commune et le nombre d'annonces du compte
+      // précédent, au-dessus d'un corps de page pourtant correct — voir SignOutButton.tsx pour
+      // le constat détaillé. `window.location.assign` vide ce cache par construction.
+      //
+      // Les quatre destinations sont traitées pareil : ce sont toutes des entrées dans l'espace
+      // connecté. N'en durcir que certaines aurait laissé le défaut vivant sur les autres, et
+      // c'est exactement ainsi qu'il a survécu jusqu'ici.
+      const cible =
+        !su?.profileId
+          // Profil incomplet → onboarding (en conservant la cible de retour)
+          ? (returnTo ? `/register?return_to=${encodeURIComponent(returnTo)}` : "/register")
+          // Retour vers l'annonce d'origine (section 3)
+          : returnTo ? returnTo
+          : su.profileType === "TITULAIRE" ? "/planning"
+          // REMPLACANT / ASSISTANT
+          : "/disponibilites";
+      window.location.assign(cible);
     }
   }
 
