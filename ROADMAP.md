@@ -3,12 +3,9 @@
 > Tenu par Sonnet (décisions, arbitrages, raisonnement produit).
 > PRODUCT_SPEC.md (comportement vérifié du produit) reste sous la
 > plume exclusive d'Opus. Ne pas fusionner les deux fichiers.
-> Dernière mise à jour : 18/08 (corps), poussé le 19/08 —
-> **B0 et B1 en production (HEAD = f3e2f20), B2 toujours BLOQUÉ**.
-> Voir "Prêts, en file" pour l'état détaillé de la priorité
-> territoriale CPTS. Cette ligne annonçait « B0/B1/B2 poussés » ;
-> corrigée par Opus pour cesser de contredire le corps, qui dit
-> l'inverse dix lignes plus bas.
+> Dernière mise à jour : 19/08 (B0/B1/B3 poussés en production,
+> `main` = `b669afa` ; gating client actif du boost en cours de
+> cadrage).
 
 ---
 
@@ -429,14 +426,17 @@ ci-dessus, plus une référence de file d'attente.
   `/admin/diffusion` lui-même n'a pas été vu (extension Chrome
   déconnectée en cours de vérification) — le module sous-jacent est
   vérifié, pas ce rendu précis. En attente que Jean-Charles relance
-  l'extension. **`Zonage MK_2024.pdf` : confirmé être l'arrêté ARS
-  971-2024 (source de `ZONE_3_INTERMEDIAIRE`/
-  `ZONE_4_NON_PRIORITAIRE`)**, `.gitignore` corrigé pour le nommer
-  explicitement plutôt que `*.pdf` (évite qu'une future vraie source
-  soit silencieusement ignorée), `docs/sources/` proposé comme
-  emplacement pour le versionner à côté du code qu'il justifie —
-  même motif que `COMMUNE_ZONE`/`CommuneZone` : une donnée
-  transcrite en dur doit pouvoir être tracée jusqu'à sa source.
+  l'extension. **`Zonage MK_2024.pdf` : identité NON confirmée** —
+  tentative de lecture le 13/08 sans texte extractible du PDF,
+  affirmation écartée le 17/08 faute de preuve, pas à traiter comme
+  acquise malgré une reformulation ultérieure erronée qui l'affichait
+  "confirmée". `.gitignore` corrigé pour le nommer explicitement
+  plutôt que `*.pdf` (évite qu'une future vraie source soit
+  silencieusement ignorée), `docs/sources/` proposé comme
+  emplacement pour le versionner à côté du code qu'il justifie une
+  fois son identité réellement établie — même motif que
+  `COMMUNE_ZONE`/`CommuneZone` : une donnée transcrite en dur doit
+  pouvoir être tracée jusqu'à sa source.
   Versionnement effectif pas encore confirmé.
 
 - **Affirmation fausse "zones prioritaires" : livrée (f229c27).**
@@ -462,6 +462,20 @@ ci-dessus, plus une référence de file d'attente.
 
 ## 🔴 Prêts, en file, pas encore envoyées
 
+⚠️. **URGENT — Gating client actif du boost territorial : diagnostic
+   confirmé, correctif en cours.** Vérification faite : le gating
+   n'existait pas, confirmé. Deux options présentées par Opus :
+   A (léger, ex. statut simple) vs B (robuste, avec preuve —
+   consistant avec la logique qui a créé `PrioriteTerritoriale`
+   plutôt qu'une colonne nue). **Décision du 19/08 : A maintenant,
+   chemin de migration vers B prévu explicitement.** Pas parce que
+   "zéro client donc pas pressé" — au contraire : le mécanisme est
+   déjà en production SANS garde-fou, donc A ferme un vrai trou actif
+   sur une fonctionnalité déjà vivante, pas de l'infrastructure
+   spéculative. À traiter avant le premier appel CPTS, pas après.
+   Distinction à retenir : "pas urgent de construire B tout de suite"
+   ≠ "pas urgent de fermer le trou" — les deux ont été confondus un
+   instant dans l'échange, corrigé.
 0. **Scoping v1 "besoins déclarés par la CPTS"** — rapport reçu et
    vérifié le 14/08 par Opus avant relais (deux affirmations de
    l'agent de scoping vérifiées, toutes deux confirmées vraies —
@@ -499,8 +513,8 @@ ci-dessus, plus une référence de file d'attente.
    `apl*` (importé) — seul l'indicateur de tension (hors périmètre)
    en dépendrait. À relancer après réinitialisation de la limite
    (21h20 Guadeloupe).
-   **B0 et B1 POUSSÉS EN PRODUCTION (HEAD = f3e2f20), B2 toujours
-   BLOQUÉ, ordre B2/B3 inversé.**
+   **B0 et B1 POUSSÉS EN PRODUCTION ET SYNCHRONISÉS (`main` =
+   `b1eb132`, confirmé le 19/08), B2 toujours BLOQUÉ, B3 EN COURS.**
    - B0 : pont `COMMUNE_INSEE` confirmé load-bearing, pas théorique
      — Terre-de-Bas (Les Saintes) rend +3 seulement grâce au pont
      (la base écrit "Terre-de-Bas"), sinon 0 en silence.
@@ -545,7 +559,17 @@ ci-dessus, plus une référence de file d'attente.
      concrètement le 3ᵉ manque de `CommuneAPL` identifié depuis le
      12/08 ("`boost*` mélangeant réglage produit et donnée externe").
      B3 doit donc introduire un canal séparé, pas réutiliser `boost*`.
-   Reste B4 (décompte par commune sur la page territoire), après B3.
+   **B3 livré (`b669afa`), push demandé, en attente de confirmation.**
+   Décision de fond : le problème n'était pas la valeur de `boost*`
+   mais son support — un entier nu ne peut porter aucune attribution
+   (qui, quand, sur quelle base), rendant invérifiable toute phrase
+   qui l'attribuerait à une institution. C'est ce qui a produit les
+   deux affirmations fausses d'affilée sur ce fil. Nouveau modèle
+   `PrioriteTerritoriale` : une ligne ne peut pas exister sans nommer
+   son institution, sa date de déclaration et l'administrateur
+   co-signataire — contrainte structurelle, pas une discipline à
+   respecter au moment d'écrire un texte. Reste B4 (décompte par
+   commune sur la page territoire) après B3.
    **Deux points de vigilance depuis le push** :
    - `ab1a8a7` rend le levier territorial actif en production
      maintenant. Mesuré comme sans effet sur les 11 annonces

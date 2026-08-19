@@ -164,6 +164,25 @@ point de contact marketing pour ce modèle — cohérence à maintenir
 entre le pitch de la page et l'offre réelle une fois qu'elle existera
 commercialement.
 
+### Principe ferme (19/08) : le boost territorial est activé par
+### client, jamais une option ambiante
+
+Le levier territorial (`CommuneAPL.boost*`, `PrioriteTerritoriale`
+depuis B3) n'a de sens commercial que s'il est **activé par une
+relation client réelle** — CPTS Nord Basse-Terre en PoC gratuit
+aujourd'hui, un client payant demain — jamais une fonctionnalité
+qui profite par défaut à n'importe quelle commune dès qu'une valeur
+existe en base. Sinon le produit distribue gratuitement ce qu'il est
+censé vendre. Cohérent avec le mécanisme de gratuité déjà posé
+(section CPTS Nord Basse-Terre plus haut) : accès complet, borné
+dans le temps à la relation, jamais silencieux.
+
+**Vérification requise, pas encore confirmée** : `PrioriteTerritoriale`
+(B3) exige institution/date/administrateur, mais rien ne confirme
+qu'elle porte aussi un statut "client actif" distinguant une
+déclaration d'un vrai client d'une valeur de test ou d'exploration
+admin. Voir ROADMAP.md pour le prompt de vérification.
+
 Le boost saisonnier, une fois nommé territorialement
 (`FENETRE_TENSION_GUADELOUPE`, voir ROADMAP.md), devient un argument
 de vente potentiel pour ce modèle : Soignect mesure et comprend la
@@ -194,6 +213,41 @@ que "laboratoire" doit concrètement démontrer à Jean-Charles/la CPTS
 — quelles fonctionnalités de Soignect Territoire doivent être
 visibles pour ce premier cas d'usage (tableau de bord territorial ?
 zonage réel affiché ? autre ?).
+
+**Répondu le 13/08 — pitch commercial concret formulé** : Jean-
+Charles doit pouvoir dire à un président de CPTS : *"j'ai un plugin
+facilement intégrable à ton site : dis-moi quelles professions
+manquent sur quelles communes (CSV ou tableau vivant à remplir), et
+on te fait un plugin de recherche adapté à tes besoins, mis en avant
+en base nationale, qui te propose les profils et recherches les plus
+compatibles."* Quatre briques distinctes derrière cette phrase :
+
+1. **Collecte des besoins** — CSV ou tableau vivant, CPTS déclare
+   profession × commune manquante. N'existe pas aujourd'hui ;
+   `CommuneAPL.boostKine` est un curseur admin unique, pas une
+   déclaration structurée.
+2. **Le module embarquable reflète ces besoins** — pas juste les
+   postes ouverts (v1 actuelle), mais priorisés selon le besoin
+   déclaré.
+3. **Mise en avant en base nationale** — le boost devient piloté par
+   le besoin déclaré, à l'échelle nationale, pas seulement Guadeloupe
+   ni un curseur admin.
+4. **Recommandation active de profils compatibles** — pas un feed
+   passif consulté, une suggestion poussée à la CPTS. Capacité
+   nouvelle, pas une extension d'existant.
+
+**Écart critique à ne pas laisser filer** : les points 1 et 4
+fonctionnent pour n'importe quelle profession dans la formulation du
+pitch, mais le produit n'en connaît qu'une aujourd'hui (kiné). Si un
+président de CPTS répond "il me manque un ophtalmo", le produit ne
+peut aujourd'hui rien faire de cette réponse. Deux façons de fermer
+l'écart, pas de troisième : soit le pitch est explicitement cadré
+"kiné aujourd'hui, élargi bientôt" (honnête, cohérent avec la
+séquence fondatrice), soit un v1 volontairement restreint (kiné
+seul) est construit avant que Jean-Charles ne fasse cet appel — pour
+ne jamais avoir à répondre non à un président de CPTS qui prend le
+pitch au mot. Investigation de scoping envoyée le 13/08, voir
+ROADMAP.md.
 
 **Distinction à ne pas perdre** : "Jacqueline, présidente de la CPTS
 Occitanie du Sud" (section 2, exemple pour cadrer la conception du

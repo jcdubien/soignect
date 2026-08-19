@@ -13,7 +13,15 @@ export const dynamic = "force-dynamic";
 export default async function AdminPrioritesPage() {
   const priorites = await prisma.prioriteTerritoriale.findMany({
     orderBy: [{ profession: "asc" }, { commune: "asc" }],
-    include: { saisiPar: { select: { email: true } } },
+    include: { saisiPar: { select: { email: true } }, client: { select: { nom: true, nature: true, revueLe: true, clotureLe: true } } },
+  });
+
+  // Les relations vivent sur le MÊME écran que les déclarations, pas sur un écran voisin : une
+  // déclaration n'a d'effet que si sa relation est active, et séparer les deux inviterait à
+  // saisir la seconde sans regarder la première.
+  const clients = await prisma.clientInstitutionnel.findMany({
+    orderBy: [{ clotureLe: "asc" }, { revueLe: "asc" }],
+    include: { _count: { select: { priorites: true } } },
   });
 
   // Seules les communes que le PONT connaît sont proposées. Une commune absente produirait une
@@ -24,6 +32,7 @@ export default async function AdminPrioritesPage() {
   return (
     <PrioritesClient
       initialData={JSON.parse(JSON.stringify(priorites))}
+      initialClients={JSON.parse(JSON.stringify(clients))}
       communes={communes}
     />
   );

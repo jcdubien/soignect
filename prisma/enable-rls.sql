@@ -39,3 +39,8 @@ ALTER TABLE "public"."PosteInvitation"   ENABLE ROW LEVEL SECURITY;
 -- institution et son auteur, ce qui n'a pas à être lisible avec la clé anon du navigateur. Le
 -- produit y accède par Prisma (rôle propriétaire, BYPASSRLS), donc deny-all ne le gêne pas.
 ALTER TABLE "public"."PrioriteTerritoriale" ENABLE ROW LEVEL SECURITY;
+
+-- ClientInstitutionnel (section 214) : relations institutionnelles qui ACTIVENT le levier
+-- territorial. Nomme une institution et la nature commerciale du lien — rien qui ait a sortir
+-- par PostgREST avec la cle anon.
+ALTER TABLE "public"."ClientInstitutionnel" ENABLE ROW LEVEL SECURITY;

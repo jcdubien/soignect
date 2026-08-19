@@ -15,7 +15,6 @@ function isAdmin(session: any): boolean {
 // déclarer ailleurs, on supprime et on ressaisit — le geste est plus lourd, et c'est voulu.
 const schema = z.object({
   niveau: z.number().int().min(1).max(10).optional(),
-  institution: z.string().min(2).max(160).optional(),
   note: z.string().max(500).nullable().optional(),
   expireLe: z.string().datetime({ offset: true }).or(z.string().date()).nullable().optional(),
 });
@@ -29,17 +28,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const { niveau, institution, note, expireLe } = parsed.data;
+  const { niveau, note, expireLe } = parsed.data;
 
   const modifiee = await prisma.prioriteTerritoriale.update({
     where: { id },
     data: {
       ...(niveau !== undefined && { niveau }),
-      ...(institution !== undefined && { institution }),
       ...(note !== undefined && { note: note || null }),
       ...(expireLe !== undefined && { expireLe: expireLe ? new Date(expireLe) : null }),
     },
-    include: { saisiPar: { select: { email: true } } },
+    include: { saisiPar: { select: { email: true } }, client: { select: { nom: true, nature: true, revueLe: true, clotureLe: true } } },
   });
 
   console.log(`[admin] priorité territoriale modifiée — ${modifiee.commune} ${modifiee.profession}`, parsed.data);
@@ -56,9 +54,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const supprimee = await prisma.prioriteTerritoriale.delete({
     where: { id },
-    select: { commune: true, profession: true, institution: true },
+    select: { commune: true, profession: true, client: { select: { nom: true } } },
   });
 
-  console.log(`[admin] priorité territoriale supprimée — ${supprimee.commune} ${supprimee.profession} (${supprimee.institution})`);
+  console.log(`[admin] priorité territoriale supprimée — ${supprimee.commune} ${supprimee.profession} (${supprimee.client.nom})`);
   return NextResponse.json({ ok: true });
 }

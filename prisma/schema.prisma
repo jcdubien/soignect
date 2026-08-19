@@ -125,6 +125,25 @@ enum SuiviStatut {
   SANS_SUITE
 }
 
+// Nature d'une relation institutionnelle (section 214, gating du levier territorial).
+// Le PoC gratuit et le client payant ouvrent les mêmes droits produit — ce qui les distingue
+// est commercial, pas technique. Ils sont néanmoins séparés pour qu'on puisse répondre à
+// « combien de clients payants ? » sans deviner.
+enum NatureRelationInstitutionnelle {
+  POC_GRATUIT        // laboratoire, à titre gracieux (CPTS Nord Basse-Terre, 13/08)
+  CLIENT_PAYANT
+  GRATUITE_NEGOCIEE  // gratuité accordée en contrepartie d'un rôle institutionnel
+}
+
+enum TypeInstitution {
+  CPTS
+  MSP
+  ARS
+  CGSS
+  COLLECTIVITE
+  AUTRE
+}
+
 model User {
   id               String    @id @default(cuid())
   email            String    @unique
@@ -644,7 +663,12 @@ model PrioriteTerritoriale {
   // qu'une commune mérite d'être enfoncée dans le classement.
   niveau      Int
   // Provenance — la raison d'être de cette table. Aucun de ces trois champs n'est optionnel.
-  institution String     // nom en clair, tel qu'il sera cité à l'utilisateur
+  // L'institution est une RELATION, plus un texte libre (19/08). Un nom tapé à la main ne dit
+  // pas si une relation client existe : le produit distribuerait alors gratuitement, à toute
+  // commune saisie, ce qu'il est censé vendre comme service institutionnel. Le levier ne
+  // s'applique que si `client` est une relation active — voir `ClientInstitutionnel`.
+  clientId    String
+  client      ClientInstitutionnel @relation(fields: [clientId], references: [id], onDelete: Restrict)
   declareLe   DateTime   // date de la déclaration elle-même, pas de sa saisie
   saisiParId  String     // User.id de l'administrateur qui a co-saisi
   saisiPar    User       @relation("PrioritesSaisies", fields: [saisiParId], references: [id])
@@ -657,6 +681,52 @@ model PrioriteTerritoriale {
   // poseraient la question « laquelle gagne ? », à laquelle aucune réponse ne serait honnête.
   @@unique([codeInsee, profession])
   @@index([profession])
+  @@index([clientId])
+}
+
+// Relation institutionnelle (section 214) — ce qui ACTIVE le levier territorial.
+//
+// POURQUOI CE MODÈLE EXISTE
+// `PrioriteTerritoriale` (B3) exige déjà une institution, une date et un administrateur. Mais
+// `institution` était du texte libre : rien ne distinguait « CPTS Nord Basse-Terre, PoC en
+// cours » de « test » tapé un soir. Le levier se serait donc appliqué dès qu'une ligne existait,
+// et le produit aurait distribué gratuitement ce qu'il vend comme service institutionnel
+// (principe ferme du 19/08, STRATEGIE_MARKETING_BUSINESS.md §4).
+//
+// PÉRIMÈTRE VOLONTAIREMENT ÉTROIT : des ENTITÉS, et le seul gating du levier territorial. Les
+// gratuités individuelles (adhérents SNMKR) et l'accès produit complet des bénéficiaires sont
+// des chantiers distincts, non traités ici — ce modèle ne prétend pas les porter.
+model ClientInstitutionnel {
+  id        String                         @id @default(cuid())
+  nom       String                         @unique // « CPTS Nord Basse-Terre »
+  type      TypeInstitution
+  nature    NatureRelationInstitutionnelle
+  debutLe   DateTime
+
+  // ⚠️ CE CHAMP EST UNE DATE DE REVUE, PAS UNE PREUVE DE FONCTION ACTIVE.
+  //
+  // La gratuité CPTS est conditionnée à une fonction (« tant que Jean-Charles en est
+  // secrétaire »). Un rôle institutionnel ne s'interroge par aucune API : le produit ne peut pas
+  // constater qu'il est toujours exercé. Prétendre le contraire avec un champ nommé
+  // `fonctionActive` serait la faute déjà commise avec `boost*` — un support qui affirme ce
+  // qu'il ne peut pas savoir.
+  //
+  // Ce que ce champ garantit est plus modeste et vrai : la relation n'est JAMAIS silencieusement
+  // permanente. Passée cette date, elle cesse d'agir tant qu'un administrateur ne l'a pas
+  // reconduite ou close. 6 à 12 mois est l'intervalle retenu. L'extinction est le comportement
+  // par défaut, la reconduction un geste explicite — l'inverse laisserait courir indéfiniment
+  // une relation que plus personne ne regarde.
+  revueLe   DateTime
+
+  // Clôture explicite, avant l'échéance de revue. Distincte de `revueLe` dépassée : ici quelqu'un
+  // a décidé que la relation s'arrêtait, là personne n'a rien décidé du tout.
+  clotureLe DateTime?
+
+  note      String?   @db.VarChar(500)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  priorites PrioriteTerritoriale[]
 }
 
 // Poste du Planning Board (section 28) — un poste = une ligne de timeline

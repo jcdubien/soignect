@@ -36,6 +36,24 @@
 // déclarations que personne n'a faites — la faute exacte qu'on répare. `boost*` reste éditable
 // dans /admin/apl et n'est plus lue par aucune logique produit ; ce qu'on en fait est une
 // question ouverte, pas un oubli.
+//
+// ── GATING PAR RELATION CLIENT (19/08) ───────────────────────────────────────────────────────
+//
+// Une déclaration ne suffit PAS à activer le levier : il faut aussi que l'institution qui la
+// porte ait une relation client active (`ClientInstitutionnel`). Principe ferme du 19/08
+// (STRATEGIE_MARKETING_BUSINESS.md §4) : le levier territorial est un service institutionnel
+// vendu — PoC gratuit aujourd'hui, client payant demain. S'il s'appliquait dès qu'une valeur
+// existe en base, le produit distribuerait gratuitement ce qu'il est censé vendre.
+//
+// C'est la troisième fois que la même faute se présente sous un autre visage, et c'est ce qui
+// justifie de ne pas la traiter par un simple drapeau :
+//   1. `boost*` agissait sans que personne ne l'ait déclaré  → B3 a créé un support pour l'auteur.
+//   2. `institution` était du texte libre : « CPTS Nord Basse-Terre » et « test » se valaient
+//      → cette version la remplace par une relation qu'on peut vérifier.
+//   3. Un statut nu (« client actif : oui ») aurait affirmé une relation sans pouvoir la
+//      prouver → `ClientInstitutionnel` porte la nature, le début et l'échéance de revue.
+// À chaque étape, le correctif consiste à donner au support la capacité de porter ce qu'on lui
+// fait dire — jamais à ajouter un champ qui l'affirme.
 
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
@@ -145,15 +163,29 @@ export async function chargerPrioritesTerritoriales(
   const resultat = new Map<string, number>();
   if (parCode.size === 0) return resultat;
 
-  // L'EXPIRATION EST FILTRÉE EN SQL, pas après coup : une déclaration échue ne doit pas même
-  // remonter, sans quoi le prochain lecteur du code croira qu'elle compte. `expireLe: null`
-  // signifie « sans échéance déclarée », et doit passer — un `lt` seul les écarterait toutes,
-  // ce qui est le piège classique du NULL en SQL.
+  // DEUX CONDITIONS INDÉPENDANTES, toutes deux filtrées EN SQL — une déclaration écartée ne doit
+  // pas même remonter, sans quoi le prochain lecteur du code croira qu'elle compte.
+  //
+  //  1. LA DÉCLARATION est vivante : `expireLe` nul (sans échéance déclarée) ou à venir. Le
+  //     `null` doit passer — un `lt` seul les écarterait toutes, piège classique du NULL en SQL.
+  //  2. LA RELATION CLIENT est active : non close, et dans son intervalle de revue. C'est le
+  //     gating du 19/08 : sans lui, le levier s'appliquerait dès qu'une ligne existe, et le
+  //     produit distribuerait gratuitement ce qu'il vend comme service institutionnel.
+  //
+  // `revueLe` DÉPASSÉE ÉTEINT LE LEVIER, elle ne se contente pas de signaler. C'est le seul sens
+  // possible de « jamais silencieusement permanent » : si le boost continuait de courir après
+  // l'échéance, la revue ne serait qu'un post-it que personne n'est obligé de lire. L'extinction
+  // est le défaut, la reconduction un geste explicite.
   const lignes = await prisma.prioriteTerritoriale.findMany({
     where: {
       codeInsee: { in: Array.from(parCode.keys()) },
       profession,
       OR: [{ expireLe: null }, { expireLe: { gt: maintenant } }],
+      client: {
+        clotureLe: null,
+        debutLe: { lte: maintenant },
+        revueLe: { gt: maintenant },
+      },
     },
     select: { codeInsee: true, niveau: true },
   });
