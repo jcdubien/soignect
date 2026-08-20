@@ -3687,8 +3687,12 @@ personne ne le remarquerait — c'est exactement ainsi que la version précéden
 
 **« par sa CPTS » retiré le 18/08.** La condition portait sur le mécanisme et tenait ; c'est
 l'attribution qui était fausse (voir ci-dessus : personne n'a rien déclaré). La mention affichée
-ne nomme donc plus d'auteur — « une commune **signalée comme manquant de kinés** ». Elle
-mentionnera de nouveau la CPTS le jour où une CPTS écrit vraiment dans le produit, et pas avant.
+ne nommait donc plus d'auteur.
+
+**Et remise le 20/08 (B2, `d238531`)** — troisième version de cette phrase, la première qui
+puisse être vérifiée. Voir le détail plus bas ; en résumé : elle nomme l'institution quand une
+seule a déclaré, et retombe sur une formule **sans auteur** dans tous les autres cas. Le repli
+n'est jamais une attribution approximative.
 
 ##### Vérifiée sur la donnée réelle
 
@@ -3781,6 +3785,12 @@ Ni le dosage ni l'ordre. Deux faits mesurés le 18/08 sur les **11** annonces de
 2. **Rien n'a été déclaré par personne**, donc il n'y a pour l'instant aucune priorité de la CPTS
    à lui montrer — seulement notre import du 28/06.
 
+**Mise à jour du 20/08.** Le point 2 est levé : la CPTS Nord Basse-Terre a une relation ouverte
+et une déclaration réelle (Deshaies). Le point 1 tient, avec des chiffres qui ont bougé — **5
+des 10** annonces de cabinet vivantes sont au cabinet fondateur, toutes à Pointe-Noire (le total
+était de 11 le 18/08). Les mesures ci-dessus restent datées du 18/08 et ne sont pas réécrites :
+ce qui a changé se lit ici.
+
 **L'ordre des chantiers s'inverse donc.** B3 (écran de déclaration) n'est pas la suite de B2, il
 en est le **prérequis** : tant qu'une institution ne peut pas écrire dans une colonne qui ne
 contient QUE des déclarations, il n'y a pas de levier institutionnel — ni à arbitrer, ni à
@@ -3869,24 +3879,105 @@ la déclaration est vivante, ET la relation est active.
 L'expiration est filtrée en SQL et non après coup, `expireLe: null` devant passer — un `lt` seul
 les écarterait toutes, piège classique du NULL en SQL.
 
-##### État réel aujourd'hui : le levier est inerte, et c'est correct
-
-**0 relation, 0 déclaration.** Aucune commune ne reçoit de bonus territorial. La mention de
-transparence, déjà conditionnelle, se tait d'elle-même. C'est la première fois depuis `979ccd8`
-que ce que le produit affiche sur ce sujet et ce qu'il fait sont d'accord.
+##### L'écran, vu en conditions réelles le 20/08
 
 `/admin/priorites` porte les deux blocs — relations au-dessus, déclarations en dessous. Les
 séparer inviterait à saisir la seconde sans regarder la première. Une colonne « Agit ? » dit non
-*et pourquoi*. **Réserve : cet écran n'a pas été vu à l'écran** — la matrice ci-dessus est
-vérifiée en base, pas ce rendu.
+*et pourquoi*.
+
+**La réserve « jamais vu à l'écran » est levée** : Jean-Charles a ouvert la relation et saisi la
+déclaration de bout en bout, « Agit ? oui » confirmé. Deux défauts relevés à cette première
+utilisation, corrigés depuis (`d8bb6ca`) :
+
+| Défaut | Cause | Correctif |
+|---|---|---|
+| Une déclaration saisie le 20/08 s'affichait **19/08** | ces champs sont des **dates**, stockées à minuit UTC ; rendues dans le fuseau du navigateur elles reculent partout à l'ouest de Greenwich — en Guadeloupe (UTC−4), minuit UTC le 20 est le 19 à 20 h | `timeZone: "UTC"` à l'affichage |
+| Le compteur « Déclarations » restait à **0** | il vient de `_count`, calculé au chargement serveur ; rien ne le mettait à jour après une création | mise à jour à la création **et** à la suppression |
+
+Le premier correctif porte sur le **rendu**, jamais sur la donnée : décaler la valeur stockée
+aurait cassé la comparaison d'échéance que le feed fait en SQL.
+
+##### État réel aujourd'hui — déclaré, actif, et pourtant muet
+
+| | |
+|---|---|
+| Relation | **CPTS NORD BASSE TERRE** — CPTS, `POC_GRATUIT`, ouverte le 20/08, revue le 20/02/2027, non close |
+| Déclaration | **Deshaies** (97111), `KINESITHERAPEUTE`, niveau 2 → **6 points**, sans échéance |
+| Annonces créditées dans le feed | **0** |
+| Mention affichée | **aucune** |
+
+Le levier est **actif et sans effet** : Deshaies ne porte aucune annonce, donc aucune annonce du
+feed ne reçoit les 6 points, donc la mention se tait. **C'est le comportement correct, pas un
+échec** — c'est exactement ce que le mécanisme conditionnel existe pour faire.
 
 ##### Ce qui reste bloqué, et ce n'est pas technique
 
-B2 (réintroduire la mention nommant l'institution) attend une **vraie déclaration**. Et la démo
-CPTS bute sur un fait qu'aucune règle de tri ne corrige : le cabinet fondateur est celui de
-Jean-Charles et porte **6 des 11 annonces vivantes, toutes à Pointe-Noire** — la commune de Nord
-Basse-Terre concernée. Deux sorties honnêtes : démontrer sur une commune où le cabinet fondateur
-ne publie pas, ou le dire à voix haute.
+La chaîne est complète et vérifiée. Ce qui manque pour une démo qui **montre** un déplacement
+n'est pas du code : il faut **un cabinet non fondateur publiant à Deshaies, Sainte-Rose ou
+Lamentin**. Aujourd'hui ces trois communes portent 0 annonce, et Pointe-Noire — la quatrième du
+territoire — en porte 5, **toutes du cabinet fondateur**, celui de Jean-Charles. Y démontrer
+afficherait le cabinet du vendeur en tête pour une raison qui n'a rien de territorial.
+
+Deux sorties honnêtes, inchangées : démontrer sur une commune où le cabinet fondateur ne publie
+pas, ou le dire à voix haute. C'est du recrutement d'annonceur, pas du développement.
+
+#### B2 — LA MENTION NOMME L'INSTITUTION (20/08, `d238531`) — livrée
+
+##### Trois versions de la même phrase, deux fausses
+
+| Version | Ce qu'elle affirmait | Pourquoi c'était faux |
+|---|---|---|
+| `979ccd8` → 17/08 | « et zones prioritaires » | **aucun mécanisme n'existait** — `getDesirabilityPercent` ne contenait aucun terme géographique |
+| 18/08 (matin) | retirée | — |
+| 18/08 (ap.-midi) | « déclarée prioritaire par sa CPTS » | le mécanisme existait, mais **l'auteur était inventé** : `boost*` dérivait de l'APL, personne n'avait rien déclaré |
+| **20/08 (B2)** | « déclarée prioritaire par CPTS NORD BASSE TERRE » | **vérifiable** — adossée à une ligne `PrioriteTerritoriale` réelle, portée par une relation client active |
+
+La phrase n'a pas changé de nature en changeant de mots : elle a changé de nature quand le
+produit a acquis **la capacité de désigner un auteur**. C'est tout l'objet de B3 et du gating.
+
+##### Le transport, et pourquoi il est fait comme ça
+
+`chargerPrioritesTerritoriales` rend désormais `{ points, institution }` au lieu d'un nombre nu.
+**Le nom voyage avec les points** : il ne peut pas se retrouver associé à la mauvaise commune,
+puisqu'il ne s'en sépare jamais.
+
+L'en-tête `x-feed-priorite-institutions` porte les institutions distinctes à créditer **pour ce
+lecteur**, en `JSON` + `encodeURIComponent`. Un en-tête HTTP est du latin-1 : un nom accentué
+(« Communauté… ») le casserait ou le mutilerait en silence. **Aucune institution accentuée
+n'existe aujourd'hui — c'est précisément pourquoi le faire maintenant**, pendant que l'absence
+de bug est vérifiable plutôt qu'espérée. Même raisonnement que le filtre de profession du 17/08.
+
+##### La règle d'écriture, qui est la vraie livraison
+
+| Cas | Phrase |
+|---|---|
+| **1** institution | « une commune **déclarée prioritaire par {nom}** » |
+| **plusieurs** | « une commune où votre profession est signalée comme manquante » |
+| **aucune**, en-tête absent, JSON illisible | idem — formule sans auteur |
+
+Énumérer trois CPTS dans une mention de 10 px la rendrait illisible ; en choisir une serait
+arbitraire. **Le repli n'est jamais une attribution approximative** : c'est exactement ce qui a
+rendu cette phrase fausse deux fois. Une phrase sans auteur est vraie ; une phrase au mauvais
+auteur ne l'est pas.
+
+Le `try/catch` autour du décodage retombe sur la liste vide, donc sur la formule sans auteur —
+un en-tête corrompu ne peut pas produire un nom inventé.
+
+##### Vérifiée par simulation, faute de pouvoir l'être à l'écran
+
+```
+priorités appliquées : Deshaies → 6 pts, CPTS NORD BASSE TERRE
+annonces créditées   : 0
+PHRASE AFFICHÉE      : (muette)
+
+simulation, une annonce à Deshaies :
+« …une commune déclarée prioritaire par CPTS NORD BASSE TERRE »
+en-tête transporté : %5B%22CPTS%20NORD%20BASSE%20TERRE%22%5D
+```
+
+**Réserve honnête** : la phrase nommée n'a jamais été vue à l'écran, faute d'annonce à Deshaies.
+Ce qui est vérifié, c'est la chaîne complète — déclaration lue, gating appliqué, en-tête encodé,
+formule choisie. Le rendu final reste à constater le jour où une annonce y existera.
 
 #### AUDIT DE GÉNÉRICITÉ PROFESSION SUR B0-B3 (19/08, `a7d4de8`)
 
