@@ -145,11 +145,20 @@ export function bonusTerritorial(niveau: number | null | undefined): number {
  * porter une déclaration. Une institution n'a pas à être privée de parole parce que la DREES ne
  * publie pas d'APL chez elle.
  */
+export interface PrioriteAppliquee {
+  /** Points d'ordre, déjà convertis par `bonusTerritorial`. */
+  points: number;
+  /** Nom de l'institution qui a déclaré — porté jusqu'ici pour que la mention de transparence
+   *  puisse la NOMMER (B2, 20/08). C'est toute la différence avec les deux versions fausses
+   *  précédentes : la phrase affichée s'adosse à une ligne qu'on peut montrer. */
+  institution: string;
+}
+
 export async function chargerPrioritesTerritoriales(
   communes: (string | null | undefined)[],
   profession: Profession,
   maintenant: Date = new Date(),
-): Promise<Map<string, number>> {
+): Promise<Map<string, PrioriteAppliquee>> {
   const parCode = new Map<string, string[]>();
 
   for (const commune of communes) {
@@ -160,7 +169,7 @@ export async function chargerPrioritesTerritoriales(
     parCode.set(code, [...(parCode.get(code) ?? []), commune]);
   }
 
-  const resultat = new Map<string, number>();
+  const resultat = new Map<string, PrioriteAppliquee>();
   if (parCode.size === 0) return resultat;
 
   // DEUX CONDITIONS INDÉPENDANTES, toutes deux filtrées EN SQL — une déclaration écartée ne doit
@@ -187,13 +196,15 @@ export async function chargerPrioritesTerritoriales(
         revueLe: { gt: maintenant },
       },
     },
-    select: { codeInsee: true, niveau: true },
+    select: { codeInsee: true, niveau: true, client: { select: { nom: true } } },
   });
 
   for (const ligne of lignes) {
     const points = bonusTerritorial(ligne.niveau);
     if (points === 0) continue;
-    for (const libelle of parCode.get(ligne.codeInsee) ?? []) resultat.set(libelle, points);
+    for (const libelle of parCode.get(ligne.codeInsee) ?? []) {
+      resultat.set(libelle, { points, institution: ligne.client.nom });
+    }
   }
   return resultat;
 }

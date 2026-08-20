@@ -514,6 +514,28 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // Nombre d'annonces du feed courant remontées par une priorité territoriale déclarée.
   // 0 = la mention d'ordre ne doit PAS parler de zones prioritaires (voir plus bas).
   const [prioriteTerritoriale, setPrioriteTerritoriale] = useState(0);
+  // Institutions ayant déclaré les communes mises en avant dans CE feed (B2). Vide = la mention
+  // ne nomme personne, ce qui reste vrai en toutes circonstances.
+  const [institutionsPriorite, setInstitutionsPriorite] = useState<string[]>([]);
+
+  // Formule affichée pour la priorité territoriale (B2, 20/08).
+  //
+  // UNE seule institution → on la NOMME. C'est le point de B2 : la phrase s'adosse à une ligne
+  // `PrioriteTerritoriale` réelle, portée par une relation client active, qu'on peut montrer.
+  // PLUSIEURS → formule sans auteur. Énumérer trois CPTS dans une mention de 10px la rendrait
+  // illisible, et en choisir une serait arbitraire.
+  // AUCUNE (en-tête absent, JSON illisible, ancien client) → formule sans auteur elle aussi.
+  //
+  // Le repli n'est jamais une attribution approximative : c'est exactement ce qui a rendu cette
+  // phrase fausse deux fois (979ccd8, puis « par sa CPTS » le 18/08). Une phrase sans auteur est
+  // vraie ; une phrase au mauvais auteur ne l'est pas.
+  const mentionPriorite = useMemo(
+    () =>
+      institutionsPriorite.length === 1
+        ? `déclarée prioritaire par ${institutionsPriorite[0]}`
+        : "où votre profession est signalée comme manquante",
+    [institutionsPriorite],
+  );
   // Établissement uniquement : combien de candidats ont coché « ouvert aux postes salariés ».
   // À zéro, un feed vide n'a rien d'une attente — personne ne peut apparaître. -1 = sans objet.
   const [salariatOptIn,    setSalariatOptIn]     = useState(-1);
@@ -622,6 +644,19 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       if (optInHdr != null) setSalariatOptIn(parseInt(optInHdr, 10));
       const prioriteHdr = r.headers.get("x-feed-priorite-territoriale");
       if (prioriteHdr != null) setPrioriteTerritoriale(parseInt(prioriteHdr, 10) || 0);
+      // B2 (20/08) — institutions à créditer dans la mention. JSON + encodeURIComponent côté
+      // serveur : un en-tête HTTP est du latin-1, un nom accentué le casserait. Toute lecture
+      // qui échoue retombe sur une liste vide, donc sur la formule SANS auteur — jamais sur une
+      // attribution approximative. C'est la règle de cette phrase depuis 979ccd8.
+      const instHdr = r.headers.get("x-feed-priorite-institutions");
+      if (instHdr != null) {
+        try {
+          const noms = JSON.parse(decodeURIComponent(instHdr));
+          setInstitutionsPriorite(Array.isArray(noms) ? noms.filter((n) => typeof n === "string") : []);
+        } catch {
+          setInstitutionsPriorite([]);
+        }
+      }
       const data = await r.json();
       if (!Array.isArray(data)) {
         console.error("[SwipeStack] feed response is not an array:", data);
@@ -982,6 +1017,10 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             profession du lecteur, donc « votre profession » est plus exact que n'importe quel
             mot en dur. Aucun vocabulaire à décliner, rien à câbler, et la phrase reste vraie
             pour toute profession future sans être retouchée. */}
+        {/* B2 — la mention NOMME l'institution quand une seule a déclaré, et retombe sur une
+            formule sans auteur au-delà. Deux versions de cette phrase ont déjà été fausses faute
+            de pouvoir désigner quelqu'un ; on ne remplace pas ce défaut par une énumération
+            approximative. Zéro institution connue = zéro nom affiché, jamais un nom deviné. */}
         <p className="px-4 pb-1 text-[10px] leading-snug text-gray-400 shrink-0">
           {/* La liste n'est PAS triée comme les cartes : elle classe par compatibilité de dates.
               Garder le même texte aurait affirmé un ordre qui n'est plus celui affiché — la
@@ -995,7 +1034,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           ) : (
             <>
               Ordre d&apos;affichage : les comptes abonnés et partenaires
-              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}{prioriteTerritoriale > 0 ? ", ainsi que les postes situés sur une commune où votre profession est signalée comme manquante" : ""}.
+              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}{prioriteTerritoriale > 0 ? `, ainsi que les postes situés sur une commune ${mentionPriorite}` : ""}.
               Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
             </>
           )}

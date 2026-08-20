@@ -5,7 +5,7 @@ import { ProfileType, TitulaireKind, Prisma, BriqueStatus } from "@prisma/client
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
-import { chargerPrioritesTerritoriales } from "@/lib/territoire";
+import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
 import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
@@ -127,11 +127,15 @@ export async function GET(req: NextRequest) {
   // remonte, mais UNIQUEMENT devant un cabinet dont le besoin recoupe lui aussi cette fenêtre.
   // Sans cette condition, un cabinet recrutant pour décembre aurait vu des candidats d'août en
   // tête — l'ordre l'aurait mis en avant avant que le score ne dise « dates éloignées ».
-  // S'y ajoute enfin la PRIORITÉ TERRITORIALE (section 214) : une commune signalée comme
-  // manquant de kinés remonte ses annonces, via CommuneAPL.boost* (±10 → ±30 points).
-  // « DÉCLARÉE PAR LA CPTS » retiré le 18/08 : personne n'a jamais écrit dans cette colonne
-  // (112 lignes, un seul updatedAt à la milliseconde), ses valeurs dérivent de l'indicateur APL
-  // importé le 28/06. Le mécanisme est réel, l'auteur institutionnel ne l'est pas encore.
+  // S'y ajoute enfin la PRIORITÉ TERRITORIALE DÉCLARÉE (section 214) : une commune qu'une
+  // institution a déclarée prioritaire remonte ses annonces (`PrioriteTerritoriale`, niveau
+  // 1..10 → 3..30 points), à condition que la relation client qui la porte soit active.
+  //
+  // « DÉCLARÉE PAR LA CPTS » avait été retiré le 18/08 — la colonne alors lue (`CommuneAPL.boost*`)
+  // ne contenait aucune déclaration : 112 lignes, un seul `updatedAt` à la milliseconde, valeurs
+  // dérivées de l'indicateur APL importé le 28/06. La formule est REVENUE le 20/08 (B2), cette
+  // fois adossée à une vraie déclaration : CPTS Nord Basse-Terre, PoC ouvert le 20/08, Deshaies
+  // niveau 2. L'auteur est désormais une ligne qu'on peut montrer, pas une supposition.
   //
   // ELLE NE S'APPLIQUE QUE DANS UN SENS, et ce n'est pas une économie de code. Une déclaration
   // « il manque des kinés à Deshaies » veut dire : montrer les POSTES de Deshaies aux candidats.
@@ -143,7 +147,19 @@ export async function GET(req: NextRequest) {
   // Celui-ci ne joue que devant un candidat. Les deux ne se rencontrent donc jamais.
   const prioritesTerritoriales = isCandidateViewer
     ? await chargerPrioritesTerritoriales(missions.map((m) => m.location), myProfile.profession)
-    : new Map<string, number>();
+    : new Map<string, PrioriteAppliquee>();
+
+  /** Annonces de CE feed réellement remontées par une priorité territoriale. Calculé une fois :
+   *  la mention de transparence, la trace et l'en-tête doivent parler du MÊME ensemble, sinon la
+   *  phrase affichée finirait par décrire autre chose que ce qui a été mesuré. */
+  const misesEnAvantTerritoire = missions.filter(
+    (m) => (prioritesTerritoriales.get(m.location ?? "")?.points ?? 0) > 0,
+  );
+  /** Institutions distinctes à créditer devant CE lecteur — c'est ce qui autorise B2 à écrire
+   *  « déclarée prioritaire par X » plutôt qu'une formule sans auteur. */
+  const institutionsTerritoire = Array.from(
+    new Set(misesEnAvantTerritoire.map((m) => prioritesTerritoriales.get(m.location ?? "")!.institution)),
+  );
 
   const desirabilite = new Map<string, number>();
   for (const m of missions) {
@@ -151,7 +167,7 @@ export async function GET(req: NextRequest) {
       m.id,
       getDesirabilityPercent(m.profile)
         + bonusSaisonnier({ startDate: m.startDate, endDate: m.endDate }, besoinPeriode)
-        + (prioritesTerritoriales.get(m.location ?? "") ?? 0),
+        + (prioritesTerritoriales.get(m.location ?? "")?.points ?? 0),
     );
   }
   missions.sort((a, b) => (desirabilite.get(b.id) ?? 0) - (desirabilite.get(a.id) ?? 0));
@@ -191,7 +207,7 @@ export async function GET(req: NextRequest) {
   // présent alors que la colonne existe — une priorité territoriale n'a de sens que rapportée à
   // une profession, agréger sans elle mélangerait des déclarations sans rapport.
   if (prioritesTerritoriales.size > 0) {
-    const misesEnAvant = missions.filter((m) => (prioritesTerritoriales.get(m.location ?? "") ?? 0) > 0);
+    const misesEnAvant = misesEnAvantTerritoire;
     if (misesEnAvant.length > 0) {
       logTraceEvent({
         eventType: "FEED_PRIORITE_TERRITORIALE",
@@ -201,6 +217,10 @@ export async function GET(req: NextRequest) {
           misesEnAvant: misesEnAvant.length,
           surTotal: missions.length,
           communes: Array.from(new Set(misesEnAvant.map((m) => m.location).filter(Boolean))),
+          // Les institutions créditées sont tracées avec les communes : c'est ce qui rendra le
+          // rapport « vos communes ont été mises en avant N fois » attribuable à la bonne CPTS
+          // le jour où plusieurs coexisteront.
+          institutions: institutionsTerritoire,
         },
       });
     }
@@ -250,9 +270,17 @@ export async function GET(req: NextRequest) {
       // Sert uniquement à la mention de transparence : elle ne doit annoncer « zones
       // prioritaires » que lorsque c'est vrai POUR CE LECTEUR, et se taire sinon. C'est ce qui
       // manquait avant le 17/08 — la phrase était écrite en dur et affirmait toujours.
-      "x-feed-priorite-territoriale": String(
-        missions.filter((m) => (prioritesTerritoriales.get(m.location ?? "") ?? 0) > 0).length,
-      ),
+      "x-feed-priorite-territoriale": String(misesEnAvantTerritoire.length),
+      // B2 (20/08) — les institutions à créditer, pour que la mention les NOMME. Deux versions
+      // de cette phrase ont déjà été fausses faute de pouvoir désigner un auteur ; elle ne
+      // revient qu'adossée à des lignes `PrioriteTerritoriale` réelles, portées par une relation
+      // client active.
+      //
+      // JSON + encodeURIComponent, pas le nom brut : un en-tête HTTP est du latin-1, et un nom
+      // d'institution accentué (« Communauté… ») le casserait ou le mutilerait en silence. Aucune
+      // institution accentuée n'existe aujourd'hui — c'est exactement pour ça qu'il faut le faire
+      // maintenant, pendant que l'absence de bug est vérifiable.
+      "x-feed-priorite-institutions": encodeURIComponent(JSON.stringify(institutionsTerritoire)),
     },
   });
 }
