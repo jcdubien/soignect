@@ -3793,6 +3793,140 @@ et le bonus vaut 0 : **pas de boost plutôt qu'un mauvais boost**, ce qui est le
 reste qu'une annonce de cabinet sur douze ne pourra jamais en bénéficier tant que sa `location`
 n'est pas une commune. À traiter comme une question de saisie, pas de scoring.
 
+#### B3 — LE CANAL DE DÉCLARATION (19/08, `b669afa`) — livré
+
+##### Le défaut n'était pas la valeur, c'était le support
+
+Un entier nu ne dit ni qui a déclaré, ni quand, ni sur quelle base : rien dans `boostKine = 2`
+ne distingue un jugement de santé publique d'un résultat de calcul. **Toute phrase attribuant
+ce 2 à une institution était donc invérifiable par construction** — ce qui a produit deux
+affirmations fausses d'affilée (`979ccd8`, puis la mention « par sa CPTS » retirée le 18/08).
+
+`PrioriteTerritoriale` est le support qui peut porter la vérité : **aucune ligne n'existe sans
+nommer son institution, sa date de déclaration et l'administrateur qui l'a co-saisie.**
+
+| Choix | Motif |
+|---|---|
+| Table, pas colonne de plus | une déclaration a un auteur ; `boost*` ne pouvait pas en porter un |
+| **Table vide au départ** | amorcer depuis les 56 communes à `boost != 0` aurait fabriqué 56 déclarations que personne n'a faites |
+| Échelle **1..10**, plus −10..+10 | une institution déclare un manque, pas qu'une commune mérite d'être enfoncée |
+| `@@unique([codeInsee, profession])` | deux déclarations concurrentes poseraient « laquelle gagne ? », sans réponse honnête |
+| `expireLe` | sans lui, un jugement de 2026 classerait encore le feed en 2031 |
+| Commune et profession non modifiables | les changer ne corrige pas une déclaration, ça en fabrique une autre sous l'auteur de la première |
+
+**Le feed ne lit plus `boost*`.** Ces colonnes restent éditables dans `/admin/apl` et ne sont
+plus lues par aucune logique produit — ce qu'on en fait est une question ouverte, pas un oubli.
+
+##### Le gating par relation client (19/08, `35e25aa`)
+
+Une déclaration ne suffit pas. Le levier territorial est un **service institutionnel vendu** —
+PoC gratuit aujourd'hui, client payant demain. S'il s'appliquait dès qu'une valeur existe en
+base, le produit distribuerait gratuitement ce qu'il est censé vendre.
+
+`PrioriteTerritoriale.institution` était du **texte libre** : « CPTS Nord Basse-Terre » et
+« test » se valaient. Remplacé par `clientId` → `ClientInstitutionnel`, qui porte la nature de
+la relation (`POC_GRATUIT` / `CLIENT_PAYANT` / `GRATUITE_NEGOCIEE`), son début et son échéance.
+
+C'est la **troisième fois** que la même faute se présente sous un autre visage, et c'est ce qui
+justifie de ne pas la traiter par un drapeau :
+
+1. `boost*` agissait sans que personne ne l'ait déclaré → B3 a créé un support pour l'auteur ;
+2. `institution` en texte libre ne prouvait aucune relation → cette version la remplace ;
+3. un statut nu (« client actif : oui ») aurait affirmé une relation sans pouvoir la prouver
+   → `ClientInstitutionnel` porte nature, début et échéance de revue.
+
+À chaque étape, le correctif donne au support la capacité de porter ce qu'on lui fait dire —
+jamais un champ de plus qui l'affirme.
+
+##### `revueLe` est une date de revue, PAS une preuve de fonction active
+
+La gratuité CPTS est conditionnée à une fonction (« tant que Jean-Charles en est secrétaire »).
+**Un rôle institutionnel ne s'interroge par aucune API** : le produit ne peut pas constater
+qu'il est toujours exercé. Un champ nommé `fonctionActive` aurait affirmé le contraire — la
+faute exacte déjà commise avec `boost*`.
+
+Ce que la colonne garantit est plus modeste et vrai : **la relation n'est jamais silencieusement
+permanente.** `NOT NULL`, donc aucune relation ne naît sans échéance. 6 à 12 mois.
+
+**L'échéance ÉTEINT le levier, elle ne se contente pas de signaler.** Si le boost continuait de
+courir après la date, la revue ne serait qu'un post-it que personne n'est obligé de lire.
+L'extinction est le défaut, la reconduction un geste explicite.
+
+##### Vérifié contre la base — matrice de six cas
+
+`chargerPrioritesTerritoriales` filtre **deux conditions indépendantes, toutes deux en SQL** :
+la déclaration est vivante, ET la relation est active.
+
+| Cas | Attendu | Obtenu |
+|---|---|---|
+| Relation active | 1 | 1 |
+| Revue dépassée | 0 (levier éteint) | 0 |
+| Reconduite | 1 | 1 |
+| Relation close | 0 | 0 |
+| Déclaration échue | 0 | 0 |
+| `clientId` inexistant | refus | refusé par la base (P2003) |
+
+L'expiration est filtrée en SQL et non après coup, `expireLe: null` devant passer — un `lt` seul
+les écarterait toutes, piège classique du NULL en SQL.
+
+##### État réel aujourd'hui : le levier est inerte, et c'est correct
+
+**0 relation, 0 déclaration.** Aucune commune ne reçoit de bonus territorial. La mention de
+transparence, déjà conditionnelle, se tait d'elle-même. C'est la première fois depuis `979ccd8`
+que ce que le produit affiche sur ce sujet et ce qu'il fait sont d'accord.
+
+`/admin/priorites` porte les deux blocs — relations au-dessus, déclarations en dessous. Les
+séparer inviterait à saisir la seconde sans regarder la première. Une colonne « Agit ? » dit non
+*et pourquoi*. **Réserve : cet écran n'a pas été vu à l'écran** — la matrice ci-dessus est
+vérifiée en base, pas ce rendu.
+
+##### Ce qui reste bloqué, et ce n'est pas technique
+
+B2 (réintroduire la mention nommant l'institution) attend une **vraie déclaration**. Et la démo
+CPTS bute sur un fait qu'aucune règle de tri ne corrige : le cabinet fondateur est celui de
+Jean-Charles et porte **6 des 11 annonces vivantes, toutes à Pointe-Noire** — la commune de Nord
+Basse-Terre concernée. Deux sorties honnêtes : démontrer sur une commune où le cabinet fondateur
+ne publie pas, ou le dire à voix haute.
+
+#### AUDIT DE GÉNÉRICITÉ PROFESSION SUR B0-B3 (19/08, `a7d4de8`)
+
+Tout ce qui a été construit depuis B0 n'avait jamais été relu sous l'angle « suppose-t-il
+kiné ? ». **Cinq éléments sur six sont génériques par construction** ; un seul défaut trouvé.
+
+| Élément | Verdict |
+|---|---|
+| `CommuneAPL` | générique — 5 colonnes `apl*` + 5 `boost*`, une par profession |
+| Script DREES | générique — boucle sur un tableau déclaratif, borné par la source (pas d'orthophoniste) |
+| `PrioriteTerritoriale` | générique — unicité sur la **paire** commune+profession : une CPTS peut déclarer kiné niveau 4 **et** infirmier niveau 2 sur la même commune, sans migration future |
+| Bonus territorial | générique — profession en paramètre ; la table `COLONNE_BOOST` de B1 a disparu avec B3 |
+| `COMMUNE_INSEE` / `COMMUNE_ZONE` | profession-neutres — `Record<commune, …>`, aucune profession dans la signature |
+| Module embarquable | inchangé depuis le 14/08, B4 non commencé |
+
+**Le défaut :** la mention affichée au candidat disait « une commune signalée comme manquant de
+**kinés** » alors que le feed est borné par la profession du **lecteur** depuis `924e329`. Un
+infirmier aurait lu « manquant de kinés » dans son propre feed. Invisible aujourd'hui — les 16
+profils en base sont tous kiné — donc exactement le défaut latent que `924e329` documentait,
+réintroduit dans la phrase voisine le lendemain, dans `9b4322c`.
+
+**Corrigé sans nommer aucune profession** : « une commune où **votre profession** est signalée
+comme manquante ». `chargerPrioritesTerritoriales` ne remonte que les déclarations portant sur
+la profession du lecteur — « votre profession » est donc *plus exact* qu'un mot décliné, ne
+demande aucun câblage, et reste vrai pour toute profession future sans être retouché.
+
+**Second correctif, même famille :** la liste des professions de `/admin/priorites` était
+recopiée à la main. Une 6ᵉ profession ajoutée à l'enum n'y serait jamais apparue — sans erreur
+de compilation, la colonne l'acceptant. Elle est désormais **dérivée de l'enum Prisma** par la
+page serveur. Le vocabulaire reste **déclaré** (`VOCABULAIRE_PROFESSION`, partiel à dessein) :
+`libelleProfession` rend la valeur d'enum telle quelle quand rien n'est déclaré — voir
+`SAGE_FEMME` dans une liste **signale** que sa déclaration manque, là où un « Sage-femme »
+fabriqué par translittération l'aurait masqué.
+
+**N'ouvre aucune profession** : c'est la forme du code qui change, pas ce que le produit sert.
+
+**Défaut connu, non corrigé** : `/admin/apl` affiche 3 colonnes de boost sur 5 (kiné, infirmier,
+médecin) alors que le formulaire d'édition en propose bien 5. Sage-femme et orthophoniste sont
+éditables mais invisibles au tableau. Antérieur à B0, mis en file séparément.
+
 ---
 
 ### Zonage ARS et données APL
@@ -3885,17 +4019,40 @@ aplKine renseigné 112/112 · min 0 · médiane 144,9 · max 405
 servirait n'importe quelle commune de France sans une ligne de code supplémentaire. C'est le
 bon porteur si le zonage doit un jour sortir du code.
 
-Trois manques à connaître avant d'y verser quoi que ce soit :
+Trois manques identifiés le 12/08. **Les deux premiers sont fermés depuis le 19/08**, le
+troisième a été résolu autrement que prévu (voir la priorité territoriale déclarée) :
 
-1. **Le script d'alimentation n'existe pas.** Le schéma annonce « Alimenté par
-   `scripts/update_apl.py` (cron annuel) » : ce fichier n'est nulle part dans le dépôt, et
-   `vercel.json` ne déclare que le cron des relances de message. Toutes les lignes portent le
-   même `updatedAt` — **28/06/2026**, un import unique. Un commentaire qui décrit un mécanisme
-   absent.
-2. **Aucun millésime.** La donnée APL est un jeu ANNUEL. La table n'a ni `annee`, ni `source`,
-   ni référence de publication — seulement `updatedAt`, qui dit quand la ligne a bougé, pas de
-   quelle année sont les chiffres. On ne peut ni savoir ce qu'on détient, ni recharger sans
-   écraser à l'aveugle.
+1. ~~**Le script d'alimentation n'existe pas.**~~ **Fermé — il existait déjà.** Le schéma
+   annonçait « Alimenté par `scripts/update_apl.py` (cron annuel) », fichier qui n'a jamais
+   existé ; la mention est retirée. Mais `scripts/sync-commune-apl.mjs`, lui, était **complet et
+   fonctionnel**, committé par erreur dans `924e329` — un commit sur le filtrage par profession.
+   Il a été listé comme « absent » pendant une semaine alors qu'il était dans le dépôt.
+   Lancement `npm run db:check-apl` (rapport, sortie 1 sur écart) / `db:sync-apl` (`--apply`).
+
+   **Le piège de l'homonyme est réel, et inversé.** Le bon jeu DREES (« Accessibilité potentielle
+   localisée (APL) aux professionnels de santé », Licence Ouverte v2.0, publication ANNUAL) porte
+   `records_count = 0` et `has_records = false` : sa donnée est dans **10 pièces jointes XLSX**,
+   pas dans `/records`. C'est le *mauvais* jeu — structures médico-sociales personnes âgées — qui
+   répond à `/records`. Un script écrit « naturellement » sur `/records` aurait donc importé la
+   donnée des EHPAD en croyant lire l'APL des kinés, **sans une seule erreur à l'écran**. Le
+   script contrôle le titre du jeu à chaque exécution plutôt que de le supposer une fois.
+
+   Couverture : kiné, infirmiers, médecins généralistes, sages-femmes. **Pas d'orthophonistes** —
+   le jeu 530 n'en publie pas, `aplOrthophoniste` restera NULL tant qu'une autre source n'est pas
+   choisie. Limite de donnée, pas de code : le script boucle sur un tableau déclaratif
+   `{ colonne, piece, entete }`, ajouter une profession y est une ligne.
+2. ~~**Aucun millésime.**~~ **Fermé (`f3e2f20`, migration appliquée le 19/08).** `aplAnnee`,
+   `aplSource` et `aplImportedAt` existent en base. **Aucun backfill** : les 112 lignes
+   existantes restent à NULL, qui se lit « millésime inconnu » et qui est la vérité — leur
+   inventer une année aurait affirmé ce que personne ne sait. Le premier `--apply` les
+   renseignera par un fait vérifié.
+
+   ⚠️ **Le message du commit `f3e2f20` dit « migration livrée, non appliquée »** : vrai à
+   l'écriture, faux depuis. L'historique git n'est pas réécrit ; la correction vit ici.
+
+   **`db:sync-apl` n'a jamais été exécuté.** Mesuré : **105 des 112 lignes changeraient** (kiné
+   62↑/39↓, infirmier 21↑/84↓, médecin 49↑/54↓, sage-femme 58↑/35↓). À regarder avant
+   d'autoriser, pas à lancer sur confiance.
 3. **Elle mélange déjà deux natures.** Les colonnes `boost*` ne sont pas de la DREES : ce sont
    des leviers produit éditables en admin (−10 à +10), et **16 des 32 communes de Guadeloupe en
    portent un non nul**. Donnée externe immuable et réglage maison cohabitent sans rien qui les
@@ -3912,6 +4069,59 @@ général de l'ARS, pas un réglage.
 ---
 
 ### Exploitation, incidents, veille
+
+#### MÉLANGE APPARENT ENTRE DEUX COMPTES (19/08) — cache de routeur, pas fuite de données
+
+##### Le signalement
+
+Sur `/planning`, sous la session `jcdubien@gmail.com` : barre de tête affichant **« Cabinet des
+ravines · TITULAIRE · Pointe-à-Pitre · 3 annonces actives »**, corps de page affichant
+**« 5 postes · Jean-Charles DUBIEN »** avec les bons postes (Marion, Mathéo, Léa, JP,
+Jean-Charles DUBIEN). « Cabinet des ravines » est un autre compte du même utilisateur,
+`osteoguadeloupe@gmail.com`.
+
+##### Ce que l'investigation a écarté, dans cet ordre
+
+| Hypothèse | Verdict |
+|---|---|
+| Mélange en base | **Non.** Deux `Profile` distincts, deux jeux de `CabinetPost` **strictement disjoints**. Les 5 postes appartiennent tous à `jcdubien` ; `osteoguadeloupe` n'en a que 2 (Assistant 1, Cabinet des ravines). Aucun poste partagé. |
+| JWT périmé | **Non.** Le corps affichait les bons postes, donc `session.user.profileId` valait bien celui de `jcdubien` au moment du rendu. |
+| `planning/page.tsx` fautif | **Non.** Il tire un seul `profileId` de la session et s'en sert pour l'en-tête et les postes — un mélange y est structurellement impossible. |
+| `(app)/layout.tsx` lisant `session.user` en aveugle | **Non.** Il requête la base sur le **même** `profileId`. |
+
+##### La cause
+
+`router.push` est une navigation **côté client**. Dans l'App Router, un layout n'est pas re-rendu
+à l'intérieur de son propre segment : le segment `page` est refetché, le segment `layout` est
+servi depuis le **cache du routeur**. Après une bascule de compte, la barre gardait donc le nom,
+la commune et le compte d'annonces de la session précédente au-dessus d'un corps correct.
+
+**Aucune des deux moitiés n'était fausse — elles dataient de deux instants différents.** Les
+trois valeurs de la barre correspondent exactement au profil `osteoguadeloupe` en base, le
+sous-titre du corps exactement à `jcdubien`.
+
+`export const dynamic = "force-dynamic"` sur le layout **ne protège pas de ça** : il gouverne le
+rendu serveur, pas le cache client.
+
+##### Correctif (`9c0e8e5`, vérifié à l'écran par Jean-Charles avant push)
+
+`window.location.assign` aux deux bascules d'identité — `SignOutButton.tsx` et `login/page.tsx`
+— ce qui vide le cache du routeur par construction. `router.refresh()` aurait marché, mais il
+faudrait penser à l'ajouter à chaque nouveau point d'entrée ; un rechargement dur ne s'oublie
+pas. **Les quatre destinations** de la connexion sont traitées pareil : n'en durcir que
+certaines aurait laissé le défaut vivant sur les autres, et c'est ainsi qu'il a survécu.
+
+##### Portée réelle, et ce qui reste ouvert
+
+Rien de propre à ces deux comptes : **sur tout poste où deux personnes se succèdent** (cabinet
+partagé, démonstration, ordinateur d'accueil), la barre affichait l'identité de la précédente.
+Les données servies restaient les bonnes — c'est le nom affiché qui mentait, ce qui suffit à
+faire croire à une fuite.
+
+**`register/page.tsx:220` porte le même motif** (`signIn` puis `router.push`) et n'est pas
+corrigé : le symptôme y est moins probable (le layout n'a en principe rien en cache pour un
+compte qui vient de naître), mais quelqu'un s'inscrivant depuis une session ouverte tomberait
+dessus.
 
 #### ÉTAT CONSOLIDÉ DU PRODUIT — 26/07/2026
 
