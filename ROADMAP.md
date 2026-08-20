@@ -462,6 +462,37 @@ ci-dessus, plus une référence de file d'attente.
 
 ## 🔴 Prêts, en file, pas encore envoyées
 
+🎯. **Débloquer la démo CPTS Nord Basse-Terre — 2 actions restantes.**
+   B2 (mention "zones prioritaires") reste bloqué tant que ces deux
+   points ne sont pas faits : (1) ouvrir la relation CPTS Nord
+   Basse-Terre dans `/admin/priorites` puis y saisir une première
+   déclaration réelle — en évitant Pointe-Noire (cabinet fondateur
+   dominant, biaiserait la démo, voir plus haut) ; (2) `/admin/
+   priorites` n'a jamais été vu à l'écran, seule la matrice de
+   gating a été vérifiée en base. Pas encore prompté.
+⚠️. **Mélange barre de tête entre sessions : CONFIRMÉ RÉSOLU (en
+   production).** Fausse alerte de fuite de données — les données
+   servies par `planning/page.tsx` étaient toujours correctes,
+   c'est uniquement le nom affiché dans la barre de tête (composant
+   de layout séparé) qui restait périmé après un changement de
+   compte sur le même appareil. **Cause corrigée par Opus : ce n'est
+   PAS le JWT figé au sign-in** — c'était son hypothèse initiale, et
+   elle a été réfutée en cours d'investigation (le corps de la page
+   affichait les bons postes avec la même session, donc `profileId`
+   était juste). La cause réelle est le **cache de routeur de
+   Next.js** : `router.push` ne re-rend pas le layout, servi depuis
+   le cache, tandis que le segment `page` est refetché. Les deux
+   moitiés de l'écran dataient de deux instants différents.
+   Portée générale, pas spécifique à ces deux comptes — tout poste
+   où deux personnes se succèdent (cabinet partagé, démonstration)
+   pouvait afficher l'identité de la précédente. Corrigé par
+   rechargement dur plutôt que `router.refresh()` — délibérément,
+   pour ne pas dépendre d'une discipline à respecter à chaque futur
+   point d'entrée. `force-dynamic` sur le layout écarté comme fausse
+   piste (gouverne le rendu serveur, pas le cache client). **Dette
+   de spec signalée par Opus lui-même** : 3 passages de
+   PRODUCT_SPEC.md en retard (gating client, audit de généricité,
+   cette investigation) — mise à jour demandée le 19/08.
 ⚠️⚠️⚠️. **Audit de généricité profession — retour reçu, deux
    correctifs en cours, un troisième mis en file.** Trouvé : la
    mention du feed a "kinés" en dur (à corriger) ; `PrioritesClient.tsx`
