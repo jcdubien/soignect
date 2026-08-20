@@ -44,7 +44,16 @@ interface Priorite {
   client: { nom: string; nature: string; revueLe: string; clotureLe: string | null } | null;
 }
 
-const jour = (d: string | null) => (d ? new Date(d).toLocaleDateString("fr-FR") : null);
+// AFFICHÉ EN UTC, PAS EN HEURE LOCALE (20/08). Ces champs sont des DATES, pas des instants :
+// saisis « 2026-08-20 » dans un <input type="date">, ils sont stockés à minuit UTC. Rendus dans
+// le fuseau du navigateur, ils reculaient d'un jour partout à l'ouest de Greenwich — en
+// Guadeloupe (UTC−4), minuit UTC le 20 est le 19 à 20 h. Une déclaration saisie le 20/08
+// s'affichait donc « 19/08 ».
+//
+// `timeZone: "UTC"` rend la date telle qu'elle a été saisie. Ne PAS « corriger » en ajoutant
+// des heures à la valeur stockée : le défaut est dans l'affichage, pas dans la donnée.
+const jour = (d: string | null) =>
+  d ? new Date(d).toLocaleDateString("fr-FR", { timeZone: "UTC" }) : null;
 
 // Une relation est active si personne ne l'a close ET si son échéance de revue n'est pas passée.
 // Même règle que le SQL du feed (src/lib/territoire.ts) — si les deux divergent un jour, c'est
@@ -160,6 +169,17 @@ export default function PrioritesClient({
     const json = await r.json();
     if (r.ok) {
       setData((prev) => [...prev, json]);
+      // Le compteur « Déclarations » du tableau des relations vient de `_count`, calculé côté
+      // serveur au chargement : sans cette ligne il restait à 0 jusqu'au prochain rafraîchissement,
+      // pendant que la déclaration s'affichait juste en dessous. Deux vérités à l'écran en même
+      // temps — le défaut est cosmétique, la famille ne l'est pas.
+      setClients((prev) =>
+        prev.map((c) =>
+          c.id === form.clientId
+            ? { ...c, _count: { priorites: (c._count?.priorites ?? 0) + 1 } }
+            : c,
+        ),
+      );
       setForm({ ...form, commune: "", note: "", expireLe: "" });
       setOuvert("aucun");
     } else {
@@ -170,7 +190,20 @@ export default function PrioritesClient({
 
   async function supprimer(id: string) {
     const r = await fetch(`/api/admin/priorites/${id}`, { method: "DELETE" });
-    if (r.ok) setData((prev) => prev.filter((p) => p.id !== id));
+    if (!r.ok) return;
+    // Décrémente le compteur de la relation concernée, par symétrie avec la création : ne
+    // corriger que l'ajout aurait fait dériver le compte dans l'autre sens.
+    const supprimee = data.find((p) => p.id === id);
+    setData((prev) => prev.filter((p) => p.id !== id));
+    if (supprimee?.client) {
+      setClients((prev) =>
+        prev.map((c) =>
+          c.nom === supprimee.client!.nom
+            ? { ...c, _count: { priorites: Math.max((c._count?.priorites ?? 1) - 1, 0) } }
+            : c,
+        ),
+      );
+    }
   }
 
   const champ = "w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-800";
