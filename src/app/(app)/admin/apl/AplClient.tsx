@@ -77,6 +77,11 @@ export default function AplClient({ initialData }: { initialData: CommuneAPL[] }
     { key: "boostOrthophoniste", label: "Orthophoniste" },
   ];
 
+  // INSEE + Commune + Dept. + APL Kiné + les boosts + Action. Calculé plutôt qu'écrit : le 8 en
+  // dur qu'il remplace serait redevenu faux à la première colonne ajoutée, et un colSpan faux ne
+  // casse rien visiblement — il décale la ligne d'édition d'une case, en silence.
+  const NB_COLONNES = 4 + BOOST_FIELDS.length + 1;
+
   return (
     <div className="max-w-7xl mx-auto w-full px-4 py-6 space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -98,6 +103,25 @@ export default function AplClient({ initialData }: { initialData: CommuneAPL[] }
         </select>
       </div>
 
+      {/* CET AVERTISSEMENT N'EST PAS DÉCORATIF, et il est la raison pour laquelle rendre les cinq
+          colonnes visibles ne suffisait pas. Depuis B3 (19/08) le feed ne lit plus `boost*` : il
+          lit `PrioriteTerritoriale`. Ces curseurs restent éditables et ne pilotent plus rien.
+
+          Les afficher tous sans le dire aurait rendu un levier mort PLUS visible qu'avant — soit
+          exactement le défaut que cette section a passé trois jours à fermer (« l'écran invitait
+          à régler un curseur sans effet »), commis une fois de plus en croyant l'améliorer. */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-900 leading-relaxed">
+        <strong>Ces curseurs ne pilotent plus l&apos;ordre du feed.</strong> Ils l&apos;ont fait
+        du 18 au 19/08 seulement. La priorité territoriale se déclare désormais dans{" "}
+        <a href="/admin/priorites" className="underline font-semibold">Priorités territoriales</a>,
+        où chaque déclaration porte l&apos;institution qui l&apos;a faite et la relation qui
+        l&apos;active — ce qu&apos;un entier seul ne peut pas porter.
+        <br />
+        Les valeurs ci-dessous viennent de l&apos;import DREES du 28/06 et suivent l&apos;indicateur
+        APL ; <strong>personne ne les a saisies à la main</strong>. Ce qu&apos;il faut en faire est
+        une question ouverte : elles sont conservées, pas maintenues.
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
         <table className="w-full text-sm min-w-[900px]">
           <thead className="bg-gray-50 border-b border-gray-100">
@@ -106,9 +130,12 @@ export default function AplClient({ initialData }: { initialData: CommuneAPL[] }
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Commune</th>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Dept.</th>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">APL Kiné</th>
-              <th className="px-3 py-3 text-left text-gray-500 font-medium">Boost Kiné</th>
-              <th className="px-3 py-3 text-left text-gray-500 font-medium">Boost Inf.</th>
-              <th className="px-3 py-3 text-left text-gray-500 font-medium">Boost Méd.</th>
+              {/* DÉRIVÉES de BOOST_FIELDS (20/08). Trois colonnes sur cinq étaient écrites à la
+                  main : sage-femme et orthophoniste étaient éditables dans le formulaire et
+                  invisibles au tableau. On pouvait donc régler une valeur sans jamais la relire. */}
+              {BOOST_FIELDS.map(({ key, label }) => (
+                <th key={key} className="px-3 py-3 text-left text-gray-500 font-medium">{label}</th>
+              ))}
               <th className="px-3 py-3 text-right text-gray-500 font-medium">Action</th>
             </tr>
           </thead>
@@ -122,21 +149,16 @@ export default function AplClient({ initialData }: { initialData: CommuneAPL[] }
                   <td className="px-3 py-2.5 text-gray-500 text-xs">
                     {c.aplKine != null ? c.aplKine.toFixed(2) : "—"}
                   </td>
-                  <td className="px-3 py-2.5">
-                    <span className={`text-xs font-semibold ${c.boostKine > 0 ? "text-kine-600" : c.boostKine < 0 ? "text-red-500" : "text-gray-400"}`}>
-                      {c.boostKine > 0 ? `+${c.boostKine}` : c.boostKine}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <span className={`text-xs font-semibold ${c.boostInfirmier > 0 ? "text-kine-600" : c.boostInfirmier < 0 ? "text-red-500" : "text-gray-400"}`}>
-                      {c.boostInfirmier > 0 ? `+${c.boostInfirmier}` : c.boostInfirmier}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <span className={`text-xs font-semibold ${c.boostMedecin > 0 ? "text-kine-600" : c.boostMedecin < 0 ? "text-red-500" : "text-gray-400"}`}>
-                      {c.boostMedecin > 0 ? `+${c.boostMedecin}` : c.boostMedecin}
-                    </span>
-                  </td>
+                  {BOOST_FIELDS.map(({ key }) => {
+                    const v = (c as unknown as Record<string, number>)[key] ?? 0;
+                    return (
+                      <td key={key} className="px-3 py-2.5">
+                        <span className={`text-xs font-semibold ${v > 0 ? "text-kine-600" : v < 0 ? "text-red-500" : "text-gray-400"}`}>
+                          {v > 0 ? `+${v}` : v}
+                        </span>
+                      </td>
+                    );
+                  })}
                   <td className="px-3 py-2.5 text-right">
                     <button
                       onClick={() => (editing === c.id ? cancelEdit() : startEdit(c))}
@@ -149,7 +171,7 @@ export default function AplClient({ initialData }: { initialData: CommuneAPL[] }
 
                 {editing === c.id && (
                   <tr key={`${c.id}-edit`} className="bg-gray-50 border-b border-gray-200">
-                    <td colSpan={8} className="px-4 py-4">
+                    <td colSpan={NB_COLONNES} className="px-4 py-4">
                       <div className="flex gap-4 flex-wrap items-end">
                         {BOOST_FIELDS.map(({ key, label }) => (
                           <label key={key} className="space-y-1">
@@ -181,7 +203,7 @@ export default function AplClient({ initialData }: { initialData: CommuneAPL[] }
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={NB_COLONNES} className="px-4 py-8 text-center text-gray-400 text-sm">
                   Aucune commune
                 </td>
               </tr>

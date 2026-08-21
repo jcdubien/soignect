@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
 import Image from "next/image";
@@ -64,7 +64,6 @@ export default function RegisterPage() {
 }
 
 function RegisterForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const rawReturnTo = searchParams.get("return_to");
   // Invitation à rejoindre un poste (section 187) : le lien reçu par email porte un token.
@@ -217,7 +216,16 @@ function RegisterForm() {
 
     // Échec d'upload → on redirige vers /compte avec un avis (compte bien créé).
     // Sinon, retour à l'annonce d'origine si présente (section 3), sinon /annonces.
-    router.push(photoUploaded ? (returnTo ?? "/annonces") : "/compte?photoError=1");
+    // RECHARGEMENT COMPLET, PAS `router.push` (20/08) — troisième et dernier point d'entrée du
+    // motif fermé le 19/08 dans SignOutButton.tsx et login/page.tsx. Une navigation côté client
+    // ne re-rend pas le layout : le segment `page` est refetché, le segment `layout` vient du
+    // cache du routeur. La barre de tête garderait donc l'identité de la session précédente.
+    //
+    // Le symptôme est moins probable ici — le layout n'a en principe rien en cache pour un compte
+    // qui vient de naître — mais quelqu'un qui s'inscrit depuis une session déjà ouverte tombe
+    // exactement dessus. Laissé ouvert le 19/08 faute d'avoir été vérifié avec les deux autres,
+    // pas parce qu'il était sain.
+    window.location.assign(photoUploaded ? (returnTo ?? "/annonces") : "/compte?photoError=1");
   }
 
   return (

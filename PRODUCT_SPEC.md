@@ -4212,6 +4212,26 @@ L'écran `/admin/apl` liste la table et permet d'éditer les 5 boosts. Si le zon
 il devrait y être **en lecture seule, avec sa référence d'arrêté** : c'est un acte du directeur
 général de l'ARS, pas un réglage.
 
+##### L'écran affichait 3 colonnes de boost sur 5 — corrigé le 20/08
+
+Le formulaire d'édition proposait bien les cinq professions, mais le tableau n'en affichait que
+trois (kiné, infirmier, médecin). **Sage-femme et orthophoniste étaient donc réglables sans
+jamais être relisibles.** Les colonnes sont désormais dérivées de `BOOST_FIELDS`, et le `colSpan`
+est calculé (`4 + BOOST_FIELDS.length + 1`) plutôt qu'écrit : le `8` en dur qu'il remplace serait
+redevenu faux à la première colonne ajoutée, et un `colSpan` faux ne casse rien visiblement — il
+décale la ligne d'édition d'une case, en silence.
+
+**Rendre les cinq colonnes visibles ne suffisait pas, et aurait même aggravé les choses.** Depuis
+B3, le feed ne lit plus `boost*` : ces curseurs restent éditables et **ne pilotent plus rien**.
+Les afficher tous sans le dire aurait rendu un levier mort *plus* visible qu'avant — exactement
+le défaut que cette section a passé trois jours à fermer, commis une fois de plus en croyant
+l'améliorer.
+
+L'écran porte donc un bandeau qui dit trois choses vérifiables : ces curseurs ne pilotent plus
+l'ordre du feed ; la priorité territoriale se déclare dans `/admin/priorites` ; et les valeurs
+présentes viennent de l'import DREES du 28/06, personne ne les a saisies. Elles sont **conservées,
+pas maintenues** — ce qu'il faut en faire reste une question ouverte.
+
 ---
 
 ### Exploitation, incidents, veille
@@ -4256,6 +4276,18 @@ rendu serveur, pas le cache client.
 faudrait penser à l'ajouter à chaque nouveau point d'entrée ; un rechargement dur ne s'oublie
 pas. **Les quatre destinations** de la connexion sont traitées pareil : n'en durcir que
 certaines aurait laissé le défaut vivant sur les autres, et c'est ainsi qu'il a survécu.
+
+##### Le motif, fermé à 3 points d'entrée sur 4 (20/08)
+
+`register/page.tsx` portait le même `signIn` → `router.push` et a été corrigé (`window.location.assign`).
+Le symptôme y était moins probable — le layout n'a en principe rien en cache pour un compte qui
+vient de naître — mais quelqu'un qui s'inscrit depuis une session déjà ouverte tombe dessus.
+
+⚠️ **Une quatrième occurrence subsiste, non corrigée** : `CompteForm.tsx:169`,
+`handleDeleteAccount` — `signOut({ redirect: false })` puis `router.push("/register")`. C'est le
+cas où le défaut serait le plus visible : le compte vient d'être **supprimé**, et la barre de
+tête afficherait encore son nom. Signalée, laissée en file plutôt que glissée dans un envoi qui
+portait autre chose.
 
 ##### Portée réelle, et ce qui reste ouvert
 

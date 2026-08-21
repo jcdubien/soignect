@@ -460,39 +460,127 @@ ci-dessus, plus une référence de file d'attente.
   reconstruction). Mesuré avant/après : 19 annonces vivantes dans
   les deux cas, rien perdu. En local, pas poussé.
 
+## ✅ Clos et vérifié — 20/08, chemin complet CPTS
+
+- **Relation CPTS Nord Basse-Terre ouverte + première déclaration
+  réelle : vérifié à l'écran de bout en bout, par Jean-Charles
+  lui-même à l'écran (pas Opus via Prisma).** `/admin/priorites` vu
+  pour la première fois — formulaires clairs, texte d'aide qui
+  répond directement à la question "comment vérifier que la fonction
+  est toujours exercée" (date de revue explicitement dite "pas
+  preuve", jamais déguisée en vérification automatique). Déclaration
+  Deshaies/Kinésithérapeute/niveau 2 (+6 pts) enregistrée, "Agit ?
+  oui" confirmé, "1 agissante sur 1".
+  Deux détails mineurs signalés, pas urgents : compteur
+  "Déclarations" du tableau des relations resté à 0 malgré la
+  déclaration existante (probable défaut de rafraîchissement) ;
+  décalage d'un jour entre date saisie et date affichée (fuseau
+  horaire probable à la création).
+- **B2 livré et poussé (20/08)** — la mention nomme désormais la
+  CPTS Nord Basse-Terre, adossée à la vraie déclaration sur
+  Deshaies. Reste honnêtement silencieuse tant qu'aucune annonce
+  n'existe sur Deshaies/Sainte-Rose/Lamentin. Règle d'écriture
+  documentée dans PRODUCT_SPEC.md : une institution → on la nomme ;
+  plusieurs, aucune, en-tête absent ou JSON illisible → formule sans
+  auteur. **État réel documenté avec la bonne nuance** : "relation
+  active, déclaration active, 0 annonce créditée, mention muette" —
+  le levier est actif ET sans effet, pas inerte, distinction
+  importante. **Réserve honnête conservée** : la phrase nommée n'a
+  jamais été vue rendue à l'écran, faute d'annonce à Deshaies — la
+  chaîne complète est vérifiée (déclaration lue, gating appliqué,
+  en-tête encodé, formule choisie), pas le rendu final lui-même.
+  PRODUCT_SPEC.md entièrement à jour (`c084dc8..685e384`), 3 des 4
+  passages corrigeaient des affirmations devenues fausses depuis la
+  veille — mesure du cabinet fondateur mise à jour (5/10 vs 6/11 le
+  18/08) sans réécrire l'ancienne, une note datée du 20 ajoutée à
+  côté. **Le vrai point bloquant restant n'est pas technique** — dit
+  explicitement par Opus : *"la démo ne montrera un déplacement que
+  le jour où un cabinet publiera à Deshaies, Sainte-Rose ou
+  Lamentin — c'est du recrutement d'annonceur, pas du code."*
+  Chantier B0→B2 + gating + correctifs entièrement fermé côté
+  ingénierie ; il reste à Jean-Charles de faire publier une annonce
+  réelle sur l'une de ces 3 communes avant l'appel CPTS.
+
+- **Scalabilité à plusieurs CPTS : livrée (20/08).** Registre
+  extrait dans `src/lib/embedTerritoire.ts`, consommé à la fois par
+  `/admin/priorites` et par le module embarquable — une seule
+  source, pas deux listes qui pourraient diverger. Vérifié :
+  chemin et clé de trace dérivés identiques au caractère près aux
+  valeurs codées en dur précédentes — l'historique de fréquentation
+  Nord Basse-Terre n'est pas coupé en deux par le refactor.
+  **Trouvaille rendue explicite** : le module embarquable ne dépend
+  d'aucune relation client — il liste des annonces publiques sans
+  priorité territoriale, une CPTS sans relation ouverte peut avoir
+  son iframe quand même. Déjà vrai avant, jamais documenté ; l'est
+  maintenant dans la spec et dans le commentaire du champ
+  concerné. Deux mécanismes distincts confirmés : le widget
+  (gratuit, découverte) et `PrioriteTerritoriale` (payant/PoC,
+  priorisation). Aucune zone ni CPTS supplémentaire ouverte — une
+  seule instance reste déclarée, cohérent avec la discipline de ne
+  pas construire pour un besoin hypothétique : la forme change
+  (scalable), pas ce que le produit sert aujourd'hui.
+
 ## 🔴 Prêts, en file, pas encore envoyées
 
-🎯. **Débloquer la démo CPTS Nord Basse-Terre — 2 actions restantes.**
-   B2 (mention "zones prioritaires") reste bloqué tant que ces deux
-   points ne sont pas faits : (1) ouvrir la relation CPTS Nord
-   Basse-Terre dans `/admin/priorites` puis y saisir une première
-   déclaration réelle — en évitant Pointe-Noire (cabinet fondateur
-   dominant, biaiserait la démo, voir plus haut) ; (2) `/admin/
-   priorites` n'a jamais été vu à l'écran, seule la matrice de
-   gating a été vérifiée en base. Pas encore prompté.
+⚠️. **`register/page.tsx` (motif `router.push`) + `/admin/apl` (3/5
+   colonnes de boost) — correctifs en cours**, lancés par
+   Jean-Charles le 20/08. Lien avec le correctif de la barre de
+   tête pas confirmé — à vérifier une fois le rapport reçu.
+⚠️. **Pages persona non filtrées par audience** — prompt envoyé le
+   20/08. Capture d'écran confirmant le bug : la page "cabinet"
+   mélange offres employeur et disponibilités candidates. Principe
+   retenu documenté dans STRATEGIE_MARKETING_BUSINESS.md §2 — chaque
+   porte montre l'inverse de son visiteur. Liste aussi limitée à
+   5-10 éléments (actuellement exhaustive). Rapport pas encore reçu.
+⚠️. **Suivi accessible depuis la fiche de détail candidat + vérif
+   filtrage date/lieu** — prompt envoyé le 20/08. Étend le bloc-note
+   de suivi (déjà construit pour le Planning) à un second point
+   d'entrée, la modale de compatibilité vue depuis le swipe — sous
+   réserve qu'un Match existe déjà à ce stade, à vérifier. Deuxième
+   volet : confirmer que les candidats proches-mais-pas-exacts en
+   date/lieu restent visibles avec un score dégradé plutôt que
+   filtrés (comportement observé sur capture, à confirmer partout).
+   Rapport pas encore reçu.
+⚠️. **Image de partage manquante sur les 4 pages persona** — prompt
+   envoyé le 20/08. Les pages géographiques + annonces individuelles
+   ont déjà le mécanisme, les 4 pages persona (construites après)
+   ne l'ont pas hérité. Rapport pas encore reçu.
+⚠️. **Email de réinitialisation compte CPTS — adresse corrigée,
+   cause de fond restée ouverte.** L'adresse en base était fautive
+   (faute de frappe à l'inscription), corrigée. **Problème de fond
+   signalé par Opus, pas construit sans accord** : une faute de
+   frappe à l'inscription est aujourd'hui invisible et coûteuse — le
+   compte se crée, l'email de bienvenue part dans le vide, et la
+   réinitialisation répond 200 sans rien faire (choix de sécurité
+   délibéré de ne pas révéler l'existence d'un compte — bon choix,
+   mais qui rend ce cas indétectable côté utilisateur). Une
+   confirmation d'adresse à l'inscription fermerait ce trou — un
+   vrai chantier, pas un correctif, décision à prendre. Rejoint
+   l'item "stocker l'id Resend" déjà en file — même famille de
+   problème (aucune visibilité sur si un email atterrit vraiment).
 ⚠️. **Mélange barre de tête entre sessions : CONFIRMÉ RÉSOLU (en
    production).** Fausse alerte de fuite de données — les données
    servies par `planning/page.tsx` étaient toujours correctes,
    c'est uniquement le nom affiché dans la barre de tête (composant
    de layout séparé) qui restait périmé après un changement de
-   compte sur le même appareil. **Cause corrigée par Opus : ce n'est
-   PAS le JWT figé au sign-in** — c'était son hypothèse initiale, et
-   elle a été réfutée en cours d'investigation (le corps de la page
-   affichait les bons postes avec la même session, donc `profileId`
-   était juste). La cause réelle est le **cache de routeur de
-   Next.js** : `router.push` ne re-rend pas le layout, servi depuis
-   le cache, tandis que le segment `page` est refetché. Les deux
-   moitiés de l'écran dataient de deux instants différents.
-   Portée générale, pas spécifique à ces deux comptes — tout poste
-   où deux personnes se succèdent (cabinet partagé, démonstration)
-   pouvait afficher l'identité de la précédente. Corrigé par
-   rechargement dur plutôt que `router.refresh()` — délibérément,
-   pour ne pas dépendre d'une discipline à respecter à chaque futur
-   point d'entrée. `force-dynamic` sur le layout écarté comme fausse
-   piste (gouverne le rendu serveur, pas le cache client). **Dette
-   de spec signalée par Opus lui-même** : 3 passages de
-   PRODUCT_SPEC.md en retard (gating client, audit de généricité,
-   cette investigation) — mise à jour demandée le 19/08.
+   compte sur le même appareil. **Cause corrigée le 20/08** : PAS le
+   JWT figé au sign-in comme d'abord supposé — Opus a lui-même
+   réfuté cette hypothèse (le corps de la page affichait déjà les
+   bons postes avec la même session, donc le JWT n'était pas en
+   cause) ; la vraie cause est un cache de routeur. Distinction
+   importante : croire à tort au JWT aurait mené à le rafraîchir à
+   chaque requête — un correctif qui ne corrige rien et coûte une
+   lecture base en plus par page. Portée générale, pas spécifique à
+   ces deux comptes — tout poste où deux personnes se succèdent
+   (cabinet partagé, démonstration) pouvait afficher l'identité de
+   la précédente. Corrigé par rechargement dur plutôt que
+   `router.refresh()` — délibérément, pour ne pas dépendre d'une
+   discipline à respecter à chaque futur point d'entrée.
+   `force-dynamic` sur le layout écarté comme fausse piste (gouverne
+   le rendu serveur, pas le cache client). **Dette de spec signalée
+   par Opus lui-même** : 3 passages de PRODUCT_SPEC.md en retard
+   (gating client, audit de généricité, cette investigation) — mise
+   à jour demandée et confirmée en cours le 20/08.
 ⚠️⚠️⚠️. **Audit de généricité profession — retour reçu, deux
    correctifs en cours, un troisième mis en file.** Trouvé : la
    mention du feed a "kinés" en dur (à corriger) ; `PrioritesClient.tsx`
@@ -506,10 +594,7 @@ ci-dessus, plus une référence de file d'attente.
    `/admin/apl` n'affiche que 3 colonnes de boost sur 5 (Sage-femme
    et Orthophoniste éditables via le formulaire mais invisibles dans
    le tableau) — antérieur à B0, hors scope du travail en cours.
-⚠️. **`/admin/apl` — colonnes Sage-femme et Orthophoniste invisibles
-   dans le tableau** — éditables via le formulaire d'édition, jamais
-   affichées dans le tableau (3/5 colonnes seulement). Trouvé le
-   19/08 en marge de l'audit de généricité, pas encore prompté.
+   **En cours de correction, voir item en tête de file.**
 ⚠️⚠️. **Audit UI/UX/fonctionnalités du 19/08 + décision "anticiper
    Phase 2 dans toute factorisation"** — voir
    STRATEGIE_MARKETING_BUSINESS.md pour l'audit complet (App'Ines
@@ -521,6 +606,20 @@ ci-dessus, plus une référence de file d'attente.
    a été construit depuis B0 (CommuneAPL, PrioriteTerritoriale,
    scoring géo, COMMUNE_INSEE/COMMUNE_ZONE) — rapport pas encore
    reçu. Ne construit aucune 2ᵉ profession, audite seulement si le
+   **Correction structurelle du 20/08, plus profonde que l'audit
+   initial** : "Médecin" comme catégorie unique de l'enum
+   `Profession` est faux — doit se décomposer en spécialités
+   (généraliste, gynécologue, pédiatre, etc.), cohérent avec REZONE
+   qui distingue déjà les médecins par spécialité. Révèle une
+   fragilité plus large : `CommuneAPL` a des colonnes fixes par
+   profession (`aplKine`/`aplInfirmier`/`aplMedecin`/`aplSageFemme`)
+   — un modèle qui casse si une "profession" doit se décomposer en
+   plusieurs. Forme correcte, structurellement : table normalisée
+   (commune × profession → valeur) plutôt que colonnes fixes. Pas de
+   migration maintenant — zéro médecin réel dans le produit
+   aujourd'hui, pas de risque actif contrairement au gating client.
+   Chiffrage demandé (voir prompt ci-dessous) pour informer la
+   décision le jour où la Phase 2 s'approche des médecins.
    code déjà écrit le permettrait à coût faible le moment venu.
 ⚠️. **Data ameli (macro, générique) + accessibilité réelle de la
    famille REZONE** — prompt envoyé le 19/08, enrichi le même jour.
