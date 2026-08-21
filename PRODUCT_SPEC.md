@@ -4277,17 +4277,28 @@ faudrait penser à l'ajouter à chaque nouveau point d'entrée ; un rechargement
 pas. **Les quatre destinations** de la connexion sont traitées pareil : n'en durcir que
 certaines aurait laissé le défaut vivant sur les autres, et c'est ainsi qu'il a survécu.
 
-##### Le motif, fermé à 3 points d'entrée sur 4 (20/08)
+##### Le motif, fermé aux 4 points d'entrée (20/08)
 
-`register/page.tsx` portait le même `signIn` → `router.push` et a été corrigé (`window.location.assign`).
-Le symptôme y était moins probable — le layout n'a en principe rien en cache pour un compte qui
-vient de naître — mais quelqu'un qui s'inscrit depuis une session déjà ouverte tombe dessus.
+Recherche systématique de `signIn`/`signOut` dans tout `src/` : **quatre sites, pas un de plus**.
+Tous corrigés, tous par `window.location.assign`.
 
-⚠️ **Une quatrième occurrence subsiste, non corrigée** : `CompteForm.tsx:169`,
-`handleDeleteAccount` — `signOut({ redirect: false })` puis `router.push("/register")`. C'est le
-cas où le défaut serait le plus visible : le compte vient d'être **supprimé**, et la barre de
-tête afficherait encore son nom. Signalée, laissée en file plutôt que glissée dans un envoi qui
-portait autre chose.
+| Site | Bascule | Corrigé |
+|---|---|---|
+| `SignOutButton.tsx` | déconnexion | 19/08 (`9c0e8e5`) |
+| `login/page.tsx` | connexion — **les 4 destinations** | 19/08 (`9c0e8e5`) |
+| `register/page.tsx` | inscription | 20/08 (`8fe8292`) |
+| `CompteForm.tsx` — `handleDeleteAccount` | **suppression de compte** | 20/08 |
+
+Le dernier était le pire des quatre, et c'est pour ça qu'il méritait d'être traité seul : les
+trois autres montraient une identité **périmée**, celui-ci montrait une identité **effacée** — la
+barre aurait nommé un compte qui venait d'être supprimé.
+
+`useRouter` a disparu des quatre fichiers : il n'y servait plus. C'est le meilleur contrôle que
+le motif est clos — il ne reste aucun outil pour le refaire par distraction à ces endroits.
+
+**Pourquoi le rechargement dur plutôt que `router.refresh()`** : `refresh()` marcherait, mais il
+faudrait penser à l'ajouter à chaque nouveau point d'entrée. Un rechargement dur ne s'oublie pas.
+Le motif s'est justement propagé à quatre endroits parce que `router.push` était le geste naturel.
 
 ##### Portée réelle, et ce qui reste ouvert
 

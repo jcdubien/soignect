@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { PROFESSION_LABELS } from "@/lib/professions";
-import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { Profession, Region, SubscriptionPlan, ProfileType, TitulaireKind } from "@prisma/client";
@@ -59,7 +58,6 @@ interface MatchedMission {
 }
 
 export default function CompteForm({ profile, matchedMissions = [] }: { profile: ProfileData; matchedMissions?: MatchedMission[] }) {
-  const router = useRouter();
 
   const [name, setName]           = useState(profile.name ?? "");
   const [bioTinder, setBioTinder] = useState(profile.bioTinder ?? "");
@@ -166,7 +164,15 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
     const res = await fetch(`/api/profiles/${profile.id}`, { method: "DELETE" });
     if (res.ok) {
       await signOut({ redirect: false });
-      router.push("/register");
+      // RECHARGEMENT COMPLET, PAS `router.push` (20/08) — quatrième et DERNIER point d'entrée du
+      // motif. Une navigation côté client ne re-rend pas le layout : le segment `page` est
+      // refetché, le segment `layout` vient du cache du routeur.
+      //
+      // C'est ici que le défaut serait le plus visible de tous : le compte vient d'être SUPPRIMÉ,
+      // et la barre de tête afficherait encore son nom — un écran qui nomme un compte qui
+      // n'existe plus. Les trois autres points d'entrée montraient une identité périmée ; celui-ci
+      // montrerait une identité effacée.
+      window.location.assign("/register");
     } else {
       setDeleting(false);
       setConfirmDelete(false);
