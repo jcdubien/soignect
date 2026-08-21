@@ -1,9 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { ZoneGeographique } from "@prisma/client";
 import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
-import { KINESITHERAPEUTE, Profession } from "@/lib/pagesDiffusion";
+import { EMBED_PAR_SLUG } from "@/lib/embedTerritoire";
 import { COMMUNE_ZONE, ZONE_LABELS } from "@/lib/communes";
 import { tracerVueLanding } from "@/lib/traceLanding";
 
@@ -23,20 +22,16 @@ export const dynamic = "force-dynamic";
 //
 // Non indexée : son contenu duplique la page de propagande, qui est la version canonique.
 
-// La PROFESSION est déclarée ici, par instance du module, et non figée dans le rendu.
-// Exigence posée le 13/08 : le module ne doit pas rester architecturalement enfermé dans le
-// kiné — le jour où une CPTS veut afficher les postes de plusieurs professions, ce doit être
-// une entrée de plus, pas une reconstruction. Elle sert à DEUX choses qui doivent rester
-// d'accord : le filtre des annonces et le titre affiché. Le titre disait « Postes de
-// kinésithérapie » en dur pendant que la requête ne filtrait sur aucune profession — un
-// non-kiné y serait apparu sous un titre qui le contredit.
-const ZONES: Record<string, { zone: ZoneGeographique; page: string; profession: Profession }> = {
-  "nord-basse-terre": {
-    zone: "NORD_BASSE_TERRE",
-    page: "/remplacement-kine-guadeloupe",
-    profession: KINESITHERAPEUTE,
-  },
-};
+// Le registre des instances a été SORTI D'ICI le 20/08 vers `src/lib/embedTerritoire.ts`.
+// Il y était bien formé — ajouter une zone = ajouter une entrée — mais visible de cette page
+// seule : `/admin/diffusion` codait la sienne à la main, et une deuxième CPTS aurait donc
+// fonctionné côté module tout en restant invisible côté administration.
+//
+// La profession reste déclarée par instance, jamais figée dans le rendu (exigence du 13/08) :
+// elle sert à DEUX choses qui doivent rester d'accord — le filtre des annonces et le titre
+// affiché. Le titre disait « Postes de kinésithérapie » en dur pendant que la requête ne
+// filtrait sur aucune profession ; un non-kiné y serait apparu sous un titre qui le contredit.
+const ZONES = EMBED_PAR_SLUG;
 
 export async function generateMetadata(
   { params }: { params: Promise<{ zone: string }> },

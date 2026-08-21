@@ -3979,6 +3979,61 @@ en-tête transporté : %5B%22CPTS%20NORD%20BASSE%20TERRE%22%5D
 Ce qui est vérifié, c'est la chaîne complète — déclaration lue, gating appliqué, en-tête encodé,
 formule choisie. Le rendu final reste à constater le jour où une annonce y existera.
 
+#### SCALABILITÉ À PLUSIEURS CPTS (20/08) — audit et deux correctifs
+
+Nord Basse-Terre est le **secteur de test**, pas la cible. Vérification que rien ne suppose une
+institution unique. **Trois points sur cinq étaient déjà génériques ; deux ont été corrigés.**
+
+##### Ce qui l'était déjà, vérifié en base
+
+| Point | Constat |
+|---|---|
+| Plusieurs relations actives | ✅ Aucun `findFirst`, aucune notion de « la » relation — tout est `findMany`. **Testé : 2 relations actives simultanément.** |
+| Étanchéité entre institutions | ✅ Chaque déclaration porte `clientId`. **Testé** : Deshaies remonte 6 pts au nom de la CPTS Nord Basse-Terre, Petit-Bourg 15 pts au nom d'une seconde — chacune avec la sienne, aucune interférence. |
+| « CPTS Nord Basse-Terre » en dur | ✅ **Nulle part en logique.** Occurrences : un `placeholder` de formulaire, des commentaires. C'est une donnée saisie, jamais une référence. |
+
+##### Les territoires chevauchants ne sont PAS représentables — et c'est délibéré
+
+`@@unique([codeInsee, profession])` ne contient **pas** `clientId`. Deux institutions ne peuvent
+donc pas déclarer la même commune pour la même profession : la seconde est refusée par la base
+(**P2002, vérifié**). La même commune reste ouverte à une **autre profession** (vérifié aussi :
+Deshaies/`INFIRMIER` par une seconde CPTS passe).
+
+**Ce n'est pas un défaut de scalabilité, c'est un refus d'arbitrer à la place des institutions.**
+Autoriser deux déclarations concurrentes obligerait le produit à choisir laquelle fait foi — la
+plus forte ? la plus récente ? la payante ? Aucune de ces réponses n'est honnête, et le levier
+perdrait ce qui fait sa valeur : être attribuable à quelqu'un.
+
+**L'unicité est donc conservée. C'est le MESSAGE qui a été corrigé.** Il disait, quelle que soit
+la situation : « la modifier plutôt que d'en ajouter une seconde ». Bon conseil quand une
+institution se corrige elle-même ; **très mauvais entre deux institutions différentes** — modifier
+la déclaration de l'une ferait passer le jugement de l'autre sous son nom. L'erreur d'attribution
+que toute cette section existe pour empêcher, refaite par un administrateur suivant une consigne.
+
+Deux conflits, deux messages, distingués par comparaison de `clientId` (champ `conflit` :
+`meme-institution` / `chevauchement`). Le second dit explicitement de **ne pas** modifier la
+déclaration existante, et que le territoire est à arbitrer entre les deux institutions.
+
+##### Le module embarquable marchait, mais aurait été invisible
+
+Le registre `ZONES` vivait dans `src/app/embed/territoire/[zone]/page.tsx`. Il était **bien
+formé** — ajouter une zone = ajouter une entrée — mais visible de cette page seule. Or
+`/admin/diffusion` codait son entrée **à la main** (chemin, titre, clé de trace), alors que le
+reste de ce fichier est dérivé du module de portes depuis le 14/08, précisément pour fermer le
+risque de pages découvertes après coup.
+
+**Une deuxième CPTS aurait donc fonctionné côté module et n'aurait jamais paru côté
+administration** — le même défaut que les pages Saint-Martin/Saint-Barth de juillet, à un endroit
+différent.
+
+Registre extrait dans `src/lib/embedTerritoire.ts`, consommé par les deux. **Ajouter une CPTS =
+une entrée**, la page et l'écran d'administration s'alignent seuls. Vérifié que le chemin et la
+clé de trace dérivés sont **identiques au caractère près** à ceux codés en dur
+(`embed-nord-basse-terre`) : l'historique de fréquentation n'est pas coupé en deux.
+
+Le champ `destinataire` est purement descriptif — **le module embarquable ne dépend d'aucune
+relation client** : il liste des annonces publiques, il n'applique aucune priorité territoriale.
+
 #### AUDIT DE GÉNÉRICITÉ PROFESSION SUR B0-B3 (19/08, `a7d4de8`)
 
 Tout ce qui a été construit depuis B0 n'avait jamais été relu sous l'angle « suppose-t-il

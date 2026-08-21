@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import ShareActions from "@/components/share/ShareActions";
 import { KINESITHERAPEUTE, TERRITOIRES, PORTES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
+import { INSTANCES_EMBED, cheminEmbed, cleTraceEmbed } from "@/lib/embedTerritoire";
+import { ZONE_LABELS } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
 
@@ -33,13 +35,16 @@ const PAGES = [
     sousTitre: porte.cible,
     trace: cleTracePage(porte, KINESITHERAPEUTE, TERRITOIRES.GUADELOUPE),
   })),
-  // Module embarquable (section 208) — pas une page de campagne, mais tracé de la même façon.
-  {
-    chemin: "/embed/territoire/nord-basse-terre",
-    titre: "Module embarquable — Nord Basse-Terre",
-    sousTitre: "Iframe pour le site de la CPTS — postes ouverts du territoire",
-    trace: "embed-nord-basse-terre",
-  },
+  // Modules embarquables (section 208) — pas des pages de campagne, mais tracés de la même
+  // façon. DÉRIVÉS du registre depuis le 20/08, comme les portes juste au-dessus : l'entrée
+  // était écrite à la main, donc une deuxième CPTS aurait marché côté module et n'aurait
+  // jamais paru ici. Même défaut que les pages Saint-Martin/Saint-Barth découvertes après coup.
+  ...INSTANCES_EMBED.map((i) => ({
+    chemin: cheminEmbed(i),
+    titre: `Module embarquable — ${ZONE_LABELS[i.zone]}`,
+    sousTitre: `Iframe pour le site de ${i.destinataire} — postes ouverts du territoire`,
+    trace: cleTraceEmbed(i),
+  })),
 ];
 
 export default async function AdminDiffusionPage() {

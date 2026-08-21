@@ -87,13 +87,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // DEUX CONFLITS DIFFÉRENTS, DEUX MESSAGES DIFFÉRENTS (20/08).
+  //
+  // La contrainte `@@unique([codeInsee, profession])` refuse toute seconde déclaration sur une
+  // même commune pour une même profession — y compris venant d'une AUTRE institution. Le message
+  // unique disait « la modifier plutôt que d'en ajouter une seconde », ce qui est un bon conseil
+  // quand c'est la même institution qui se corrige, et un très mauvais quand deux CPTS aux
+  // territoires qui se chevauchent visent la même commune : modifier la déclaration de l'une
+  // ferait passer le jugement de l'autre sous son nom. C'est l'erreur d'attribution que toute
+  // cette section existe pour empêcher, refaite par un administrateur suivant une consigne.
   const existante = await prisma.prioriteTerritoriale.findUnique({
     where: { codeInsee_profession: { codeInsee, profession } },
-    select: { id: true, client: { select: { nom: true } } },
+    select: { id: true, clientId: true, client: { select: { nom: true } } },
   });
   if (existante) {
+    const memeInstitution = existante.clientId === clientId;
     return NextResponse.json(
-      { error: `Une déclaration existe déjà pour cette commune et cette profession (${existante.client.nom}). La modifier plutôt que d'en ajouter une seconde.` },
+      {
+        error: memeInstitution
+          ? `${client.nom} a déjà déclaré ${commune} pour cette profession. Modifier la déclaration existante plutôt que d'en ajouter une seconde.`
+          : `${commune} est déjà déclarée pour cette profession par ${existante.client.nom}, une autre institution. Le produit ne peut pas porter deux priorités concurrentes sur une même commune : il faudrait trancher laquelle fait foi, et aucune réponse automatique ne serait honnête. Ne PAS modifier la déclaration de ${existante.client.nom} au nom de ${client.nom} — le territoire est à arbitrer entre les deux institutions.`,
+        conflit: memeInstitution ? "meme-institution" : "chevauchement",
+      },
       { status: 409 },
     );
   }
