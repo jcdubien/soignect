@@ -3897,29 +3897,60 @@ utilisation, corrigés depuis (`d8bb6ca`) :
 Le premier correctif porte sur le **rendu**, jamais sur la donnée : décaler la valeur stockée
 aurait cassé la comparaison d'échéance que le feed fait en SQL.
 
-##### État réel aujourd'hui — déclaré, actif, et pourtant muet
+##### État réel au 25/08 — deux déclarations, aucune créditée, mention muette
 
 | | |
 |---|---|
 | Relation | **CPTS NORD BASSE TERRE** — CPTS, `POC_GRATUIT`, ouverte le 20/08, revue le 20/02/2027, non close |
-| Déclaration | **Deshaies** (97111), `KINESITHERAPEUTE`, niveau 2 → **6 points**, sans échéance |
-| Annonces créditées dans le feed | **0** |
+| Déclarations | **Deshaies** (20/08) et **Sainte-Rose** (21/08) — `KINESITHERAPEUTE`, niveau 2 → 6 points, sans échéance |
+| Annonces créditées | **0 sur 14** |
 | Mention affichée | **aucune** |
 
-Le levier est **actif et sans effet** : Deshaies ne porte aucune annonce, donc aucune annonce du
-feed ne reçoit les 6 points, donc la mention se tait. **C'est le comportement correct, pas un
-échec** — c'est exactement ce que le mécanisme conditionnel existe pour faire.
+Aucune des deux communes ne porte d'annonce. Le levier est donc **actif et sans effet**, et la
+mention se tait — le comportement correct, pas un échec.
+
+##### Pointe-Noire : déclarée le 25/08, retirée le jour même
+
+Elle est la seule commune du territoire qui porte des annonces (5), et elle a été déclarée pour
+tester ce que ça produirait. **Trois faits mesurés avant retrait**, qui valent d'être gardés :
+
+1. **La mention s'est affichée pour la première fois**, et elle nommait son auteur : « …une
+   commune **déclarée prioritaire par CPTS NORD BASSE TERRE** ». La branche « une seule
+   institution → on la nomme » est donc exercée pour de vrai, pas seulement simulée.
+2. **L'ordre n'a pas bougé d'un rang.** Les 5 annonces créditées passent de 100 à 106 — ce sont
+   celles du cabinet fondateur, déjà en tête. `937c884` reproduit à l'identique quatre jours plus
+   tard, sur une déclaration réelle cette fois au lieu d'une valeur dérivée de l'APL. **Le levier
+   s'applique ; il ne déplace rien.**
+3. **La démonstration aurait été trompeuse** : « déclarée prioritaire par CPTS NORD BASSE TERRE »
+   se serait affiché au-dessus de cinq annonces appartenant à Jean-Charles. Un observateur peut
+   en conclure que la déclaration met en avant le cabinet de celui qui vend l'outil. C'est faux —
+   elles seraient premières sans elle — mais l'écran ne le dit pas.
+
+Retirée pour cette raison. Ce n'est pas un défaut du levier : c'est le levier qui rend visible un
+conflit d'intérêt préexistant, et le bon geste est de ne pas s'en servir là.
+
+##### « Agit ? oui » ne veut pas dire « a un effet »
+
+L'écran `/admin/priorites` affiche **« Agit ? oui »** pour Deshaies et Sainte-Rose alors que 0
+annonce est créditée. Ce n'est pas faux : la colonne dit que la déclaration est **en vigueur**
+(relation active, déclaration non échue), pas qu'elle change quelque chose au feed aujourd'hui.
+
+La distinction n'est pas anodine dans un produit qui a passé une semaine à corriger des écrans
+affirmant plus qu'ils ne savent. Un administrateur peut lire « Agit ? oui » comme « ça marche ».
+**À reformuler si le doute se confirme à l'usage** — pas corrigé aujourd'hui faute d'avoir vu
+quelqu'un s'y tromper.
 
 ##### Ce qui reste bloqué, et ce n'est pas technique
 
-La chaîne est complète et vérifiée. Ce qui manque pour une démo qui **montre** un déplacement
-n'est pas du code : il faut **un cabinet non fondateur publiant à Deshaies, Sainte-Rose ou
-Lamentin**. Aujourd'hui ces trois communes portent 0 annonce, et Pointe-Noire — la quatrième du
-territoire — en porte 5, **toutes du cabinet fondateur**, celui de Jean-Charles. Y démontrer
-afficherait le cabinet du vendeur en tête pour une raison qui n'a rien de territorial.
+La chaîne est complète et vérifiée de bout en bout, mention comprise. Ce qui manque pour une démo
+qui **montre** un déplacement n'est pas du code : il faut **un cabinet non fondateur publiant sur
+une commune déclarée**. Sur les quatre communes du territoire, trois portent 0 annonce et la
+quatrième n'en porte que du cabinet fondateur. C'est du recrutement d'annonceur.
 
-Deux sorties honnêtes, inchangées : démontrer sur une commune où le cabinet fondateur ne publie
-pas, ou le dire à voix haute. C'est du recrutement d'annonceur, pas du développement.
+**Le niveau 2 des deux déclarations est une valeur posée par défaut, pas un arbitrage de la
+CPTS** — noté dans chaque ligne, modifiable dans `/admin/priorites`. À niveau égal, le levier ne
+peut pas trancher entre deux communes déclarées ; il ne le pourra que si la CPTS hiérarchise
+réellement son territoire.
 
 #### B2 — LA MENTION NOMME L'INSTITUTION (20/08, `d238531`) — livrée
 
@@ -3963,21 +3994,24 @@ auteur ne l'est pas.
 Le `try/catch` autour du décodage retombe sur la liste vide, donc sur la formule sans auteur —
 un en-tête corrompu ne peut pas produire un nom inventé.
 
-##### Vérifiée par simulation, faute de pouvoir l'être à l'écran
+##### Vérifiée par simulation, puis une fois en conditions réelles (25/08)
+
+La réserve du 20/08 — « la phrase nommée n'a jamais été vue à l'écran » — **a été levée le 25/08**
+par la déclaration temporaire de Pointe-Noire (voir plus haut) :
 
 ```
-priorités appliquées : Deshaies → 6 pts, CPTS NORD BASSE TERRE
-annonces créditées   : 0
-PHRASE AFFICHÉE      : (muette)
-
-simulation, une annonce à Deshaies :
-« …une commune déclarée prioritaire par CPTS NORD BASSE TERRE »
-en-tête transporté : %5B%22CPTS%20NORD%20BASSE%20TERRE%22%5D
+annonces créditées : 5 sur 14
+x-feed-priorite-territoriale : 5
+x-feed-priorite-institutions : %5B%22CPTS%20NORD%20BASSE%20TERRE%22%5D
+PHRASE : « …une commune déclarée prioritaire par CPTS NORD BASSE TERRE »
 ```
 
-**Réserve honnête** : la phrase nommée n'a jamais été vue à l'écran, faute d'annonce à Deshaies.
-Ce qui est vérifié, c'est la chaîne complète — déclaration lue, gating appliqué, en-tête encodé,
-formule choisie. Le rendu final reste à constater le jour où une annonce y existera.
+La branche « une seule institution → on la nomme » a donc bien été exercée. Pointe-Noire retirée
+depuis, la mention est de nouveau muette — mais on sait désormais qu'elle fonctionne, ce qui
+n'était pas le cas jusque-là.
+
+Les branches à plusieurs institutions et à en-tête illisible restent vérifiées **par simulation
+uniquement** : elles demandent une seconde CPTS, qui n'existe pas.
 
 #### SCALABILITÉ À PLUSIEURS CPTS (20/08) — audit et deux correctifs
 
@@ -4235,6 +4269,54 @@ pas maintenues** — ce qu'il faut en faire reste une question ouverte.
 ---
 
 ### Exploitation, incidents, veille
+
+#### INVITATION EXPIRÉE : ÉCHEC SILENCIEUX DES DEUX CÔTÉS (21/08) — non corrigé
+
+##### Ce qui s'est passé
+
+Une invitation a été envoyée le **13/08 09:16** pour le poste « Marion » du cabinet fondateur,
+valable 7 jours. L'invitée a créé son compte le **20/08 14:13** — soit **4 h 57 après
+l'expiration**. L'invitation est restée `PENDING`, jamais consommée, et le poste jamais rattaché.
+
+Elle s'est retrouvée **titulaire de son propre cabinet**, qu'elle a nommé du nom du cabinet
+invitant. Le compte non fondateur trouvé plus tard à Pointe-Noire venait de là.
+
+##### Le code a fait exactement ce qui est écrit
+
+`src/app/api/profiles/route.ts` exige `status === "PENDING"` **et** `expiresAt > new Date()` **et**
+l'email correspondant. La deuxième condition était fausse, et le bloc est dans un `try/catch`
+dont le commentaire assume le silence : « un token périmé ne doit pas faire échouer une
+inscription par ailleurs valide ». **Aucun cabinet fantôme n'a été créé** : le profil vient du
+formulaire ordinaire, avec le type et le nom que l'utilisatrice a saisis.
+
+##### Le défaut réel : le motif est calculé, renvoyé, et jeté
+
+`/api/poste-invitations/[token]` distingue précisément `introuvable`, `utilisée`, `expirée`,
+`poste supprimé`. **`register/page.tsx` ne lit que `d.valid` et ignore le motif.**
+
+Du point de vue de l'invitée : elle clique sur « Créer mon compte → » dans l'email, arrive sur un
+formulaire vierge sans mention du cabinet ni du poste, remplit ce qu'elle croit devoir remplir, et
+devient titulaire. **Rien ne lui a dit que son invitation avait expiré.**
+
+Le silence côté serveur est défendable ; il repose pourtant sur une hypothèse fausse — que
+l'utilisateur sait pourquoi le contexte n'apparaît pas.
+
+**Portée : toute invitation ouverte après 7 jours produira le même résultat.** Non corrigé — le
+motif existe déjà côté serveur, l'afficher est peu coûteux.
+
+##### Remise en état (21/08, données uniquement)
+
+Sur demande explicite de Jean-Charles, la personne voulant être rattachée : profil passé de
+`TITULAIRE` à `ASSISTANT`, rattaché au poste « Marion » (ligne 2 du Planning, vérifiée dans
+l'ordre `isOwnerSeat` puis ancienneté — c'est bien le poste que visait l'invitation), puis
+suppression de ses 2 annonces et de son siège de cabinet devenus sans objet.
+
+Dépendances contrôlées **avant** suppression, toutes à zéro : aucun swipe reçu, aucun match,
+aucun swipe émis. Sauvegarde JSON intégrale écrite avant effacement. Compte et profil conservés.
+
+⚠️ `titulaireKind` **n'est pas nullable** : le profil garde `CABINET` bien qu'il ne soit plus
+titulaire. Donnée dormante, sans effet aujourd'hui (seul `STRUCTURE` est lu, pour dériver
+`isEmployeur`). Signalée, pas forcée.
 
 #### MÉLANGE APPARENT ENTRE DEUX COMPTES (19/08) — cache de routeur, pas fuite de données
 
