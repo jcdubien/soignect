@@ -14,6 +14,7 @@
 // à être touchées : elles lisent leur configuration par leur clé.
 
 import { Profession as ProfessionDb } from "@prisma/client";
+import type { Camp } from "@/lib/annoncesTerritoire";
 
 export interface Profession {
   /** « kinésithérapeute » — employé dans le titre personnifié. */
@@ -133,6 +134,10 @@ export interface Porte {
   cta: string;
   /** Ce que le visiteur vient chercher, sous le CTA. */
   ctaSous: string;
+  /** Le camp des annonces que cette porte AFFICHE — l'inverse de son visiteur, jamais le sien.
+   *  Déclaré par porte plutôt que dérivé : ajouter une porte oblige à trancher à qui elle parle,
+   *  au lieu de laisser un défaut décider en silence. */
+  montre: Camp;
 }
 
 export const PORTES: Record<string, Porte> = {
@@ -146,6 +151,8 @@ export const PORTES: Record<string, Porte> = {
     metaDescription: (p, t) => t.metaDescription(p),
     cta: "S'inscrire →",
     ctaSous: "Remplaçants : accès à vie, sans aucun frais.",
+    /** un chercheur de poste vient voir des POSTES, pas d'autres candidats. */
+    montre: "EMPLOYEUR",
   },
   CABINET: {
     slug: "recrutement",
@@ -159,6 +166,8 @@ export const PORTES: Record<string, Porte> = {
       `Cabinets de ${t.nom} : publiez votre recherche de ${p.singulier} et recevez des candidatures. Remplacement, assistanat, collaboration libérale — contrat CNOMK pré-rempli, sans commission sur les honoraires.`,
     cta: "Publier mon poste →",
     ctaSous: "Publication gratuite pendant la bêta.",
+    /** un cabinet qui recrute vient voir des CANDIDATS, pas les annonces d'autres cabinets. */
+    montre: "CANDIDAT",
   },
   ETABLISSEMENT: {
     slug: "emploi",
@@ -172,6 +181,8 @@ export const PORTES: Record<string, Porte> = {
       `Établissements de ${t.nom} — hôpital, clinique, EHPAD, SSR, CAMSP : publiez vos postes de ${p.singulier} salarié et touchez les candidats ouverts au salariat.`,
     cta: "Publier une offre →",
     ctaSous: "Le contrat de travail relève de votre établissement.",
+    /** meme raison que la porte CABINET : un employeur vient voir qui est disponible. */
+    montre: "CANDIDAT",
   },
   // La porte TERRITOIRE ne suit PAS le gabarit des trois autres — voir la page dédiée.
   // Elle est déclarée ici pour le slug, la trace et /admin/diffusion ; son contenu est un
@@ -188,6 +199,8 @@ export const PORTES: Record<string, Porte> = {
       `CPTS, MSP et collectivités de ${t.nom} : suivez les postes de ${p.discipline} ouverts sur votre territoire et intégrez-les à votre site.`,
     cta: "Échanger sur un partenariat →",
     ctaSous: "Gratuit pour les structures territoriales pendant la bêta.",
+    /** la page compte les POSTES OUVERTS du territoire, ce qu'elle dit d'ailleurs en toutes lettres. */
+    montre: "EMPLOYEUR",
   },
 };
 

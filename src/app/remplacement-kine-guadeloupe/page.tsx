@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { KINESITHERAPEUTE, TERRITOIRES, titrePage } from "@/lib/pagesDiffusion";
+import { KINESITHERAPEUTE, TERRITOIRES, titrePage, PORTES } from "@/lib/pagesDiffusion";
 import { prisma } from "@/lib/prisma";
 import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import Link from "next/link";
@@ -49,10 +49,10 @@ async function getMissions() {
   // Filtre partagé avec le module embarquable (lib/annoncesTerritoire) : il porte les deux
   // corrections apprises ici — macro-zones ET communes acceptées, expiration écrite en positif.
   return prisma.mission.findMany({
-    where: filtreAnnoncesVivantes(GUADELOUPE_ZONES, GUADELOUPE_COMMUNES, PRO.enumBase),
+    where: filtreAnnoncesVivantes(GUADELOUPE_ZONES, GUADELOUPE_COMMUNES, PRO.enumBase, PORTES.CHERCHEUR.montre),
     include: { profile: { select: { type: true, titulaireKind: true, name: true, ratingAvg: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
-    take: 20,
+    take: 8,
   });
 }
 

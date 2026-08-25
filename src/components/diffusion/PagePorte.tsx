@@ -24,10 +24,13 @@ export default async function PagePorte({
   basDePage: React.ReactNode;
 }) {
   const missions = await prisma.mission.findMany({
-    where: filtreAnnoncesVivantes(zones, communes, profession.enumBase),
+    // Le camp vient de la PORTE, qui le déclare : une porte employeur montre des candidats.
+    where: filtreAnnoncesVivantes(zones, communes, profession.enumBase, porte.montre),
     include: { profile: { select: { type: true, name: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
-    take: 20,
+    // Échantillon, pas inventaire : 8 suffisent à montrer qu'il se passe quelque chose.
+    // Au-delà, la page devient une liste à faire défiler et le CTA disparaît sous le pli.
+    take: 8,
   });
 
   await tracerVueLanding(cleTracePage(porte, profession, territoire), missions.length);

@@ -58,7 +58,8 @@ export default async function EmbedTerritoirePage(
     .map(([commune]) => commune);
 
   const missions = await prisma.mission.findMany({
-    where: filtreAnnoncesVivantes([cfg.zone], communes, cfg.profession.enumBase),
+    where: // Le module montre les POSTES d'un territoire à des candidats : camp EMPLOYEUR.
+    filtreAnnoncesVivantes([cfg.zone], communes, cfg.profession.enumBase, "EMPLOYEUR"),
     include: { profile: { select: { type: true, name: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     take: 10,

@@ -4013,6 +4013,77 @@ n'était pas le cas jusque-là.
 Les branches à plusieurs institutions et à en-tête illisible restent vérifiées **par simulation
 uniquement** : elles demandent une seconde CPTS, qui n'existe pas.
 
+#### PAGES PERSONA FILTRÉES PAR AUDIENCE (25/08) — livré
+
+##### Le défaut : chaque page montrait le camp du visiteur
+
+`filtreAnnoncesVivantes` filtrait la profession, le territoire et l'expiration — **jamais qui
+avait publié**. La page « Je recherche un kinésithérapeute pour renforcer mon cabinet » affichait
+donc 18 annonces dont l'essentiel étaient **les offres d'autres cabinets** : sans le moindre
+intérêt pour un visiteur qui recrute, et noyant l'unique disponibilité candidate — la seule qu'il
+était venu chercher.
+
+**Règle retenue : chaque page montre à son visiteur l'inverse de lui-même, jamais son propre
+camp.** C'est la logique d'`oppositeTypes` de `/api/feed`, appliquée aux pages publiques où elle
+manquait.
+
+##### Le discriminant est `Profile.type`, pas `missionType`
+
+| Camp | Types de profil |
+|---|---|
+| `EMPLOYEUR` | `TITULAIRE` — couvre cabinets libéraux **et** structures (EHPAD, clinique, SSR) : une STRUCTURE est un TITULAIRE dont `titulaireKind` vaut STRUCTURE, jamais un type à part |
+| `CANDIDAT` | `REMPLACANT` **+** `ASSISTANT` confondus |
+
+`missionType` (REMPLACEMENT / ASSISTANAT / COLLABORATION) décrit la **nature du poste**, pas qui
+le publie : un cabinet cherchant un remplaçant et un remplaçant cherchant un cabinet portent tous
+deux `REMPLACEMENT`. Filtrer par là aurait marché sur les libellés et menti sur le sens.
+
+Chaque camp voit l'**intégralité** du pool d'en face, ce qui préserve le multi-préférences : un
+candidat publiant plusieurs types de recherche reste visible depuis les pages employeur, quel que
+soit leur nombre.
+
+##### Le camp est déclaré par la porte, et le paramètre est obligatoire
+
+`Porte.montre` porte le camp affiché. Déclaré plutôt que dérivé : **ajouter une porte oblige à
+trancher à qui elle parle**, au lieu de laisser un défaut décider en silence.
+
+Le paramètre `camp` de `filtreAnnoncesVivantes` est **obligatoire et sans valeur par défaut** —
+même raison que la profession le 17/08 : un défaut aurait refermé la fuite aujourd'hui et l'aurait
+rouverte à la première page oubliée.
+
+| Page | Visiteur | Affiche |
+|---|---|---|
+| `/recrutement-kine-guadeloupe` | cabinet | **CANDIDAT** |
+| `/emploi-kine-guadeloupe` | établissement | **CANDIDAT** |
+| `/remplacement-kine-guadeloupe` | chercheur de poste | **EMPLOYEUR** |
+| `/territoire-kine-guadeloupe` | CPTS | **EMPLOYEUR** |
+| `/embed/territoire/[zone]` | candidats | **EMPLOYEUR** |
+
+**La porte TERRITOIRE était concernée, contrairement à l'attente.** Elle n'affiche pas de liste —
+seulement une répartition par zone — mais elle **comptait les deux camps** tout en écrivant
+« combien de postes cherchent preneur » et « les postes publiés par les cabinets et les
+établissements ». Son chiffre contredisait sa propre légende.
+
+##### Vérifié en base
+
+```
+sans filtre de camp : 20 annonces
+camp EMPLOYEUR : 13  → types distincts : [TITULAIRE]
+camp CANDIDAT  :  7  → types distincts : [REMPLACANT]
+```
+
+13 + 7 = 20 : les deux camps sont **disjoints et exhaustifs**, aucune annonce n'est perdue ni
+comptée deux fois.
+
+##### Deux effets de bord, assumés
+
+**Longueur limitée à 8** (`take: 20` auparavant). Une page d'entrée montre un échantillon, pas un
+inventaire : au-delà, elle devient une liste à faire défiler et le CTA passe sous le pli.
+
+**`isSelfPresence: false` ajouté au filtre.** Une absence du titulaire (congés, formation) n'est
+pas une offre. Le feed l'écarte depuis longtemps ; les pages publiques la laissaient passer. Même
+correction, un cran plus loin — non demandé, mais du même geste et de la même famille.
+
 #### SCALABILITÉ À PLUSIEURS CPTS (20/08) — audit et deux correctifs
 
 Nord Basse-Terre est le **secteur de test**, pas la cible. Vérification que rien ne suppose une
