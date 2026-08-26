@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { appBaseUrl } from "@/lib/appUrl";
+import { KINESITHERAPEUTE } from "@/lib/pagesDiffusion";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
@@ -16,7 +17,11 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL(appBaseUrl()),
   title: "Soignect — La mise en relation intelligente des professionnels de santé",
-  description: "Trouvez votre remplaçant ou votre cabinet en Guadeloupe. Soignect — la plateforme de mise en relation des kinésithérapeutes.",
+  // La profession vient du REGISTRE, plus d'une chaîne en dur (25/08). Le texte rendu est
+  // identique — le produit ne sert qu'une profession et le dire ici est exact, pas une
+  // approximation à corriger. Ce qui change : le jour où une seconde s'ouvre, cette
+  // méta-description suit le registre au lieu d'être un oubli de plus à retrouver.
+  description: `Trouvez votre remplaçant ou votre cabinet en Guadeloupe. Soignect — la plateforme de mise en relation des ${KINESITHERAPEUTE.pluriel}.`,
   openGraph: {
     type: "website",
     siteName: "Soignect",

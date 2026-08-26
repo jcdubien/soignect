@@ -4084,6 +4084,47 @@ inventaire : au-delà, elle devient une liste à faire défiler et le CTA passe 
 pas une offre. Le feed l'écarte depuis longtemps ; les pages publiques la laissaient passer. Même
 correction, un cran plus loin — non demandé, mais du même geste et de la même famille.
 
+#### TROIS MENTIONS « KINÉ » EN DUR DANS DES ÉCRANS INTERNES (25/08) — livré
+
+Prolongement de l'audit du 19/08, qui n'avait regardé que B0-B3. Un balayage plus large a trouvé
+trois endroits nommant le kiné en dur **dans des écrans que toute profession utilise** — invisible
+aujourd'hui, les 22 comptes étant tous kiné, donc du défaut latent au sens strict.
+
+| Fichier | Avant | Après |
+|---|---|---|
+| `missions/create` (×3) | « Vacation **kiné** sport », « recrute un **kiné** en CDI », « équipe de 4 **kinés** », « Recherche CDI **kiné** sport » | « Vacation temps partiel », « recrute un **praticien** », « équipe de 4 **praticiens** », « Recherche CDI temps plein » |
+| `premium:169` | « votre visibilité auprès des **kinésithérapeutes** » | « auprès des **remplaçants et assistants disponibles** » |
+| `layout:19` | chaîne en dur | interpolée depuis le **registre** (`KINESITHERAPEUTE.pluriel`) |
+
+##### Neutralisés dans le texte, pas paramétrés — et c'est un arbitrage
+
+`missions/create` et `premium` sont des composants client dont la session **ne porte pas la
+profession** : `useSession` expose `profileType`, `isEmployeur`, `profileId` — pas
+`Profile.profession`. Y câbler la profession aurait demandé soit de l'ajouter au JWT, **figé au
+sign-in** et déjà responsable d'un défaut cette semaine, soit une requête de plus pour un
+placeholder.
+
+« Praticien » dit la même chose et reste vrai pour les cinq professions de l'enum. Du texte, pas
+de la logique — le coût de la généricité était ici plus élevé que son bénéfice.
+
+Détail relevé au passage : la page premium disait déjà « des **soignants** » dans sa branche
+établissement et « des **kinésithérapeutes** » dans sa branche cabinet. La correction aligne les
+deux, et la nouvelle formule nomme le **camp** visé plutôt qu'un métier — plus précise que
+l'ancienne, pas seulement plus générique.
+
+##### La méta-description reste kiné, et c'est voulu
+
+`layout.tsx` est une métadonnée publique sans contexte utilisateur. La rendre neutre
+(« professionnels de santé ») aurait été **moins exact**, pas plus : le produit ne sert qu'une
+profession, et le dire est vrai. Ce qui change est la source — le jour où une seconde s'ouvre,
+cette ligne suit le registre au lieu d'être un oubli de plus à retrouver.
+
+##### Non touché, délibérément
+
+Les URLs de campagne (`/recrutement-kine-guadeloupe` et voisines) assument le kiné dans leur
+adresse même, et les **gabarits de contrat CNOMK** — ~850 lignes de droit — sont légitimement
+propres à la kinésithérapie. Les y neutraliser serait faux.
+
 #### SCALABILITÉ À PLUSIEURS CPTS (20/08) — audit et deux correctifs
 
 Nord Basse-Terre est le **secteur de test**, pas la cible. Vérification que rien ne suppose une

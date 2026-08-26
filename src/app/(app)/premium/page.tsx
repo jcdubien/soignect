@@ -166,7 +166,11 @@ export default function PremiumPage() {
         <p className="text-gray-500 max-w-lg mx-auto">
           {isStructure
             ? "Recrutez des soignants pour votre EHPAD, clinique ou SSR — nettement moins cher qu'une agence d'intérim."
-            : "Augmentez votre visibilité auprès des kinésithérapeutes, accédez aux scores et recrutez plus vite."}
+            /* Ne nomme plus « kinésithérapeutes » (25/08) : cet écran sert toute profession, et
+               la branche établissement juste au-dessus disait déjà « soignants ». La formule
+               nomme désormais le CAMP visé plutôt qu'un métier — plus précise, et vraie
+               quelle que soit la profession du visiteur. */
+            : "Augmentez votre visibilité auprès des remplaçants et assistants disponibles, accédez aux scores et recrutez plus vite."}
         </p>
       </div>
 
