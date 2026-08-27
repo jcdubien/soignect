@@ -17,3 +17,16 @@ prisma/dev.db
 # source (ex. l'arrêté derrière les Sets de `communes.ts`), rien ne
 # l'écarte en silence.
 /Zonage MK_2024.pdf
+
+# Modèles de contrat officiels (CNOI, CNOMK) — sources de transcription, hors dépôt.
+# Décision du 26/08 : 102 Mo de PDF n'entrent pas dans l'historique Git, dont ils ne
+# sortiraient plus. Ils restent sur le disque local, où les gabarits les citent par leur
+# titre et leur date de mise à jour — c'est la référence qui compte, pas le binaire.
+# Nommés par motif et non par `*.pdf` : même règle que Zonage MK_2024.pdf le 17/08, pour
+# qu'une future source à versionner ne soit pas écartée en silence.
+/CONTRAT DE COLLABORATION LIBERALE ENTRE INFIRMIERS_0.pdf
+/Contrat de remplacement entre un infirmier*.pdf
+/Contrat d’exercice en commun*.pdf
+/Contrat salarié à durée*.pdf
+/Convention de partage de rémunération*.pdf
+/CESSION TOTALE OU PARTIELLE*.pdf

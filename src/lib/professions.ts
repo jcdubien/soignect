@@ -33,6 +33,26 @@ export const PROFESSION_LABELS_CONTRAT: Record<Profession, string> = {
   MEDECIN:          "Médecin",
 };
 
+// Intitulé du NUMÉRO D'INSCRIPTION À L'ORDRE, qui change de nom d'une profession à l'autre.
+// Le CNOMK écrit « N° Ordre », le CNOI « n° ordinal » — même donnée, deux vocabulaires. Porté
+// ici comme PROFESSION_LABELS_CONTRAT et pour la même raison : un contrat emploie les mots de
+// l'ordre qui le régit, pas ceux du produit.
+//
+// `Record<Profession, string>` impose l'exhaustivité : ajouter une profession à l'enum casse la
+// compilation tant que son intitulé n'est pas écrit. Les valeurs non vérifiées auprès de leur
+// ordre reprennent la forme générique — ce n'est pas une supposition, c'est le libellé neutre.
+export const LIBELLE_NUMERO_ORDRE: Record<Profession, string> = {
+  KINESITHERAPEUTE: "N° Ordre",      // inchangé : c'est déjà ce qu'impriment les gabarits CNOMK
+  INFIRMIER:        "N° ordinal",    // vocabulaire du CNOI, relevé sur ses modèles de contrat
+  ORTHOPHONISTE:    "N° Ordre",
+  SAGE_FEMME:       "N° Ordre",
+  MEDECIN:          "N° Ordre",
+};
+
+export function libelleNumeroOrdre(p?: string | null): string {
+  return LIBELLE_NUMERO_ORDRE[p as Profession] ?? "N° Ordre";
+}
+
 // La valeur vient de la base : elle est typée Profession côté Prisma, mais transite en string
 // dans les routes. Le repli conserve la valeur brute plutôt que de masquer une incohérence.
 export function professionLabel(p: string, registre: "usuel" | "contrat" = "usuel"): string {

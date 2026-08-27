@@ -4125,6 +4125,81 @@ Les URLs de campagne (`/recrutement-kine-guadeloupe` et voisines) assument le ki
 adresse même, et les **gabarits de contrat CNOMK** — ~850 lignes de droit — sont légitimement
 propres à la kinésithérapie. Les y neutraliser serait faux.
 
+#### GABARITS DE CONTRAT INFIRMIER — PHASE A, 1ᵉʳ SUR 3 (27/08)
+
+Premier gabarit d'une profession autre que le kiné :
+`template-infirmier-remplacement-autorisation.tsx`, transcrit du modèle du **Conseil national de
+l'Ordre des infirmiers (15/11/2023)**, variante « remplaçant titulaire d'une autorisation ».
+
+##### Ce qui a été vérifié sur les sources avant d'écrire une ligne
+
+**Le commentaire du CNOI est séparable du texte contractuel.** Les PDF fournis sont les versions
+commentées, qui portent « vous ne devez pas l'utiliser comme contrat à signer ». Les blocs sont
+délimités par un marqueur littéral `Commentaire :` — 9 dans ce document — et n'ont pas été repris.
+
+**Le comptage des alternatives a dû être corrigé deux fois**, et c'est la leçon de méthode :
+
+| Détection | Ce qu'elle manquait |
+|---|---|
+| `OU` seul sur une ligne | un `OU` coupé par le rendu PDF en `O` + `U` |
+| idem, corrigé | les `OU` en **milieu de phrase** et les `Option :` |
+
+Décompte annoncé puis réel : **0 → 3** pour cette variante, **3 → 5** pour « confrère installé »,
+**5 → 9** pour la collaboration. Une méthode de comptage n'est fiable que confrontée au texte.
+
+##### Les trois alternatives, tranchées par Jean-Charles
+
+| Article | Retenu | Motif |
+|---|---|---|
+| 2 — Durée | « du … au … » + planning annexé | `startDate`/`endDate` existent ; rien ne décrit une liste de jours |
+| 5 — Honoraires | CPS **du remplaçant** | modalité pratique, sans incidence sur le modèle de données |
+| 11 — Non-concurrence | **rayon en km** | `rayonKm` existe et sert la clause équivalente côté kiné |
+
+Ces choix sont **inscrits dans le gabarit**, pas rendus configurables : un choix par contrat
+aurait multiplié les combinaisons sans besoin réel. Ils sont documentés en tête de fichier.
+
+##### Le piège du document : la rétrocession va dans l'autre sens
+
+Chez le CNOMK, le remplaçant encaisse et reverse un pourcentage au remplacé. **Ici c'est
+l'inverse** : le remplaçant n'étant pas installé, le remplacé perçoit et lui reverse. Réutiliser
+`retrocessionPct` aurait **inversé un pourcentage sur un document signé** — d'où un type dédié,
+`ContractDataRemplacementInfirmierAutorise`, avec `reversementDirectPct` et
+`reversementTiersPayantPct` nommés dans le sens réel, et leurs deux délais que le modèle sépare.
+
+##### Trois champs que `Profile` n'a pas, saisis à la génération
+
+Le modèle exige le **numéro d'autorisation** de remplacement, sa **date**, et la **CPAM** de
+rattachement. Portés par `ContractParty` et saisis au moment de générer le contrat — décision (b)
+du 27/08 — plutôt que déclarés à l'inscription : un champ rempli une fois l'an devient un levier
+dormant, et le produit en compte déjà quatre.
+
+##### Le vocabulaire de l'Ordre passe par le registre
+
+Le CNOMK écrit « N° Ordre », le CNOI « **n° ordinal** » — même donnée, deux vocabulaires.
+`LIBELLE_NUMERO_ORDRE: Record<Profession, string>` dans `professions.ts`, à côté de
+`PROFESSION_LABELS_CONTRAT` et pour la même raison. Le `Record` impose l'exhaustivité.
+
+`party-identity.tsx` lit ce registre via `ContractParty.professionEnum`. **La valeur kiné reste
+« N° Ordre »** : les PDF déjà générés ne changent pas d'un caractère.
+
+##### Ce qui n'est PAS fait
+
+- **2 gabarits sur 3 manquent** — « confrère installé » et collaboration attendent 8 arbitrages.
+- **Le gabarit n'est appelé par rien.** La liste déclarative `Gabarit[]` et le choix de variante à
+  la génération ne sont pas construits ; `/api/match/[matchId]/contrat` sélectionne toujours sur
+  `missionType` seul et ne connaît que les trois gabarits kiné.
+- **`ASSISTANAT` reste proposé** à un profil infirmier.
+
+Autrement dit : le gabarit est **inerte**. C'est un état intermédiaire assumé de la phase A, pas
+un levier dormant — mais il le deviendrait si la phase s'arrêtait ici.
+
+##### Les sources restent hors du dépôt
+
+Les 9 PDF (102 Mo) sont ignorés, nommés par motif et non par `*.pdf` — même règle que
+`Zonage MK_2024.pdf` le 17/08, pour qu'une future source à versionner ne soit pas écartée en
+silence. Les gabarits citent leur modèle par titre et date de mise à jour : c'est la référence
+qui compte, pas le binaire.
+
 #### SCALABILITÉ À PLUSIEURS CPTS (20/08) — audit et deux correctifs
 
 Nord Basse-Terre est le **secteur de test**, pas la cible. Vérification que rien ne suppose une
