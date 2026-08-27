@@ -22,10 +22,37 @@ import { PartyIdentityRows } from "./party-identity";
 // LES CINQ ALTERNATIVES DU MODÈLE, tranchées par Jean-Charles les 27 et 28/08 :
 //   • art. 2 — période « du … au … » avec planning annexé, plutôt qu'en liste de jours ;
 //   • art. 3 — la clause autorisant le remplaçant à recevoir dans SON cabinet EST incluse ;
-//   • art. 5 — le remplaçant facture avec ses propres identifiants, et l'option de redevance
-//     est retenue.
+//   • art. 5 — le remplaçant facture avec SES propres identifiants (branche A du « OU ») ;
+//   • art. 5 — l'option de redevance versée au remplacé EST retenue ;
+//   • art. 5 — le sous-choix « feuilles pré-identifiées ou CPS du remplacé » devient SANS OBJET,
+//     puisqu'il n'existe qu'à l'intérieur de la branche B, écartée.
 //
-// ⚠️ CONSÉQUENCE DE CE DERNIER CHOIX, à relire si le contrat paraît court. Dans le modèle, le
+// R-3 A ÉTÉ REVÉRIFIÉ LE 28/08, à la demande de Jean-Charles, sur une objection juste : le
+// remplaçant ne doit-il pas OBLIGATOIREMENT encaisser au nom du remplacé, par nature de la
+// pratique ? Le commentaire du CNOI sur l'article 5 tranche, et il confirme la lecture retenue :
+//
+//   « lors du remplacement par un infirmier LUI-MÊME INSTALLÉ, ce dernier A LA POSSIBILITÉ
+//     d'utiliser ses propres feuilles de soins ou sa CPS. Dans ce cas, le Remplaçant percevra
+//     lui-même les honoraires qu'il aura facturés, IL N'Y AURA PAS DE RÉTROCESSION. […]
+//     Il revient alors aux cocontractants de CHOISIR l'une ou l'autre des clauses. »
+//
+// Ce n'est donc pas une norme déguisée : c'est un choix contractuel, ouvert PARCE QUE le
+// remplaçant est installé — donc conventionné. C'est exactement ce qui sépare cette variante de
+// celle « autorisation », où le choix n'existe pas. Aucun texte cité dans le document ne rend
+// l'encaissement au nom du remplacé obligatoire ; L.4311-15, cité dans l'autre variante, porte
+// sur l'inscription au tableau, pas sur la facturation.
+//
+// TROIS AJOUTS issus de ce même commentaire, validés le 28/08 — ils ne figurent pas dans le
+// texte contractuel du modèle, mais l'Ordre les pose ou les recommande :
+//   • art. 4.2 — la CPAM doit être informée de l'OPTION DE FACTURATION retenue. Obligation, pas
+//     conseil : « La CPAM doit être informée de l'option choisie » ;
+//   • art. 5  — l'assiette de la redevance est explicitée, frais kilométriques EXCLUS. L'Ordre le
+//     recommande (ces frais sont avancés par le remplaçant, le remplacé n'a rien déboursé) et
+//     signale qu'un pourcentage trop élevé « pourrait s'apparenter à un partage d'honoraires,
+//     prohibé par l'article R.4312-30 ». Usage constaté par l'Ordre : 5 à 10 % ;
+//   • clause de RÉPÉTITION D'INDUS, reprise mot pour mot de la rédaction proposée par le CNOI.
+//
+// ⚠️ CONSÉQUENCE DU CHOIX R-3, à relire si le contrat paraît court. Dans le modèle, le
 // « OU » de l'article 5 sépare deux économies entières, pas deux formulations :
 //     A) le remplaçant facture avec SES identifiants → il encaisse → option de redevance ;
 //     B) il utilise les identifiants DU REMPLACÉ → « il perçoit POUR LE COMPTE du remplacé »
@@ -222,7 +249,8 @@ export function buildRemplacementInfirmierConfrerePdf(data: ContractDataRemplace
           </Text>
           <Text style={S.bullet}>
             — S'engage à informer les organismes d'assurance maladie en leur indiquant le nom du
-            remplaçant, la durée et les dates de son remplacement ;
+            remplaçant, la durée et les dates de son remplacement, ainsi que l'option de facturation
+            retenue à l'article 5 du présent contrat ;
           </Text>
           <Text style={S.bullet}>
             — Fournit au Remplaçant les documents permettant de vérifier la concordance entre la cotation
@@ -245,9 +273,27 @@ export function buildRemplacementInfirmierConfrerePdf(data: ContractDataRemplace
           {redevancePct > 0 && (
             <Text style={[S.body, { marginTop: 6 }]}>
               Une redevance de {redevancePct} % correspondant aux frais engagés pour le cabinet par le
-              titulaire est reversée par le Remplaçant au Remplacé.
+              Remplacé est reversée par le Remplaçant au Remplacé.
+              {"\n\n"}
+              Cette redevance correspond aux frais de fonctionnement du cabinet mis à disposition à
+              l'article 3 : loyer, électricité, téléphone, locations, assurance des locaux et du
+              matériel, coût du personnel, produits d'entretien, produits pharmaceutiques et matériels
+              à usage unique.
+              {"\n\n"}
+              Son assiette est constituée des honoraires perçus au titre des soins et des majorations
+              de nuit, de dimanche et de jour férié. Les frais kilométriques en sont expressément
+              exclus, ceux-ci étant avancés directement par le Remplaçant.
             </Text>
           )}
+        </View>
+
+        <View style={S.article}>
+          <Text style={[S.articleTitle, { fontSize: 9.5 }]}>Répétition d'indus</Text>
+          <Text style={S.body}>
+            En cas de décision rendue définitive de répétition par les organismes d'Assurance maladie
+            d'indus sur prestations effectuées par le Remplaçant et qui lui sont imputables, celui-ci
+            s'oblige à restituer les sommes afférentes au Remplacé sur justificatifs.
+          </Text>
         </View>
 
         <View style={S.article}>

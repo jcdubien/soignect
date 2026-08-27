@@ -4207,6 +4207,43 @@ produit un contrat où le remplaçant garde les honoraires *et* reçoit une rét
 économiquement absurde. C'est une lecture de la structure du document, pas une évidence
 typographique ; elle est signalée comme telle dans le fichier.
 
+##### R-3 revérifié le 28/08 — la lecture tenait, le commentaire du CNOI l'a confirmée
+
+Jean-Charles a demandé si le remplaçant ne devait pas **obligatoirement** encaisser au nom du
+remplacé, par nature de la pratique. Le commentaire du CNOI sur l'article 5 — écarté de la
+transcription, mais consulté pour cette vérification — tranche :
+
+> « lors du remplacement par un infirmier **lui-même installé**, ce dernier **a la possibilité**
+> d'utiliser ses propres feuilles de soins ou sa CPS. Dans ce cas, le Remplaçant percevra lui-même
+> les honoraires qu'il aura facturés, **il n'y aura pas de rétrocession**. […] Il revient alors aux
+> cocontractants de **choisir** l'une ou l'autre des clauses. »
+
+Ce n'est donc pas une norme déguisée : c'est un choix contractuel, ouvert **parce que** le
+remplaçant est installé, donc conventionné. C'est exactement ce qui sépare les deux variantes.
+Aucun texte cité ne rend l'encaissement au nom du remplacé obligatoire — `L.4311-15`, cité dans
+l'autre variante, porte sur l'inscription au tableau, pas sur la facturation.
+
+Le « il n'y aura pas de rétrocession » valide aussi l'écart des deux pourcentages de reversement :
+les conserver aurait produit un contrat où le remplaçant garde les honoraires *et* reçoit une
+rétrocession.
+
+##### Trois ajouts issus de ce commentaire, validés le 28/08
+
+Ils ne figurent pas dans le texte contractuel du modèle, mais l'Ordre les pose ou les recommande :
+
+| Ajout | Nature |
+|---|---|
+| Art. 4.2 — la CPAM est informée de **l'option de facturation retenue** | **Obligation** : « La CPAM doit être informée de l'option choisie » |
+| Art. 5 — assiette de la redevance explicitée, **frais kilométriques exclus** | Recommandation : ces frais sont avancés par le remplaçant, le remplacé n'a rien déboursé |
+| Clause de **répétition d'indus** | Rédaction proposée textuellement par le CNOI, reprise mot pour mot |
+
+L'Ordre signale par ailleurs qu'un pourcentage de redevance trop élevé « pourrait s'apparenter à un
+partage d'honoraires, prohibé par l'article **R.4312-30** », et constate un usage de **5 à 10 %**.
+Ces repères ne sont pas imposés par le gabarit — le montant reste saisi — mais ils sont consignés
+dans son en-tête pour que le prochain lecteur sache où se situe la limite.
+
+**Les trois gabarits infirmier sont désormais définitifs côté contenu.**
+
 ##### Le registre `GABARITS`, et pourquoi une liste
 
 `src/lib/contrats/gabarits.ts`. La sélection se faisait sur `missionType` seul, ce qui supposait
