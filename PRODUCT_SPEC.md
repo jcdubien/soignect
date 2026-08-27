@@ -4125,7 +4125,7 @@ Les URLs de campagne (`/recrutement-kine-guadeloupe` et voisines) assument le ki
 adresse même, et les **gabarits de contrat CNOMK** — ~850 lignes de droit — sont légitimement
 propres à la kinésithérapie. Les y neutraliser serait faux.
 
-#### GABARITS DE CONTRAT INFIRMIER — PHASE A, 1ᵉʳ SUR 3 (27/08)
+#### GABARITS DE CONTRAT INFIRMIER — PHASE A (27-28/08)
 
 Premier gabarit d'une profession autre que le kiné :
 `template-infirmier-remplacement-autorisation.tsx`, transcrit du modèle du **Conseil national de
@@ -4182,16 +4182,87 @@ Le CNOMK écrit « N° Ordre », le CNOI « **n° ordinal** » — même donnée
 `party-identity.tsx` lit ce registre via `ContractParty.professionEnum`. **La valeur kiné reste
 « N° Ordre »** : les PDF déjà générés ne changent pas d'un caractère.
 
+##### Les trois gabarits sont écrits (28/08)
+
+| Fichier | Articles | Modèle |
+|---|---|---|
+| `template-infirmier-remplacement-autorisation.tsx` | 13 | CNOI 15/11/2023 |
+| `template-infirmier-remplacement-confrere.tsx` | 13 | CNOI 15/11/2023 |
+| `template-infirmier-collaboration.tsx` | 21 + préambule | CNOI 15/11/2023 |
+
+**Les 11 alternatives ont toutes été tranchées par Jean-Charles**, clause par clause, avant
+transcription. Aucune n'a été devinée. Elles sont documentées en tête de chaque fichier.
+
+##### Une conséquence de l'arbitrage R-3, signalée parce qu'elle n'est pas évidente
+
+Le choix « le remplaçant facture avec ses propres identifiants » ne retire pas une phrase : il
+retire **une économie entière**. Dans le modèle, le `OU` de l'article 5 sépare deux régimes :
+
+- **A)** le remplaçant facture avec ses identifiants → il encaisse → option de redevance ;
+- **B)** il utilise ceux du remplacé → « il perçoit **pour le compte** du remplacé » → suivent le
+  bordereau récapitulatif et les deux pourcentages que le remplacé lui reverse.
+
+A ayant été retenu, tout le bloc B est écarté, **reversements compris**. Les conserver aurait
+produit un contrat où le remplaçant garde les honoraires *et* reçoit une rétrocession —
+économiquement absurde. C'est une lecture de la structure du document, pas une évidence
+typographique ; elle est signalée comme telle dans le fichier.
+
+##### Le registre `GABARITS`, et pourquoi une liste
+
+`src/lib/contrats/gabarits.ts`. La sélection se faisait sur `missionType` seul, ce qui supposait
+un gabarit unique par type. Deux faits l'ont démenti : le remplacement infirmier a **deux**
+modèles selon le statut du remplaçant, et l'`ASSISTANAT` n'existe pas chez les infirmiers.
+
+Une liste est **naturellement partielle** — l'absence se lit comme un fait, là où un trou dans une
+table imbriquée se lit comme un oubli. Vérifié :
+
+```
+KINESITHERAPEUTE  ["REMPLACEMENT","ASSISTANAT","COLLABORATION"]
+INFIRMIER         ["REMPLACEMENT","COLLABORATION"]
+INFIRMIER/REMPLACEMENT -> 2 variantes
+INFIRMIER/ASSISTANAT   -> 0
+```
+
+Le module **ne référence aucune fonction de rendu** : il reste importable côté client, sans tirer
+`@react-pdf/renderer` dans le bundle du navigateur.
+
+##### `ASSISTANAT` retiré du formulaire, et la profession vient du serveur
+
+`missions/create/page.tsx` devient une **enveloppe serveur** qui charge `Profile.profession` et la
+passe en prop à `CreateMissionClient.tsx`. Deux voies écartées, et pourquoi :
+
+- **le JWT** — figé au sign-in, jamais relu ; il a déjà produit un défaut cette semaine, et une
+  profession modifiée dans `/compte` n'aurait pris effet qu'à la reconnexion suivante ;
+- **une route dédiée** — la profession est nécessaire **au premier rendu** ; une route aurait
+  affiché « Assistanat » puis l'aurait retiré sous les yeux de l'utilisateur.
+
+La correspondance besoin → `MissionType`, jusqu'ici reconstruite à la soumission, est remontée en
+constante partagée : **le filtre d'affichage et l'envoi parlent désormais de la même table**, sans
+quoi on pourrait masquer une option tout en continuant de l'accepter.
+
+##### Un effet de bord traité : les professions sans gabarit
+
+`MEDECIN`, `SAGE_FEMME` et `ORTHOPHONISTE` n'ont aucun modèle — le filtre leur laissait donc une
+grille **vide, sans explication**. Un blocage muet aurait été pire que le défaut qu'on ferme. Le
+formulaire affiche désormais que la publication est suspendue faute de modèle de contrat.
+
+Aucun compte n'est concerné aujourd'hui (les 22 profils sont kiné), mais le cas devient atteignable
+dès qu'on change sa profession dans `/compte`.
+
 ##### Ce qui n'est PAS fait
 
-- **2 gabarits sur 3 manquent** — « confrère installé » et collaboration attendent 8 arbitrages.
-- **Le gabarit n'est appelé par rien.** La liste déclarative `Gabarit[]` et le choix de variante à
-  la génération ne sont pas construits ; `/api/match/[matchId]/contrat` sélectionne toujours sur
-  `missionType` seul et ne connaît que les trois gabarits kiné.
-- **`ASSISTANAT` reste proposé** à un profil infirmier.
+**La sélection à la génération manque encore.** `/api/match/[matchId]/contrat` choisit toujours
+sur `missionType` seul et ne connaît que les trois gabarits kiné. Les trois gabarits infirmier
+sont donc **écrits, enregistrés au registre, et pas encore appelés**.
 
-Autrement dit : le gabarit est **inerte**. C'est un état intermédiaire assumé de la phase A, pas
-un levier dormant — mais il le deviendrait si la phase s'arrêtait ici.
+Ce qu'il reste précisément : accepter un `GabaritId` dans la route, capturer dans le formulaire de
+contrat les champs propres à chaque variante (n° d'autorisation, date, CPAM ; mode de partage des
+forfaits ; redevances et préavis), et n'ouvrir le choix de variante que lorsque la paire en compte
+plusieurs. Non entamé délibérément : la route de génération produit un document légal signé, et
+elle méritait mieux qu'une modification en fin de session.
+
+**Le retrait d'`ASSISTANAT`, lui, est effectif** — un infirmier ne peut plus publier un poste dont
+aucun contrat ne pourrait sortir.
 
 ##### Les sources restent hors du dépôt
 

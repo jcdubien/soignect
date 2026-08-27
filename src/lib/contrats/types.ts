@@ -94,6 +94,64 @@ export interface ContractDataRemplacementInfirmierAutorise extends SignatureImag
   generatedAt: string;
 }
 
+/** Remplacement infirmier — variante « remplaçant CONFRÈRE DÉJÀ INSTALLÉ » (modèle CNOI
+ *  15/11/2023). Le remplaçant a son propre cabinet et sa propre CPS : il facture avec SES
+ *  identifiants et verse une redevance au remplacé pour les frais de cabinet — sens identique
+ *  à `retrocessionPct` côté kiné, et INVERSE de l'autre variante infirmier. */
+export interface ContractDataRemplacementInfirmierConfrere extends SignatureImages {
+  remplace: ContractParty;
+  remplacant: ContractParty;
+  startDate: string | null;
+  endDate: string | null;
+  /** Redevance versée PAR LE REMPLAÇANT AU REMPLACÉ pour les frais de cabinet (art. 5, option
+   *  retenue le 27/08). 0 = option écartée pour ce contrat, la clause ne s'imprime pas. */
+  redevancePct: number;
+  moyensMisADisposition: string;
+  /** Adresse du cabinet propre du remplaçant (art. 3, clause retenue le 27/08 : il peut y
+   *  recevoir les patients confiés). Vide = la clause ne s'imprime pas. */
+  cabinetRemplacant: string;
+  preavisCommunAccordJours: number;
+  preavisUnilateralJours: number;
+  /** Durée pendant laquelle le remplaçant informe le remplacé de toute sollicitation d'un
+   *  patient après le contrat (art. 11). Texte libre : le modèle écrit « pendant une durée de … »
+   *  sans imposer d'unité. */
+  dureeInformationSollicitation: string;
+  generatedAt: string;
+}
+
+/** Collaboration libérale infirmier (modèle CNOI 15/11/2023). Sans rapport avec l'assistanat,
+ *  qui n'existe pas dans cette profession : le collaborateur développe une patientèle PROPRE,
+ *  c'est la définition même du statut (loi 2005-882 art. 18, art. R.4312-88 CSP). */
+export interface ContractDataCollaborationInfirmier extends SignatureImages {
+  titulaire: ContractParty;
+  collaborateur: ContractParty;
+  startDate: string | null;
+  /** Durée déterminée (choix C-5 du 27/08) : le modèle propose aussi l'indéterminée, écartée. */
+  dureeMois: number;
+  renouvellementsMax: number;
+  dureeMaxMois: number;
+  /** Redevance mensuelle en % du chiffre d'affaires (choix C-6). Le modèle admet aussi un
+   *  montant fixe en euros — écarté, `redevancePct` suffit et existe déjà côté kiné. */
+  redevancePct: number;
+  /** Jour du mois suivant avant lequel la redevance doit être versée (art. 7). */
+  jourVersementRedevance: number;
+  moyensMisADisposition: string;
+  /** Modalités de recensement de la patientèle, texte libre (choix C-3 : dispositions libres
+   *  plutôt que critères détaillés prédéfinis). Périodicité fixée à trimestrielle. */
+  recensementDispositions: string;
+  /** Partage des forfaits de prise en charge (art. 6.2) — SÉLECTIONNÉ À LA GÉNÉRATION, décision
+   *  du 27/08, et non figé dans le gabarit : les trois modes décrivent des organisations de
+   *  cabinet réellement différentes, aucune n'est un défaut raisonnable pour les autres. */
+  forfaitPartage: "TOUR_DE_ROLE" | "PARTS_EGALES" | "CHARGE_TRAVAIL";
+  /** Renseigné uniquement si `forfaitPartage === "CHARGE_TRAVAIL"`. */
+  forfaitRepartition: string;
+  forfaitDelaiReversementJours: number;
+  periodeEssaiMois: number;
+  preavisEssaiJours: number;
+  dureeInformationSollicitation: string;
+  generatedAt: string;
+}
+
 export interface ContractDataRemplacement extends SignatureImages, NegotiableClauses {
   remplace: ContractParty;
   remplacant: ContractParty;
