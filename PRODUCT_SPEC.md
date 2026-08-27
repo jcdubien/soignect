@@ -4288,18 +4288,57 @@ dès qu'on change sa profession dans `/compte`.
 
 ##### Ce qui n'est PAS fait
 
-**La sélection à la génération manque encore.** `/api/match/[matchId]/contrat` choisit toujours
-sur `missionType` seul et ne connaît que les trois gabarits kiné. Les trois gabarits infirmier
-sont donc **écrits, enregistrés au registre, et pas encore appelés**.
+**Le retrait d'`ASSISTANAT` est effectif** — un infirmier ne peut plus publier un poste dont aucun
+contrat ne pourrait sortir.
 
-Ce qu'il reste précisément : accepter un `GabaritId` dans la route, capturer dans le formulaire de
-contrat les champs propres à chaque variante (n° d'autorisation, date, CPAM ; mode de partage des
-forfaits ; redevances et préavis), et n'ouvrir le choix de variante que lorsque la paire en compte
-plusieurs. Non entamé délibérément : la route de génération produit un document légal signé, et
-elle méritait mieux qu'une modification en fin de session.
+##### Le branchement (28/08) — la route sélectionne par le registre
 
-**Le retrait d'`ASSISTANAT`, lui, est effectif** — un infirmier ne peut plus publier un poste dont
-aucun contrat ne pourrait sortir.
+`/api/match/[matchId]/contrat` ne choisit plus sur `missionType` seul. Trois gardes s'ajoutent,
+toutes en **refus explicite** plutôt qu'en repli silencieux — la règle posée le 13/08 quand le
+`?? REMPLACEMENT` a été fermé :
+
+| Situation | Réponse |
+|---|---|
+| Les deux parties ne déclarent pas la même profession | **422** — le modèle applicable dépend de l'ordre concerné |
+| Aucun gabarit pour (profession × type) | **422** — « ce statut n'a pas nécessairement d'équivalent d'un ordre à l'autre » |
+| Plusieurs variantes, aucune choisie | **422**, avec la liste des choix (`id`, `libelle`, `quandLUtiliser`) |
+
+**La première garde n'est pas théorique** : le feed borne chaque lecteur à sa profession depuis le
+17/08, mais `Profile.profession` reste modifiable dans `/compte` **après** la mise en relation.
+Générer un contrat de kiné entre un kiné et un infirmier produirait un document faux, et signé.
+
+**La troisième non plus.** Les deux variantes du remplacement infirmier sont économiquement
+opposées — dans l'une le remplaçant encaisse et verse une redevance, dans l'autre le remplacé
+perçoit et reverse. Prendre la première par défaut aurait **inversé le sens de l'argent**.
+
+##### Le choix remonte jusqu'à l'écran
+
+`contrat-info` renvoie désormais les modèles applicables. Le formulaire affiche :
+
+- **un seul modèle** → rien à demander, retenu d'office ;
+- **plusieurs** → un sélecteur, avec le `quandLUtiliser` de chacun et sa source réglementaire ;
+- **aucun** → un message, plutôt qu'un bouton qui échouerait en 422 après le clic.
+
+S'y ajoute le **partage des forfaits** (art. 6.2), affiché pour la seule collaboration infirmier :
+trois modes qui décrivent des organisations de cabinet différentes, et qu'il aurait été faux de
+figer au gabarit.
+
+##### Non-régression kiné
+
+Le diff de la route ne **supprime qu'une ligne** — l'ancien `if (missionType === REMPLACEMENT) {`,
+devenu un `else if`. Les trois appels kiné sont intacts, et les trois fichiers de gabarit kiné
+n'ont jamais été touchés (diff vide, vérifié à chaque étape).
+
+**Réserve** : je n'ai pas pu rendre les PDF hors de l'application — le harnais de test ne compile
+pas le TSX. Ce qui est vérifié est la compilation des quatre gabarits, le typage de la route et la
+résolution du registre ; **pas le rendu final**, qui reste à constater à l'écran.
+
+##### Les champs propres aux variantes ne sont pas tous saisissables
+
+Le n° d'autorisation, sa date, la CPAM, les préavis et les durées d'information sont acceptés par
+la route en paramètres, avec des défauts bornés — mais **aucun champ de saisie ne les expose**
+encore. Ils s'impriment donc en placeholder `[à compléter]`, comportement normal du système de
+placeholders, jamais un blanc silencieux. À compléter quand un contrat infirmier réel sera préparé.
 
 ##### Les sources restent hors du dépôt
 

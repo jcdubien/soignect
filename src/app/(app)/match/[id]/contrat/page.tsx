@@ -15,6 +15,8 @@ interface MatchInfo {
   missingOther?: string[];  // champs manquants de l'autre partie
   enforce?: boolean;        // true = blocage dur ; false = avertissement
   isSalariat?: boolean;     // recruteur = structure → pas de contrat libéral (section 161)
+  /** Modèles applicables à (profession × type de mission). Vide = aucun n'existe. */
+  gabarits?: { id: string; libelle: string; quandLUtiliser: string | null; source: string }[];
 }
 
 interface SigStatus {
@@ -53,6 +55,15 @@ export default function ContratPage() {
   const [retrocessionPct, setRetrocessionPct] = useState(70);
   const [redevancePct,    setRedevancePct]    = useState(40);
 
+  // Modèle de contrat retenu (section 216). Quand la paire (profession, type de mission) en
+  // compte plusieurs — le remplacement infirmier en a deux, économiquement opposés —, le choix
+  // appartient aux parties. Le produit ne prend pas la première : il demande.
+  const [gabaritId, setGabaritId] = useState("");
+  // Partage des forfaits de prise en charge, propre à la collaboration infirmier (art. 6.2).
+  // Sélectionné ici plutôt que figé au gabarit : les trois modes décrivent des organisations de
+  // cabinet réellement différentes.
+  const [forfaitPartage, setForfaitPartage] = useState("TOUR_DE_ROLE");
+
   // Clauses négociables in-app (section 164) — remplacent les placeholders figés du PDF.
   // Valeurs par défaut raisonnables : aucune saisie n'est obligatoire.
   const [modePaiement,        setModePaiement]        = useState("Virement bancaire");
@@ -74,6 +85,8 @@ export default function ContratPage() {
       .then(d => {
         setInfo(d);
         if (d.retrocessionPct) setRetrocessionPct(d.retrocessionPct);
+        // Un seul modèle : rien à demander, on le retient d'office.
+        if (Array.isArray(d.gabarits) && d.gabarits.length === 1) setGabaritId(d.gabarits[0].id);
       })
       .catch(() => setError("Impossible de charger les informations du match."))
       .finally(() => setLoading(false));
@@ -112,6 +125,8 @@ export default function ContratPage() {
       delaiPaiementJours: String(delaiPaiementJours),
       modalitesLocaux,
     });
+    if (gabaritId) params.set("gabaritId", gabaritId);
+    if (gabaritId === "INFIRMIER_COLLABORATION") params.set("forfaitPartage", forfaitPartage);
     if (draft) params.set("draft", "true");
     return `/api/match/${id}/contrat?${params.toString()}`;
   }
@@ -274,6 +289,72 @@ export default function ContratPage() {
           <label className="block text-sm font-semibold text-gray-800 mb-1">
             Rayon de non-{isRemplacement ? "installation" : "concurrence"} (km)
           </label>
+          {/* ── Modèle de contrat ─────────────────────────────────────────────────────────
+              Affiché SEULEMENT quand plusieurs modèles existent. Un seul : rien à demander.
+              Aucun : on le dit — le bouton de génération échouerait en 422, et laisser
+              l'utilisateur le découvrir après coup serait le défaut qu'on passe la semaine
+              à fermer. */}
+          {info?.gabarits && info.gabarits.length === 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 leading-relaxed mb-4">
+              Aucun modèle de contrat n&apos;existe pour ce type de mission dans votre profession.
+              Ce statut n&apos;a pas nécessairement d&apos;équivalent d&apos;un ordre professionnel à
+              l&apos;autre.
+            </div>
+          )}
+
+          {info?.gabarits && info.gabarits.length > 1 && (
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Modèle de contrat applicable
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Plusieurs modèles officiels existent pour ce type de mission. Le choix dépend de la
+                situation du remplaçant et engage les deux parties.
+              </p>
+              <div className="space-y-2">
+                {info.gabarits.map((g) => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setGabaritId(g.id)}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl border transition ${
+                      gabaritId === g.id
+                        ? "border-kine-500 bg-kine-50"
+                        : "border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="block text-sm font-semibold text-gray-800">{g.libelle}</span>
+                    {g.quandLUtiliser && (
+                      <span className="block text-xs text-gray-500 mt-0.5 leading-snug">{g.quandLUtiliser}</span>
+                    )}
+                    <span className="block text-[11px] text-gray-400 mt-1">{g.source}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {gabaritId === "INFIRMIER_COLLABORATION" && (
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Partage des forfaits de prise en charge
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Article 6.2 du modèle — comment le forfait journalier est réparti quand un patient
+                est pris en charge en commun.
+              </p>
+              <select
+                value={forfaitPartage}
+                onChange={(e) => setForfaitPartage(e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-800"
+              >
+                <option value="TOUR_DE_ROLE">Facturé et perçu à tour de rôle, au regard du planning</option>
+                <option value="PARTS_EGALES">Partagé par parts égales</option>
+                <option value="CHARGE_TRAVAIL">Partagé selon la charge de travail (pourcentages à préciser)</option>
+              </select>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <input
               type="range" min={5} max={100} step={5}

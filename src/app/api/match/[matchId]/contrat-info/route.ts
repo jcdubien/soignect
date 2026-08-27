@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { gabaritsPour } from "@/lib/contrats/gabarits";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
@@ -23,8 +24,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
-      profileA: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
-      profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
+      profileA: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, profession: true, ...IDENTITY_SELECT } },
+      profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, profession: true, ...IDENTITY_SELECT } },
       missionA: { select: { missionType: true, retrocessionRate: true } },
       missionB: { select: { missionType: true, retrocessionRate: true } },
     },
@@ -69,7 +70,20 @@ export async function GET(_req: NextRequest, { params }: Params) {
     match.profileB.type === "TITULAIRE" ? match.profileB : null;
   const isSalariat = titulaireParty?.titulaireKind === "STRUCTURE";
 
+  // Modèles de contrat applicables (section 216). Le formulaire en a besoin AVANT de générer :
+  // quand la paire (profession, type de mission) en compte plusieurs — le remplacement infirmier
+  // en a deux —, c'est aux parties de choisir, pas au produit. Une liste vide dit qu'aucun modèle
+  // n'existe pour ce statut dans cette profession ; l'écran doit le dire plutôt que de laisser
+  // cliquer sur un bouton qui échouera.
+  const gabarits =
+    missionType && match.profileA.profession === match.profileB.profession
+      ? gabaritsPour(match.profileA.profession, missionType).map((g) => ({
+          id: g.id, libelle: g.libelle, quandLUtiliser: g.quandLUtiliser ?? null, source: g.source,
+        }))
+      : [];
+
   return NextResponse.json({
+    gabarits,
     missionType,
     theirName:       theirProfile.name,
     hasPremium,

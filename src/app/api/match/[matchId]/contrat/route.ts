@@ -7,6 +7,10 @@ import { SubscriptionPlan, MissionType } from "@prisma/client";
 import { buildRemplacementPdf } from "@/lib/contrats/template-remplacement";
 import { buildAssisanatPdf } from "@/lib/contrats/template-assistanat";
 import { buildCollaborationPdf } from "@/lib/contrats/template-collaboration";
+import { buildRemplacementInfirmierAutorisePdf } from "@/lib/contrats/template-infirmier-remplacement-autorisation";
+import { buildRemplacementInfirmierConfrerePdf } from "@/lib/contrats/template-infirmier-remplacement-confrere";
+import { buildCollaborationInfirmierPdf } from "@/lib/contrats/template-infirmier-collaboration";
+import { gabaritsPour } from "@/lib/contrats/gabarits";
 import type { ContractParty } from "@/lib/contrats/types";
 import { sendContratEmail } from "@/lib/email";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
@@ -36,6 +40,9 @@ function partyFromProfile(
     adresse:     profile.adresse ?? null,
     siret:       profile.siret ?? null,
     isStructure: profile.titulaireKind === "STRUCTURE",
+    // Valeur d'enum, en plus du libellé : elle choisit le VOCABULAIRE de l'ordre concerné
+    // (« N° Ordre » chez le CNOMK, « n° ordinal » chez le CNOI). Voir party-identity.tsx.
+    professionEnum: profile.profession,
   };
 }
 
@@ -189,10 +196,137 @@ export async function GET(req: NextRequest, { params }: Params) {
   const signatureTitulaireImg  = await fetchSignatureDataUrl(match.signatureTitulaireUrl);
   const signatureRemplacantImg = await fetchSignatureDataUrl(match.signatureRemplacantUrl);
 
+  // ── Choix du gabarit (section 216) ────────────────────────────────────────────────────────
+  //
+  // La sélection se faisait sur `missionType` SEUL, ce qui supposait un gabarit unique par type.
+  // Faux depuis les modèles infirmier : le remplacement en compte deux selon que le remplaçant
+  // soit installé ou simplement autorisé, et l'assistanat n'existe pas dans cette profession.
+  //
+  // LES DEUX PARTIES DOIVENT EXERCER LA MÊME PROFESSION. Le feed le garantit — il borne chaque
+  // lecteur à la sienne depuis le 17/08 — mais `Profile.profession` reste modifiable dans
+  // /compte APRÈS la mise en relation. On refuse plutôt que de choisir l'une des deux : générer
+  // un contrat de kiné entre un kiné et un infirmier serait un document faux et signé.
+  if (profileTitulaire.profession !== profileAutre.profession) {
+    return NextResponse.json(
+      {
+        error:
+          "Impossible de générer le contrat : les deux parties ne déclarent pas la même " +
+          "profession. Le modèle applicable dépend de l'ordre professionnel concerné.",
+      },
+      { status: 422 },
+    );
+  }
+
+  const candidats = gabaritsPour(profileTitulaire.profession, missionType);
+
+  // AUCUN GABARIT — même refus explicite que pour un `missionType` indéterminable. C'est le cas
+  // d'un assistanat entre infirmiers, ou de toute profession dont les modèles ne sont pas encore
+  // transcrits. Le formulaire de publication empêche déjà d'en arriver là ; cette garde couvre
+  // les annonces publiées AVANT lui, et un changement de profession après coup.
+  if (candidats.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Impossible de générer le contrat : aucun modèle n'existe pour ce type de mission dans " +
+          "votre profession. Ce statut n'a pas nécessairement d'équivalent d'un ordre à l'autre.",
+      },
+      { status: 422 },
+    );
+  }
+
+  // PLUSIEURS VARIANTES — le choix appartient aux parties, pas au produit. On ne prend pas la
+  // première : les deux régimes de facturation du remplacement infirmier sont économiquement
+  // opposés, et en choisir un par défaut inverserait le sens de l'argent sur un document signé.
+  const gabaritDemande = sp.get("gabaritId");
+  const gabarit = candidats.length === 1
+    ? candidats[0]
+    : candidats.find((g) => g.id === gabaritDemande);
+
+  if (!gabarit) {
+    return NextResponse.json(
+      {
+        error:
+          "Plusieurs modèles de contrat existent pour ce type de mission : précisez lequel " +
+          "s'applique avant de générer le document.",
+        choix: candidats.map((g) => ({ id: g.id, libelle: g.libelle, quandLUtiliser: g.quandLUtiliser })),
+      },
+      { status: 422 },
+    );
+  }
+
+  // Paramètres propres aux gabarits infirmier — saisis à la génération (décision du 27/08),
+  // faute d'exister sur `Profile`. Bornés comme les autres, pour la même raison.
+  const entier = (cle: string, defaut: number, min: number, max: number) => {
+    const v = parseInt(sp.get(cle) ?? String(defaut), 10);
+    return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : defaut;
+  };
+  const texte = (cle: string, max = 600) => (sp.get(cle) ?? "").slice(0, max);
+
   let element: ReturnType<typeof buildRemplacementPdf>;
   let filename: string;
 
-  if (missionType === MissionType.REMPLACEMENT) {
+  if (gabarit.id === "INFIRMIER_REMPLACEMENT_AUTORISATION") {
+    element = buildRemplacementInfirmierAutorisePdf({
+      remplace: titulaireParty,
+      remplacant: {
+        ...autreParty,
+        autorisationNumero: texte("autorisationNumero", 60) || null,
+        autorisationDate:   texte("autorisationDate", 40) || null,
+        cpamRattachement:   texte("cpamRattachement", 120) || null,
+      },
+      startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
+      endDate:   missionTitulaire?.endDate?.toISOString()   ?? missionAutre?.endDate?.toISOString()   ?? null,
+      reversementDirectPct:          entier("reversementDirectPct", 70, 0, 100),
+      reversementDirectDelaiMois:    entier("reversementDirectDelaiMois", 1, 0, 12),
+      reversementTiersPayantPct:     entier("reversementTiersPayantPct", 70, 0, 100),
+      reversementTiersPayantDelaiMois: entier("reversementTiersPayantDelaiMois", 1, 0, 12),
+      rayonKm,
+      preavisCommunAccordJours: entier("preavisCommunAccordJours", 8, 0, 180),
+      preavisUnilateralJours:   entier("preavisUnilateralJours", 8, 0, 180),
+      moyensMisADisposition: texte("moyensMisADisposition"),
+      generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
+    });
+    filename = "contrat-remplacement-infirmier.pdf";
+  } else if (gabarit.id === "INFIRMIER_REMPLACEMENT_CONFRERE") {
+    element = buildRemplacementInfirmierConfrerePdf({
+      remplace: titulaireParty, remplacant: autreParty,
+      startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
+      endDate:   missionTitulaire?.endDate?.toISOString()   ?? missionAutre?.endDate?.toISOString()   ?? null,
+      // L'Ordre constate un usage de 5 à 10 % et rappelle qu'un taux trop élevé s'apparenterait
+      // à un partage d'honoraires (R.4312-30). Défaut au bas de cette fourchette.
+      redevancePct: entier("redevancePct", 5, 0, 100),
+      moyensMisADisposition: texte("moyensMisADisposition"),
+      cabinetRemplacant:     texte("cabinetRemplacant", 200),
+      preavisCommunAccordJours: entier("preavisCommunAccordJours", 8, 0, 180),
+      preavisUnilateralJours:   entier("preavisUnilateralJours", 8, 0, 180),
+      dureeInformationSollicitation: texte("dureeInformationSollicitation", 60),
+      generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
+    });
+    filename = "contrat-remplacement-infirmier.pdf";
+  } else if (gabarit.id === "INFIRMIER_COLLABORATION") {
+    const partageBrut = sp.get("forfaitPartage");
+    const forfaitPartage =
+      partageBrut === "PARTS_EGALES" || partageBrut === "CHARGE_TRAVAIL" ? partageBrut : "TOUR_DE_ROLE";
+    element = buildCollaborationInfirmierPdf({
+      titulaire: titulaireParty, collaborateur: autreParty,
+      startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
+      dureeMois:          entier("dureeMois", missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? 12, 1, 240),
+      renouvellementsMax: entier("renouvellementsMax", 1, 0, 20),
+      dureeMaxMois:       entier("dureeMaxMois", 24, 1, 480),
+      redevancePct,
+      jourVersementRedevance: entier("jourVersementRedevance", 10, 1, 31),
+      moyensMisADisposition:   texte("moyensMisADisposition"),
+      recensementDispositions: texte("recensementDispositions"),
+      forfaitPartage,
+      forfaitRepartition:           texte("forfaitRepartition", 300),
+      forfaitDelaiReversementJours: entier("forfaitDelaiReversementJours", 30, 0, 365),
+      periodeEssaiMois:  entier("periodeEssaiMois", 3, 0, 24),
+      preavisEssaiJours: entier("preavisEssaiJours", 15, 0, 180),
+      dureeInformationSollicitation: texte("dureeInformationSollicitation", 60),
+      generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
+    });
+    filename = "contrat-collaboration-infirmier.pdf";
+  } else if (missionType === MissionType.REMPLACEMENT) {
     element = buildRemplacementPdf({
       remplace: titulaireParty, remplacant: autreParty,
       startDate:  missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
