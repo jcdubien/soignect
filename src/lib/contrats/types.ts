@@ -152,6 +152,83 @@ export interface ContractDataCollaborationInfirmier extends SignatureImages {
   generatedAt: string;
 }
 
+// ── Contrat de travail salarié (section 217) — partagé kiné / infirmier ─────────────────────
+//
+// UN SEUL TYPE POUR LES DEUX PROFESSIONS, décidé le 28/08 après vérification champ par champ
+// sur les modèles des deux ordres. Le socle est commun — durée, essai, rémunération, temps de
+// travail, congés, protection sociale, non-concurrence, précarité, rupture — parce que c'est du
+// DROIT DU TRAVAIL, identique quel que soit l'ordre professionnel. Ce qui diffère se limite à
+// quelques champs réellement absents d'un côté ou de l'autre, et non à des champs oubliés.
+//
+// DEUX AXES INDÉPENDANTS, tous deux portés par des unions discriminées plutôt que par des
+// champs optionnels. Un booléen `estPartiel` avec une répartition horaire facultative aurait
+// laissé produire un temps partiel sans répartition — or le Code du travail l'exige, et son
+// absence rend le contrat requalifiable en temps complet. Le type interdit donc ce cas.
+//
+// CE QUE CHAQUE PROFESSION EXPOSE — le registre s'en charge, comme pour ASSISTANAT :
+//   • kiné      : CDD_TERME, CDD_SANS_TERME  (aucun CDI publié par le CNOMK)
+//                 × COMPLET, PARTIEL
+//   • infirmier : CDI, CDD_TERME, CDD_SANS_TERME  × COMPLET
+//     (l'axe temps côté infirmier n'a PAS été vérifié — supposition, pas constat)
+
+export interface RepartitionJour {
+  /** « lundi », « mardi »… — libellé tel qu'il s'imprime. */
+  jour: string;
+  debut: string;
+  fin: string;
+}
+
+/** Nature du contrat. Le CDD sans terme précis n'a pas de date de fin : un champ `fin`
+ *  optionnel l'aurait laissé vide sans que rien ne le signale. */
+export type NatureSalariat =
+  | { type: "CDI"; debut: string | null }
+  | { type: "CDD_TERME"; debut: string | null; fin: string | null; renouvellementsMax: number }
+  | { type: "CDD_SANS_TERME"; debut: string | null; dureeMinimaleMois: number; motif: string };
+
+/** Temps de travail. La répartition et le plafond d'heures complémentaires ne sont exigés qu'au
+ *  temps partiel — et y sont OBLIGATOIRES, d'où l'union plutôt que deux champs optionnels. */
+export type TempsDeTravail =
+  | { type: "COMPLET"; heuresHebdomadaires: number }
+  | { type: "PARTIEL"; heuresHebdomadaires: number; repartition: RepartitionJour[]; heuresComplementairesMax: number };
+
+export interface ContractDataSalarie extends SignatureImages {
+  employeur: ContractParty;
+  salarie: ContractParty;
+  nature: NatureSalariat;
+  temps: TempsDeTravail;
+
+  /** Ville de l'URSSAF où la déclaration préalable à l'embauche a été déposée. */
+  urssafVille: string;
+  /** N° de sécurité sociale du salarié — demandé par le modèle CNOMK, pas par le CNOI. */
+  numeroSecuriteSociale: string;
+
+  lieuTravail: string;
+  /** Absente = la clause de période d'essai n'est pas incluse. Les deux ordres la marquent
+   *  explicitement facultative. */
+  periodeEssaiMois: number | null;
+  remunerationBrutMensuelle: number;
+
+  /** Organismes de rattachement (art. « retraite complémentaire, frais de santé, prévoyance »). */
+  caisseRetraite: string;
+  regimeFraisSante: string;
+  regimePrevoyance: string;
+
+  /** Non-concurrence. En CDI la contrepartie financière n'est PAS facultative : le support
+   *  déontologique du remplacement (R.4321-130) disparaît, et le droit du travail frappe de
+   *  nullité une clause sans contrepartie. */
+  nonConcurrence: {
+    dureeMois: number;
+    rayonKm: number;
+    indemnitePct: number;
+    periodicite: "MENSUELLE" | "TRIMESTRIELLE";
+  };
+
+  /** CDD uniquement — l'indemnité de fin de contrat n'existe pas en CDI. */
+  indemnitePrecaritePct: number | null;
+  preavisJours: number;
+  generatedAt: string;
+}
+
 export interface ContractDataRemplacement extends SignatureImages, NegotiableClauses {
   remplace: ContractParty;
   remplacant: ContractParty;

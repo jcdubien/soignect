@@ -4347,6 +4347,91 @@ Les 9 PDF (102 Mo) sont ignorés, nommés par motif et non par `*.pdf` — même
 silence. Les gabarits citent leur modèle par titre et date de mise à jour : c'est la référence
 qui compte, pas le binaire.
 
+#### PHASE B — CONTRAT DE TRAVAIL SALARIÉ (28-29/08)
+
+##### Le CNOMK ne publie aucun CDI pour un kinésithérapeute salarié
+
+Vérifié trois fois, sur trois surfaces différentes : les **23 documents** de
+`contrats.ordremk.fr/contrats/`, ses pages de catégorie, et les recherches internes des deux
+domaines (`contrats.ordremk.fr` et `www.ordremk.fr`). Aucun.
+
+Les seuls fichiers portant « CDI » concernent l'**activité physique adaptée** — le salarié y est
+un intervenant APA, **pas un kinésithérapeute**. Une synthèse de moteur de recherche affirmait le
+contraire ; c'était faux, et la lecture de l'objet réel de chaque document l'a démenti.
+
+Le seul contrat salarié kiné publié est un **CDD de remplacement** (28/03/2023).
+
+##### Les cinq clauses essentielles du CDD kiné se scindent en deux groupes
+
+Lues une à une dans leur texte, plutôt que déduites de leur numéro :
+
+| Clause | Portée | Transposable en CDI |
+|---|---|---|
+| Inscription au tableau de l'Ordre | générale | ✅ |
+| Absence de contre-lettre | générale | ✅ |
+| **L.4113-9** — communication à l'Ordre | générale (« le présent contrat ainsi que tout avenant ») | ✅ |
+| **R.4321-107 al. 3** — « cesser toute activité **pendant la durée du remplacement** » | remplacement | ❌ |
+| **R.4321-130** — « le MK **qui a remplacé** un confrère… ne doit pas s'installer » | remplacement | ❌ |
+
+**Conséquence structurante** : la clause de non-concurrence du CDD kiné repose entièrement sur
+R.4321-130. En CDI ce support disparaît, et la clause relève du seul droit du travail — qui exige
+une **contrepartie financière à peine de nullité**. Ce qui est une option dans le CDD devient une
+condition de validité dans le CDI.
+
+##### `ContractDataSalarie` — un type partagé, deux axes rendus structurels
+
+Comparaison champ par champ entre le CDD kiné et les CDI/CDD infirmier. Le socle est commun parce
+que c'est du **droit du travail**, identique quel que soit l'ordre : durée, essai, rémunération,
+temps de travail, congés, protection sociale, non-concurrence, précarité, rupture.
+
+Quatre divergences seulement portent des données — répartition horaire et indemnité de
+non-concurrence côté kiné, véhicule côté infirmier, heures complémentaires au temps partiel. Les
+autres écarts d'articles sont du **texte fixe sans variable**, donc sans effet sur le type.
+
+Les deux axes sont des **unions discriminées**, pas des champs optionnels :
+
+```ts
+NatureSalariat  = CDI | CDD_TERME | CDD_SANS_TERME
+TempsDeTravail  = COMPLET | PARTIEL   // PARTIEL exige répartition + heures complémentaires
+```
+
+**Le temps partiel ne peut pas être construit sans sa répartition horaire.** Un booléen avec un
+champ facultatif l'aurait permis — or le Code du travail l'exige, et son absence rend le contrat
+requalifiable en temps complet. Le type interdit le cas plutôt que de compter sur la vigilance.
+
+De même, `CDD_SANS_TERME` n'a **pas** de champ `fin` : un `fin?: string` optionnel aurait laissé un
+contrat sans date de fin ressembler à un oubli de saisie.
+
+##### Le CDI kiné est COMPOSÉ, et le PDF le dit
+
+Décision de Jean-Charles, en connaissance de l'absence de modèle officiel. Le gabarit porte
+l'avertissement **en premier bloc du document**, avant les parties — un signataire doit le savoir
+avant de lire une clause :
+
+> « Le Conseil national de l'ordre des masseurs-kinésithérapeutes ne publie pas de contrat-type de
+> contrat à durée indéterminée […]. Le présent document a donc été composé à partir des clauses
+> déontologiques confirmées du contrat-type de remplacement CNOMK du 28 mars 2023, lorsqu'elles
+> sont générales, et des dispositions standard du droit du travail […]. Sa validation par un
+> avocat est indispensable avant toute signature. »
+
+Il nomme aussi les deux clauses écartées et pourquoi. Le pied de page diffère des autres
+gabarits — « Document **COMPOSÉ, sans modèle-type de l'Ordre** » là où les autres renvoient à un
+modèle d'Ordre.
+
+L'ossature suit le CDI infirmier (secret professionnel, DPC, assurance, résolution des différends,
+protection sociale détaillée) : texte fixe déontologique déjà vérifié sur source officielle, dont
+la substance ne dépend pas de l'ordre. Le vocabulaire, lui, est celui du CNOMK.
+
+##### Ce qui n'est pas fait
+
+Le gabarit **n'est pas enregistré au registre et n'est appelé par rien**. `Gabarit` est indexé par
+`MissionType`, or le salariat n'en est pas un — Soignect le traite via `TitulaireKind.STRUCTURE`,
+et `contrat-info` bloque explicitement la génération dans ce cas depuis la section 161. Brancher le
+salariat suppose donc de décider comment il entre dans le registre, ce qui dépasse la composition
+du gabarit.
+
+Les trois autres gabarits salariés (CDD kiné, CDI et CDD infirmier) ne sont pas écrits.
+
 #### SCALABILITÉ À PLUSIEURS CPTS (20/08) — audit et deux correctifs
 
 Nord Basse-Terre est le **secteur de test**, pas la cible. Vérification que rien ne suppose une
