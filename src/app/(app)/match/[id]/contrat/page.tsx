@@ -16,7 +16,7 @@ interface MatchInfo {
   enforce?: boolean;        // true = blocage dur ; false = avertissement
   isSalariat?: boolean;     // recruteur = structure → pas de contrat libéral (section 161)
   /** Modèles applicables à (profession × type de mission). Vide = aucun n'existe. */
-  gabarits?: { id: string; libelle: string; quandLUtiliser: string | null; source: string }[];
+  gabarits?: { id: string; libelle: string; quandLUtiliser: string | null; source: string; composeSansModele?: boolean }[];
 }
 
 interface SigStatus {
@@ -164,19 +164,21 @@ export default function ContratPage() {
     );
   }
 
-  // Salariat (section 161) : le recruteur est un établissement (CDD/CDI/Stage/Vacation). Soignect
-  // ne génère que des contrats LIBÉRAUX (remplacement/assistanat/collaboration) → on ne propose
-  // pas de PDF pour le salariat, pour ne jamais produire un document juridiquement inadapté.
-  if (info?.isSalariat) {
+  // Salariat (section 161, révisé le 29/08) : le recruteur est un établissement. Le blocage était
+  // total tant qu'aucun gabarit de contrat de travail n'existait. Depuis la phase B, un registre
+  // salarié séparé en fournit — mais il est encore incomplet (1 gabarit sur 4). L'écran ne bloque
+  // donc plus le salariat EN TANT QUE TEL : il bloque l'absence de modèle applicable, ce qui est
+  // la vraie raison et reste vrai pour les trois cas non encore écrits.
+  if (info?.isSalariat && (info?.gabarits?.length ?? 0) === 0) {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 flex flex-col items-center gap-5 text-center">
         <span className="text-5xl">🏢</span>
         <h1 className="text-xl font-black text-gray-900">Poste salarié — contrat hors plateforme</h1>
         <p className="text-gray-500 text-sm">
-          Cette mise en relation concerne un poste salarié (CDD, CDI, stage ou vacation).
-          Le <strong>contrat de travail est établi par l&apos;établissement</strong> selon ses
-          propres modalités : Soignect ne génère que des contrats d&apos;exercice libéral
-          (remplacement, assistanat, collaboration).
+          Cette mise en relation concerne un poste salarié, et{" "}
+          <strong>aucun modèle de contrat de travail n&apos;est encore disponible</strong> pour
+          cette profession et ce type de contrat. Le contrat est donc à établir par
+          l&apos;établissement selon ses propres modalités.
         </p>
         <p className="text-gray-400 text-xs">
           Poursuivez la discussion dans la messagerie pour convenir des modalités.
@@ -299,6 +301,15 @@ export default function ContratPage() {
               Aucun modèle de contrat n&apos;existe pour ce type de mission dans votre profession.
               Ce statut n&apos;a pas nécessairement d&apos;équivalent d&apos;un ordre professionnel à
               l&apos;autre.
+            </div>
+          )}
+
+          {info?.gabarits?.some((g) => g.composeSansModele) && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900 leading-relaxed mb-4">
+              <strong>Aucun modèle-type de l&apos;Ordre ne couvre ce contrat.</strong> Le document
+              proposé a été composé à partir des clauses déontologiques confirmées et des
+              dispositions standard du droit du travail. Il porte cet avertissement en première
+              page, et sa validation par un avocat est indispensable avant signature.
             </div>
           )}
 

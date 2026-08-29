@@ -11,6 +11,8 @@ import { buildRemplacementInfirmierAutorisePdf } from "@/lib/contrats/template-i
 import { buildRemplacementInfirmierConfrerePdf } from "@/lib/contrats/template-infirmier-remplacement-confrere";
 import { buildCollaborationInfirmierPdf } from "@/lib/contrats/template-infirmier-collaboration";
 import { gabaritsPour } from "@/lib/contrats/gabarits";
+import { buildKineSalariatCdiPdf } from "@/lib/contrats/template-kine-salariat-cdi";
+import { NATURE_PAR_MISSION, gabaritsSalariePour } from "@/lib/contrats/gabaritsSalarie";
 import type { ContractParty } from "@/lib/contrats/types";
 import { sendContratEmail } from "@/lib/email";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
@@ -217,6 +219,115 @@ export async function GET(req: NextRequest, { params }: Params) {
     );
   }
 
+  let element: ReturnType<typeof buildRemplacementPdf>;
+  let filename: string;
+
+  // ── SALARIAT : bifurcation AVANT la résolution libérale (section 217) ─────────────────────
+  //
+  // Le recruteur est une STRUCTURE → c'est un contrat de travail, pas un engagement libéral.
+  // Cette bifurcation ne passe PAS par `MissionType` : ajouter `SALARIE` à l'enum aurait compilé
+  // en silence dans 43 fichiers dont aucun ne l'énumère exhaustivement, et un salariat serait
+  // sorti en contrat de collaboration libérale via le `else` final ci-dessous. Le champ qui
+  // distingue les deux mondes existe déjà et pilote déjà le vocabulaire des formulaires.
+  //
+  // `missionType` reste la source de la nature CDI/CDD, via une table déclarée — voir
+  // NATURE_PAR_MISSION et le commentaire qui l'accompagne : la même valeur d'enum désigne une
+  // collaboration libérale chez un cabinet et un CDI chez une structure.
+  if (profileTitulaire.titulaireKind === "STRUCTURE") {
+    const nature = NATURE_PAR_MISSION[missionType];
+    const candidatsSalarie = gabaritsSalariePour(profileTitulaire.profession, nature);
+
+    // Trois des quatre gabarits salariés ne sont pas écrits. Refus explicite, jamais un repli
+    // sur un gabarit voisin : un contrat de travail rendu avec un modèle libéral serait un
+    // document faux et signé.
+    if (candidatsSalarie.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            `Impossible de générer le contrat : aucun modèle de contrat de travail (${nature}) ` +
+            "n'est encore disponible pour cette profession.",
+        },
+        { status: 422 },
+      );
+    }
+
+    const demandeSalarie = sp.get("gabaritId");
+    const gabaritSalarie = candidatsSalarie.length === 1
+      ? candidatsSalarie[0]
+      : candidatsSalarie.find((g) => g.id === demandeSalarie);
+
+    if (!gabaritSalarie) {
+      return NextResponse.json(
+        {
+          error: "Plusieurs modèles de contrat de travail existent : précisez lequel s'applique.",
+          choix: candidatsSalarie.map((g) => ({ id: g.id, libelle: g.libelle, source: g.source })),
+        },
+        { status: 422 },
+      );
+    }
+
+    // Paramètres du contrat de travail, saisis à la génération comme pour les variantes
+    // libérales. `temps` est une union discriminée : un temps partiel ne peut pas être construit
+    // sans sa répartition horaire, que le Code du travail exige.
+    const entierS = (cle: string, defaut: number, min: number, max: number) => {
+      const v = parseInt(sp.get(cle) ?? String(defaut), 10);
+      return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : defaut;
+    };
+    const texteS = (cle: string, max = 200) => (sp.get(cle) ?? "").slice(0, max);
+    const heures = entierS("heuresHebdomadaires", 35, 1, 48);
+    const estPartiel = sp.get("tempsPartiel") === "true";
+    const repartition = texteS("repartitionHoraire", 600)
+      .split(";")
+      .map((seg) => seg.split("|"))
+      .filter((x) => x.length === 3 && x[0].trim())
+      .map(([jour, debut, fin]) => ({ jour: jour.trim(), debut: debut.trim(), fin: fin.trim() }));
+
+    const essaiBrut = sp.get("periodeEssaiMois");
+    const debut = missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null;
+
+    if (gabaritSalarie.id === "KINE_SALARIAT_CDI") {
+      element = buildKineSalariatCdiPdf({
+        employeur: titulaireParty,
+        salarie: autreParty,
+        nature: { type: "CDI", debut },
+        temps: estPartiel
+          ? {
+              type: "PARTIEL",
+              heuresHebdomadaires: heures,
+              repartition,
+              heuresComplementairesMax: entierS("heuresComplementairesMax", 4, 0, 20),
+            }
+          : { type: "COMPLET", heuresHebdomadaires: heures },
+        urssafVille: texteS("urssafVille", 80),
+        numeroSecuriteSociale: texteS("numeroSecuriteSociale", 25),
+        lieuTravail: texteS("lieuTravail") || locationTitulaire,
+        periodeEssaiMois: essaiBrut === null || essaiBrut === "" ? null : entierS("periodeEssaiMois", 2, 0, 8),
+        remunerationBrutMensuelle: entierS("remunerationBrutMensuelle", 0, 0, 100000),
+        caisseRetraite:   texteS("caisseRetraite", 120),
+        regimeFraisSante: texteS("regimeFraisSante", 120),
+        regimePrevoyance: texteS("regimePrevoyance", 120),
+        nonConcurrence: {
+          dureeMois:    entierS("nonConcurrenceDureeMois", 12, 0, 60),
+          rayonKm,
+          indemnitePct: entierS("nonConcurrenceIndemnitePct", 25, 0, 100),
+          periodicite: sp.get("nonConcurrencePeriodicite") === "TRIMESTRIELLE" ? "TRIMESTRIELLE" : "MENSUELLE",
+        },
+        indemnitePrecaritePct: null, // sans objet en CDI
+        preavisJours: entierS("preavisJours", 30, 0, 180),
+        generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
+      });
+      filename = "contrat-travail-cdi.pdf";
+    } else {
+      // Inatteignable aujourd'hui — un seul gabarit salarié est enregistré. Refus explicite
+      // plutôt qu'un repli, pour que l'ajout du prochain gabarit sans branchement se voie.
+      return NextResponse.json(
+        { error: "Modèle de contrat de travail reconnu mais non encore branché à la génération." },
+        { status: 500 },
+      );
+    }
+
+  } else {
+    // ── Résolution LIBÉRALE, inchangée depuis le 28/08 ───────────────────────────────────────
   const candidats = gabaritsPour(profileTitulaire.profession, missionType);
 
   // AUCUN GABARIT — même refus explicite que pour un `missionType` indéterminable. C'est le cas
@@ -261,9 +372,6 @@ export async function GET(req: NextRequest, { params }: Params) {
     return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : defaut;
   };
   const texte = (cle: string, max = 600) => (sp.get(cle) ?? "").slice(0, max);
-
-  let element: ReturnType<typeof buildRemplacementPdf>;
-  let filename: string;
 
   if (gabarit.id === "INFIRMIER_REMPLACEMENT_AUTORISATION") {
     element = buildRemplacementInfirmierAutorisePdf({
@@ -358,6 +466,14 @@ export async function GET(req: NextRequest, { params }: Params) {
     filename = "contrat-collaboration.pdf";
   }
 
+  }
+
+  // ── Queue COMMUNE aux deux mondes : brouillon, rendu, notification, réponse ────────────────
+  // Partagée volontairement. La première version de la branche salariée renvoyait son propre PDF,
+  // et divergeait sur trois points sans que rien ne le signale : `inline` au lieu d'`attachment`,
+  // pas de `Cache-Control: no-store` sur un document contractuel, et surtout AUCUN email
+  // « contrat disponible » à l'autre partie. Dupliquer une fin de fonction, c'est accepter que
+  // les deux copies divergent — ici elles l'avaient déjà fait avant le premier commit.
   if (isDraft) filename = filename.replace(/\.pdf$/, "-brouillon.pdf");
 
   const buffer = await renderToBuffer(element);

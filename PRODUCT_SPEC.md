@@ -4422,15 +4422,73 @@ L'ossature suit le CDI infirmier (secret professionnel, DPC, assurance, résolut
 protection sociale détaillée) : texte fixe déontologique déjà vérifié sur source officielle, dont
 la substance ne dépend pas de l'ordre. Le vocabulaire, lui, est celui du CNOMK.
 
-##### Ce qui n'est pas fait
+##### Le salariat entre par `TitulaireKind`, pas par `MissionType` (29/08)
 
-Le gabarit **n'est pas enregistré au registre et n'est appelé par rien**. `Gabarit` est indexé par
-`MissionType`, or le salariat n'en est pas un — Soignect le traite via `TitulaireKind.STRUCTURE`,
-et `contrat-info` bloque explicitement la génération dans ce cas depuis la section 161. Brancher le
-salariat suppose donc de décider comment il entre dans le registre, ce qui dépasse la composition
-du gabarit.
+Deux formes étaient possibles. Le recensement a tranché.
 
-Les trois autres gabarits salariés (CDD kiné, CDI et CDD infirmier) ne sont pas écrits.
+**`MissionType` est lu par 43 fichiers, et aucun ne l'énumère exhaustivement** — pas un seul
+`Record<MissionType, …>` dans le dépôt. Les décisions se prennent en ternaires et en chaînes
+`if/else` terminées par un `else`. Ajouter `SALARIE` à l'enum aurait donc **compilé partout en
+silence**, et une valeur inconnue serait retombée dans la branche par défaut :
+
+| Endroit | Ce qu'un `SALARIE` serait devenu |
+|---|---|
+| Génération de contrat | un **contrat de collaboration libérale** — faux, et signé |
+| `socleFor` (scoring) | barème remplacement, **et le label `"REMPLACEMENT"`** enregistré dans les `scoreDetails` |
+| `annonceAI` | jamais extrait — les trois valeurs sont codées dans le **prompt** envoyé au modèle |
+
+La bifurcation retenue existait déjà : `TitulaireKind.STRUCTURE` fait basculer le vocabulaire des
+formulaires depuis longtemps. On l'a branchée, pas inventée. **Le mécanisme `Gabarit[]` libéral et
+les sept gabarits ne sont pas touchés** — diff vide, et le chemin libéral de la route n'a perdu
+que deux déclarations, déplacées plus haut.
+
+##### La superposition `MissionType` × camp, rendue explicite
+
+Le formulaire relabelle déjà les trois types pour un employeur, mais la **valeur stockée reste la
+même**. Un `COLLABORATION` en base signifie donc deux choses opposées :
+
+```
+COLLABORATION + cabinet libéral → « Collaboration »  (engagement libéral, redevance)
+COLLABORATION + structure       → « CDI »            (contrat de travail, subordination)
+```
+
+Cette correspondance vivait dans un **ternaire de libellés**, où rien ne disait qu'elle décidait
+aussi de la nature juridique. Elle est désormais déclarée dans `NATURE_PAR_MISSION`, un
+`Record<MissionType, "CDI" | "CDD">` — donc si l'enum gagne une valeur, la compilation casse ici.
+
+Pas de colonne dédiée : elle serait nulle pour toutes les annonces libérales et devrait être tenue
+en cohérence à chaque écriture — la définition même du levier dormant, dont le produit compte déjà
+quatre exemplaires.
+
+⚠️ **Ce que cette forme ne résout pas** : une requête `missionType = COLLABORATION` continue de
+mélanger collaborations libérales et CDI salariés. La dérivation rend l'interprétation lisible,
+elle ne désambiguïse pas la base. Compter les CDI demandera de joindre sur `titulaireKind`.
+
+Le sous-cas du CDD — terme précis ou non — ne se déduit pas du `MissionType` : il se tranche à la
+génération, comme la variante de remplacement infirmier.
+
+##### Le blocage du salariat change de motif
+
+`contrat/page.tsx` refusait la génération **parce que c'était un salariat**. Il la refuse désormais
+**parce qu'aucun modèle applicable n'existe** — ce qui est la vraie raison, et reste vrai pour les
+trois cas non écrits. Un CDI kiné passe ; un CDD kiné ou un contrat infirmier obtient un refus
+explicite, jamais un PDF d'un autre gabarit.
+
+L'écran affiche en plus un avertissement quand le gabarit retenu est **composé sans modèle-type**,
+en écho à celui imprimé en première page du PDF.
+
+##### Une fin de fonction partagée, et pourquoi
+
+La première version de la branche salariée renvoyait son propre PDF. Elle divergeait déjà sur
+trois points avant le premier commit : `inline` au lieu d'`attachment`, pas de
+`Cache-Control: no-store` sur un document contractuel, et surtout **aucun email « contrat
+disponible »** à l'autre partie. Les deux branches partagent donc la même queue — dupliquer une
+fin de fonction, c'est accepter que les copies divergent.
+
+##### Ce qui reste
+
+Trois gabarits salariés sur quatre ne sont pas écrits : **CDD kiné, CDI et CDD infirmier**. Leur
+absence est un fait déclaré dans le registre, pas un oubli — la route refuse explicitement.
 
 #### SCALABILITÉ À PLUSIEURS CPTS (20/08) — audit et deux correctifs
 
