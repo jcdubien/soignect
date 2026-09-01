@@ -81,6 +81,25 @@ seule, détail dans PRODUCT_SPEC.md) :
   Factoriser la structure (module, paramétrage), jamais le contenu
   au prix du sens.
 
+**Mise à jour (26/08)** — ce principe fondateur du 12/08 reste
+valable tel quel, mais ne le relis pas seul : trois développements
+depuis l'étendent concrètement.
+- L'audit de généricité complet (19-21/08, "Clos et vérifié — 20/08")
+  a vérifié ce principe contre tout ce qui a été construit depuis
+  (CommuneAPL, PrioriteTerritoriale, module embarquable, mentions du
+  feed) — fermé sur tout ce qui a été audité, rien n'ouvre une
+  profession, c'est la forme qui a changé.
+- Le principe fondateur "le match porte sur des disponibilités,
+  jamais sur des profils" (STRATEGIE_MARKETING_BUSINESS.md, en tête
+  de fichier) est le pendant architectural de la factorisation — pas
+  juste factoriser le code, factoriser la façon dont deux besoins se
+  rencontrent.
+- Infirmier est acté comme prochaine profession (STRATEGIE §5,
+  26/08), avec un vrai danger trouvé pendant l'audit : le contenu
+  juridique des contrats n'est PAS encore générique (voir file
+  d'attente, item marqué 🚨) — la seule vraie brèche restante dans
+  "générique à ~80%".
+
 ---
 
 ## ✅ Clos et vérifié — session du 11-12/08
@@ -501,6 +520,127 @@ ci-dessus, plus une référence de file d'attente.
   ingénierie ; il reste à Jean-Charles de faire publier une annonce
   réelle sur l'une de ces 3 communes avant l'appel CPTS.
 
+- **Trois déclarations testées, deux retenues (21/08) — mention
+  honnête active, zéro effet visible sur l'ordre.** Chronologie
+  complète : Sainte-Rose déclarée sur la prémisse d'une annonce
+  ("Succession poste Marion") qui a disparu entre-temps (supprimée
+  volontairement par Jean-Charles, confirmé — pas un bug). **Bonne
+  discipline d'Opus** : a distingué "la déclaration est vraie"
+  (Sainte-Rose fait partie du territoire CPTS, manque de kinés,
+  indépendamment des annonces) de "l'argument qui l'a motivée ne
+  tient plus" — a proposé de la retirer plutôt que d'imposer son
+  propre jugement, argumenté pour la garder si demandé. **Décision
+  de Jean-Charles : gardée.** Pointe-Noire ensuite déclarée à la
+  demande explicite de Jean-Charles — pour la première fois, la
+  mention de transparence affichée aux candidats est authentiquement
+  vraie, adossée à une relation client réelle. Mais **risque
+  d'image identifié et confirmé** : les 5 annonces créditées à
+  Pointe-Noire sont toutes du cabinet fondateur (déjà en tête à 100,
+  passent à 106, aucun changement de rang) — exactement le piège
+  identifié dès le choix initial de Deshaies/Sainte-Rose plutôt que
+  Pointe-Noire, revenu par la déclaration ultérieure. Un observateur
+  pourrait légitimement se demander si la CPTS avantage le cabinet
+  du vendeur — faux dans les faits, mais rien à l'écran ne le
+  précise. **Décision finale de Jean-Charles : Pointe-Noire
+  retirée.** État stable : Deshaies + Sainte-Rose déclarées (niveau
+  2, hypothèse d'Opus non validée par la CPTS, modifiable en un
+  clic), 0 annonce créditée sur les deux — mention honnête, mais
+  muette à l'écran tant qu'aucune annonce non-fondatrice n'existe
+  sur le territoire. **La seule piste restante pour rendre la démo
+  démonstrative** : le contact Sainte-Rose identifié via Facebook
+  (secteur La Boucan), message prêt, jamais confirmé envoyé — ou
+  trouver un autre vrai cabinet non-fondateur sur Deshaies/
+  Sainte-Rose/Lamentin. **Piste notée pour plus tard** : si la CPTS
+  hiérarchise réellement son territoire (ex. Deshaies plus tendue
+  que Sainte-Rose), des niveaux différenciés par commune rendraient
+  le levier capable de trancher entre communes déclarées — pas
+  juste "actif ou pas".
+  **Clôture confirmée (21/08, `39b5e5a`)** : Pointe-Noire retirée,
+  tableau vérifié — 2 déclarations actives (Deshaies, Sainte-Rose),
+  0 créditée, mention muette, exactement l'état d'avant l'ajout.
+  Opus a conservé dans PRODUCT_SPEC.md les 3 faits mesurés pendant
+  la brève activation de Pointe-Noire plutôt que de les effacer avec
+  l'état — apprentissage retenu même si la donnée a changé : (1) la
+  mention nommée a été vue à l'écran pour la première fois,
+  authentiquement vraie — lève la réserve du 20/08 ; (2) l'ordre n'a
+  pas bougé, `937c884` reproduit à l'identique 4 jours plus tard sur
+  une vraie déclaration cette fois ; (3) reformulation retenue —
+  "pas un défaut du levier, le levier qui rend visible un conflit
+  d'intérêt préexistant". **Point noté, pas corrigé sans raison** :
+  "Agit ? oui" s'affiche même à 0 annonce créditée — pas faux (la
+  colonne dit "en vigueur", pas "change quelque chose aujourd'hui"),
+  signalé pour vigilance future, non corrigé faute d'un vrai cas de
+  confusion observé.
+
+- **Saga "Cabinet Dubien" à Pointe-Noire — investiguée, résolue,
+  option B de la démo refermée.** Une annonce non-fondatrice était
+  brièvement apparue à Pointe-Noire sous un profil "Cabinet Dubien".
+  **Root-cause précise** : l'invitation envoyée à Marion le 13/08
+  09:16 a expiré le 20/08 09:16 ; elle s'est inscrite le 20/08 14:13,
+  4h57 trop tard. Le code a fait exactement ce qui était écrit — pas
+  un dérapage. **Vrai défaut produit trouvé, pas isolé à Marion** :
+  la route de lookup d'invitation calcule et renvoie un motif précis
+  (expirée/utilisée/poste supprimé), mais `register/page.tsx`
+  l'ignore et affiche un formulaire vierge sans aucune mention du
+  cabinet visé. Résultat : Marion a cru s'inscrire normalement et
+  est devenue titulaire de son propre cabinet. **Toute invitation
+  ouverte après 7 jours produira le même résultat** — pas un
+  incident isolé, un vrai gap UX à corriger. Pas encore prompté.
+  **Confirmé : pas un fantôme, une vraie tierce personne**
+  (marionth3@gmail.com) avec de vraies données — traité comme tel à
+  chaque étape, rien touché sans consentement explicite.
+  **Rattachement effectué avec l'accord de Marion** ("elle veut être
+  rattachée à mon cabinet") : type TITULAIRE→ASSISTANT, rattachée au
+  poste "Marion" (celui que visait l'invitation à l'origine).
+  Contrainte trouvée en chemin : `/api/cabinet-posts/[id]/link`
+  n'accepte que ASSISTANT alors que le flux d'invitation automatique
+  accepte ASSISTANT+REMPLACANT depuis le 03/08 — incohérence entre
+  les deux chemins, signalée mais pas corrigée (hors scope du jour,
+  même famille que l'incident du contrat du 23/07). **Suppression
+  formelle demandée et exécutée** : ses 2 missions et son
+  `CabinetPost` "Cabinet Dubien" supprimés, dépendances vérifiées à
+  zéro avant (aucun swipe/match la concernant), sauvegarde complète
+  écrite avant suppression. **⚠️ Sauvegarde dans un scratchpad
+  éphémère de session — à déplacer vers un emplacement durable avant
+  la fin de la session Claude Code, sinon la suppression cesse
+  d'être réversible.** Non touché, par choix délibéré : son nom
+  d'affichage reste "Cabinet Dubien" (pas à renommer sans son
+  accord), l'invitation reste PENDING/expirée (trace honnête de
+  l'incident, pas effacée). **Conséquence directe pour la démo** :
+  Pointe-Noire revient à 5/5 annonces toutes du cabinet fondateur —
+  l'option B n'existe plus. Aucune commune de Nord Basse-Terre ne
+  porte plus d'annonce non-fondatrice. **Chemin CPTS reparti à zéro**
+  — reste uniquement la piste Sainte-Rose (contact Facebook, jamais
+  confirmé) ou trouver un autre vrai cabinet non-fondateur sur
+  Deshaies/Sainte-Rose/Lamentin.
+- **Incident signalé, non traité par choix de Jean-Charles** : un
+  compte a été créé au nom d'une personne réelle sans son
+  consentement, pour publier son annonce en son nom. Risques
+  identifiés (usurpation d'identité, RGPD, contradiction directe
+  avec le modèle de vérification d'identité que Soignect construit
+  par ailleurs) — recommandation de retrait donnée, déclinée. À
+  reprendre si Jean-Charles souhaite un jour un chemin conforme
+  (mécanisme de revendication par la vraie personne, déjà esquissé
+  dans le cahier des charges Facebook écarté).
+
+- **Mélange barre de tête entre sessions : CONFIRMÉ RÉSOLU (en
+  production).** Fausse alerte de fuite de données — les données
+  servies par `planning/page.tsx` étaient toujours correctes, c'est
+  uniquement le nom affiché dans la barre de tête (composant de
+  layout séparé) qui restait périmé après un changement de compte
+  sur le même appareil. Cause corrigée : PAS le JWT figé au sign-in
+  comme d'abord supposé — réfuté (le corps affichait déjà les bons
+  postes avec la même session) ; la vraie cause est un cache de
+  routeur. Croire à tort au JWT aurait mené à le rafraîchir à chaque
+  requête — un correctif qui ne corrige rien et coûte une lecture
+  base en plus par page. Portée générale (tout poste où deux
+  personnes se succèdent). Corrigé par rechargement dur plutôt que
+  `router.refresh()`, délibérément — pas de discipline à respecter à
+  chaque futur point d'entrée. 4 occurrences trouvées et corrigées
+  au total (barre de tête initiale, `register/page.tsx`,
+  `CompteForm.tsx` suppression de compte, plus une recherche
+  systématique demandée pour le reste).
+
 - **Scalabilité à plusieurs CPTS : livrée (20/08).** Registre
   extrait dans `src/lib/embedTerritoire.ts`, consommé à la fois par
   `/admin/priorites` et par le module embarquable — une seule
@@ -520,18 +660,606 @@ ci-dessus, plus une référence de file d'attente.
   pas construire pour un besoin hypothétique : la forme change
   (scalable), pas ce que le produit sert aujourd'hui.
 
+- **`register/page.tsx` + `/admin/apl` (colonnes 3/5) : livrés
+  (20/08).** Bandeau explicatif sur `/admin/apl` **conservé** (les
+  curseurs ne pilotent plus l'ordre, priorité déclarée dans
+  `/admin/priorites`, valeurs visibles issues de l'import DREES du
+  28/06 sans saisie humaine — "conservées, pas maintenues").
+  **4ᵉ occurrence du défaut de barre de tête corrigée** :
+  `CompteForm.tsx:169` (`handleDeleteAccount`), même correctif que
+  les autres occurrences (rechargement dur). Prompt envoyé le 20/08,
+  demande aussi une recherche systématique d'autres occurrences du
+  même motif plutôt qu'un correctif isolé. Rapport pas encore reçu.
+
+- **Pages persona filtrées par audience : livré et vérifié en
+  production (`f8d75fc..320cbec`).** Discriminant réel :
+  `Profile.type`, pas `missionType` — un cabinet cherchant un
+  remplaçant et un remplaçant cherchant un cabinet portent tous deux
+  `REMPLACEMENT` en `missionType`, filtrer par là aurait menti sur
+  le sens. EMPLOYEUR = TITULAIRE (cabinet + structure), CANDIDAT =
+  REMPLACANT + ASSISTANT confondus — chaque camp voit l'intégralité
+  du pool d'en face, multi-préférences préservé. Mesuré : 20
+  annonces → 13 employeur + 7 candidat, disjoint et exhaustif.
+  Vérifié en production sur les 3 pages (0 tag croisé). **Trouvaille
+  non demandée** : la porte territoire (CPTS) était aussi affectée —
+  pas une liste mélangée, mais un chiffre qui contredisait sa propre
+  légende ("combien de postes cherchent preneur" comptait les deux
+  camps) — corrigée en EMPLOYEUR. Camp déclaré explicitement par
+  chaque porte plutôt que déduit — une future porte devra trancher
+  consciemment. Paramètre obligatoire sans défaut, cohérent avec le
+  même choix fait pour la profession le 17/08. **Ajout non demandé,
+  confirmé gardé** : `isSelfPresence: false` — exclut les
+  déclarations d'absence des pages publiques, cohérent avec le feed
+  qui les exclut déjà. Longueur de liste : 8.
+
+- **Mention "kinés" en dur + `PrioritesClient.tsx` recopié : déjà
+  corrigés depuis le 19/08 (`a7d4de8`), confirmé le 21/08 avec
+  preuve à l'appui.** Feed : `useMemo` rend "votre profession"
+  plutôt qu'un mot décliné — vrai pour toute profession future sans
+  retouche, dérivé de `chargerPrioritesTerritoriales` qui ne
+  remonte que les déclarations de la profession du lecteur.
+  `PrioritesClient.tsx` : dérive `Object.values(Profession)` +
+  `libelleProfession()`, ne recopie plus rien. **Détail de
+  conception à retenir** : `libelleProfession` rend la valeur brute
+  de l'enum quand aucun vocabulaire n'est déclaré, plutôt que de
+  fabriquer un libellé par translittération — rend un manque de
+  vocabulaire *visible* au lieu de le masquer silencieusement, même
+  principe que partout ailleurs cette session appliqué à un détail
+  d'UI. Aucun commit nécessaire (déjà sur `origin/main`, pas de
+  commit vide).
+
+- **3 dernières mentions "kiné" en dur corrigées (`320cbec..875639a`)
+  — chantier de généricité profession ENTIÈREMENT CLOS.**
+  `missions/create/page.tsx` (×3, placeholders), `premium/
+  page.tsx:169`, `layout.tsx:19`. **Arbitrage notable** : "praticien"
+  choisi plutôt qu'une vraie interpolation de profession dans
+  `missions/create`/`premium` — ces composants client tirent leur
+  session de `useSession`, qui ne porte pas `Profile.profession`
+  (seulement `profileType`/`isEmployeur`/`profileId`). Câbler la
+  vraie profession aurait exigé soit de l'ajouter au JWT
+  (rouvrirait exactement le motif de bug fermé cette semaine avec la
+  barre de tête périmée), soit une requête supplémentaire pour un
+  simple placeholder — coût supérieur au bénéfice ici. **Deux bonus
+  trouvés en chemin** : la page premium se contredisait déjà elle-
+  même (branche établissement "soignants", branche cabinet
+  "kinésithérapeutes") — corrigée en nommant le camp visé plutôt
+  qu'un métier, plus précis que l'original, pas seulement plus
+  générique. La méta-description globale reste délibérément
+  kiné-spécifique dans son contenu (honnête, le produit ne sert
+  qu'une profession aujourd'hui) mais sa source est désormais
+  interpolée depuis le registre plutôt qu'écrite en dur — suit
+  automatiquement le jour où une 2ᵉ profession s'ouvre. **État du
+  chantier généricité, dans son ensemble** : fermé sur tout ce qui a
+  été audité — `CommuneAPL`, script DREES, `PrioriteTerritoriale`,
+  bonus territorial, ponts géographiques, module embarquable,
+  mention du feed, `PrioritesClient.tsx`, ces 3 derniers écrans.
+  Rien de tout ça n'ouvre une profession — c'est la forme du code
+  qui a changé, prête pour le jour où une 2ᵉ profession sera
+  réellement servie.
+
 ## 🔴 Prêts, en file, pas encore envoyées
 
-⚠️. **`register/page.tsx` (motif `router.push`) + `/admin/apl` (3/5
-   colonnes de boost) — correctifs en cours**, lancés par
-   Jean-Charles le 20/08. Lien avec le correctif de la barre de
-   tête pas confirmé — à vérifier une fois le rapport reçu.
-⚠️. **Pages persona non filtrées par audience** — prompt envoyé le
-   20/08. Capture d'écran confirmant le bug : la page "cabinet"
-   mélange offres employeur et disponibilités candidates. Principe
-   retenu documenté dans STRATEGIE_MARKETING_BUSINESS.md §2 — chaque
-   porte montre l'inverse de son visiteur. Liste aussi limitée à
-   5-10 éléments (actuellement exhaustive). Rapport pas encore reçu.
+🎯. **Changement de type de profil self-service (titulaire ↔
+   chercheur)** — prompt prêt le 26/08. Cadré pour ne pas contredire
+   la vision de fusion REMPLACANT/ASSISTANT actée le même jour
+   (STRATEGIE §principe fondateur) — présente Titulaire↔Chercheur
+   comme la distinction principale, pas trois catégories égales et
+   définitives. Pas encore envoyé.
+⚠️. **Email "annonce consultée" — déclencheur à vérifier
+   (consultation passive ou intérêt exprimé ?)** — prompt prêt le
+   26/08, pas encore envoyé (Jean-Charles sans accès à Claude Code
+   au moment de la demande). Capture d'écran : email envoyé au
+   cabinet sur "un remplaçant vient de consulter votre annonce" —
+   à vérifier si le déclencheur est `CARD_CONSULTED` (simple vue) ou
+   un swipe "Intéressé" (geste actif). Principe clarifié en
+   discussion : le principe "pas de profils navigables" protège les
+   candidats non publiés d'être vus par les cabinets — il ne
+   s'applique pas dans l'autre sens (un candidat consultant une
+   annonce publiée par un cabinet est normal et prévu). La vraie
+   question reste le seuil de notification : consultation simple
+   vs intérêt actif.
+⚠️. **Annuler un "pass" sur une annonce, symétrique au retrait
+   d'intérêt** — prompt envoyé le 26/08. Capture d'écran confirmant
+   l'absence de ce bouton côté "passé" (seul "Fermer" proposé),
+   alors qu'il existe côté "intéressé" ("Retirer ce choix"). Rapport
+   pas encore reçu.
+⚠️. **Image de partage : flou trop fort + ambiguïté employeur/
+   candidat sur une annonce individuelle** — prompt envoyé le 26/08.
+   Capture d'écran Facebook confirmant les deux problèmes. Même
+   principe de distinction déjà établi pour les pages persona
+   (STRATEGIE_MARKETING_BUSINESS.md §2), appliqué ici à l'image de
+   partage d'une annonce seule. Rapport pas encore reçu.
+🚨. **Contrats : le vrai danger de la Phase 2, confirmé et prioritaire
+   maintenant qu'infirmier est acté.** Investigation complète (3
+   points) rapportée le 21/08. **Point 3, le plus grave** :
+   `src/lib/professions.ts` (`PROFESSION_LABELS_CONTRAT`) est déjà
+   multi-profession dans le LIBELLÉ (`Record<Profession, string>`,
+   exhaustivité imposée par TypeScript, corrige un vieux défaut qui
+   mappait des professions absentes de l'enum) — mais PAS dans le
+   CONTENU JURIDIQUE. Un contrat pour un infirmier afficherait
+   correctement "Profession : Infirmier diplômé d'État"... puis
+   enchaînerait sur des articles de loi et une référence à l'Ordre
+   qui sont ceux des KINÉS (R.4321-99, R.4321-130, CNOMK). Dans les
+   mots d'Opus : *"ce n'est pas une erreur visible, c'est un document
+   plausible portant le mauvais droit — plus dangereux qu'un
+   plantage."* Point d'insertion identifié : sélectionner sur la
+   paire (profession, missionType) plutôt que missionType seul ; le
+   moteur de génération (types.ts, party-identity.tsx, watermark.tsx,
+   187 lignes) n'a pas besoin de bouger. **Vrai prérequis avant
+   d'activer infirmier**, pas une hypothèse Phase 2 abstraite —
+   rejoint directement le sourcing des modèles de l'Ordre National
+   des Infirmiers déjà identifié comme le point le plus lourd.
+   **Point 2 (Ordre)** : confirmé générique jusque dans l'interface
+   (libellés neutres N° RPPS/N° Ordre/SIRET, aucune contrainte de
+   format supposant le kiné) — mais Opus note honnêtement une nuance
+   : cette généricité n'a jamais été testée au-delà de la présence,
+   il n'y a rien à casser parce qu'il n'y a rien dedans (validation
+   `z.string().max(30)`, pas de vraie logique testée).
+   **Chasse au motif "donnée calculée puis jetée"** : verdict final
+   2 occurrences confirmées (RPPS/ANS, invitation expirée), PAS une
+   habitude du codebase — `sendEmail` d'abord soupçonné comme 3ᵉ
+   occurrence, vérifié et écarté (échec journalisé, documenté,
+   fire-and-forget délibéré). Bonne discipline de s'être corrigé
+   plutôt que de forcer un pattern à exister.
+   **Famille différente trouvée à la place, celle-là réelle** :
+   "réglable et jamais réglé" — 4 leviers qui existent, s'affichent,
+   ne conditionnent rien : `Profile.weight` (lu dans 6 `orderBy`,
+   jamais modifié en pratique), `CommuneAPL.boost*` (déjà réglé par
+   B0-B3), `maxCandidates`/`singleSlot` (au schéma depuis le 10/07,
+   lus par aucune logique), et **`isVerified`** (affiché en badge,
+   cochable en admin, ne conditionne rien — un badge "vérifié" sans
+   effet réel est un problème de confiance, pas juste du code mort).
+   Réserve mineure notée en chemin : `NEXT_PUBLIC_SENTRY_DSN` non
+   configurée, les échecs `sendEmail` partent dans les logs Vercel
+   plutôt qu'en alerte — pas le motif recherché, juste une variable
+   d'environnement manquante.
+   **Suite du 26/08 — ASSISTANAT n'existe pas chez les infirmiers,
+   confirmé structurellement.** 9 rubriques de l'Ordre National des
+   Infirmiers vérifiées exhaustivement, aucune sous ce nom. Raison
+   trouvée : l'assistanat kiné n'est pas une catégorie juridique
+   nationale — c'est une pratique que le CNOMK a normalisée pour sa
+   profession en publiant un contrat-type, EN L'ABSENCE de toute loi
+   (contrairement au collaborateur libéral, statut légal réel, loi
+   de 2005, toutes professions confondues). Distinction déjà portée
+   par `template-collaboration.tsx:99` (patientèle propre ou non).
+   **Conséquence produit directe** : ASSISTANAT ne doit pas être
+   proposé aux infirmiers à l'activation — pas un modèle à chercher
+   ailleurs, un type de mission qui n'existe pas pour cette
+   profession. Le formulaire de publication doit refléter ça, pas
+   juste échouer à la génération de contrat.
+   **La clé (profession, missionType) posée le 26/08 est
+   insuffisante, confirmé avec précision.** Le remplacement infirmier
+   a DEUX variantes selon que le remplaçant a ou non sa propre
+   autorisation d'exercice — nécessite une 3ᵉ dimension ou deux
+   entrées distinctes, pas juste un couple. ASSISTANAT absent côté
+   infirmier, confirmé une 2ᵉ fois par le texte réel du contrat de
+   collaboration infirmier (article 2, "Développement de la
+   patientèle propre au collaborateur" — le pivot exact qui
+   distingue collaborateur d'assistant).
+   **Comparaison structurelle kiné/infirmier (point 2, reçu le
+   26/08)** : même socle (objet, durée, lieu, honoraires/rétrocession,
+   obligations fiscales/sociales, incessibilité, résiliation,
+   non-concurrence, résolution des différends, transmission à
+   l'Ordre) — "les deux professions écrivent le même contrat".
+   Remplacement : 13 articles kiné vs 19 infirmier. Collaboration :
+   23 vs 24. Ce que l'infirmier a en plus : forfaits de prise en
+   charge (nomenclature infirmière BSI/dépendance, aucun équivalent
+   Soignect aujourd'hui), maternité/paternité, maladie, présentation
+   préférentielle. Ce que le kiné a en plus : priorité de succession,
+   conditions de rachat de patientèle. **Découverte non anticipée** :
+   les clauses marquées négociables côté infirmier (durée, honoraires,
+   redevance, résiliation, différends, transmission) ne recouvrent
+   PAS les mêmes points que `NegotiableClauses` côté Soignect
+   (modePaiement, delaiPaiementJours, modalitesLocaux) — le mécanisme
+   de personnalisation lui-même doit être repensé par profession, pas
+   seulement le contenu textuel des gabarits.
+   **Chiffrage réel (point 3, reçu le 26/08)** : le moteur ne bouge
+   pas (types.ts/party-identity.tsx/watermark.tsx, 187 lignes déjà
+   génériques). Coût réel : ~800-900 lignes de transcription
+   juridique pour 3 gabarits (remplacement ×2, collaboration) — "ce
+   qui prend le temps, et ça ne se délègue pas à la légère". Table
+   de sélection partielle et variantée à construire. Champs de
+   données manquants à ajouter (forfaits, maternité/paternité,
+   maladie) — pas du texte, de vrais champs. ASSISTANAT à retirer du
+   formulaire pour un infirmier. **Verdict d'Opus** : "le gros du
+   travail est la transcription juridique, incompressible — mais
+   l'architecture tient, c'est bien ce que l'audit du 26/08 laissait
+   espérer."
+   **Lot déposé différent de ce qui était demandé** : le salariat
+   CDD/CDI manquait (justement ce qu'on voulait), mais 2 documents
+   non demandés sont arrivés en bonus — "Cession de fonds libéral"
+   et "Exercice en commun avec partage des frais" — le premier
+   rejoint directement l'item 2 ci-dessous (transfert de
+   conventionnement/cession), déjà repéré par Jean-Charles comme
+   source potentiellement réutilisable kiné+infirmier.
+   **Salariat CDD/CDI confirmés et vérifiés (26/08)** — 25p/24
+   articles (CDI), 22p/21 articles (CDD), couche texte propre,
+   émetteur CNOI confirmé, aucune confusion avec des documents kiné.
+   **Découverte majeure : le salariat n'est PAS une variante des 3
+   gabarits existants, c'est une autre nature de contrat** — droit du
+   travail (période d'essai, temps de travail, congés payés,
+   protection sociale, indemnité de précarité, rupture), pas droit de
+   la santé publique. Aucune notion de rétrocession/redevance (piliers
+   des 3 gabarits actuels). **Ce trou touche aussi le kiné
+   aujourd'hui** — Soignect gère le salarié via
+   `TitulaireKind.STRUCTURE` sans aucun gabarit, quelle que soit la
+   profession. Pas une complication infirmier-spécifique, un vrai
+   manque pré-existant révélé par cette investigation.
+   **Réserve d'usage** : les PDF sont les versions COMMENTÉES du CNOI
+   ("vous ne devez pas l'utiliser comme contrat à signer") — bons
+   pour comprendre chaque clause, mais le texte contractuel et le
+   commentaire doivent être distingués soigneusement au moment de la
+   transcription.
+   **Décision finale du 26/08** : les 9 PDF (102 Mo au total) restent
+   HORS du dépôt Git — trop lourd pour l'historique, disponibles sur
+   le disque local uniquement.
+   **Phase A — arrêtée avant transcription, bon réflexe d'Opus
+   (26/08).** Vérification de faisabilité d'abord : le commentaire
+   CNOI est séparable du texte contractuel (marqueur littéral
+   "Commentaire :", 19/10/9 blocs selon le document) — réserve levée.
+   Alternatives rédactionnelles quantifiées (clauses facultatives,
+   "OU" isolés, choix entre crochets) — transcriptibles, mais chaque
+   branche est un choix juridique, pas une décision d'implémentation.
+   **Vrai blocage trouvé** : la variante de remplacement (confrère
+   installé / titulaire d'une autorisation) n'est déterminable par
+   AUCUNE donnée existante dans Soignect — l'étendre aurait créé un
+   4ᵉ levier "réglable et jamais réglé" (même famille que weight/
+   boost*/maxCandidates/isVerified, identifiée quelques heures plus
+   tôt). Opus s'est arrêté avant d'écrire ~900 lignes sur une
+   hypothèse fausse. **Décisions du 26/08** : (b) la variante se
+   choisit au moment de générer le contrat, pas un champ déclaratif
+   à l'inscription — évite le levier dormant. Jean-Charles tranchera
+   chaque choix juridique clause par clause, PAS Opus seul — aucun
+   choix documenté dans le code sans accord explicite préalable.
+   **Point 4 (retrait ASSISTANAT) partage le même prérequis que le
+   fix du 25/08** : `missions/create` est un composant client, session
+   ne porte pas `Profile.profession`. **Résolu (26/08)** : chargement
+   serveur en prop retenu (pas de route dédiée) — un `page.tsx`
+   serveur qui charge `Profile.profession` et rend le client actuel
+   renommé. Raison : une route dédiée créerait un scintillement (l'
+   utilisateur verrait ASSISTANAT apparaître puis disparaître), et
+   une route de plus est une surface d'authentification en plus pour
+   une donnée déjà chargée côté serveur ailleurs.
+   **Forme de la clé retenue** : liste déclarative
+   (`interface Gabarit[]`, pas une table imbriquée) — naturellement
+   partielle, porte le libellé de chaque variante, s'énumère pour
+   alimenter le formulaire.
+   **8 choix juridiques listés par Opus (26/08), décompte corrigé
+   deux fois, tranchés progressivement** :
+   - **Correction majeure du 26/08** : le décompte initial était
+     sous-estimé partout — détecteur ne voyait que les "OU" isolés
+     sur une ligne, ratait ceux en milieu de phrase et les
+     "Option :". Balayage exhaustif refait. Réel : 3 choix sur
+     l'autorisation (pas 0, pas 1), 5 sur confrère installé (pas 3),
+     9 sur collaboration (pas 5). **Bonne discipline confirmée une
+     3ᵉ fois** : Opus annonce le décompte corrigé avant de
+     transcrire, pas après — aucune ligne écrite sur un mauvais
+     compte.
+   - **R-1 tranché : A** — "Du ... au ... et selon un planning
+     annexé", colle à `startDate`/`endDate`. S'applique aux deux
+     variantes de remplacement.
+   - **A-1 tranché : A** — carte CPS du Remplaçant (mode de
+     facturation, variante autorisation). Question ouverte transmise
+     à Opus : s'applique-t-elle aussi à R-3b (même distinction,
+     variante confrère installé) ?
+   - **A-2 tranché : A** — rayon en km (non-concurrence), colle à
+     `rayonKm` déjà dans `ContractDataRemplacement`, déjà utilisé par
+     le gabarit kiné pour la clause R.4321-130.
+   - **Premier gabarit LIVRÉ (`e6926b6`)** — `template-infirmier-
+     remplacement-autorisation.tsx`, 428 lignes, 13 articles,
+     transcrit du modèle CNOI du 15/11/2023. Build vert, gabarits
+     kiné vérifiés inchangés (diff vide sur les 3). **Trouvaille
+     majeure de la transcription** : le sens de la rétrocession
+     s'inverse entre kiné et infirmier — chez le CNOMK le remplaçant
+     encaisse et reverse au remplacé, ici (remplaçant non installé)
+     c'est l'inverse, le remplacé perçoit et reverse. Réutiliser
+     `retrocessionPct` aurait inversé un pourcentage sur un document
+     signé, sans qu'aucun test ne l'attrape. Type dédié créé
+     (`reversementDirectPct`, `reversementTiersPayantPct`) nommé dans
+     le sens réel. Validation directe de toute la rigueur du
+     processus de transcription clause par clause.
+     `LIBELLE_NUMERO_ORDRE` ajouté au registre ("N° Ordre" CNOMK /
+     "n° ordinal" CNOI), valeur kiné inchangée — aucun PDF déjà
+     généré ne bouge d'un caractère. Les 9 PDF sources exclus par
+     `.gitignore` nommé (pas `*.pdf` générique) — `git add .` aurait
+     sinon fait entrer 102 Mo dans l'historique malgré la décision
+     de les garder hors dépôt.
+     **Gabarit encore INERTE, assumé explicitement** : rien ne
+     l'appelle — liste `Gabarit[]`, sélection de variante et retrait
+     d'ASSISTANAT restent à construire. Documenté dans la spec et le
+     commit comme état intermédiaire, pour ne pas devenir un levier
+     dormant si la phase s'arrêtait là.
+     **Leçon de méthode consignée** : "une méthode de comptage ne
+     vaut rien tant qu'elle n'a pas été confrontée au texte
+     intégral" — après deux corrections successives (0→3, 3→5,
+     5→9), signalées à chaque fois avant transcription plutôt
+     qu'après.
+     rattachement — saisis à la génération, cohérent avec (b).
+   - Écart de vocabulaire trouvé ("n° ordinal" infirmier vs "N°
+     d'inscription à l'Ordre" kiné) — à porter par le registre
+     (même motif que `PROFESSION_LABELS_CONTRAT`), pas en dur.
+   - Clauses marquées `*` confirmées légalement obligatoires
+     (article R.4312-73 CSP, non dérogeables) — pendant infirmier des
+     "clauses réglementaires" déjà marquées côté kiné.
+   - **R-3 se décompose en deux** : R-3a (inclure ou non l'option
+     redevance — recoupe `retrocessionPct` déjà au modèle), R-3b
+     (même distinction CPS/feuilles pré-identifiées que A-1, mais
+     pour la variante confrère installé).
+   - **C-4 (forfaits de prise en charge)** : champ sélectionnable
+     (liste déroulante) choisi à la génération, pas figé dans le
+     gabarit.
+   - **C-5 (durée/résiliation)** : durée déterminée retenue (colle à
+     `dureeAns`), choix par défaut motivé faute de préférence
+     marquée.
+   - **Nouveaux, trouvés lors du balayage exhaustif** : C-6 (Article
+     7, redevance en % du CA ou en euros fixes — `redevancePct`
+     existe déjà, le % s'y branche) ; C-7 (Article 16, résiliation —
+     deux préavis à trancher : faute grave, puis déconventionnement/
+     sanction ; seule la branche A s'applique puisque C-5 a tranché
+     la durée déterminée).
+   **Tous les arbitrages tranchés (26/08)** : R-2 (clause "propre
+   cabinet" incluse), R-3 (facturation avec identifiants propres +
+   option redevance — **⚠️ EN SUSPENS, voir ci-dessous**), C-1
+   (clause facultative patients personnels incluse), C-2 (temps
+   consacré : selon planning établi en accord), C-3 (individualisation
+   avec texte libre, périodicité trimestrielle), C-6 (redevance en %
+   du CA), C-7 (sans préavis, faute grave ET déconventionnement/
+   sanction).
+   **Les 3 gabarits livrés (`fe17d2f`)** : remplacement autorisation
+   (13 articles), remplacement confrère installé (13 articles),
+   collaboration (21 articles + préambule). Build vert, gabarits kiné
+   vérifiés inchangés à chaque étape (diff vide, 3 fois). Registre
+   `gabarits.ts` construit — liste déclarative, pas table imbriquée.
+   `INFIRMIER: [REMPLACEMENT ×2 variantes, COLLABORATION]` — ASSISTANAT
+   confirmé absent (0), comme attendu. Profession portée côté client
+   via enveloppe serveur (pas JWT, pas route dédiée) — cohérent avec
+   la décision du 26/08. Correspondance besoin→MissionType remontée
+   en constante partagée front/back — évite qu'une option masquée en
+   front reste acceptée côté serveur.
+   **Bon réflexe non demandé** : MEDECIN/SAGE_FEMME/ORTHOPHONISTE
+   (sans aucun gabarit) auraient eu un formulaire vide et silencieux
+   — corrigé en message explicite ("publication suspendue faute de
+   modèle"). Aucun compte concerné aujourd'hui, situation honnête si
+   jamais un jour.
+   **R-3 revérifié, CONFIRMÉ, et les 3 ajouts livrés (26/08,
+   `be65234`).** Opus est retourné au commentaire du CNOI sur
+   l'article 5 (écarté pour la transcription, gardé pour comprendre)
+   — confirme que l'encaissement au nom du remplacé n'est PAS
+   obligatoire ("a la possibilité", "il revient aux cocontractants de
+   choisir"), mais que l'option de facturer sous ses propres
+   identifiants n'existe que si le remplaçant est lui-même installé
+   et conventionné — exactement pourquoi la variante "autorisation"
+   n'a même pas ce choix. Le doute de Jean-Charles a fait remonter 3
+   ajouts réels, tous transcrits et vérifiés : (1) CPAM informée de
+   l'option de facturation (art. 4.2, obligation légale) ; (2)
+   assiette de la redevance précisée, frais kilométriques exclus
+   (art. 5, sous la clause) — repères de l'Ordre consignés en
+   commentaire sans être imposés (partage d'honoraires prohibé par
+   R.4312-30 au-delà d'un certain seuil, usage constaté 5-10%,
+   montant reste saisi librement) ; (3) clause de répétition d'indus,
+   mot pour mot du CNOI, après l'art. 5. Build vert, gabarits kiné
+   intacts (diff vide). **Correction trouvée en clôturant** : en-tête
+   annonçait "cinq alternatives", n'en détaillait que trois — corrigé,
+   le sous-choix feuilles/CPS était sans objet (n'existait que dans
+   la branche déjà écartée).
+   **Leçon méthodologique retenue** : *"le commentaire n'est pas du
+   contrat, mais il dit ce que le contrat suppose"* — écarter le
+   commentaire du texte transcrit était juste, l'écarter comme source
+   de compréhension aurait été une erreur. À retenir pour toute
+   future transcription juridique.
+   **LES 3 GABARITS INFIRMIER SONT DÉFINITIFS CÔTÉ CONTENU.**
+   **PHASE A COMPLÈTE (`d4ae686`, 27/08).** Route de sélection
+   remplacée par une résolution via le registre plutôt qu'un
+   `if/else` sur `missionType` — un seul ligne supprimée (l'ancien
+   `if`), les 3 appels kiné intacts, jamais retouchés (diff vide à
+   chaque étape). **Trois garde-fous, tous en refus explicite (422)**
+   :
+   - Les deux parties n'exercent pas la même profession → 422.
+     **Pas théorique** : `Profile.profession` reste modifiable dans
+     `/compte` APRÈS un match — sans ce garde-fou, un contrat kiné
+     pouvait se générer entre un kiné et un infirmier après un
+     changement de profession en cours de route. Faux, et signé.
+   - Aucun gabarit pour la paire (profession × type) → 422.
+   - Plusieurs variantes, aucune choisie → 422 + la liste des choix.
+     **Pas théorique non plus** : les deux variantes de remplacement
+     infirmier sont économiquement opposées (sens de l'argent
+     inversé) — prendre la première par défaut aurait inversé le
+     sens sur un document réel. Le système refuse plutôt que de
+     deviner, cohérent avec la leçon de R-3.
+   Le choix remonte à l'écran : `contrat-info` renvoie les modèles
+   applicables, le formulaire affiche un sélecteur seulement s'il y a
+   un vrai choix (avec "quand l'utiliser" + source réglementaire),
+   rien si un seul modèle s'applique, un message si aucun — jamais un
+   bouton qui échouerait après coup. Sélecteur de partage des
+   forfaits câblé pour la collaboration infirmier.
+   **Deux réserves honnêtes, à traiter plus tard** :
+   1. Rendu PDF final jamais vérifié visuellement — seulement
+      compilation et typage confirmés. Outillage de test ne rend pas
+      le TSX hors de l'application ; tenté, échoué, pas forcé.
+   2. Champs propres aux variantes (n° autorisation/date/CPAM, etc.)
+      pas encore saisissables dans le formulaire — impriment
+      `[à compléter]` (comportement normal, jamais un blanc
+      silencieux). À faire quand un premier contrat infirmier sera
+      réellement préparé.
+   **Phase B (salariat) — investigation infirmier complète (27/08),
+   4ᵉ échec de comptage honnêtement disclosé, kiné maintenant inclus.**
+   Séparation commentaire/contrat réussie après correction (marqueur
+   réel "Commentaires :" pluriel + "Commentaires (suite) :", pas le
+   singulier de la phase A) — CDI 22% contractuel, CDD 30%, le
+   commentaire pèse 3-4× le contrat, rapport très différent de la
+   phase A. **4ᵉ échec de comptage** : balayage exhaustif sur 6 formes
+   simultanées a quand même manqué le choix le plus structurant du
+   CDD (un "ou" en minuscules) — changement de méthode après coup,
+   marqueurs structurels plutôt que mots-clés. 6 décisions par contrat
+   trouvées et vérifiées individuellement (CDI : employeur personne/
+   société, période d'essai facultative, véhicule personnel/employeur
+   + usage, non-concurrence installation/exercice, zone rayon/
+   communes ; CDD : les mêmes + durée avec/sans terme précis, sans
+   équivalent CDI). **Trouvaille sémantique importante** : `rayonKm`
+   réapparaît à l'article 11 mais change de nature — clause
+   réglementaire de non-installation (R.4312-87) côté libéral, clause
+   de non-concurrence de droit du travail négociée/indemnisable ici.
+   Même nom, autre sens — ne pas fusionner malgré la ressemblance.
+   Structure proposée : `ContractDataSalarie` unique avec discriminant
+   sur `duree` (CDI/CDD_TERME/CDD_SANS_TERME) plutôt que deux types
+   — même leçon que les variantes de remplacement, un `dureeAns` plat
+   ne peut pas représenter un CDD sans terme précis.
+   **Réponse à la question ouverte** : le CNOMK publie bien des
+   modèles salariés (CDD de remplacement, CDI/CDD activité physique
+   adaptée) — le manque touche aussi le kiné, confirmé.
+   **Correction majeure au rapport (27/08)** : la recherche web
+   initiale avait mal identifié les documents — "CDI/CDD activité
+   physique adaptée" concerne un intervenant APA, PAS un kiné, autre
+   profession hors périmètre Soignect. `CONTRAT-TYPE-EXERCICE-EN-
+   EHPAD` n'est pas un contrat de travail. **Le seul vrai contrat
+   salarié kiné est un CDD de remplacement, sans équivalent CDI.**
+   Bon réflexe d'arrêt d'Opus : plutôt que de comparer deux objets
+   potentiellement de nature différente (le kiné salarie pour
+   remplacer temporairement, l'infirmier salarie pour employer), a
+   posé la question plutôt que de continuer une heure sur une
+   hypothèse fragile — même discipline que pour l'assistanat.
+   **Décision revenue (27/08) : Jean-Charles veut finalement UN SEUL
+   objet partagé**, après avoir d'abord tranché pour deux gabarits
+   distincts. **Accès direct confirmé** : Opus a récupéré les PDF
+   CNOMK lui-même (contrats.ordremk.fr, public, 1,7 Mo au total —
+   sans commune mesure avec les 102 Mo du CNOI), pas besoin que
+   Jean-Charles les dépose.
+   **Vérification de compatibilité reçue (27/08) — instinct de
+   Jean-Charles confirmé empiriquement, pas juste supposé.** Champs
+   partagés confirmés : durée hebdomadaire, non-concurrence
+   (durée+zone), indemnité de précarité, congés/absence/préavis/
+   rupture — "c'est bien le même contrat de travail, pas deux objets
+   étrangers". **4 divergences réelles trouvées** : répartition
+   horaire jour par jour (kiné 12 champs / infirmier absent), heures
+   complémentaires + plafond (kiné seul), indemnité spéciale de
+   non-concurrence (kiné seul), véhicule personnel/employeur
+   (infirmier seul). Écarts de texte fixe (secret professionnel, DPC,
+   assurance côté infirmier ; absence de contre-lettre côté kiné) ne
+   pèsent pas sur la structure de données.
+   **🚨 Découverte légale sérieuse** : la répartition horaire n'est
+   pas un détail — pour un CDD kiné à temps partiel, le Code du
+   travail l'EXIGE, sous peine de requalification en temps complet.
+   Un champ optionnel sur un type partagé pourrait laisser générer un
+   contrat temps partiel sans elle — document légalement incomplet,
+   en silence. Même motif que `rayonKm` (même conteneur, obligation
+   différente). **Réponse retenue** : fusionner, mais rendre cette
+   contrainte STRUCTURELLE, pas optionnelle — un contrat temps
+   partiel ne doit pas pouvoir se générer sans elle.
+   **Discriminant à deux axes, bien étayé par le texte source** (pas
+   deviné) : `nature` (CDI/CDD_TERME/CDD_SANS_TERME) × `temps`
+   (COMPLET/PARTIEL, PARTIEL impose la répartition horaire). Kiné a
+   les deux formes de CDD (confirmé par les libellés du modèle
+   source) mais pas de CDI ; kiné a aussi 2 articles 5 distincts
+   selon temps complet/partiel, absent côté infirmier.
+   **Réserve non vérifiée** : l'axe temps côté infirmier (complet/
+   partiel) pas encore cherché dans les modèles CNOI.
+   **CDI kiné : décision différente de l'assistanat infirmier,
+   nature du problème différente.** Contrairement à l'assistanat
+   (catégorie juridique inexistante), un CDI kiné est parfaitement
+   légal — l'Ordre n'a simplement publié aucun modèle-type pour ce
+   cas. **Décision de Jean-Charles (27/08) : le construire quand
+   même.**
+   **Vérification exhaustive reçue (28/08)** : absence confirmée sur
+   23 documents de contrats.ordremk.fr, ses pages de catégorie, et
+   recherches internes des deux domaines — pas une recherche unique.
+   Les seuls fichiers "CDI" de l'Ordre concernent l'activité physique
+   adaptée (employé non-kiné).
+   **Les 5 clauses essentielles lues clause par clause (pas par
+   numéro d'article) se scindent en 2 groupes** : trois générales,
+   transposables au CDI (inscription au tableau, absence de
+   contre-lettre, communication à l'Ordre — L.4113-9) ; deux
+   spécifiques au remplacement, déclenchées par l'acte même de
+   remplacer (R.4321-107 al.3 cessation d'activité du remplacé,
+   R.4321-130 non-installation) — sans objet pour un CDI.
+   **🚨 Conséquence légale subtile trouvée** : la clause de
+   non-concurrence du CDD kiné repose entièrement sur R.4321-130, qui
+   disparaît en CDI. Un CDI ne peut porter qu'une clause de
+   non-concurrence de droit du travail — laquelle EXIGE une
+   contrepartie financière sous peine de nullité. L'indemnité
+   spéciale déjà présente dans le CDD (ajout optionnel là-bas)
+   devient donc, en CDI, une **condition de validité**, pas un bonus
+   — la même clause change de statut juridique selon le contexte.
+   **Décisions du 28/08** : (1) périmètre aligné sur la richesse du
+   CDI infirmier (secret professionnel, DPC, assurance, résolution
+   des différends, protection sociale détaillée — texte fixe
+   déontologique déjà vérifié côté infirmier, transposable) ; (2)
+   avertissement légal renforcé dans le **PDF signé lui-même**, pas
+   seulement en commentaire de code — proposition d'Opus, retenue :
+   "c'est le document signé qui compte, pas le fichier source".
+   En-tête déjà rédigé par Opus, validé, à utiliser tel quel :
+   documente explicitement que ce gabarit est COMPOSÉ (clauses
+   déontologiques générales du CDD + droit du travail standard) et
+   non transcrit d'un modèle officiel, ce qui n'a pas été repris et
+   pourquoi, et recommande une validation par avocat avant tout usage
+   réel. Prompt envoyé pour composer, rapport pas encore reçu.
+   **Réserve technique levée** : le violet CNOMK est bien récupérable
+   dans le flux PDF (rgb(0.439, 0.188, 0.627), 11 occurrences,
+   confirmé par le document lui-même comme marqueur de clause
+   essentielle). Première extraction sur-collectait (pas de reset sur
+   gris/CMJN) — corrigée après vérification, pas rapportée telle
+   quelle. Le modèle kiné, contrairement au CNOI, n'a AUCUN bloc de
+   commentaire (explications dans un fichier séparé) — déjà pur, rien
+   à séparer.
+⚠️. **Traçabilité des comptes de test — portée élargie (27/08),
+   pas seulement les matchs.** 31 comptes utilisateurs au total, 5
+   de test (Jean-Charles) — confirmé le 27/08, périmètre plus large
+   que les 3 matchs initialement repérés (2 test/1 réel). **Correction
+   d'approche** : marquer le COMPTE comme test plutôt que chaque
+   match individuellement — couvre automatiquement toutes ses
+   annonces, matchs, swipes en un seul geste, plutôt que de traiter
+   chaque objet séparément. Prompt du 21/08 à réviser dans ce sens
+   avant envoi. Ajoute aussi un accès aux annonces passées depuis
+   `/admin/annonces`. Pas encore renvoyé sous cette forme corrigée.
+⚠️. **Hébergement FragiliKiné — cahier des charges complet rédigé
+   par Jean-Charles (26/08), remplace le brouillon du 21/08.** Bien
+   plus précis : placement du CTA (fin de synthèse uniquement,
+   jamais pendant le questionnaire), contrainte explicite de ne pas
+   toucher à la logique clinique sans signalement, séparation stricte
+   des données (aucune donnée clinique vers Soignect/tiers, cohérent
+   avec "sans identification patient" déjà confirmé dans le code),
+   hébergement ouvert (Cloudflare Pages si plus simple, sinon
+   meilleure intégration avec l'archi actuelle — décision laissée à
+   l'investigation d'Opus), discipline audit-d'abord/résumé-avant-
+   code. Suggestion ajoutée : réutiliser `lib/traceLanding.ts`
+   (mécanisme de trace déjà existant, sans donnée clinique) plutôt
+   que d'en inventer un si un suivi de fréquentation est voulu un
+   jour — optionnel. Prêt à envoyer tel quel.
+⚠️. **Page "3 dernières annonces" avec Partager/Copier** — prompt
+   corrigé le 21/08 : réutilise le pattern des pages de propagande
+   existantes (ShareActions, opengraph-image, trace) plutôt qu'un
+   écran de génération dédié. API de publication automatique vers
+   les Groupes Facebook retirée par Meta depuis avril 2024, confirmé
+   — semi-automatisé (partage/copie manuels) plutôt qu'automatique.
+   Image de partage : logo Soignect, décidé le 21/08 pour éviter de
+   mettre en avant arbitrairement le cabinet publié en dernier. Pas
+   encore envoyé.
+🎯. **Invitation expirée — le formulaire d'inscription ignore le
+   motif que la route calcule déjà** — trouvé le 21/08 via
+   l'incident Marion. Toute invitation ouverte après 7 jours produit
+   le même résultat silencieux (formulaire vierge, aucune mention du
+   cabinet visé, la personne s'inscrit en pensant faire une
+   inscription normale). Coût faible signalé par Opus — le motif est
+   déjà calculé et renvoyé, juste jeté côté client. Pas encore
+   prompté.
+⚠️. **`/api/cabinet-posts/[id]/link` n'accepte que ASSISTANT, pas
+   REMPLACANT** — incohérence avec le flux d'invitation automatique
+   qui accepte les deux depuis le 03/08 (`6545fc9`). Trouvé le 21/08
+   en marge de l'incident Marion, même famille que l'incident du
+   contrat du 23/07. Pas urgent, pas encore prompté.
+⚠️. **Audit de cohérence du parcours match — effets de bout en
+   bout** — prompt prêt le 20/08, enrichi le 21/08. Vérifie que le
+   match produit réellement tout ce qu'il doit (résidus visuels,
+   mise à jour Planning, verrouillage des dates, disparition des
+   annonces initiales — comportement voulu à clarifier avant tout
+   correctif). **Point précis ajouté** : confirmer qu'aucun cœur/
+   icône résiduel ne reste affiché sur l'écran vert de confirmation
+   de match. Pas urgent, audit de fond plutôt que correctif de démo.
+⚠️. **CommuneAPL ne liste que l'outre-mer — choix délibéré ou
+   restriction accidentelle ?** — prompt envoyé le 20/08. À vérifier
+   avant tout élargissement : le script d'alimentation filtre-t-il
+   sur 971/972/973/974 en dur, ou a-t-il juste été lancé avec un
+   périmètre restreint sans le documenter. Touche directement la
+   séquence DOM-TOM → national. Rapport pas encore reçu.
 ⚠️. **Suivi accessible depuis la fiche de détail candidat + vérif
    filtrage date/lieu** — prompt envoyé le 20/08. Étend le bloc-note
    de suivi (déjà construit pour le Planning) à un second point
@@ -558,43 +1286,6 @@ ci-dessus, plus une référence de file d'attente.
    vrai chantier, pas un correctif, décision à prendre. Rejoint
    l'item "stocker l'id Resend" déjà en file — même famille de
    problème (aucune visibilité sur si un email atterrit vraiment).
-⚠️. **Mélange barre de tête entre sessions : CONFIRMÉ RÉSOLU (en
-   production).** Fausse alerte de fuite de données — les données
-   servies par `planning/page.tsx` étaient toujours correctes,
-   c'est uniquement le nom affiché dans la barre de tête (composant
-   de layout séparé) qui restait périmé après un changement de
-   compte sur le même appareil. **Cause corrigée le 20/08** : PAS le
-   JWT figé au sign-in comme d'abord supposé — Opus a lui-même
-   réfuté cette hypothèse (le corps de la page affichait déjà les
-   bons postes avec la même session, donc le JWT n'était pas en
-   cause) ; la vraie cause est un cache de routeur. Distinction
-   importante : croire à tort au JWT aurait mené à le rafraîchir à
-   chaque requête — un correctif qui ne corrige rien et coûte une
-   lecture base en plus par page. Portée générale, pas spécifique à
-   ces deux comptes — tout poste où deux personnes se succèdent
-   (cabinet partagé, démonstration) pouvait afficher l'identité de
-   la précédente. Corrigé par rechargement dur plutôt que
-   `router.refresh()` — délibérément, pour ne pas dépendre d'une
-   discipline à respecter à chaque futur point d'entrée.
-   `force-dynamic` sur le layout écarté comme fausse piste (gouverne
-   le rendu serveur, pas le cache client). **Dette de spec signalée
-   par Opus lui-même** : 3 passages de PRODUCT_SPEC.md en retard
-   (gating client, audit de généricité, cette investigation) — mise
-   à jour demandée et confirmée en cours le 20/08.
-⚠️⚠️⚠️. **Audit de généricité profession — retour reçu, deux
-   correctifs en cours, un troisième mis en file.** Trouvé : la
-   mention du feed a "kinés" en dur (à corriger) ; `PrioritesClient.tsx`
-   (B3) redéclare les 5 professions à la main au lieu de dériver du
-   registre — un 6ᵉ métier ajouté à l'enum n'apparaîtrait pas dans
-   le formulaire, sans erreur de compilation. Décision du 19/08 :
-   corriger les deux maintenant (coût faible, fichier déjà ouvert,
-   directement lié à la décision "anticiper Phase 2"), pas seulement
-   la mention comme proposé initialement par Opus. **Troisième
-   défaut trouvé, mis en file séparément (item ci-dessous)** :
-   `/admin/apl` n'affiche que 3 colonnes de boost sur 5 (Sage-femme
-   et Orthophoniste éditables via le formulaire mais invisibles dans
-   le tableau) — antérieur à B0, hors scope du travail en cours.
-   **En cours de correction, voir item en tête de file.**
 ⚠️⚠️. **Audit UI/UX/fonctionnalités du 19/08 + décision "anticiper
    Phase 2 dans toute factorisation"** — voir
    STRATEGIE_MARKETING_BUSINESS.md pour l'audit complet (App'Ines
@@ -606,6 +1297,7 @@ ci-dessus, plus une référence de file d'attente.
    a été construit depuis B0 (CommuneAPL, PrioriteTerritoriale,
    scoring géo, COMMUNE_INSEE/COMMUNE_ZONE) — rapport pas encore
    reçu. Ne construit aucune 2ᵉ profession, audite seulement si le
+   code déjà écrit le permettrait à coût faible le moment venu.
    **Correction structurelle du 20/08, plus profonde que l'audit
    initial** : "Médecin" comme catégorie unique de l'enum
    `Profession` est faux — doit se décomposer en spécialités
@@ -620,7 +1312,6 @@ ci-dessus, plus une référence de file d'attente.
    aujourd'hui, pas de risque actif contrairement au gating client.
    Chiffrage demandé (voir prompt ci-dessous) pour informer la
    décision le jour où la Phase 2 s'approche des médecins.
-   code déjà écrit le permettrait à coût faible le moment venu.
 ⚠️. **Data ameli (macro, générique) + accessibilité réelle de la
    famille REZONE** — prompt envoyé le 19/08, enrichi le même jour.
    Deux sources pour "sur-doté/sous-doté/normal" par territoire :
@@ -643,129 +1334,7 @@ ci-dessus, plus une référence de file d'attente.
    (URL pattern trouvé `rezone.ameli.fr/rezone/cartoMed.html?cc=
    <code_insee>`, à creuser pour une vraie API sous-jacente). Rapport
    pas encore reçu.
-⚠️. **URGENT — Gating client actif du boost territorial : diagnostic
-   confirmé, correctif en cours.** Vérification faite : le gating
-   n'existait pas, confirmé. Deux options présentées par Opus :
-   A (léger, ex. statut simple) vs B (robuste, avec preuve —
-   consistant avec la logique qui a créé `PrioriteTerritoriale`
-   plutôt qu'une colonne nue). **Décision du 19/08 : A maintenant,
-   chemin de migration vers B prévu explicitement.** Pas parce que
-   "zéro client donc pas pressé" — au contraire : le mécanisme est
-   déjà en production SANS garde-fou, donc A ferme un vrai trou actif
-   sur une fonctionnalité déjà vivante, pas de l'infrastructure
-   spéculative. À traiter avant le premier appel CPTS, pas après.
-   Distinction à retenir : "pas urgent de construire B tout de suite"
-   ≠ "pas urgent de fermer le trou" — les deux ont été confondus un
-   instant dans l'échange, corrigé.
-0. **Scoping v1 "besoins déclarés par la CPTS"** — rapport reçu et
-   vérifié le 14/08 par Opus avant relais (deux affirmations de
-   l'agent de scoping vérifiées, toutes deux confirmées vraies —
-   voir section clos pour le détail). Recommandation retenue et en
-   cours d'exécution : priorités CPTS saisies côté admin (pas
-   self-service), réutilisant le modèle `bonusSaisonnier` — tableau
-   de bord et indicateur de tension écartés comme disproportionnés
-   pour ~10 annonces, et afficher "zone non prioritaire" sur le site
-   d'une CPTS partenaire serait un contresens. Voir B0/B1 ci-dessous.
-1. **Alimentation DREES + pont commune↔codeInsee — mise à jour du
-   14/08, séquence B0→B4.** Deux correctifs livrés séparément
-   (f229c27 : retrait de la mention "zones prioritaires", fausse
-   depuis `979ccd8` ; 924e329 : fuite de profession fermée —
-   `filtreAnnoncesVivantes` prend la profession en paramètre
-   obligatoire sans défaut, les 4 appelants la déclarent, le module
-   embarquable la porte en config plutôt qu'un titre en dur — 19
-   annonces vivantes avant/après, rien perdu). Les deux en local,
-   pas poussés. **Trois corrections apportées par lecture directe de
-   la base (pas juste relayer le rapport de l'agent)** :
-   - `CommuneAPL` n'est PAS vide (112 lignes, 32 pour la Guadeloupe,
-     vraies valeurs `aplKine`, les 4 communes Nord Basse-Terre
-     présentes) — "alimentation absente" voulait dire "pas de
-     script", pas "pas de données". B1 n'a pas besoin de créer de
-     lignes.
-   - **`boostKine` déjà rempli** — 16/32 communes non nulles
-     (Pointe-Noire 2, Deshaies 2, Sainte-Rose 2). Une valeur y était
-     déjà présente ; elle ne faisait rien. Durcit le constat :
-     l'écran invitait à régler un curseur sans effet pendant que le
-     feed affirmait à l'utilisateur qu'il agissait.
-   - Décalage de noms confirmé plus large qu'annoncé : **7 communes,
-     pas 4** (l'agent avait manqué Saint-Martin ×2 et Saint-Barth).
-   L'agent DREES a échoué (limite de session, rien livré — ni
-   script, ni migration, ni le nom du dataset identifié). Sans
-   conséquence sur B1 : B1 lit `boost*` (déjà rempli à la main), pas
-   `apl*` (importé) — seul l'indicateur de tension (hors périmètre)
-   en dépendrait. À relancer après réinitialisation de la limite
-   (21h20 Guadeloupe).
-   **B0 et B1 POUSSÉS EN PRODUCTION ET SYNCHRONISÉS (`main` =
-   `b1eb132`, confirmé le 19/08), B2 toujours BLOQUÉ, B3 EN COURS.**
-   - B0 : pont `COMMUNE_INSEE` confirmé load-bearing, pas théorique
-     — Terre-de-Bas (Les Saintes) rend +3 seulement grâce au pont
-     (la base écrit "Terre-de-Bas"), sinon 0 en silence.
-   - B1 (`ab1a8a7`) : `CommuneAPL.boost*` agit enfin sur l'ordre du
-     feed. Dosage : facteur 3, ±10 brut devient ±30 points d'ordre —
-     à égalité avec le bonus saisonnier, sous le palier Premium (50).
-     **Décision de conception notable : bonus unidirectionnel**,
-     pas symétrique — "il manque des kinés à Deshaies" affiche les
-     postes de Deshaies aux candidats, mais ne met PAS en avant les
-     candidats de Deshaies auprès des cabinets (un cabinet cherche
-     quelqu'un, pas quelqu'un du coin). Réutilise la structure déjà
-     directionnelle du bonus saisonnier plutôt que d'inventer un
-     nouveau motif. **Limite trouvée en mesurant, pas anticipée** :
-     `Mission.location` n'est pas toujours une commune (ex. "Cabinet
-     des ravines", "Sud Basse-Terre", "Toute la Guadeloupe" — zones
-     saisies par des candidats). Dans ces cas le bonus vaut 0 (le bon
-     échec, pas un mauvais chiffre), mais 1 annonce cabinet sur 12
-     restera hors de portée du levier tant que ce n'est pas résolu.
-     Problème de saisie, pas de scoring — non traité dans ce bloc,
-     candidat pour un futur item si le volume le justifie.
-   - **B2 BLOQUÉ — vrai problème trouvé en mesurant, pas un
-     arbitrage de dosage.** Le cabinet fondateur de Jean-Charles
-     (`isFounding`, partenaire institutionnel) porte 6 des 11
-     annonces vivantes, toutes à Pointe-Noire — exactement la
-     commune de la démo CPTS Nord Basse-Terre. Une démo sur cette
-     commune montrerait le cabinet du vendeur en tête, pour une
-     raison sans rapport avec le levier territorial qu'on veut
-     démontrer. Pas un problème de dosage entre `isFounding` et le
-     levier — un problème d'honnêteté de démonstration, peu importe
-     le réglage numérique. Deux sorties honnêtes retenues : démontrer
-     sur une commune où le cabinet fondateur ne publie pas, ou le
-     dire à voix haute pendant l'appel. Première option privilégiée
-     — plus simple, pas besoin d'expliquer une nuance en plein pitch
-     commercial.
-   - **B3 (écran de déclaration co-saisi) devient le PRÉREQUIS de
-     B2, pas sa suite** — l'ordre initialement posé était faux.
-     Mention "zones prioritaires" retirée, pas encore réintroduite
-     tant que B3 n'existe pas.
-   - **`boost*` écarté comme canal de déclaration CPTS** — contient
-     déjà une valeur dérivée (le calcul), une déclaration humaine y
-     serait indistinguable d'un résultat de calcul. Matérialise
-     concrètement le 3ᵉ manque de `CommuneAPL` identifié depuis le
-     12/08 ("`boost*` mélangeant réglage produit et donnée externe").
-     B3 doit donc introduire un canal séparé, pas réutiliser `boost*`.
-   **B3 livré (`b669afa`), push demandé, en attente de confirmation.**
-   Décision de fond : le problème n'était pas la valeur de `boost*`
-   mais son support — un entier nu ne peut porter aucune attribution
-   (qui, quand, sur quelle base), rendant invérifiable toute phrase
-   qui l'attribuerait à une institution. C'est ce qui a produit les
-   deux affirmations fausses d'affilée sur ce fil. Nouveau modèle
-   `PrioriteTerritoriale` : une ligne ne peut pas exister sans nommer
-   son institution, sa date de déclaration et l'administrateur
-   co-signataire — contrainte structurelle, pas une discipline à
-   respecter au moment d'écrire un texte. Reste B4 (décompte par
-   commune sur la page territoire) après B3.
-   **Deux points de vigilance depuis le push** :
-   - `ab1a8a7` rend le levier territorial actif en production
-     maintenant. Mesuré comme sans effet sur les 11 annonces
-     d'hier — mais déplacera quelque chose dès qu'un cabinet NON
-     fondateur publiera sur une commune à boost > 0. À surveiller,
-     pas à corriger.
-   - Le message du commit `f3e2f20` dit "migration livrée, non
-     appliquée" — vrai à l'écriture, faux depuis le push. Historique
-     git non réécrit (bonne discipline), à corriger dans
-     PRODUCT_SPEC.md au prochain passage.
-   **Nouvelle donnée sur `db:sync-apl`, pas encore exécuté** :
-   105 des 112 lignes de `CommuneAPL` changeraient si lancé, et
-   `aplOrthophoniste` n'a aucune source dans le dataset DREES 530 —
-   à trancher avant d'exécuter la synchronisation.
-2. **Stocker l'id Resend à l'envoi** — `data.id` retourné par
+0. **Stocker l'id Resend à l'envoi** — `data.id` retourné par
    `resend.emails.send()` est aujourd'hui jeté (`src/lib/email.ts`),
    rendant tout email introuvable a posteriori dans le dashboard
    Resend. Rencontré deux fois cette session (email de
@@ -776,7 +1345,7 @@ ci-dessus, plus une référence de file d'attente.
    différés tant que le volume d'incidents réels reste inconnu.
    **Erreur d'état corrigée le 13/08** : classé par erreur sous
    "Clos" alors que rien n'était construit — repéré par Opus.
-3. **Permettre au cabinet de répondre à un swipe entrant sans
+1. **Permettre au cabinet de répondre à un swipe entrant sans
    mission de son côté** — partie (b) de l'ancien "Signaler mon
    intérêt", partie (a) livrée le 13/08 (voir section clos).
    Diagnostic complet reçu le 13/08 : le schéma ne bloque plus rien
@@ -788,11 +1357,27 @@ ci-dessus, plus une référence de file d'attente.
    (missionB reste NULL, le type vient de l'annonce existante)
    plutôt que de laisser le cabinet inventer un type que le candidat
    n'a jamais formulé — pas encore prompté.
-4. **Investigation transfert de conventionnement 1-pour-1** — le
-   module n'existe pas dans le code ; investigation sur un courrier
-   assisté avec règle d'auteur spécifique (titulaire signataire si
-   le cédant est assistant)
-5. **Investigation "chercheur d'opportunités" multi-préférences
+2. **Investigation transfert de conventionnement 1-pour-1 / cession
+   de fonds — enrichi le 26/08, deux sources maintenant identifiées.**
+   Module absent du code. Deux sources concrètes trouvées, une par
+   profession : côté kiné, le document ZNP (charte d'attribution des
+   places vacantes, dès le début de cette session — succession en
+   zone non prioritaire, règle d'auteur spécifique si le cédant est
+   assistant) ; côté infirmier, "Cession totale ou partielle d'un
+   fonds libéral" (Ordre National des Infirmiers, modèles réels
+   téléchargeables). **Distinction importante notée par
+   Jean-Charles** : le contenu déontologique est spécifique à chaque
+   profession, mais la mécanique de cession/transfert de patientèle
+   est largement du droit des sociétés général — potentiellement UN
+   SEUL module de cession réutilisable pour kiné et infirmier plutôt
+   que deux implémentations séparées. **SELARL/SASU (constitution de
+   société) identifié comme un besoin distinct**, pas une simple
+   variante de mission — structuration juridique, pas un contrat
+   remplacement/collaboration/salariat. Nécessite un vrai scoping
+   avant tout prompt (quelle forme, quel périmètre, un seul module
+   ou deux) — pas encore prompté, priorité modérée (aucun consommateur
+   actif, ni kiné ni infirmier n'a ce besoin ouvert aujourd'hui).
+3. **Investigation "chercheur d'opportunités" multi-préférences
    (v1.1) — largement répondue le 13/08, pas un chantier à
    construire.** Le multi-préférences existe déjà en production, non
    planifié : `Profile` ne porte aucun type, seul `missionType` par
@@ -806,28 +1391,30 @@ ci-dessus, plus une référence de file d'attente.
    garde son utilité pour les libellés et la direction du feed, ne
    pas le supprimer). Décision de fond sur les profils navigables
    (voir ci-dessus) inchangée — non liée à ce constat.
-6. **Email de réinitialisation non reçu** — compte
-   secretaire@cpts-nord-basse-terre.fr, investigation avant fix
-7. **Espace "Mes contrats" dans Mon compte** — persistance et
+4. **Espace "Mes contrats" dans Mon compte** — persistance et
    récupération des contrats édités, dépend d'une investigation
    préalable (contrats persistés ou générés à la volée ?)
-8. **Bouton "Reprendre un texte précédent"** — 5ᵉ bouton du
+5. **Bouton "Reprendre un texte précédent"** — 5ᵉ bouton du
     formulaire d'édition d'annonce, reprend le texte libre d'une
     annonce précédente du même cabinet (texte seul, pas les champs
     structurés — évite de reporter des données obsolètes sans que
     l'utilisateur s'en rende compte)
-9. **Lien direct depuis le message anti-doublon vers l'annonce en
+6. **Lien direct depuis le message anti-doublon vers l'annonce en
     conflit** — le message actuel décrit l'annonce qui bloque une
     publication mais n'offre aucun moyen de l'atteindre, surtout si
     ses dates sont hors de la période affichée sur le Planning.
     Réutiliser `?editId=`
-10. **Annonces limitées sur les pages de propagande, classées
+7. **Annonces limitées sur les pages de propagande, classées
     désirabilité + proximité géo du visiteur** — investigation
     d'abord (les pages affichent-elles déjà des annonces en direct
     aujourd'hui ? désirabilité déjà consommée par une logique
     produit ? géoloc IP disponible dans la stack ?), X et formule de
     classement à proposer avant construction. Premier vrai
     consommateur de `desirabilityScore` en dehors de l'admin
+8. **Splash screen avec modale de tips aléatoires** — prompt prêt
+    le 26/08, tiré du mode d'emploi existant (page d'aide/FAQ déjà
+    présente), affichage occasionnel plutôt que systématique. Pas
+    encore envoyé.
 
 ## ⚪ Décidé, pas d'action requise
 
