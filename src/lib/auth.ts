@@ -9,6 +9,9 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+/** Fenêtre au-delà de laquelle le jeton est reconfronté à la base. Voir le callback `jwt`. */
+const INTERVALLE_REVALIDATION_MS = 5 * 60 * 1000;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
@@ -51,14 +54,74 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    // ── Revalidation du jeton (section 219, 01/09) ────────────────────────────────────────────
+    //
+    // CE QUI SE PASSAIT. Le jeton n'était écrit qu'au sign-in et n'était plus jamais relu. Une
+    // session survivait donc à la suppression du compte qu'elle désigne : constaté le 01/09 avec
+    // un cookie visant un compte absent de la base, encore valide un mois plus tard. L'application
+    // se comportait comme si quelqu'un était connecté — page à 200, barre de navigation affichée —
+    // et seul /api/feed trahissait le problème par un « 404 Profil introuvable ». Un état ni
+    // connecté ni déconnecté, que l'utilisateur ne peut ni comprendre ni corriger.
+    //
+    // Renvoyer `null` ici fait purger le cookie par Auth.js (actions/session.js : `token !== null`
+    // sinon `sessionStore.clean()`), et `auth()` rend une session vide côté serveur — donc la
+    // redirection habituelle vers /login.
+    //
+    // POURQUOI PAS À CHAQUE REQUÊTE. Ce callback s'exécute à chaque appel d'`auth()`, c'est-à-dire
+    // à chaque requête : une lecture systématique ajouterait un aller-retour base partout, sur une
+    // instance dont la limite de connexions est déjà un sujet connu (P1017). On revalide donc au
+    // plus une fois par tranche de 5 minutes, ce qui borne la survie d'une session orpheline sans
+    // rien coûter au régime courant.
+    //
+    // CE QUE L'INTERVALLE NE BORNE PAS. `verifiedAt` ne progresse que si le cookie est réécrit —
+    // ce que fait la route /api/auth/session, mais PAS un rendu de composant serveur, où Next
+    // interdit d'écrire un cookie. Une navigation qui n'irait que sur des pages rendues côté
+    // serveur relit donc la base à chaque rendu : une lecture par clé primaire, indexée, que l'on
+    // accepte — c'est le prix de la garantie, et il reste très inférieur à celui d'une session
+    // orpheline qui survit un mois.
+    async jwt({ token, user }) {
       if (user) {
         const u = user as { role: string; profileId: string | null; profileType: string | null; isEmployeur: boolean };
         token.role = u.role;
         token.profileId = u.profileId;
         token.profileType = u.profileType;
         token.isEmployeur = u.isEmployeur;
+        token.verifiedAt = Date.now();
+        return token;
       }
+
+      const verifiedAt = typeof token.verifiedAt === "number" ? token.verifiedAt : 0;
+      if (Date.now() - verifiedAt < INTERVALLE_REVALIDATION_MS) return token;
+
+      try {
+        const compte = await prisma.user.findUnique({
+          where: { id: token.sub! },
+          select: {
+            role: true,
+            profile: { select: { id: true, type: true, isEmployeur: true, titulaireKind: true } },
+          },
+        });
+
+        // Compte supprimé — la suppression retire toujours le User, le Profile suivant en cascade
+        // (schema.prisma : onDelete: Cascade). C'est donc l'existence du compte qui fait foi.
+        if (!compte) return null;
+
+        // Les mêmes dérivations qu'au sign-in, relues à la source. Un jeton figé affirmait aussi
+        // un rôle et un type de profil que la base pouvait avoir démentis depuis.
+        token.role = compte.role;
+        token.profileId = compte.profile?.id ?? null;
+        token.profileType = compte.profile?.type ?? null;
+        token.isEmployeur =
+          (compte.profile?.isEmployeur ?? false) || compte.profile?.titulaireKind === "STRUCTURE";
+        token.verifiedAt = Date.now();
+      } catch {
+        // PANNE BASE ≠ COMPTE SUPPRIMÉ. Une erreur de connexion ne prouve rien sur l'existence du
+        // compte ; déconnecter ici transformerait une coupure passagère en déconnexion générale.
+        // On garde le jeton tel quel SANS toucher à `verifiedAt`, donc on retentera à la requête
+        // suivante plutôt que d'attendre la prochaine fenêtre.
+        return token;
+      }
+
       return token;
     },
     session({ session, token }) {

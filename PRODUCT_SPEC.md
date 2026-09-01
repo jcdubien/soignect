@@ -5607,10 +5607,68 @@ connecté — `/annonces` répond 200, la barre de navigation s'affiche, et seul
 problème avec un `404 Profil introuvable`. Un état ni connecté ni déconnecté, que l'utilisateur ne
 peut pas diagnostiquer.
 
-Conséquence directe du JWT figé au sign-in. Le correctif naturel serait de forcer la déconnexion
-quand le `profileId` du jeton ne résout plus. **Non corrigé** — hors périmètre, décision à prendre
-séparément. Probablement la même cause que le défaut de barre de tête après suppression de compte
-(`CompteForm.tsx`).
+Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir section 219.**
+
+---
+
+### SECTION 219 — LE JETON EST RECONFRONTÉ À LA BASE (01/09)
+
+#### Ce qui n'allait pas
+
+Le jeton n'était écrit qu'au sign-in et n'était **plus jamais relu**. Deux conséquences, la même
+cause : une session survivait à la suppression du compte qu'elle désigne, et un rôle ou un type de
+profil modifié n'était pris en compte qu'à la reconnexion suivante.
+
+La suppression retire toujours le `User`, le `Profile` suivant en cascade
+(`schema.prisma : onDelete: Cascade`). C'est donc **l'existence du compte** qui fait foi, pas celle
+du profil.
+
+#### Le correctif
+
+Le callback `jwt` reconfronte le jeton à la base et **renvoie `null` si le compte n'existe plus**.
+Auth.js purge alors le cookie — vérifié dans son code (`actions/session.js` : `if (token !== null)`
+… `else sessionStore.clean()`) puis à l'exécution. Côté serveur, `auth()` rend une session vide,
+donc la redirection habituelle vers `/login`.
+
+Tant qu'on lit la ligne, les claims sont **relues à la source** plutôt que reprises du jeton :
+`role`, `profileId`, `profileType`, `isEmployeur`. Un jeton figé affirmait un état que la base
+pouvait avoir démenti depuis.
+
+#### Deux garde-fous, chacun pour une raison précise
+
+**Intervalle de 5 minutes.** Le callback s'exécute à chaque appel d'`auth()`, donc à chaque
+requête. Une lecture systématique ajouterait un aller-retour base partout, sur une instance dont la
+limite de connexions est déjà un sujet connu (P1017).
+
+**Panne base ≠ compte supprimé.** Une erreur de connexion ne prouve rien sur l'existence du compte.
+Déconnecter dans ce cas transformerait une coupure passagère en déconnexion générale de tous les
+utilisateurs. Le `catch` conserve le jeton **sans toucher à `verifiedAt`**, donc on retente à la
+requête suivante au lieu d'attendre la prochaine fenêtre.
+
+#### Ce que l'intervalle ne borne pas
+
+`verifiedAt` ne progresse que si le cookie est réécrit — ce que fait la route `/api/auth/session`,
+mais **pas un rendu de composant serveur**, où Next interdit d'écrire un cookie. Une navigation qui
+n'irait que sur des pages rendues côté serveur relit donc la base à chaque rendu : une lecture par
+clé primaire, indexée. Accepté — c'est le prix de la garantie, très inférieur à celui d'une session
+orpheline qui survit un mois.
+
+#### Vérifié à l'exécution, sur la vraie route
+
+Quatre jetons forgés avec `AUTH_SECRET` et soumis à `/api/auth/session` du serveur de dev.
+
+| Cas | Attendu | Observé |
+|---|---|---|
+| Compte supprimé (l'id exact du cas du 01/09) | session purgée | `set-cookie: authjs.session-token=; Max-Age=0` et corps `null` |
+| Compte réel, jeton périmé et claims fausses | claims relues | `profileId` correct renvoyé à la place de la valeur fausse du jeton |
+| Compte réel, jeton frais (`verifiedAt` = maintenant) | aucune lecture | la valeur fausse du jeton est conservée — la base n'a pas été consultée |
+| Base injoignable, revalidation forcée | session conservée | corps non nul, cookie réémis, **pas** de purge |
+
+Le troisième cas est celui qui prouve l'intervalle : si la base avait été lue, la valeur fausse
+aurait été corrigée.
+
+**Réserve.** Vérifié au niveau de la route, pas à travers une session de navigateur — le correctif
+vit entièrement dans le callback `jwt`, que ces quatre appels traversent réellement.
 
 ---
 

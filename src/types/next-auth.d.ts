@@ -10,3 +10,14 @@ declare module "next-auth" {
     };
   }
 }
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    role?: string;
+    profileId?: string | null;
+    profileType?: string | null;
+    isEmployeur?: boolean;
+    /** Date (ms) de la dernière confrontation du jeton à la base — voir lib/auth.ts. */
+    verifiedAt?: number;
+  }
+}
