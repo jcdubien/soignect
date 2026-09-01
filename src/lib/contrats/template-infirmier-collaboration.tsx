@@ -4,6 +4,7 @@ import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/render
 import { type ContractDataCollaborationInfirmier, SIGNATURE_LEGAL_MENTION } from "./types";
 import { DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
+import { fmtDateUTC } from "@/lib/contrats/date";
 
 // CONTRAT DE COLLABORATION LIBÉRALE ENTRE INFIRMIERS.
 // Transcrit du modèle du Conseil national de l'Ordre des infirmiers, mis à jour le 15/11/2023.
@@ -70,11 +71,6 @@ const S = StyleSheet.create({
 function fmtDate(iso: string | null): string {
   if (!iso) return "[date à compléter]";
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}
-
-function fmtDateUTC(iso: string | null): string {
-  if (!iso) return "[date à compléter]";
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
 
 const LEGAL_MENTION =

@@ -4525,11 +4525,30 @@ salarié** — la régression corrigée le 29/08 ne s'est pas reproduite. En `dr
 Les deux refus CDD (annonce basculée en ASSISTANAT puis en REMPLACEMENT, que `NATURE_PAR_MISSION`
 mappe toutes deux sur CDD) renvoient bien 422 avec le motif exact, sans repli sur le gabarit CDI.
 
-**Deux réserves subsistent.** Le rendu a été obtenu en appelant le handler avec `auth()` simulé,
-faute de pouvoir ouvrir une session : tout ce qui précède l'authentification n'est pas couvert. Et
-la duplication de `fmtDateUTC` dans les sept gabarits (avec un « 1 octobre » au lieu de « 1er »),
-ainsi qu'une espace parasite avant la virgule après un `<Val>`, sont constatées et non corrigées —
-elles touchent les transcriptions CNOMK/CNOI validées.
+**Une réserve subsiste.** Le rendu a été obtenu en appelant le handler avec `auth()` simulé, faute
+de pouvoir ouvrir une session : tout ce qui précède l'authentification n'est pas couvert.
+
+##### Les deux imperfections cosmétiques : une vraie, une inventée par l'instrument (31/08)
+
+**Le « 1 octobre » était réel, et corrigé.** `fmtDateUTC` existait en **sept copies rigoureusement
+identiques** — empreintes comparées, toutes égales. Elle vit désormais dans `lib/contrats/date.ts`,
+importée par les sept gabarits, et écrit « 1er octobre ». Le premier du mois est le seul quantième
+ordinal en français et `Intl` ne le produit pas ; les autres restent cardinaux. La lecture en UTC,
+elle, est délibérée et inchangée : en fuseau guadeloupéen (UTC−4), l'interpréter localement ferait
+reculer une prise d'effet au mois précédent.
+
+**L'espace parasite n'existait pas.** Le « CARPIMKO , » que j'avais rapporté est un artefact de
+`pypdf`, qui insère une espace sur un écart de crénage après certaines capitales. Trois preuves
+concordantes : le source écrit `CARPIMKO,` sans espace, `pdftotext` (poppler) extrait `CARPIMKO,`
+sans espace, et le rendu image de la page le montre correctement composé. Le même faux positif
+frappait `URSSAF,` et `NGAP,` dans des transcriptions CNOMK/CNOI que personne n'avait touchées —
+ce qui aurait dû m'alerter avant que je le signale. **Aucune correction n'était nécessaire.**
+
+**Non-régression.** Un banc de rendu hors ligne produit les 7 gabarits plus une variante CDI sans
+période d'essai, avec des données fixes couvrant à la fois un 1er du mois et un jour banal. Diff
+textuel avant/après : **les 7 occurrences attendues du « 1er », rien d'autre** — le « 14 novembre »
+reste cardinal, et le retrait des commentaires devenus orphelins laisse les documents strictement
+identiques.
 
 Données de test supprimées après vérification (compte, annonce, match) ; suppression constatée par
 recomptage. Aucun compte STRUCTURE de test conservé.

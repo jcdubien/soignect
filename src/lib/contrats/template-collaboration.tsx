@@ -4,6 +4,7 @@ import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/render
 import { type ContractDataCollaboration, SIGNATURE_LEGAL_MENTION, paymentMethodPhrase, localModalities } from "./types";
 import { DraftBanner, DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
+import { fmtDateUTC } from "@/lib/contrats/date";
 
 const S = StyleSheet.create({
   page: { fontFamily: "Helvetica", fontSize: 10, paddingTop: 50, paddingBottom: 60, paddingHorizontal: 55, lineHeight: 1.5, color: "#1a1a1a" },
@@ -34,14 +35,6 @@ const S = StyleSheet.create({
 function fmtDate(iso: string | null): string {
   if (!iso) return "[date à compléter]";
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}
-
-// Dates « jour seul » (période du contrat) stockées à minuit UTC — formatées en UTC, sinon
-// décalage d'un jour en fuseau négatif (Guadeloupe UTC−4). Voir lib/dates.ts. Un contrat est
-// un document légal : le jour doit être exact.
-function fmtDateUTC(iso: string | null): string {
-  if (!iso) return "[date à compléter]";
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
 
 const LEGAL_MENTION =

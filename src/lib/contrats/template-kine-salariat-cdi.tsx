@@ -4,6 +4,7 @@ import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/render
 import { type ContractDataSalarie, SIGNATURE_LEGAL_MENTION } from "./types";
 import { DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
+import { fmtDateUTC } from "@/lib/contrats/date";
 
 // ⚠️ CE GABARIT N'EST PAS LA TRANSCRIPTION D'UN MODÈLE OFFICIEL.
 //
@@ -75,13 +76,6 @@ const S = StyleSheet.create({
 function fmtDate(iso: string | null): string {
   if (!iso) return "[date à compléter]";
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}
-
-// Dates « jour seul » stockées à minuit UTC — formatées en UTC, sinon décalage d'un jour en
-// fuseau négatif (Guadeloupe UTC−4). Un contrat est un document légal : le jour doit être exact.
-function fmtDateUTC(iso: string | null): string {
-  if (!iso) return "[date à compléter]";
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
 
 // Mention de pied de page RENFORCÉE par rapport aux autres gabarits : ceux-là renvoient à un
