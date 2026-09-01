@@ -35,6 +35,11 @@ Généré depuis un `grep process.env` du projet. Ne contient aucune valeur secr
 | `STRIPE_WEBHOOK_SECRET` | Vérif signature webhook Stripe | `api/stripe/webhook` | Webhook rejeté |
 | `STRIPE_PRICE_PREMIUM` | ID prix Stripe — plan Premium | `api/stripe/*` | Plan Premium non achetable |
 | `STRIPE_PRICE_BOOST` | ID prix Stripe — plan Boost | `api/stripe/*` | Plan Boost non achetable |
+| `STRIPE_PRICE_PREVENTION_TRAINING` | ID prix unique de la formation Prévention | `api/stripe/prevention/checkout` | Formation non achetable |
+| `MOODLE_BASE_URL` | URL publique de Moodle | `lib/moodle`, webhook Stripe | Inscription Moodle impossible |
+| `MOODLE_TOKEN` | Jeton du service web Moodle | `lib/moodle`, webhook Stripe | Inscription Moodle impossible |
+| `MOODLE_PREVENTION_COURSE_ID` | ID du cours Prévention | `lib/moodle`, webhook Stripe | Cours cible introuvable |
+| `MOODLE_STUDENT_ROLE_ID` | ID du rôle Étudiant (5 par défaut) | `lib/moodle` | Rôle d'inscription incorrect |
 | `ANS_API_KEY` | Vérification RPPS (Annuaire Santé) | `api/rpps/verify` | Vérification RPPS désactivée |
 
 ## ⚪ AUTOMATIQUE — géré par la plateforme, aucune action

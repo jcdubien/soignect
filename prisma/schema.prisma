@@ -14,9 +14,9 @@ enum Role {
 }
 
 enum ProfileType {
-  REMPLACANT  // remplacement court terme, période définie
-  ASSISTANT   // poste long terme (>= minMonths mois)
-  TITULAIRE   // cabinet / titulaire
+  REMPLACANT // remplacement court terme, période définie
+  ASSISTANT // poste long terme (>= minMonths mois)
+  TITULAIRE // cabinet / titulaire
 }
 
 enum SwipeDirection {
@@ -26,9 +26,9 @@ enum SwipeDirection {
 
 enum SubscriptionPlan {
   FREE
-  PREMIUM    // 9€/mois — boost +5, accès scores remplaçants
-  BOOST      // 29€/mois — boost +8, badge prioritaire, stats avancées
-  STRUCTURE  // Structures privées — 89€/mois + 20€/contrat (metered, section 7)
+  PREMIUM // 9€/mois — boost +5, accès scores remplaçants
+  BOOST // 29€/mois — boost +8, badge prioritaire, stats avancées
+  STRUCTURE // Structures privées — 89€/mois + 20€/contrat (metered, section 7)
 }
 
 enum MissionType {
@@ -38,10 +38,10 @@ enum MissionType {
 }
 
 enum ZonageType {
-  NON_PRIORITAIRE  // Zone 4 ARS — offre élevée
-  INTERMEDIAIRE    // Zone 3 ARS — offre intermédiaire
-  SOUS_DOTEE       // Zone 2 ARS — autres professions/territoires
-  TRES_SOUS_DOTEE  // Zone 1 ARS — désert médical
+  NON_PRIORITAIRE // Zone 4 ARS — offre élevée
+  INTERMEDIAIRE // Zone 3 ARS — offre intermédiaire
+  SOUS_DOTEE // Zone 2 ARS — autres professions/territoires
+  TRES_SOUS_DOTEE // Zone 1 ARS — désert médical
 }
 
 enum Profession {
@@ -68,7 +68,7 @@ enum PostType {
   ASSOCIE
   ASSISTANT
   COLLABORATION
-  REMPLACEMENT_REGULIER  // legacy — retiré du formulaire (section 5), conservé pour données existantes
+  REMPLACEMENT_REGULIER // legacy — retiré du formulaire (section 5), conservé pour données existantes
 }
 
 // Nature d'un titulaire — distinction explicite Cabinet libéral vs Structure privée
@@ -130,9 +130,9 @@ enum SuiviStatut {
 // est commercial, pas technique. Ils sont néanmoins séparés pour qu'on puisse répondre à
 // « combien de clients payants ? » sans deviner.
 enum NatureRelationInstitutionnelle {
-  POC_GRATUIT        // laboratoire, à titre gracieux (CPTS Nord Basse-Terre, 13/08)
+  POC_GRATUIT // laboratoire, à titre gracieux (CPTS Nord Basse-Terre, 13/08)
   CLIENT_PAYANT
-  GRATUITE_NEGOCIEE  // gratuité accordée en contrepartie d'un rôle institutionnel
+  GRATUITE_NEGOCIEE // gratuité accordée en contrepartie d'un rôle institutionnel
 }
 
 enum TypeInstitution {
@@ -145,55 +145,85 @@ enum TypeInstitution {
 }
 
 model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  passwordHash     String
-  role             Role      @default(USER)
-  profile          Profile?
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  activeProfileId  String?
+  id                 String                 @id @default(cuid())
+  email              String                 @unique
+  passwordHash       String
+  role               Role                   @default(USER)
+  profile            Profile?
+  resetToken         String?
+  resetTokenExpiry   DateTime?
+  activeProfileId    String?
   // Notifications (section 50-51)
-  phone            String?
-  phoneCountry     String?   @default("GP")
-  whatsappOptIn    Boolean   @default(false)
-  emailOptIn       Boolean   @default(true)
+  phone              String?
+  phoneCountry       String?                @default("GP")
+  whatsappOptIn      Boolean                @default(false)
+  emailOptIn         Boolean                @default(true)
   // Consentement légal à l'inscription (section 150) — horodatage de l'acceptation des
   // CGU/CGV + confidentialité + mentions légales. Null = pas d'acceptation enregistrée.
-  acceptedTermsAt  DateTime?
+  acceptedTermsAt    DateTime?
   // Opt-out par type (section notifications recruteur) — la consultation d'annonce
   // est fréquente : on la coupe indépendamment du consentement email global.
-  notifyConsultation Boolean @default(true)
+  notifyConsultation Boolean                @default(true)
   // Poste cabinet auquel ce compte ASSISTANT est rattaché (section 153) — double casquette.
   // Un compte n'est rattaché qu'à UN poste à la fois (unicité côté CabinetPost.linkedUserId).
-  assistantPost    CabinetPost? @relation("AssistantPost")
+  assistantPost      CabinetPost?           @relation("AssistantPost")
   // Notifications in-app (section 155) — canal d'affichage en plus des emails.
-  notifications    Notification[]
+  notifications      Notification[]
+  trainingPurchases  TrainingPurchase[]
   // Priorités territoriales co-saisies par cet administrateur (section 214, B3).
-  prioritesSaisies PrioriteTerritoriale[] @relation("PrioritesSaisies")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  prioritesSaisies   PrioriteTerritoriale[] @relation("PrioritesSaisies")
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+}
+
+enum TrainingPurchaseStatus {
+  PAID
+  ENROLLED
+  ENROLLMENT_FAILED
+}
+
+// Achat Stripe d'une formation et état de sa remise à Moodle. Le sessionId unique rend
+// le webhook idempotent : Stripe peut le rejouer sans créer plusieurs inscriptions.
+model TrainingPurchase {
+  id              String                 @id @default(cuid())
+  userId          String
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseKey       String
+  stripeSessionId String                 @unique
+  stripePaymentId String?
+  amountTotal     Int?
+  currency        String?
+  moodleUserId    Int?
+  moodleCourseId  Int?
+  status          TrainingPurchaseStatus @default(PAID)
+  lastError       String?                @db.VarChar(1000)
+  enrolledAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([userId, courseKey])
+  @@index([status, updatedAt])
 }
 
 // Identité professionnelle — pas de dates ici
 model Profile {
-  id       String      @id @default(cuid())
-  userId   String      @unique
-  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type     ProfileType
-  name     String?     // Nom du cabinet ou du professionnel
-  photoUrl String?
+  id                 String      @id @default(cuid())
+  userId             String      @unique
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type               ProfileType
+  name               String? // Nom du cabinet ou du professionnel
+  photoUrl           String?
   // Photos secondaires optionnelles (section 3) — jusqu'à 2
   secondaryPhotoUrl1 String?
   secondaryPhotoUrl2 String?
-  bio      String?     @db.VarChar(300)
-  bioTinder String?    @db.VarChar(700)  // "Je suis / Je cherche / J'aspire à" (700 max côté cabinet, section 123)
+  bio                String?     @db.VarChar(300)
+  bioTinder          String?     @db.VarChar(700) // "Je suis / Je cherche / J'aspire à" (700 max côté cabinet, section 123)
 
   // Géographie & profession
-  profession           Profession @default(KINESITHERAPEUTE)
-  region               Region     @default(GUADELOUPE)
+  profession           Profession  @default(KINESITHERAPEUTE)
+  region               Region      @default(GUADELOUPE)
   zonage               ZonageType?
-  institutionalPartner Boolean    @default(false) // CPTS / ARS / Collectivité
+  institutionalPartner Boolean     @default(false) // CPTS / ARS / Collectivité
 
   // Pondération feed
   weight    Float     @default(1.0)
@@ -201,9 +231,9 @@ model Profile {
   paidUntil DateTime?
 
   // Désirabilité & abonnement
-  desirabilityScore    Float            @default(0)     // 0 à 10 — composante du score d'affinité
-  desirabilityOverride Float?                           // Override admin (priorité absolue)
-  desirabilityExpiry   DateTime?                        // Expiration du boost manuel
+  desirabilityScore    Float            @default(0) // 0 à 10 — composante du score d'affinité
+  desirabilityOverride Float? // Override admin (priorité absolue)
+  desirabilityExpiry   DateTime? // Expiration du boost manuel
   subscriptionPlan     SubscriptionPlan @default(FREE)
   isFounding           Boolean          @default(false) // Cabinet fondateur = score 10 permanent
 
@@ -214,7 +244,7 @@ model Profile {
   // Bascule individuelle vers le payant (section 99/100) — date d'atteinte d'un des 2
   // critères (contrat signé OU usage soutenu). Renseigné = plus couvert par le mode gratuit
   // global (après période de grâce). Null = couvert par freeAccessMode tant qu'actif.
-  billingTriggeredAt   DateTime?
+  billingTriggeredAt DateTime?
 
   // Notation agrégée (mise à jour à chaque Rating)
   ratingAvg   Float?
@@ -253,7 +283,7 @@ model Profile {
   ouvertSalariat Boolean @default(false)
 
   // Vérification RPPS via API ANS (section 30)
-  isVerified  Boolean @default(false)
+  isVerified Boolean @default(false)
 
   // Identité contractuelle (section 150) — injectée dans le PDF de contrat, obligatoire
   // avant génération. Praticiens : rpps + numeroOrdre + adresse. Structures : siret + adresse.
@@ -263,7 +293,7 @@ model Profile {
   siret       String?
 
   // Établissement employeur : terminologie CDI/CDD/Vacation (section 37)
-  isEmployeur Boolean @default(false)
+  isEmployeur   Boolean       @default(false)
   // Distinction explicite Cabinet/Structure (segmentation & billing, section 7/99)
   titulaireKind TitulaireKind @default(CABINET)
 
@@ -272,17 +302,17 @@ model Profile {
   updatedAt DateTime @updatedAt
 
   missions                  Mission[]
-  swipesGiven               Swipe[]          @relation("SwiperProfile")
-  ratingsGiven              Rating[]         @relation("RaterProfile")
-  ratingsReceived           Rating[]         @relation("RatedProfile")
+  swipesGiven               Swipe[]            @relation("SwiperProfile")
+  ratingsGiven              Rating[]           @relation("RaterProfile")
+  ratingsReceived           Rating[]           @relation("RatedProfile")
   messagesSent              Message[]
-  matchesA                  Match[]          @relation("MatchProfileA")
-  matchesB                  Match[]          @relation("MatchProfileB")
-  cabinetRatingsGiven       CabinetRating[]  @relation("CabinetRatingRater")
-  cabinetRatingsReceived    CabinetRating[]  @relation("CabinetRatingRated")
+  matchesA                  Match[]            @relation("MatchProfileA")
+  matchesB                  Match[]            @relation("MatchProfileB")
+  cabinetRatingsGiven       CabinetRating[]    @relation("CabinetRatingRater")
+  cabinetRatingsReceived    CabinetRating[]    @relation("CabinetRatingRated")
   remplacantRatingsGiven    RemplacantRating[] @relation("RemplacantRatingRater")
   remplacantRatingsReceived RemplacantRating[] @relation("RemplacantRatingRated")
-  cabinetPosts              CabinetPost[]    @relation("CabinetPosts")
+  cabinetPosts              CabinetPost[]      @relation("CabinetPosts")
 
   @@index([type, isActive])
 }
@@ -298,8 +328,8 @@ model Mission {
   specialties String[]
 
   // Phrase libre (280 signes) — ex: "Je recherche un cabinet sport en Guadeloupe"
-  pitch     String? @db.VarChar(700)  // accroche annonce (700 max côté cabinet, section 123/186)
-  bioTinder String? @db.VarChar(700)  // Bio spécifique à cette annonce (700 max côté cabinet, section 123)
+  pitch     String? @db.VarChar(700) // accroche annonce (700 max côté cabinet, section 123/186)
+  bioTinder String? @db.VarChar(700) // Bio spécifique à cette annonce (700 max côté cabinet, section 123)
 
   // REMPLACANT / TITULAIRE (remplacement) : dates définies
   startDate DateTime?
@@ -386,14 +416,14 @@ model Mission {
   statusNote      String?      @db.VarChar(200)
 
   // Suivi humain de la brique (section 200) — voir SuiviStatut. Nullable = aucun suivi noté.
-  suiviStatut     SuiviStatut?
-  suiviUpdatedAt  DateTime?
+  suiviStatut    SuiviStatut?
+  suiviUpdatedAt DateTime?
 
   // Nom du remplaçant/successeur matché — affiché sur le segment RECRUTEMENT/CONFIRME (section 1c / 6)
-  matchedName     String?      @db.VarChar(120)
+  matchedName String? @db.VarChar(120)
 
   // Date de départ prévue — déclencheur silencieux Confirmé → Recrutement/Non couvert (section 6)
-  departureDate   DateTime?
+  departureDate DateTime?
 
   // Planning Board section 43 — déclaration de vacance titulaire
   isSelfPresence Boolean @default(false)
@@ -454,8 +484,8 @@ model Swipe {
   swipedMissionId String
   swipedMission   Mission        @relation("SwipedMission", fields: [swipedMissionId], references: [id])
   direction       SwipeDirection
-  affinityScore   Float?                         // Score total 0-100 calculé par DeepSeek
-  scoreDetails    Json?                          // {dates, geo, specialty, bio, desirability}
+  affinityScore   Float? // Score total 0-100 calculé par DeepSeek
+  scoreDetails    Json? // {dates, geo, specialty, bio, desirability}
   createdAt       DateTime       @default(now())
 
   @@unique([swiperId, swipedMissionId])
@@ -463,29 +493,29 @@ model Swipe {
 
 // Match entre deux profils, déclenché par deux missions
 model Match {
-  id         String   @id @default(cuid())
-  profileAId String
-  profileA   Profile  @relation("MatchProfileA", fields: [profileAId], references: [id])
-  profileBId String
-  profileB   Profile  @relation("MatchProfileB", fields: [profileBId], references: [id])
-  missionAId String?
-  missionA   Mission? @relation("MatchMissionA", fields: [missionAId], references: [id])
-  missionBId String?
-  missionB   Mission? @relation("MatchMissionB", fields: [missionBId], references: [id])
+  id                String             @id @default(cuid())
+  profileAId        String
+  profileA          Profile            @relation("MatchProfileA", fields: [profileAId], references: [id])
+  profileBId        String
+  profileB          Profile            @relation("MatchProfileB", fields: [profileBId], references: [id])
+  missionAId        String?
+  missionA          Mission?           @relation("MatchMissionA", fields: [missionAId], references: [id])
+  missionBId        String?
+  missionB          Mission?           @relation("MatchMissionB", fields: [missionBId], references: [id])
   aiScore           Float?
   aiFactors         Json?
-  status            MatchStatus @default(EN_ATTENTE)
+  status            MatchStatus        @default(EN_ATTENTE)
   ratings           Rating[]
   cabinetRatings    CabinetRating[]
   remplacantRatings RemplacantRating[]
   messages          Message[]
-  createdAt         DateTime @default(now())
+  createdAt         DateTime           @default(now())
 
   // Signature par photo (section 61) — chemin Storage bucket "signatures" (non public)
-  signatureTitulaireUrl   String?
-  signatureTitulaireAt    DateTime?
-  signatureRemplacantUrl  String?
-  signatureRemplacantAt   DateTime?
+  signatureTitulaireUrl  String?
+  signatureTitulaireAt   DateTime?
+  signatureRemplacantUrl String?
+  signatureRemplacantAt  DateTime?
 
   // UNICITÉ (section 209) — elle porte désormais sur la PAIRE DE MISSIONS, plus sur la paire
   // de personnes : un cabinet et un candidat ouverts à la fois au remplacement et à
@@ -506,18 +536,18 @@ model Match {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  matchId   String
-  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  senderId  String
-  sender    Profile  @relation(fields: [senderId], references: [id])
-  content   String   @db.VarChar(1000)
-  createdAt DateTime @default(now())
+  id             String    @id @default(cuid())
+  matchId        String
+  match          Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         Profile   @relation(fields: [senderId], references: [id])
+  content        String    @db.VarChar(1000)
+  createdAt      DateTime  @default(now())
   // Rappel 24h envoyé pour ce message resté sans réponse (section 9) — évite les doublons
   reminderSentAt DateTime?
   // Lecture par le destinataire (section 155) — null = non lu. Renseigné quand le
   // destinataire (senderId != lui) ouvre la conversation.
-  readAt    DateTime?
+  readAt         DateTime?
 
   @@index([matchId, createdAt])
 }
@@ -539,45 +569,45 @@ model Rating {
 
 // Notation d'un cabinet par un remplaçant (publique)
 model CabinetRating {
-  id           String   @id @default(cuid())
-  raterId      String   // REMPLACANT qui note
-  rater        Profile  @relation("CabinetRatingRater", fields: [raterId], references: [id])
-  ratedId      String   // TITULAIRE noté
-  rated        Profile  @relation("CabinetRatingRated", fields: [ratedId], references: [id])
-  matchId      String?
-  match        Match?   @relation(fields: [matchId], references: [id])
-  recommended  Boolean  // true = recommande, false = ne recommande pas
+  id            String   @id @default(cuid())
+  raterId       String // REMPLACANT qui note
+  rater         Profile  @relation("CabinetRatingRater", fields: [raterId], references: [id])
+  ratedId       String // TITULAIRE noté
+  rated         Profile  @relation("CabinetRatingRated", fields: [ratedId], references: [id])
+  matchId       String?
+  match         Match?   @relation(fields: [matchId], references: [id])
+  recommended   Boolean // true = recommande, false = ne recommande pas
   // Critères détaillés — optionnels (remplis si l'utilisateur veut préciser)
-  scoreAccueil   Int?
-  scoreMateriel  Int?
-  scoreContrat   Int?
-  scoreAmbiance  Int?
-  scoreGlobal    Float?  // calculé si critères renseignés, sinon null
-  comment      String?  @db.VarChar(500)
+  scoreAccueil  Int?
+  scoreMateriel Int?
+  scoreContrat  Int?
+  scoreAmbiance Int?
+  scoreGlobal   Float? // calculé si critères renseignés, sinon null
+  comment       String?  @db.VarChar(500)
   // Modération : false = en attente de validation admin avant affichage public
-  isPublished  Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  isPublished   Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
   @@unique([raterId, ratedId, matchId])
 }
 
 // Évaluation d'un remplaçant par un cabinet (privée)
 model RemplacantRating {
-  id           String   @id @default(cuid())
-  raterId      String   // TITULAIRE qui évalue
-  rater        Profile  @relation("RemplacantRatingRater", fields: [raterId], references: [id])
-  ratedId      String   // REMPLACANT évalué
-  rated        Profile  @relation("RemplacantRatingRated", fields: [ratedId], references: [id])
-  matchId      String?
-  match        Match?   @relation(fields: [matchId], references: [id])
-  recommended         Boolean  // true = recommande, false = ne recommande pas
+  id                  String   @id @default(cuid())
+  raterId             String // TITULAIRE qui évalue
+  rater               Profile  @relation("RemplacantRatingRater", fields: [raterId], references: [id])
+  ratedId             String // REMPLACANT évalué
+  rated               Profile  @relation("RemplacantRatingRated", fields: [ratedId], references: [id])
+  matchId             String?
+  match               Match?   @relation(fields: [matchId], references: [id])
+  recommended         Boolean // true = recommande, false = ne recommande pas
   // Critères détaillés — optionnels (PAS de commentaire — art. R.4321-99)
   scorePonctualite    Int?
   scoreQualiteSoins   Int?
   scoreDossierPatient Int?
   scoreCommunication  Int?
   scoreGlobal         Float?
-  createdAt    DateTime @default(now())
+  createdAt           DateTime @default(now())
 
   @@unique([raterId, ratedId, matchId])
 }
@@ -600,26 +630,26 @@ model RemplacantRating {
 // `PrioriteTerritoriale` ci-dessous. Motif : ces colonnes ne contiennent aucune déclaration, et
 // un entier nu ne peut pas en porter une — voir le commentaire de ce modèle.
 model CommuneAPL {
-  id                  Int      @id @default(autoincrement())
-  codeInsee           String   @unique
-  commune             String
-  departement         String
-  aplKine             Float?
-  aplInfirmier        Float?
-  aplMedecin          Float?
-  aplSageFemme        Float?
-  aplOrthophoniste    Float?
+  id                 Int       @id @default(autoincrement())
+  codeInsee          String    @unique
+  commune            String
+  departement        String
+  aplKine            Float?
+  aplInfirmier       Float?
+  aplMedecin         Float?
+  aplSageFemme       Float?
+  aplOrthophoniste   Float?
   // Millésime des chiffres ci-dessus. NULL = inconnu (lignes antérieures au premier passage du
   // script) — `updatedAt` date l'écriture, pas la donnée, et ne peut pas y suppléer.
-  aplAnnee            Int?
-  aplSource           String?
-  aplImportedAt       DateTime?
-  boostKine           Int      @default(0)
-  boostInfirmier      Int      @default(0)
-  boostMedecin        Int      @default(0)
-  boostSageFemme      Int      @default(0)
-  boostOrthophoniste  Int      @default(0)
-  updatedAt           DateTime @default(now()) @updatedAt
+  aplAnnee           Int?
+  aplSource          String?
+  aplImportedAt      DateTime?
+  boostKine          Int       @default(0)
+  boostInfirmier     Int       @default(0)
+  boostMedecin       Int       @default(0)
+  boostSageFemme     Int       @default(0)
+  boostOrthophoniste Int       @default(0)
+  updatedAt          DateTime  @default(now()) @updatedAt
 }
 
 // Priorité territoriale DÉCLARÉE par une institution (section 214, B3) — le canal que
@@ -648,34 +678,34 @@ model CommuneAPL {
 // date la ligne cesse d'agir sans être supprimée, et reste consultable. Sans ce champ, un
 // jugement de 2026 continuerait de classer le feed en 2031 sans que personne ne le décide.
 model PrioriteTerritoriale {
-  id          String     @id @default(cuid())
+  id         String               @id @default(cuid())
   // Le code INSEE est la clé, jamais le libellé — c'est tout l'objet du pont `COMMUNE_INSEE`
   // (section 213) : la base écrit « Terre-de-Bas » là où le produit écrit
   // « Terre-de-Bas (Les Saintes) ».
-  codeInsee   String
+  codeInsee  String
   // Libellé figé à la saisie : une ligne doit se lire seule, sans jointure, y compris si la
   // commune est renommée plus tard. Il n'est JAMAIS utilisé pour rapprocher quoi que ce soit.
-  commune     String
-  profession  Profession
+  commune    String
+  profession Profession
   // Intensité déclarée, 1..10 — même échelle brute que `boost*` pour que le facteur de
   // conversion reste unique et documenté à un seul endroit (FACTEUR_PRIORITE_TERRITORIALE).
   // Bornée à des valeurs POSITIVES : une institution déclare un manque, elle ne déclare pas
   // qu'une commune mérite d'être enfoncée dans le classement.
-  niveau      Int
+  niveau     Int
   // Provenance — la raison d'être de cette table. Aucun de ces trois champs n'est optionnel.
   // L'institution est une RELATION, plus un texte libre (19/08). Un nom tapé à la main ne dit
   // pas si une relation client existe : le produit distribuerait alors gratuitement, à toute
   // commune saisie, ce qu'il est censé vendre comme service institutionnel. Le levier ne
   // s'applique que si `client` est une relation active — voir `ClientInstitutionnel`.
-  clientId    String
-  client      ClientInstitutionnel @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  declareLe   DateTime   // date de la déclaration elle-même, pas de sa saisie
-  saisiParId  String     // User.id de l'administrateur qui a co-saisi
-  saisiPar    User       @relation("PrioritesSaisies", fields: [saisiParId], references: [id])
-  note        String?    @db.VarChar(500) // contexte de l'échange, pour relire la décision plus tard
-  expireLe    DateTime?  // NULL = sans échéance déclarée
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  clientId   String
+  client     ClientInstitutionnel @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  declareLe  DateTime // date de la déclaration elle-même, pas de sa saisie
+  saisiParId String // User.id de l'administrateur qui a co-saisi
+  saisiPar   User                 @relation("PrioritesSaisies", fields: [saisiParId], references: [id])
+  note       String?              @db.VarChar(500) // contexte de l'échange, pour relire la décision plus tard
+  expireLe   DateTime? // NULL = sans échéance déclarée
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
 
   // Une seule déclaration vivante par commune ET par profession : deux lignes concurrentes
   // poseraient la question « laquelle gagne ? », à laquelle aucune réponse ne serait honnête.
@@ -697,11 +727,11 @@ model PrioriteTerritoriale {
 // gratuités individuelles (adhérents SNMKR) et l'accès produit complet des bénéficiaires sont
 // des chantiers distincts, non traités ici — ce modèle ne prétend pas les porter.
 model ClientInstitutionnel {
-  id        String                         @id @default(cuid())
-  nom       String                         @unique // « CPTS Nord Basse-Terre »
-  type      TypeInstitution
-  nature    NatureRelationInstitutionnelle
-  debutLe   DateTime
+  id      String                         @id @default(cuid())
+  nom     String                         @unique // « CPTS Nord Basse-Terre »
+  type    TypeInstitution
+  nature  NatureRelationInstitutionnelle
+  debutLe DateTime
 
   // ⚠️ CE CHAMP EST UNE DATE DE REVUE, PAS UNE PREUVE DE FONCTION ACTIVE.
   //
@@ -716,15 +746,15 @@ model ClientInstitutionnel {
   // reconduite ou close. 6 à 12 mois est l'intervalle retenu. L'extinction est le comportement
   // par défaut, la reconduction un geste explicite — l'inverse laisserait courir indéfiniment
   // une relation que plus personne ne regarde.
-  revueLe   DateTime
+  revueLe DateTime
 
   // Clôture explicite, avant l'échéance de revue. Distincte de `revueLe` dépassée : ici quelqu'un
   // a décidé que la relation s'arrêtait, là personne n'a rien décidé du tout.
   clotureLe DateTime?
 
-  note      String?   @db.VarChar(500)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  note      String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   priorites PrioriteTerritoriale[]
 }
@@ -735,7 +765,7 @@ model CabinetPost {
   createdAt    DateTime  @default(now())
   cabinetId    String
   cabinet      Profile   @relation("CabinetPosts", fields: [cabinetId], references: [id])
-  label        String    // "Poste 1", "Dr Marie L.", etc.
+  label        String // "Poste 1", "Dr Marie L.", etc.
   postType     PostType  @default(REMPLACEMENT_REGULIER)
   maxSlots     Int       @default(1)
   noticeMonths Int       @default(3)
@@ -758,13 +788,13 @@ model CabinetPost {
   // Avec un vrai poste, une absence redevient une période normale : FERME (off) ou
   // RECHERCHE (annonce en ligne) — les filtres existants sur briqueStatus suffisent.
   // Un seul par cabinet, créé automatiquement, non supprimable.
-  isOwnerSeat  Boolean   @default(false)
+  isOwnerSeat Boolean @default(false)
 
   // Compte ASSISTANT rattaché à ce poste (section 153) — double casquette employeur/employé.
   // @unique : un compte User ne peut être rattaché qu'à UN SEUL poste à la fois (les NULL
   // multiples sont autorisés en Postgres). Null = poste géré uniquement par le titulaire.
-  linkedUserId String?   @unique
-  linkedUser   User?     @relation("AssistantPost", fields: [linkedUserId], references: [id])
+  linkedUserId String? @unique
+  linkedUser   User?   @relation("AssistantPost", fields: [linkedUserId], references: [id])
 
   // Note de suivi du POSTE (section 200). C'est elle qui couvre les ZONES NON COUVERTES :
   // un trou de planning n'est aucun objet en base — c'est un intervalle calculé entre deux
@@ -780,11 +810,11 @@ model CabinetPost {
 // Alimentée par de simples inserts fire-and-forget dans les routes existantes.
 model TraceEvent {
   id          String   @id @default(cuid())
-  eventType   String   // "MISSION_PUBLISHED", "SWIPE_RIGHT", "MATCH_CREATED", "CONTRACT_SIGNED", "PLANNING_ACTIVE", ...
+  eventType   String // "MISSION_PUBLISHED", "SWIPE_RIGHT", "MATCH_CREATED", "CONTRACT_SIGNED", "PLANNING_ACTIVE", ...
   missionId   String?
   matchId     String?
-  profileId   String?  // acteur (ex: cabinet actif sur le Planning Board — section 100 critère 2)
-  commune     String?  // dénormalisé pour agrégation géographique sans jointures
+  profileId   String? // acteur (ex: cabinet actif sur le Planning Board — section 100 critère 2)
+  commune     String? // dénormalisé pour agrégation géographique sans jointures
   profession  String?
   missionType String?
   occurredAt  DateTime @default(now())
@@ -803,7 +833,7 @@ model Notification {
   id        String    @id @default(cuid())
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String    // "message" | "match" | "signature" | "consultation"
+  type      String // "message" | "match" | "signature" | "consultation"
   message   String    @db.VarChar(300)
   linkUrl   String
   readAt    DateTime?
@@ -813,12 +843,12 @@ model Notification {
 }
 
 model PlatformConfig {
-  id             String   @id @default(cuid())
-  freeAccessMode Boolean  @default(true)
+  id                     String   @id @default(cuid())
+  freeAccessMode         Boolean  @default(true)
   // Blocage dur des contrats si identité contractuelle incomplète (section 150).
   // false = phase d'avertissement (non bloquant) ; true = accès contrat refusé si incomplet.
-  enforceContractProfile Boolean @default(false)
-  updatedAt      DateTime @updatedAt
+  enforceContractProfile Boolean  @default(false)
+  updatedAt              DateTime @updatedAt
 }
 
 // Invitation par email à rejoindre Soignect + rattachement auto à un poste (section 187).

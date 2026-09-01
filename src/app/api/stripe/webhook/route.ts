@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { SubscriptionPlan } from "@prisma/client";
+import { enrolInPreventionCourse } from "@/lib/moodle";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,66 @@ async function applySubscription(
       ...(stripeIds?.subscriptionId !== undefined ? { stripeSubscriptionId: stripeIds.subscriptionId } : {}),
     },
   });
+}
+
+async function fulfilTraining(session: Stripe.Checkout.Session) {
+  if (session.metadata?.kind !== "MOODLE_TRAINING" || session.payment_status !== "paid") return;
+
+  const userId = session.metadata.userId;
+  const courseKey = session.metadata.courseKey;
+  if (!userId || courseKey !== "PREVENTION") throw new Error("Métadonnées formation Stripe invalides");
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profile: { select: { name: true } } },
+  });
+  if (!user) throw new Error(`Compte Soignect introuvable pour la session ${session.id}`);
+
+  const paymentId = typeof session.payment_intent === "string"
+    ? session.payment_intent
+    : session.payment_intent?.id ?? null;
+  const purchase = await prisma.trainingPurchase.upsert({
+    where: { stripeSessionId: session.id },
+    create: {
+      userId,
+      courseKey,
+      stripeSessionId: session.id,
+      stripePaymentId: paymentId,
+      amountTotal: session.amount_total,
+      currency: session.currency,
+      status: "PAID",
+    },
+    update: {
+      stripePaymentId: paymentId,
+      amountTotal: session.amount_total,
+      currency: session.currency,
+    },
+  });
+  if (purchase.status === "ENROLLED") return;
+
+  try {
+    const enrolled = await enrolInPreventionCourse({
+      email: user.email,
+      fullName: session.customer_details?.name ?? user.profile?.name,
+    });
+    await prisma.trainingPurchase.update({
+      where: { id: purchase.id },
+      data: {
+        ...enrolled,
+        status: "ENROLLED",
+        enrolledAt: new Date(),
+        lastError: null,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur Moodle inconnue";
+    await prisma.trainingPurchase.update({
+      where: { id: purchase.id },
+      data: { status: "ENROLLMENT_FAILED", lastError: message.slice(0, 1000) },
+    });
+    // Réponse 500 : Stripe rejouera le webhook. L'upsert ci-dessus garantit l'idempotence.
+    throw error;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -87,6 +148,10 @@ export async function POST(req: NextRequest) {
 
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
+      if (session.metadata?.kind === "MOODLE_TRAINING") {
+        await fulfilTraining(session);
+        break;
+      }
       const profileId = session.metadata?.profileId;
       const plan = (session.metadata?.plan ?? "FREE") as SubscriptionPlan;
       if (profileId && session.mode === "subscription") {
