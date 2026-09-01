@@ -55,6 +55,7 @@ export default function MissionDetailSheet({
   onClose,
   relation,
   onSwipe,
+  onUndoSwipe,
 }: {
   mission: DetailMission;
   onClose: () => void;
@@ -62,6 +63,9 @@ export default function MissionDetailSheet({
   // undefined = ouvert depuis le carrousel → comportement inchangé (pas d'actions).
   relation?: MissionRelation | null;
   onSwipe?: (direction: "LEFT" | "RIGHT") => Promise<void> | void;
+  /** Annule un choix déjà enregistré (section 218). Absent = le bouton n'apparaît pas : la
+   *  fiche ouverte depuis le carrousel n'a pas de choix à défaire. */
+  onUndoSwipe?: () => Promise<void> | void;
 }) {
   const p = mission.profile;
   const photos = [p.photoUrl, p.secondaryPhotoUrl1, p.secondaryPhotoUrl2].filter(Boolean) as string[];
@@ -75,6 +79,7 @@ export default function MissionDetailSheet({
   const [summary, setSummary] = useState<{ extract: string; url?: string | null } | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [swiping, setSwiping] = useState(false);
+  const [undoing, setUndoing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   // Lecteur sans recherche publiée : le geste positif change de nom et de promesse.
   const sansRecherche = relation?.aPublieUneRecherche === false;
@@ -107,6 +112,19 @@ export default function MissionDetailSheet({
       setActionError(e instanceof Error ? e.message : "L'action n'a pas pu être enregistrée. Réessayez.");
     } finally {
       setSwiping(false);
+    }
+  }
+
+  async function handleUndo() {
+    if (undoing || !onUndoSwipe) return;
+    setUndoing(true);
+    setActionError(null);
+    try {
+      await onUndoSwipe();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "L'annulation n'a pas pu être enregistrée. Réessayez.");
+    } finally {
+      setUndoing(false);
     }
   }
 
@@ -146,10 +164,33 @@ export default function MissionDetailSheet({
       );
     }
     if (relation?.swipeDirection === "LEFT") {
+      // Un pass était le seul choix irréversible du produit. Le geste opposé se défait depuis
+      // « Vos choix » (MatchTray, « Retirer ce choix ») ; celui-ci ne se défaisait nulle part,
+      // alors que c'est le plus facile à faire par accident — un swipe trop rapide, et l'annonce
+      // disparaît du feed sans retour possible. Même mécanique exactement : DELETE /api/swipe,
+      // qui ne regarde pas la direction de la ligne supprimée.
       return (
         <div className="mt-4 rounded-2xl bg-gray-100 border border-gray-200 p-3.5 text-center">
           <p className="text-gray-600 font-semibold text-sm">Annonce passée</p>
           <p className="text-gray-400 text-xs mt-0.5">Vous avez passé cette annonce.</p>
+          {onUndoSwipe && (
+            <>
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={undoing}
+                className="md3-ripple mt-3 w-full px-5 py-2.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-40"
+              >
+                {undoing ? "Annulation…" : "Annuler ce choix"}
+              </button>
+              <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">
+                L&apos;annonce redeviendra visible dans votre feed.
+              </p>
+            </>
+          )}
+          {actionError && (
+            <p className="mt-2.5 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{actionError}</p>
+          )}
         </div>
       );
     }

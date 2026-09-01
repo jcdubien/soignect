@@ -26,6 +26,8 @@ interface Props {
 
 export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId, cardMissionId, isAdmin }: Props) {
   const [trayKey, setTrayKey] = useState(0);
+  // Rechargement du feed après annulation d'un choix (section 218).
+  const [feedKey, setFeedKey] = useState(0);
   const [detail, setDetail] = useState<{ mission: DetailMission; relation: MissionRelation } | null>(null);
 
   // Confirmation de publication (section 163) — bannière de succès après création d'une annonce,
@@ -98,6 +100,21 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
     if (direction === "RIGHT") setTrayKey((k) => k + 1); // rafraîchit le tray "Vos mises en relation"
   }, [detail]);
 
+  // Annulation d'un choix déjà enregistré (section 218). Même route que « Retirer ce choix »
+  // du MatchTray : DELETE /api/swipe supprime la ligne sans regarder sa direction, donc un pass
+  // s'annule par le même chemin qu'un intérêt — rien à ajouter côté API.
+  const handleSheetUndo = useCallback(async () => {
+    const current = detail;
+    if (!current) return;
+    const res = await fetch(`/api/swipe?missionId=${encodeURIComponent(current.mission.id)}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("L'annulation n'a pas pu être enregistrée. Réessayez.");
+    // La fiche repasse à l'état « jamais swipée » : les deux boutons de décision reviennent,
+    // sans refermer la feuille. Refermer aurait obligé à rouvrir l'annonce pour se prononcer.
+    setDetail((cur) => (cur ? { ...cur, relation: { ...cur.relation, swipeDirection: null, matchId: null } } : cur));
+    setFeedKey((k) => k + 1); // le feed redemande sa liste : l'annonce y réapparaît vraiment
+    setTrayKey((k) => k + 1); // « Vos choix » perd la ligne si c'était un intérêt
+  }, [detail]);
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Confirmation de publication (section 163) — non ambiguë, avec lien vers l'annonce. */}
@@ -161,6 +178,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
             profileId={profileId}
             titulaireMissions={titulaireMissions}
             initialMissionId={initialMissionId}
+            refreshKey={feedKey}
           />
         </div>
 
@@ -173,6 +191,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
           mission={detail.mission}
           relation={detail.relation}
           onSwipe={handleSheetSwipe}
+          onUndoSwipe={handleSheetUndo}
           onClose={() => setDetail(null)}
         />
       )}

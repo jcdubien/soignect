@@ -46,6 +46,11 @@ interface SwipeStackProps {
   /** Notifie le parent quand aucune carte n'est affichée (vide/chargement/erreur) —
    *  permet de ne pas étirer verticalement la zone et de coller les trays au contenu. */
   onEmptyChange?: (empty: boolean) => void;
+  /** Incrémenté par le parent pour redemander le feed (section 218 : annulation d'un pass).
+   *  Le feed est la seule autorité sur ce qui est visible ; on le REDEMANDE plutôt que de
+   *  réinsérer la carte de mémoire, ce qui inventerait un classement et raterait tout autre
+   *  changement survenu entretemps. */
+  refreshKey?: number;
 }
 
 const TYPE_CONFIG = {
@@ -501,7 +506,7 @@ function defaultMissionId(missions?: TitulaireMission[]): string | null {
 }
 
 // ── SwipeStack principal ───────────────────────────────────────────────────────
-export default function SwipeStack({ onSwipeRight, profileType, titulaireMissions, initialMissionId, profileId, onEmptyChange }: SwipeStackProps) {
+export default function SwipeStack({ onSwipeRight, profileType, titulaireMissions, initialMissionId, profileId, onEmptyChange, refreshKey = 0 }: SwipeStackProps) {
   const isTitulaire = profileType === "TITULAIRE";
 
   const [detailMission,    setDetailMission]    = useState<MissionWithProfile | null>(null);
@@ -683,6 +688,15 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
 
   // Initial load
   useEffect(() => { fetchFeed(activeMissionId); }, [fetchFeed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Rechargement demandé par le parent (annulation d'un pass, section 218). Le montage initial
+  // est déjà couvert par l'effet ci-dessus : sans cette garde, la valeur 0 déclencherait un
+  // second appel au feed à chaque ouverture de la page.
+  const refreshMounted = useRef(false);
+  useEffect(() => {
+    if (!refreshMounted.current) { refreshMounted.current = true; return; }
+    fetchFeed(activeMissionId);
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset + re-fetch when active mission changes (skips initial mount)
   useEffect(() => {

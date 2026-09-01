@@ -5544,6 +5544,76 @@ probablement Sprint 3.
 
 ---
 
+### SECTION 218 — UN PASS S'ANNULE (01/09)
+
+#### Le seul choix irréversible du produit
+
+Une annonce passée affichait « Annonce passée / Vous avez passé cette annonce » et un bouton
+« Fermer ». Rien d'autre. Le geste opposé, lui, se défait depuis « Vos choix » (MatchTray,
+« Retirer ce choix ») — mais le pass, qui est le plus facile à faire par accident, ne se
+rattrapait nulle part.
+
+#### L'API n'avait besoin de rien
+
+`DELETE /api/swipe?missionId=` fait un `deleteMany({ swiperId, swipedMissionId })` — **sans
+regarder la direction de la ligne supprimée**. Un pass s'annulait donc déjà par le chemin exact
+de l'intérêt ; il manquait uniquement le bouton. Aucune route n'a été modifiée.
+
+#### Trois fichiers
+
+`MissionDetailSheet.tsx` porte le bouton **« Annuler ce choix »** dans la branche
+`swipeDirection === "LEFT"`, avec la même phrase de promesse que le MatchTray. La prop
+`onUndoSwipe` est optionnelle : ouverte depuis le carrousel, la fiche n'a pas de choix à défaire.
+
+`AnnoncesClient.tsx` remet `swipeDirection` à `null` **sans refermer la feuille** — refermer
+aurait obligé à rouvrir l'annonce pour se prononcer.
+
+`SwipeStack.tsx` reçoit une prop `refreshKey` et redemande le feed. Le feed est la seule autorité
+sur ce qui est visible : on le REDEMANDE plutôt que de réinsérer la carte de mémoire, ce qui
+inventerait un classement et raterait tout autre changement survenu entretemps.
+
+#### Vérifié à l'écran, dans les deux sens (01/09)
+
+Sur le compte `osteoguadeloupe@gmail.com` (Cabinet des ravines, TITULAIRE), serveur de dev, sur
+des annonces réellement passées — aucune donnée de test fabriquée.
+
+| Étape | Observé |
+|---|---|
+| Fiche d'une annonce passée | « Annonce passée » + bouton « Annuler ce choix » + la phrase de promesse |
+| Clic | état intermédiaire « Annulation… », bouton désactivé |
+| Après | la feuille revient à « VOTRE DÉCISION / Passer / Intéressé », **sans se refermer** |
+| Base | la ligne `Swipe` a disparu (5 pass → 4) |
+| Re-clic sur « Passer » | retour à « Annonce passée », ligne `LEFT` recréée |
+| Feed (annonce de la même zone) | passe de 1 à 2 entrées et **contient la cible** |
+| Écran | la vue Liste affiche la deuxième annonce **sans rechargement de page** |
+
+État d'origine restauré par le même chemin : 5 pass, 1 intérêt, les cinq mêmes annonces.
+
+#### Deux constats laissés de côté
+
+**Le « Retirer ce choix » existant ne recharge pas le feed.** Il retire la ligne du tray ; sa
+promesse (« l'annonce redeviendra visible dans votre feed ») n'est donc tenue qu'au rechargement
+suivant. `refreshKey` corrige ce défaut pour le nouveau chemin uniquement — l'ancien n'a pas été
+rebranché, hors périmètre.
+
+**L'état `RIGHT` de la même fiche n'a pas de bouton d'annulation non plus.** Ce cas est couvert
+ailleurs (« Vos choix »), contrairement au pass ; l'asymétrie est assumée, pas subie.
+
+#### DÉFAUT DÉCOUVERT PENDANT LA VÉRIFICATION — une session survit à la suppression du compte
+
+Le navigateur portait un cookie visant `paulgide@gmail.com` : compte ET profil absents de la base.
+Le jeton restait valide un mois de plus, et l'application se comportait comme si quelqu'un était
+connecté — `/annonces` répond 200, la barre de navigation s'affiche, et seul `/api/feed` trahit le
+problème avec un `404 Profil introuvable`. Un état ni connecté ni déconnecté, que l'utilisateur ne
+peut pas diagnostiquer.
+
+Conséquence directe du JWT figé au sign-in. Le correctif naturel serait de forcer la déconnexion
+quand le `profileId` du jeton ne résout plus. **Non corrigé** — hors périmètre, décision à prendre
+séparément. Probablement la même cause que le défaut de barre de tête après suppression de compte
+(`CompteForm.tsx`).
+
+---
+
 #### RÉCUPÉRATION D'UNE CONVERSATION ANTÉRIEURE — Fondations perdues retrouvées (29/07)
 
 > ⚠️ CONTEXTE CRITIQUE : Jean-Charles a informé le 29/07 qu'il existait 
