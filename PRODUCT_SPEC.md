@@ -4490,6 +4490,50 @@ fin de fonction, c'est accepter que les copies divergent.
 Trois gabarits salariés sur quatre ne sont pas écrits : **CDD kiné, CDI et CDD infirmier**. Leur
 absence est un fait déclaré dans le registre, pas un oubli — la route refuse explicitement.
 
+##### VÉRIFICATION À L'ÉCRAN (31/08) — la chaîne ne s'exécutait pas
+
+Toute la chaîne ci-dessus était vérifiée par le typage et le build, jamais exécutée. Un compte
+STRUCTURE de test a été créé, une annonce COLLABORATION publiée, un match formé, et la route
+appelée pour de vrai. **Elle répondait 422.**
+
+**Le branchement était du code mort.** Un refus inconditionnel hérité de la section 161 — « le
+contrat de travail est établi par l'établissement, hors plateforme » — subsistait une centaine de
+lignes plus haut dans la même route. Il interceptait toute STRUCTURE avant que la bifurcation
+salariée ne soit atteinte. Le typage ne pouvait pas le voir : les deux gardes sont individuellement
+bien typés, c'est leur ORDRE qui annulait le second. Retiré, pas déplacé.
+
+**Ce n'était pas un cas hypothétique.** Le recensement qui accompagnait la section 217 annonçait
+« aucun compte STRUCTURE en base ». C'est faux : il en existe **deux, réels**, créés le 13/07 et le
+10/08 (Hôpital Beauperthuy, Clinique l'Espérance). Sur 33 profils — et non 22. Les deux
+établissements recevaient le message « hors plateforme » pour un CDI que le produit savait produire.
+
+**Un second défaut, visible seulement en lisant le document.** L'article 4 (période d'essai) était
+rendu conditionnellement, et les numéros d'article sont écrits en dur : sans période d'essai, le
+contrat signé passait de l'« Article 3 » à l'« Article 5 ». Une renumérotation dynamique était
+exclue — l'article 1er renvoie nommément à l'« article 8 ci-après ». L'article est donc toujours
+rendu, et énonce l'absence de période d'essai quand il n'y en a pas : un contrat muet sur ce point
+et un contrat qui l'écarte ne sont pas le même contrat. *Rédaction à confirmer par JC.*
+
+**Constaté sur le PDF réel** (4 pages, 16 Ko), après correction : articles 1er → 20 contigus,
+qualité de « masseur-kinésithérapeute » tirée de `professionLabel(_, "contrat")`, avertissement
+« Document composé — aucun modèle-type de l'Ordre ne couvre ce cas » en tête de première page et
+rappelé en pied de dernière page, identités des deux parties, `Content-Disposition: attachment`,
+`Cache-Control: no-store`, et **l'email « contrat disponible » effectivement déclenché vers le
+salarié** — la régression corrigée le 29/08 ne s'est pas reproduite. En `draft=true` : filigrane
+« BROUILLON — DOCUMENT NON OFFICIEL », nom de fichier suffixé, et **aucun email**.
+
+Les deux refus CDD (annonce basculée en ASSISTANAT puis en REMPLACEMENT, que `NATURE_PAR_MISSION`
+mappe toutes deux sur CDD) renvoient bien 422 avec le motif exact, sans repli sur le gabarit CDI.
+
+**Deux réserves subsistent.** Le rendu a été obtenu en appelant le handler avec `auth()` simulé,
+faute de pouvoir ouvrir une session : tout ce qui précède l'authentification n'est pas couvert. Et
+la duplication de `fmtDateUTC` dans les sept gabarits (avec un « 1 octobre » au lieu de « 1er »),
+ainsi qu'une espace parasite avant la virgule après un `<Val>`, sont constatées et non corrigées —
+elles touchent les transcriptions CNOMK/CNOI validées.
+
+Données de test supprimées après vérification (compte, annonce, match) ; suppression constatée par
+recomptage. Aucun compte STRUCTURE de test conservé.
+
 #### SCALABILITÉ À PLUSIEURS CPTS (20/08) — audit et deux correctifs
 
 Nord Basse-Terre est le **secteur de test**, pas la cible. Vérification que rien ne suppose une

@@ -201,9 +201,16 @@ export function buildKineSalariatCdiPdf(data: ContractDataSalarie) {
           </Text>
         </View>
 
-        {periodeEssaiMois !== null && (
-          <View style={S.article}>
-            <Text style={S.articleTitle}>Article 4 — Période d'essai</Text>
+        {/* L'article est TOUJOURS rendu (31/08). Il était conditionnel, et sa disparition laissait
+            un contrat signé numéroté « Article 3 » puis « Article 5 » — les numéros sont écrits en
+            dur, et l'article 1er renvoie nommément à l'« article 8 ci-après », donc une
+            renumérotation dynamique aurait fait dériver ce renvoi. Constaté sur le PDF réel, pas
+            dans le code : la relecture du document est la seule chose qui pouvait le montrer.
+            Le cas « pas de période d'essai » est en outre une stipulation à part entière — un
+            contrat muet sur ce point et un contrat qui l'écarte ne se valent pas. */}
+        <View style={S.article}>
+          <Text style={S.articleTitle}>Article 4 — Période d'essai</Text>
+          {periodeEssaiMois !== null ? (
             <Text style={S.body}>
               Le présent contrat ne deviendra définitif qu'à l'expiration d'une période d'essai fixée à{" "}
               {periodeEssaiMois} mois. Dans la mesure où cette période constitue une période de travail
@@ -212,8 +219,13 @@ export function buildKineSalariatCdiPdf(data: ContractDataSalarie) {
               Pendant cette période, chacune des parties pourra rompre le contrat dans le respect des
               délais de prévenance prévus par le Code du travail.
             </Text>
-          </View>
-        )}
+          ) : (
+            <Text style={S.body}>
+              Les parties ne conviennent d'aucune période d'essai. L'engagement est définitif dès la
+              prise d'effet du contrat.
+            </Text>
+          )}
+        </View>
 
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 5 — Lieu de travail</Text>

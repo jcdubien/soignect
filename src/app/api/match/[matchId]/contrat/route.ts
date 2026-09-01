@@ -91,16 +91,16 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  // Salariat (section 161) : recruteur = STRUCTURE employeuse → pas de PDF (templates libéraux
-  // uniquement). Garde défensif si l'API est appelée directement.
-  const titulaireForKind =
-    (match.profileA as { type: string; titulaireKind?: string }).type === "TITULAIRE" ? match.profileA : match.profileB;
-  if ((titulaireForKind as { titulaireKind?: string }).titulaireKind === "STRUCTURE") {
-    return NextResponse.json(
-      { error: "Poste salarié : le contrat de travail est établi par l'établissement, hors plateforme." },
-      { status: 422 }
-    );
-  }
+  // NOTE (31/08) — un refus inconditionnel du salariat se trouvait ICI, hérité de la section 161
+  // (« le contrat de travail est établi par l'établissement, hors plateforme »). Il a été retiré,
+  // pas déplacé : la section 217 sait désormais produire un contrat de travail. Tant qu'il
+  // subsistait, il interceptait toute STRUCTURE une centaine de lignes AVANT la bifurcation
+  // salariée, qui n'était donc jamais atteinte — vérifié à l'exécution le 31/08, la route
+  // répondait 422 sur un cas CDI kiné parfaitement valide.
+  //
+  // Le refus n'a pas disparu pour autant : les trois gabarits salariés non écrits sont refusés
+  // par la bifurcation elle-même, avec le motif exact (profession + nature CDI/CDD) au lieu d'un
+  // message générique qui affirmait à tort que la plateforme ne saurait jamais le faire.
 
   // Accès Premium — via le helper unifié (mode gratuit global + grâce billing, section 100),
   // ou partenaire CPTS (Premium gratuit, item 25). Cohérent avec /annonces et /match/[id].
