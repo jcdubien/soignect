@@ -1186,12 +1186,107 @@ ci-dessus, plus une référence de file d'attente.
    avertissement légal renforcé dans le **PDF signé lui-même**, pas
    seulement en commentaire de code — proposition d'Opus, retenue :
    "c'est le document signé qui compte, pas le fichier source".
-   En-tête déjà rédigé par Opus, validé, à utiliser tel quel :
-   documente explicitement que ce gabarit est COMPOSÉ (clauses
-   déontologiques générales du CDD + droit du travail standard) et
-   non transcrit d'un modèle officiel, ce qui n'a pas été repris et
-   pourquoi, et recommande une validation par avocat avant tout usage
-   réel. Prompt envoyé pour composer, rapport pas encore reçu.
+   **CDI kiné composé et LIVRÉ (`f727784`, 28/08).** `ContractDataSalarie`
+   posé avec les deux axes rendus structurels — union discriminée,
+   pas des champs optionnels. **Deux décisions de typage notables** :
+   le temps partiel ne peut PAS se construire sans sa répartition
+   horaire (le Code du travail l'exige, absence = requalification
+   temps complet) ; `CDD_SANS_TERME` n'a même pas de champ `fin` (un
+   `fin?: string` aurait fait ressembler un contrat sans terme précis
+   à un oubli de saisie). Dans les deux cas, le type interdit l'état
+   invalide plutôt que de compter sur la vigilance de l'appelant —
+   la meilleure application de ce principe de tout le chantier.
+   Avertissement placé en premier bloc du PDF, avant les parties, pied
+   de page distinct ("Document composé, sans modèle-type de l'Ordre").
+   Build vert, les 6 gabarits existants intacts (diff vide). **Absence
+   du CDI kiné reconfirmée sur 3 surfaces distinctes** — et la
+   synthèse de recherche web initiale qui prétendait le contraire
+   était fausse ; seule la lecture de l'objet réel de chaque document
+   a tranché, pas le titre du fichier.
+   **Investigation reçue (28/08) — analyse exceptionnelle, décision
+   B tranchée.** 43 fichiers référencent `MissionType`, mais le fait
+   décisif est ailleurs : **zéro `Record<MissionType, …>` nulle part
+   dans le dépôt** — aucune exhaustivité vérifiée par le compilateur.
+   Ajouter `SALARIE` compilerait partout en silence.
+   **Trois conséquences concrètes trouvées (code à l'appui, pas en
+   théorie)** : (1) génération de contrat — un `else` final ferait
+   sortir un contrat de collaboration libérale kiné pour un poste
+   salarié, document faux signé sans signal — **exactement le même
+   défaut que `?? REMPLACEMENT` fermé le 13/08, reconstitué par une
+   autre porte** ; (2) scoring — `SALARIE` atterrirait dans le même
+   `else`, hériterait du barème remplacement, avec le label affiché
+   littéralement "REMPLACEMENT" ; (3) extraction IA — `annonceAI.ts`
+   coderait en dur les 3 valeurs actuelles, `SALARIE` serait ignoré
+   ou rejeté sans mise à jour du prompt et de la liste d'acceptation.
+   **Recommandation d'Opus, argumentée sur 3 points** : `MissionType`
+   décrit une grammaire d'engagement libéral (rétrocession, patientèle,
+   contrat soumis à l'Ordre) — le salariat n'a rien de ça
+   (subordination, rémunération brute, Code du travail), les mélanger
+   reproduirait l'erreur `rayonKm` (support qui ne peut pas porter ce
+   qu'on lui fait dire). La bifurcation existe déjà dans le produit
+   (`TitulaireKind.STRUCTURE`, formulaires déjà relabellisés CDD/CDI/
+   Vacation, blocage déjà en place) — B la branche, ne l'invente pas.
+   B laisse intact le mécanisme `Gabarit[]`, les 6 gabarits libéraux,
+   et les 3 gardes du 28/08.
+   **Décision de Jean-Charles (28/08) : B.** Superposition des deux
+   axes confirmée sur faits vérifiés, pas supposée : `COLLABORATION`
+   en base signifie deux choses opposées selon le `titulaireKind` de
+   l'annonceur (collaboration libérale chez un cabinet, CDI chez une
+   structure) — la superposition est DANS LA DONNÉE, pas juste dans
+   les libellés. **Solution retenue : dérivation déclarée
+   (`NATURE_PAR_MISSION: Record<MissionType, "CDI"|"CDD">`), pas de
+   nouvelle colonne** — une colonne `natureSalariat` aurait été le
+   5ᵉ levier dormant du produit (même famille que weight/boost*/
+   maxCandidates/isVerified), nulle pour toute annonce libérale, à
+   maintenir en cohérence à chaque écriture. La dérivation nomme une
+   correspondance qui existe déjà silencieusement, sans créer de
+   nouvelle donnée à synchroniser. **Bon réflexe supplémentaire** :
+   utilise `Record<MissionType, …>` — installe directement le
+   garde-fou d'exhaustivité dont l'absence avait été signalée
+   partout ailleurs, là où du code neuf s'écrit, plutôt que d'en
+   faire un chantier séparé. **Limite assumée et dite clairement** :
+   une requête `missionType = COLLABORATION` continuera de mélanger
+   collaborations libérales et CDI salariés — la dérivation rend la
+   lecture claire, ne désambiguïse pas la base ; le jour où compter/
+   filtrer les CDI sera nécessaire, une jointure sur `titulaireKind`
+   sera requise (déjà présente partout où le camp compte). L'axe
+   nature CDD-avec/sans-terme reste tranché à la génération, comme
+   la variante de remplacement infirmier — même mécanisme, même écran.
+   **LIVRÉ ET POUSSÉ (`675376e`, 29/08)** : `gabaritsSalarie.ts`
+   (registre profession×nature×temps + `NATURE_PAR_MISSION` +
+   l'entrée `KINE_SALARIAT_CDI`), bifurcation dans `contrat/route.ts`
+   sur `titulaireKind === "STRUCTURE"`, `contrat-info` qui renvoie les
+   gabarits salariés applicables au lieu de bloquer aveuglément, refus
+   explicite si la paire (profession, nature) n'a pas de gabarit —
+   **le motif de refus a changé pour la vraie raison** ("aucun modèle
+   applicable" plutôt que "c'est un salariat"). Build vert, les 7
+   gabarits intacts, le chemin libéral n'a perdu que deux
+   déclarations déplacées plus haut.
+   **🐛 Bug sérieux attrapé avant commit** : la première version de la
+   branche salariée divergeait du chemin libéral sur 3 points — PDF
+   en inline plutôt qu'attachment, `Cache-Control: no-store` absent
+   sur un document contractuel, et surtout **aucun email "contrat
+   disponible" n'aurait été envoyé à l'autre partie**. Cause : fin de
+   fonction dupliquée plutôt que partagée, divergente en quelques
+   minutes. Corrigé en partageant la même fin entre les deux
+   branches. Leçon retenue : *"dupliquer une queue, c'est accepter
+   qu'elle diverge."*
+   **Deux réserves honnêtes** : rendu PDF jamais constaté (même
+   limite d'outillage que le 28/08) ; **rien vérifié à l'écran** —
+   les 22 comptes existants sont tous `CABINET`, aucun `STRUCTURE`
+   en base pour tester réellement.
+   **Décision de Jean-Charles (29/08) : créer un compte STRUCTURE de
+   test marqué pour vérifier à l'écran.** Prompt envoyé — création du
+   compte, scénario complet (annonce COLLABORATION structure → match
+   → génération réelle du contrat), vérification spécifique que le
+   bug de l'email corrigé ne s'est pas reproduit, nettoyage ou
+   conservation explicite du compte de test ensuite. Rapport pas
+   encore reçu.
+   **Observation indépendante notée, hors scope pour l'instant** :
+   l'absence de `Record<MissionType, …>` ailleurs dans le code reste
+   un vrai défaut en soi, à reprendre séparément un jour, pas urgent.
+   **Restent à écrire** : CDD kiné, CDI infirmier, CDD infirmier —
+   seul le CDI kiné composé est fait à ce stade.
    **Réserve technique levée** : le violet CNOMK est bien récupérable
    dans le flux PDF (rgb(0.439, 0.188, 0.627), 11 occurrences,
    confirmé par le document lui-même comme marqueur de clause
