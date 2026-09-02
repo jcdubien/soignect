@@ -5611,6 +5611,78 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 220 — CARTE DE PARTAGE : LE VOILE ET L'INTENTION (01/09)
+
+#### « Trop floue » : la photo était nette
+
+Signalé depuis une capture Facebook. Vérification sur le rendu réel : **aucun flou, aucun `blur`
+dans le code**. Ce qui se lisait comme du flou, c'était le **voile gris à 68 %** qui délavait la
+photo au point de la faire passer pour hors focus.
+
+Ce voile n'était pas arbitraire — il portait une mesure de contraste documentée (5,33:1 à 68 %).
+Le baisser sans plus n'était donc pas une option : il fallait remplacer ce qu'il garantissait.
+
+#### Le contraste devient local au lieu d'être global
+
+Un voile uniforme fait payer à **toute** la photo la lisibilité de 30 % de sa surface. Le texte vit
+dans une colonne centrée ; on protège donc cette colonne-là.
+
+- voile global **68 % → 38 %**, il n'unifie plus que la photo ;
+- **bandeau central** de 980 px, gris neutre à 58 %, fondu très large (0 → 30 % → 70 % → 100 %) ;
+- **ombre portée** sur chaque texte, qui suit le glyphe au lieu d'assombrir le cliché.
+
+Le bandeau est en gris neutre et non en couleur de marque : une teinte bleue dénaturait la photo
+autant que le voile qu'on venait d'alléger. Le fondu est large parce qu'à 16 % la transition se
+voyait comme un rectangle posé sur l'image — vérifié à l'œil, corrigé.
+
+#### Contraste mesuré, pas estimé
+
+Même protocole que la mesure d'origine (95e centile de la luminance du fond, hors glyphes, par
+bande de texte), recalibré d'abord sur l'ancien rendu pour vérifier qu'il retrouve bien le 5,3:1
+documenté.
+
+| Cliché | Pire bande AVANT | Pire bande APRÈS |
+|---|---|---|
+| Cabinet très lumineux | **3,80:1** | **5,07:1** |
+| Portrait | 5,28:1 | **8,39:1** |
+| Établissement | — | **5,03:1** |
+
+La photo la plus exigeante était donc **sous le seuil** avant ce changement, sur la bande du badge.
+Elle repasse au-dessus tout en étant beaucoup plus visible.
+
+#### L'étiquette devient une phrase
+
+« Remplacement » ne dit pas si un cabinet cherche quelqu'un ou si quelqu'un se propose. Dans le
+produit le contexte suffit ; sur Facebook, non. Trois tables dans `lib/libellesPoste`, à côté des
+autres :
+
+| Publieur | Exemple rendu |
+|---|---|
+| Cabinet libéral | « Ce cabinet recherche un remplaçant » |
+| Établissement | « Cet établissement recrute en CDI » |
+| Candidat | « Propose sa disponibilité comme remplaçant » |
+
+Le badge portant désormais une phrase, sa taille est **calculée** pour tenir sur une ligne, comme
+celle du titre — `whiteSpace: nowrap` ne rétrécit rien, il laisse déborder.
+
+#### Deux pièges du moteur de rendu, dont un que j'ai déclenché
+
+**`objectPosition` est silencieusement ignoré.** Remonter le cadrage sur le visage aurait du sens.
+Vérifié en rendant la même annonce avec « 50% 0% » puis « 50% 100% » : **les deux PNG ont la même
+empreinte MD5**. La propriété a été retirée plutôt que laissée à mentir — c'est le même piège que
+`WebkitLineClamp`, déjà documenté dans ce fichier. Le cadrage reste centré.
+
+**`textShadow: undefined` fait tomber toute l'image en 500.** Ce moteur lit une propriété dès
+qu'elle EXISTE, même absente de valeur — règle déjà écrite ici pour `backgroundImage`, que j'ai
+rouverte en posant l'ombre par ternaire. Constaté sur le repli sans photo, à 500. L'ombre est
+désormais posée par spread, la clé est absente quand il n'y a pas de photo, et le repli rend un 200.
+
+Aucune annonce n'a de profil sans photo aujourd'hui : ce repli n'est atteint que si le
+téléchargement échoue au rendu. Il a donc fallu le **forcer** pour le vérifier — sans quoi le 500
+serait parti en production pour n'apparaître qu'au premier stockage lent.
+
+---
+
 ### SECTION 219 — LE JETON EST RECONFRONTÉ À LA BASE (01/09)
 
 #### Ce qui n'allait pas
