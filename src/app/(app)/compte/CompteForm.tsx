@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { Profession, Region, SubscriptionPlan, ProfileType, TitulaireKind } from "@prisma/client";
 import CompteTimeline from "./CompteTimeline";
+import ChangementCamp from "@/components/compte/ChangementCamp";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164, splitE164 } from "@/lib/phone";
 import { bioLimitFor } from "@/lib/bio";
@@ -236,6 +237,15 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
           )}
         </p>
       </div>
+
+      {/* ── Type de profil (section 222) ── Placé avant les informations personnelles : il
+             détermine ce que les champs suivants VEULENT DIRE (« Nom du cabinet » vs « Votre
+             nom »), donc il se lit d'abord. ── */}
+      <ChangementCamp
+        profileId={profile.id}
+        campActuel={profile.type === "TITULAIRE" ? "TITULAIRE" : "CHERCHEUR"}
+        etaitAssistant={profile.type === "ASSISTANT"}
+      />
 
       {/* ── Informations personnelles ── */}
       <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">

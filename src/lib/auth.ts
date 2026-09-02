@@ -79,7 +79,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // serveur relit donc la base à chaque rendu : une lecture par clé primaire, indexée, que l'on
     // accepte — c'est le prix de la garantie, et il reste très inférieur à celui d'une session
     // orpheline qui survit un mois.
-    async jwt({ token, user }) {
+    //
+    // FORÇAGE PAR `trigger === "update"` (section 222). Le type de profil pilote des redirections
+    // de route lues DANS LE JETON (/planning, /disponibilites). Sans ce forçage, un changement de
+    // camp n'aurait pris effet qu'à la fin de la fenêtre de 5 minutes : l'utilisateur aurait été
+    // renvoyé vers l'écran de son ancien camp juste après avoir basculé, sans rien y comprendre.
+    // Le client appelle `update()` après le changement ; on relit alors immédiatement.
+    async jwt({ token, user, trigger }) {
       if (user) {
         const u = user as { role: string; profileId: string | null; profileType: string | null; isEmployeur: boolean };
         token.role = u.role;
@@ -91,7 +97,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       const verifiedAt = typeof token.verifiedAt === "number" ? token.verifiedAt : 0;
-      if (Date.now() - verifiedAt < INTERVALLE_REVALIDATION_MS) return token;
+      if (trigger !== "update" && Date.now() - verifiedAt < INTERVALLE_REVALIDATION_MS) return token;
 
       try {
         const compte = await prisma.user.findUnique({

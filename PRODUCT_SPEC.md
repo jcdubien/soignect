@@ -5611,6 +5611,89 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 222 — CHANGER DE CAMP EN SELF-SERVICE (02/09)
+
+#### Le besoin
+
+Le `Profile.type` de Marion a été changé à la main en base le 21/08, avec son accord, faute de
+mécanisme. Il n'en existait effectivement aucun : `PATCH /api/profiles/[id]` n'accepte pas `type`.
+
+#### Recensement — ce qui dépend de `Profile.type`
+
+47 fichiers. Les points structurants :
+
+- le **camp du feed** s'en déduit entièrement (`api/feed/route.ts`) ;
+- les **gardes de route** : `/planning` redirige si ≠ TITULAIRE, `/disponibilites` si TITULAIRE —
+  et elles lisent le type **dans le jeton**, pas en base ;
+- **aucune contrainte de schéma** n'en dépend : rien ne casse structurellement.
+
+**Le fait central : une `Mission` ne porte aucune marque de camp.** Son sens vient uniquement du
+type de son propriétaire.
+
+| | TITULAIRE (14) | REMPLACANT (16) | ASSISTANT (3) |
+|---|---|---|---|
+| missions | 21 (15 rattachées à un poste) | 10 (0 rattachée) | 0 |
+| cabinetPosts | 12 | 0 | 0 |
+| statuts de brique | RECHERCHE 15, CONFIRME 5, ABSENT_CONGE 1 | RECHERCHE 10 | — |
+
+Basculer un titulaire retournerait donc le SENS de ses annonces — « je recrute un remplaçant »
+devient « je suis disponible en remplacement », publié dans le feed d'en face. **11 titulaires sur
+14 ont des données en jeu** ; 3 basculeraient sans rien perdre.
+
+#### Deux décisions de Jean-Charles (01/09)
+
+1. **Désactiver, ne rien supprimer.** Les annonces passent `isActive = false`, les `CabinetPost`
+   sont conservés intacts.
+2. **Bloquer s'il existe des relations vivantes.** Un match apparie un titulaire ET un candidat :
+   après bascule les deux côtés seraient du même camp, et un contrat généré dessus serait faux.
+
+#### Deux camps, pas trois types
+
+`lib/camp.ts` traduit `ProfileType` en **Titulaire ↔ Chercheur de poste**. REMPLACANT et ASSISTANT
+doivent fusionner (décision du 26/08) : exposer trois options égales installerait une distinction
+qu'on a prévu de supprimer. La fusion elle-même n'est pas faite — `ProfileType` garde ses trois
+valeurs, seule leur présentation est ramenée à deux.
+
+**Conséquence assumée mais annoncée** : CHERCHEUR est stocké `REMPLACANT`. Un profil ASSISTANT qui
+part vers Titulaire puis revient reviendra en Remplaçant. L'écran le dit avant de demander
+confirmation, plutôt que de le faire en silence.
+
+#### Une route dédiée, pas un champ de plus
+
+`POST /api/profiles/[id]/type`. Changer de type n'est pas éditer un champ : c'est une bascule à
+effets de bord, **qui doit pouvoir refuser**. La route générique répond 200 à ce qu'on lui donne ;
+le refus n'y aurait eu nulle part où s'exprimer.
+
+`GET` sur la même route rend l'impact, pour que l'écran annonce les conséquences sans les
+recalculer de son côté. L'impact est **revérifié à l'écriture** : entre l'aperçu et la
+confirmation, une mise en relation a pu naître.
+
+#### Le jeton devait suivre
+
+Les gardes de `/planning` et `/disponibilites` lisent `profileType` **dans le jeton**, que la
+section 219 ne revalide qu'une fois toutes les 5 minutes. Sans correctif, l'utilisateur aurait été
+renvoyé vers l'écran de son ANCIEN camp juste après avoir basculé. Le callback `jwt` force donc la
+relecture sur `trigger === "update"`, et le client appelle `update()` après le changement.
+
+#### Vérifié à l'exécution, aller-retour compris
+
+Route exercée sur de vrais profils, `auth()` simulé.
+
+| Cas | Observé |
+|---|---|
+| Titulaire avec une relation vivante | `GET` liste la relation (« Bisot ») ; `POST` → **409**, aucune écriture |
+| Titulaire sans relation → Chercheur | **200**, type `REMPLACANT`, 3 annonces désactivées, **2 postes intacts** |
+| Retour Chercheur → Titulaire | **200**, type `TITULAIRE`, postes toujours intacts |
+
+L'aller-retour a corrigé une **formulation fausse** de l'écran : il annonçait « vous les
+retrouverez si vous revenez ». C'est inexact — revenir ne republie pas les annonces, elles restent
+retirées. Le texte dit maintenant qu'il faudra les republier.
+
+État d'origine du profil de test restauré à l'identique (type, liste exacte des annonces actives,
+nombre de postes), vérifié par comparaison avant/après.
+
+---
+
 ### SECTION 221 — LE PLANNING NE DEVINE PLUS QU'UN POSTE EST POURVU (01/09)
 
 #### Ce que la capture montrait, et ce qui la causait vraiment
