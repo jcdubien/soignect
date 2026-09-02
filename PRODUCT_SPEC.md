@@ -5611,7 +5611,64 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
-### SECTION 220 — CARTE DE PARTAGE : LE VOILE ET L'INTENTION (01/09)
+### SECTION 221 — LE PLANNING NE DEVINE PLUS QU'UN POSTE EST POURVU (01/09)
+
+#### Ce que la capture montrait, et ce qui la causait vraiment
+
+Une bande au vert « Confirmé » sans contrat signé. La cause n'est PAS le match lui-même — la
+dérivation était déjà restreinte aux mises en relation `CONFIRME`, un premier correctif l'ayant
+resserrée depuis « n'importe quelle mise en relation ».
+
+Le vrai coupable : **`MatchStatus.CONFIRME` ne veut pas dire « contrat conclu »**. Le bouton
+« Confirmer » de la page Relations, posé à côté de « Décliner », le pose à la main et se lit
+« oui, cette relation m'intéresse ». Deux faits distincts vivaient sur la même valeur d'enum.
+
+Constaté en base sur le cas signalé : mission stockée `RECHERCHE`, match `status = CONFIRME`,
+**`signatureTitulaireUrl` et `signatureRemplacantUrl` tous deux à `null`**. Le vert n'était donc
+pas écrit, il était calculé à l'affichage.
+
+#### Le correctif
+
+`getEffectiveStatus` ne dérive plus rien des mises en relation. Le Planning ne lit que ce qui a été
+ÉCRIT :
+
+- **(a) contrat signé des deux côtés** → la route signature écrit `briqueStatus = CONFIRME` ;
+- **(b) déclaration explicite** → « Occupation externe (hors Soignect) », qui crée une brique
+  `CONFIRME` sans `matchId`, et la route `cabinet-posts` pour un poste créé déjà occupé.
+
+Tout le reste reste `RECHERCHE` : l'annonce recrute encore, et c'est vrai.
+
+Aucun signal de remplacement n'a été introduit (« relation en cours » sur une autre couleur) :
+ce serait rouvrir la même confusion ailleurs. Le nombre de relations est déjà affiché à côté.
+
+#### (b) existait déjà — rien à construire
+
+L'action explicite demandée existe sous le libellé **« Occupation externe (hors Soignect) »**, avec
+le texte « Poste occupé par une personne recrutée hors Soignect. Enregistré comme confirmé, sans
+lien à un match. » Elle couvre exactement le cas « signé en externe ».
+
+#### Ampleur mesurée avant décision
+
+| Population | Compte |
+|---|---|
+| Matches `status = CONFIRME` | 1 |
+| … dont sans les deux signatures | **1** |
+| Bandes vertes PAR DÉRIVATION, qui redeviennent `RECHERCHE` | **2** (les deux côtés du même match) |
+| Missions stockées `briqueStatus = CONFIRME` | 5 |
+| … adossées à un contrat signé | 0 |
+| … déclarées à la création du poste (cas b) | **5** |
+| … ni l'un ni l'autre (**orphelines**) | **0** |
+
+**Aucune correction de données n'est nécessaire.** Le vert litigieux n'était jamais stocké : il
+disparaît avec la dérivation. Les 5 briques stockées en vert relèvent toutes d'une déclaration
+explicite.
+
+#### Constat connexe, NON corrigé
+
+Le basculement « Fermer temporairement » écrit `FERME`, et **son inverse réécrit `CONFIRME`** —
+rouvrir une période fermée repeint donc la bande en « pourvu », alors que « rouvrir » ne veut pas
+dire « pourvu ». C'est la même confusion, sur un autre chemin. Hors périmètre de ce correctif :
+signalé pour décision séparée.
 
 #### « Trop floue » : la photo était nette
 

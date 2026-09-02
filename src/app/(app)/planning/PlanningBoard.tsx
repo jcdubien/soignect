@@ -422,12 +422,15 @@ function monthSkipFor(zoom: Zoom): number {
   return 1;                            // tous les mois
 }
 
-// Calcule le statut effectif en tenant compte des overrides locaux et des matches
+// Statut effectif d'une brique : override local en cours d'édition, sinon ce qui est STOCKÉ.
+// `post` reste dans la signature bien qu'inutilisé : les appelants le passent déjà, et le retirer
+// toucherait des sites d'appel sans rapport avec ce correctif.
 function getEffectiveStatus(
   mission: MissionData,
   post: PostData,
   localStatuses: Record<string, string>
 ): string {
+  void post;
   const local = localStatuses[mission.id];
   if (local) return local;
 
@@ -437,12 +440,25 @@ function getEffectiveStatus(
   // Si le statut a été modifié manuellement (différent du défaut RECHERCHE), on l'utilise
   if (stored !== "RECHERCHE") return stored;
 
-  // Sinon on calcule depuis les matches — mais seule une mise en relation CONFIRMÉE couvre le
-  // poste. Compter toutes les mises en relation peignait la brique en vert « Confirmé » dès le
-  // premier contact, alors que l'annonce recrute encore et que rien n'est acté : le planning
-  // annonçait un poste couvert sur la foi d'une conversation en cours.
-  const couvert = [...mission.matchesA, ...mission.matchesB].some((m) => m.status === "CONFIRME");
-  return couvert ? "CONFIRME" : "RECHERCHE";
+  // AUCUNE DÉRIVATION DEPUIS LES MISES EN RELATION (section 221, 01/09).
+  //
+  // Le vert « Confirmé » du Planning dit UNE chose : le poste est pourvu. Il se déduisait de
+  // `Match.status === "CONFIRME"`, ce qui semblait prudent — un premier correctif avait déjà
+  // restreint la règle de « n'importe quelle mise en relation » à « une mise en relation
+  // confirmée ». Mais `MatchStatus.CONFIRME` ne veut pas dire « contrat conclu » : le bouton
+  // « Confirmer » de la page Relations, posé à côté de « Décliner », le pose à la main et se lit
+  // « oui, cette relation m'intéresse ». Constaté le 01/09 : une brique au vert avec les DEUX
+  // signatures à `null`.
+  //
+  // Deux faits distincts vivaient donc sur la même valeur d'enum. Le Planning ne les distingue
+  // plus en devinant : il ne lit que ce qui a été ÉCRIT, c'est-à-dire
+  //   (a) la signature des deux parties, qui écrit `briqueStatus = CONFIRME` (route signature) ;
+  //   (b) la déclaration explicite d'un poste occupé à sa création (route cabinet-posts).
+  // Tout le reste reste RECHERCHE : l'annonce recrute encore, et c'est vrai.
+  //
+  // On ne remplace PAS par un autre signal dérivé (« relation en cours ») : ce serait rouvrir la
+  // même confusion sur une autre couleur. Le nombre de relations est déjà affiché à côté.
+  return "RECHERCHE";
 }
 
 // ── Menu à 3 choix au clic sur un poste (section 55) ─────────────────────────────
