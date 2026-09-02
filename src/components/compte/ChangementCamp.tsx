@@ -84,7 +84,13 @@ export default function ChangementCamp({
       // Le jeton porte `profileType`, et les gardes de /planning et /disponibilites le lisent.
       // Sans cette relecture forcée, l'utilisateur serait renvoyé vers l'écran de son ANCIEN camp
       // pendant plusieurs minutes après avoir basculé.
-      await update();
+      //
+      // L'ARGUMENT `{}` N'EST PAS DÉCORATIF. `update()` SANS argument fait un simple GET —
+      // next-auth/react : `typeof data === "undefined" ? undefined : { body: … }`. Seul un appel
+      // AVEC données envoie le POST qui vaut `trigger: "update"` côté serveur. Constaté en
+      // production le 02/09 : la base passait bien en TITULAIRE, le jeton restait ASSISTANT, et
+      // /planning renvoyait vers /annonces.
+      await update({});
       router.refresh();
       router.push(cible === "TITULAIRE" ? "/planning" : "/disponibilites");
     } catch {
@@ -136,10 +142,15 @@ export default function ChangementCamp({
               <p className="text-xs font-semibold text-red-700">
                 Changement impossible pour l&apos;instant
               </p>
+              {/* L'accord porte sur TOUTE la phrase, pas seulement sur « mise(s) ». Constaté à
+                  l'écran en production : « 1 mise en relation en cours : Bisot. Finalisez-LES ou
+                  annulez-LES d'abord. » */}
               <p className="text-[11px] text-red-600 mt-1 leading-snug">
                 {impact.relationsBloquantes.length} mise{impact.relationsBloquantes.length > 1 ? "s" : ""} en
                 relation en cours&nbsp;: {impact.relationsBloquantes.map((r) => r.avec).join(", ")}.
-                Finalisez-les ou annulez-les d&apos;abord.
+                {impact.relationsBloquantes.length > 1
+                  ? " Finalisez-les ou annulez-les d'abord."
+                  : " Finalisez-la ou annulez-la d'abord."}
               </p>
             </div>
           ) : (

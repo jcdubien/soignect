@@ -5692,6 +5692,44 @@ retirées. Le texte dit maintenant qu'il faudra les republier.
 État d'origine du profil de test restauré à l'identique (type, liste exacte des annonces actives,
 nombre de postes), vérifié par comparaison avant/après.
 
+#### VÉRIFICATION À L'ÉCRAN, EN PRODUCTION (02/09) — deux défauts que rien d'autre ne montrait
+
+**Le blocage s'affiche correctement**, sur un compte titulaire ayant une relation vivante :
+« Changement impossible pour l'instant / 1 mise en relation en cours : Bisot », bouton
+« Confirmer » désactivé. La section est bien placée avant « Informations personnelles » — l'ordre
+voulu, puisque le camp détermine ce que les champs suivants signifient (« Nom du cabinet » vs
+« Votre nom »).
+
+**Le chemin nominal s'affiche aussi**, depuis un compte chercheur sans données : « Passer en
+Titulaire / cabinet », « Aucune donnée existante n'est concernée », et l'avertissement sur la
+sous-catégorie ASSISTANT non mémorisée.
+
+**Défaut 1 — accord grammatical.** L'écran affichait « 1 mise en relation en cours : Bisot.
+Finalisez-**les** ou annulez-**les** d'abord. » L'accord ne portait que sur « mise(s) ». Corrigé :
+au singulier, « Finalisez-la ou annulez-la ».
+
+**Défaut 2 — le jeton ne se rafraîchissait pas, et c'est le grave.** Après confirmation, la base
+passait bien en `TITULAIRE` mais la session restait `ASSISTANT`, et `/planning` renvoyait vers
+`/annonces` : l'utilisateur basculait puis se retrouvait sur l'écran de son ancien camp, exactement
+le défaut que le forçage `trigger === "update"` était censé empêcher.
+
+La cause n'est pas le serveur — un POST manuel sur `/api/auth/session` rendait bien `TITULAIRE`.
+C'est **`update()` sans argument qui fait un simple GET** :
+
+```js
+// next-auth/react
+typeof data === "undefined" ? undefined : { body: { csrfToken, data } }
+```
+
+Seul un appel AVEC données envoie le POST qui vaut `isUpdate`, donc `trigger: "update"`. Sans
+argument, la requête retombait sur la fenêtre de 5 minutes et rendait le jeton périmé. Corrigé en
+`update({})`.
+
+**Ce défaut était invisible autrement** : typage correct, build vert, route exercée rendant le bon
+JSON, base correctement écrite. Seul le parcours complet à l'écran pouvait le montrer.
+
+Compte de test restauré en `ASSISTANT` ; il n'avait ni annonce ni poste, avant comme après.
+
 ---
 
 ### SECTION 221 — LE PLANNING NE DEVINE PLUS QU'UN POSTE EST POURVU (01/09)
