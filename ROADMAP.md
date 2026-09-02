@@ -737,14 +737,142 @@ ci-dessus, plus une référence de file d'attente.
   qui a changé, prête pour le jour où une 2ᵉ profession sera
   réellement servie.
 
+- **Session JWT d'un compte supprimé non purgée — corrigé (31/08,
+  `05bd8cb`).** Bug distinct du "mélange barre de tête" déjà fermé
+  (dont la cause avait été confirmée comme n'étant PAS le JWT) : un
+  jeton de session pointant vers un compte supprimé n'était pas
+  invalidé. Le callback `jwt` reconfronte maintenant le jeton à la
+  base et renvoie `null` si le compte n'existe plus — Auth.js purge
+  alors le cookie (contrat vérifié dans le code source d'Auth.js
+  avant de s'appuyer dessus). L'existence du compte fait foi, pas
+  celle du profil (`onDelete: Cascade`, un profil orphelin ne peut
+  pas exister). `role`/`profileId`/`profileType`/`isEmployeur`
+  re-lus à la source plutôt que repris du jeton — même classe de bug
+  fermée une fois de plus.
+  **Deux garde-fous** : intervalle de 5 minutes (évite un aller-retour
+  base à chaque requête, connexions déjà limitées — P1017 connu) ;
+  **panne base ≠ compte supprimé** — une erreur de connexion ne
+  purge jamais la session (déconnecterait tout le monde sur une
+  simple coupure), seule l'absence confirmée du compte le fait.
+  **Vérifié à l'exécution, 4 cas contre la vraie route** : compte
+  supprimé → cookie purgé ✓ ; jeton périmé sur compte réel → claims
+  corrigées ✓ ; **jeton frais sur compte réel → fausse valeur
+  préservée** (preuve que l'intervalle fonctionne, pas juste supposé)
+  ; base injoignable → session conservée, pas de purge ✓.
+  **Limite honnêtement documentée** : les rendus de composants
+  serveur ne peuvent pas réécrire le cookie (Next l'interdit) — donc
+  relisent la base à chaque rendu ; "au plus une lecture toutes les 5
+  minutes" n'est vrai que pour le trafic client.
+  **Réserve** : vérifié au niveau de la route avec des jetons forgés,
+  pas à travers une vraie session de navigateur. Déploiement Vercel
+  à vérifier — demandé, rapport pas encore reçu.
+
+- **Image de partage : corrigée de bout en bout (01/09, `837f676`),
+  section 220.** Rapport reçu — voir prompt du 26/08.
+  **Diagnostic initial corrigé avant toute action** : aucun flou
+  dans le code, rendu réel généré pour vérifier. La "photo floue"
+  était en fait un voile gris à 68% qui délavait l'image jusqu'à la
+  faire paraître hors focus.
+  **Trouvaille inattendue** : le voile original à 68% échouait déjà
+  l'accessibilité sur la photo de cabinet la plus lumineuse
+  (3,80:1, sous le seuil 4,5:1) — personne ne l'avait remarqué. Le
+  signalement "trop flou" a mené à corriger un vrai défaut
+  d'accessibilité préexistant, pas seulement la plainte initiale.
+  **Redesign contraste local plutôt que global** : voile uniforme
+  68%→38% (unifie seulement), bandeau central 980px gris neutre à
+  58% avec fondu large (protège la colonne de texte sans faire
+  payer toute la photo), ombre portée locale sur chaque texte.
+  Ajusté à l'œil en cours de route (bandeau d'abord bleu-teinté et
+  trop marqué, corrigé en gris neutre + fondu élargi).
+  **Mesure recalibrée sur le chiffre documenté (5,3:1) avant de
+  faire confiance aux nouvelles mesures** — même discipline que
+  l'investigation CARPIMKO, devenue une pratique répétée. Résultat :
+  cabinet 3,80→5,07:1, portrait 5,28→8,39:1, établissement→5,03:1 —
+  tous au-dessus du seuil, la photo bien plus visible qu'avant.
+  **Ambiguïté employeur/candidat résolue** : nouveau module
+  `phraseIntentionPartage` dans `libellesPoste.ts`, 3 tables
+  distinctes selon le publieur (cabinet "recherche un remplaçant",
+  établissement "recrute en CDI", candidat "propose sa
+  disponibilité") — repli sur le libellé neutre si aucune
+  correspondance, jamais une intention inventée. Badge redimensionné
+  dynamiquement pour porter une phrase plutôt qu'un mot.
+  **🐛 Deux pièges du moteur de rendu attrapés, pas supposés absents** :
+  `objectPosition` silencieusement ignorée par next/og — prouvé par
+  MD5 identiques sur deux valeurs opposées ("50% 0%" vs "50% 100%"),
+  retirée plutôt que laissée mentir dans un commentaire (même piège
+  déjà documenté pour `WebkitLineClamp`). **Honnêteté explicite** :
+  "je n'ai pas livré la moitié 'centre l'image' de ta demande" — le
+  mécanisme ne fonctionne pas dans cet environnement, dit clairement
+  plutôt que caché. `textShadow: undefined` faisait planter le rendu
+  en 500 sur le repli sans photo (aucune annonce actuelle ne
+  l'atteint) — trouvé en **forçant délibérément** ce chemin non
+  testé plutôt qu'en supposant qu'il marchait. Même piège que
+  `backgroundImage` déjà documenté dans ce fichier — corrigé par le
+  même motif (spread conditionnel, pas ternaire vers `undefined`).
+  Sans cette vérification, le bug serait parti en production pour
+  n'exploser qu'au premier échec de téléchargement photo.
+  Documentation complète ajoutée (PRODUCT_SPEC.md section 220,
+  tableau avant/après, les deux pièges nommés explicitement).
+
+- **Changement de type de profil self-service (titulaire ↔
+  chercheur) — livré (01/09, `ebe769a`).** Route dédiée
+  `POST /api/profiles/[id]/type`, pas un champ de plus dans le PATCH
+  générique — changer de type doit pouvoir REFUSER (409 si relation
+  vivante), ce que le PATCH générique (toujours 200) ne permettrait
+  pas. GET renvoie l'impact pour l'aperçu écran, **revérifié à
+  l'écriture** (fenêtre de course entre aperçu et confirmation).
+  Deux camps, pas trois types : `lib/camp.ts` traduit `ProfileType`
+  en Titulaire↔Chercheur — l'enum garde ses 3 valeurs, seule la
+  présentation est réduite à deux, cohérent avec la vision de fusion
+  actée le 26/08.
+  **Catch systémique important** : les gardes de `/planning` et
+  `/disponibilites` lisent `profileType` depuis le jeton — le même
+  jeton rendu revalidable toutes les 5 minutes la veille (fix
+  session JWT du 31/08). Sans correctif supplémentaire, basculer de
+  camp aurait renvoyé vers l'écran de l'ancien camp pendant 5
+  minutes sans explication. Corrigé en greffant le mécanisme
+  `trigger === "update"` de next-auth sur le fix de la veille, sans
+  le contourner — bonne vision système, pas un correctif isolé.
+  **Vérifié à l'exécution, aller-retour compris** : titulaire avec
+  relation vivante → 409 sans écriture ; titulaire sans relation →
+  chercheur → 200, 3 annonces désactivées, 2 postes intacts ; retour
+  → titulaire → 200, postes intacts. État d'origine restauré à
+  l'identique, vérifié par comparaison avant/après.
+  **Le trajet complet (pas juste l'aller) a trouvé une formulation
+  fausse** : l'écran annonçait "vous les retrouverez si vous
+  revenez" — inexact, revenir ne republie pas les annonces
+  retirées. Corrigé pour dire qu'il faudra les republier. "Je ne
+  l'aurais pas vu sans faire le trajet complet" — bonne méthode à
+  retenir : tester le cycle complet, pas qu'un sens.
+  **Deux points disclosés, pas cachés** : CHERCHEUR stocké
+  `REMPLACANT` — un `ASSISTANT` qui repasse par Titulaire perd sa
+  sous-catégorie au retour (annoncé à l'écran avant confirmation, pas
+  silencieux ; mémoriser demanderait une colonne/migration). Un admin
+  ne peut pas basculer quelqu'un d'autre par cette route — geste
+  d'administration explicite ailleurs, cohérent avec la discipline
+  posée pour Marion le 21/08.
+  **Réserve assumée, décision de Jean-Charles (01/09) : pas de
+  vérification écran pour l'instant** — build/typage jugés
+  suffisants. Opus avait noté lui-même que ses deux vérifications
+  écran de la semaine avaient chacune trouvé quelque chose (CDI kiné,
+  image de partage) — argument tenu, mais décision de Jean-Charles
+  de ne pas vérifier cette fois.
+
 ## 🔴 Prêts, en file, pas encore envoyées
 
-🎯. **Changement de type de profil self-service (titulaire ↔
-   chercheur)** — prompt prêt le 26/08. Cadré pour ne pas contredire
-   la vision de fusion REMPLACANT/ASSISTANT actée le même jour
-   (STRATEGIE §principe fondateur) — présente Titulaire↔Chercheur
-   comme la distinction principale, pas trois catégories égales et
-   définitives. Pas encore envoyé.
+🚨. **Planning : passage au vert sur simple mise en relation, pas
+   sur poste confirmé** — prompt envoyé le 01/09. Capture d'écran
+   confirmant qu'une bande passe en vert après un match ("Bisot"),
+   sans contrat signé. Mise en relation ≠ poste pourvu — deux faits
+   différents, le premier ne doit pas déclencher automatiquement le
+   second. **Investigation en cours (01/09)** : confirmé —
+   `getEffectiveStatus` dérive le vert d'un `Match`, et
+   `BriqueStatus.CONFIRME` ne s'écrit normalement qu'à la signature.
+   **Fait décisif trouvé** : derrière la capture, la mission est
+   stockée `RECHERCHE` mais le match associé est déjà `CONFIRME`,
+   sans aucun contrat — un chemin crée donc un match pré-confirmé
+   quelque part (piste : `cabinet-posts`). Recherche en cours de qui
+   exactement. Rapport final pas encore reçu.
 ⚠️. **Email "annonce consultée" — déclencheur à vérifier
    (consultation passive ou intérêt exprimé ?)** — prompt prêt le
    26/08, pas encore envoyé (Jean-Charles sans accès à Claude Code
@@ -763,12 +891,6 @@ ci-dessus, plus une référence de file d'attente.
    l'absence de ce bouton côté "passé" (seul "Fermer" proposé),
    alors qu'il existe côté "intéressé" ("Retirer ce choix"). Rapport
    pas encore reçu.
-⚠️. **Image de partage : flou trop fort + ambiguïté employeur/
-   candidat sur une annonce individuelle** — prompt envoyé le 26/08.
-   Capture d'écran Facebook confirmant les deux problèmes. Même
-   principe de distinction déjà établi pour les pages persona
-   (STRATEGIE_MARKETING_BUSINESS.md §2), appliqué ici à l'image de
-   partage d'une annonce seule. Rapport pas encore reçu.
 🚨. **Contrats : le vrai danger de la Phase 2, confirmé et prioritaire
    maintenant qu'infirmier est acté.** Investigation complète (3
    points) rapportée le 21/08. **Point 3, le plus grave** :
@@ -1275,18 +1397,79 @@ ci-dessus, plus une référence de file d'attente.
    limite d'outillage que le 28/08) ; **rien vérifié à l'écran** —
    les 22 comptes existants sont tous `CABINET`, aucun `STRUCTURE`
    en base pour tester réellement.
-   **Décision de Jean-Charles (29/08) : créer un compte STRUCTURE de
-   test marqué pour vérifier à l'écran.** Prompt envoyé — création du
-   compte, scénario complet (annonce COLLABORATION structure → match
-   → génération réelle du contrat), vérification spécifique que le
-   bug de l'email corrigé ne s'est pas reproduit, nettoyage ou
-   conservation explicite du compte de test ensuite. Rapport pas
-   encore reçu.
+   **🚨 VÉRIFICATION À L'ÉCRAN : elle a trouvé exactement ce qu'elle
+   devait trouver — la chaîne ne s'exécutait pas.** Premier appel
+   réel : 422, "hors plateforme". Un refus inconditionnel hérité de
+   la section 161 vivait ligne 98, une centaine de lignes avant la
+   bifurcation salariée ligne 236 — il interceptait toute STRUCTURE.
+   **Tout ce qui avait été livré le 29/08 était du code mort.** Le
+   typage ne pouvait rien en dire : les deux gardes étaient
+   individuellement bien typées, c'est leur ORDRE qui annulait la
+   seconde. Build vert et diff-empty étaient vrais et ne prouvaient
+   rien — la preuve la plus nette de toute la session que la
+   vérification à l'écran n'est pas une formalité.
+   **🚨 Correction au rapport du 29/08, pas hypothétique** : "22
+   comptes, tous CABINET, aucune STRUCTURE" était FAUX sur les deux
+   chiffres — 33 profils réels, dont **2 vraies structures : Hôpital
+   Beauperthuy (13/07) et Clinique l'Espérance (10/08)**. Ces deux
+   établissements recevaient "hors plateforme" pour un CDI que le
+   produit savait pourtant produire — un vrai défaut de production
+   affectant de vrais comptes depuis des semaines, pas un cas de
+   test. **Corrigé.**
+   **Second défaut, trouvé seulement en lisant le document généré** :
+   trou de numérotation — article 4 (période d'essai) rendu
+   conditionnellement alors que les numéros sont écrits en dur, et
+   l'article 1er renvoie nommément à "l'article 8 ci-après"
+   (renumérotation dynamique donc exclue). **Corrigé et confirmé
+   (29/08)** : article 4 toujours rendu, énonce l'absence de période
+   d'essai le cas échéant plutôt que de disparaître.
+   **Vérification complète, table à l'appui** : Content-Disposition
+   attachment ✓, Cache-Control no-store ✓, **email "contrat
+   disponible" bien envoyé — le point précis qu'on voulait voir
+   vérifié, la régression du 29/08 ne s'est pas reproduite** ✓,
+   filigrane brouillon ✓, refus explicites sans repli silencieux pour
+   ASSISTANAT/REMPLACEMENT → CDD ✓.
+   **Réserve technique notée** : test exécuté via bundle esbuild avec
+   `auth()` simulé contre la vraie base — tout ce qui précède
+   l'authentification n'est pas couvert par cette vérification.
+   **Une seule des deux imperfections était réelle — l'autre a été
+   réfutée avant correction (31/08), le meilleur moment de
+   discipline de toute la série.** Avant de "corriger" l'espace
+   parasite, Opus a vérifié qu'elle existait vraiment — trois preuves
+   convergentes montrent que non : le source écrit "CARPIMKO," sans
+   espace, `pdftotext` (moteur d'extraction indépendant) confirme,
+   le rendu image de la page le montre correctement composé. Artefact
+   de l'outil de mesure (`pypdf`, faux espace sur certains écarts de
+   crénage), pas un défaut du document — **aucune correction
+   nécessaire, rien touché**. Signal qu'Opus retient pour la suite :
+   le même faux positif touchait "URSSAF," et "NGAP," dans des
+   transcriptions jamais modifiées — "ce qui aurait dû m'alerter avant
+   que je le signale" (un défaut identique dans du contenu jamais
+   touché signale l'outil, pas le document).
+   **La date, elle, était réelle et corrigée proprement** :
+   `fmtDateUTC` existait en 7 copies rigoureusement identiques
+   (empreintes comparées) — centralisée dans `src/lib/contrats/
+   date.ts`, la logique de lecture UTC délibérément préservée et sa
+   raison documentée (interpréter localement en fuseau guadeloupéen
+   ferait reculer une prise d'effet au mois précédent, sur un document
+   légal).
+   **Bonus utile** : poppler installé pour trancher — effet de bord,
+   les futurs contrats se vérifient maintenant visuellement, pas
+   seulement par extraction de texte.
+   **Non-régression confirmée sur banc de rendu** (7 gabarits + 1
+   variante CDI sans période d'essai, testée sur un 1er du mois et un
+   jour banal) : diff = exactement les 7 occurrences "1er" attendues,
+   rien d'autre. `tsc --noEmit` propre, build vert.
+   **Nettoyage vérifié par recomptage** (1→0 sur les 4 lignes créées),
+   pas juste supposé. Julien MORISOT intact. Aucun compte STRUCTURE de
+   test conservé — seuls les 2 comptes réels existent. Poussé
+   `064a1a7..29ca417`.
+   **PHASE B (CDI KINÉ) ENTIÈREMENT CLOSE, VÉRIFIÉE DE BOUT EN BOUT.**
+   **Restent à écrire** : CDD kiné, CDI infirmier, CDD infirmier —
+   seul le CDI kiné composé est fait et vérifié à ce stade.
    **Observation indépendante notée, hors scope pour l'instant** :
    l'absence de `Record<MissionType, …>` ailleurs dans le code reste
    un vrai défaut en soi, à reprendre séparément un jour, pas urgent.
-   **Restent à écrire** : CDD kiné, CDI infirmier, CDD infirmier —
-   seul le CDI kiné composé est fait à ce stade.
    **Réserve technique levée** : le violet CNOMK est bien récupérable
    dans le flux PDF (rgb(0.439, 0.188, 0.627), 11 occurrences,
    confirmé par le document lui-même comme marqueur de clause
