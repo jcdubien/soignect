@@ -5693,6 +5693,22 @@ Données de test supprimées, y compris le geste porté sur une annonce réelle 
 (0 sur les huit compteurs). L'unique `INTERET_SIGNALE` restant en base appartient à un **vrai
 utilisateur** — un signalement du 03/09 à 08:20 en production — et n'a pas été touché.
 
+#### Encart vérifié en production, et un défaut d'accord de plus
+
+La phrase corrigée est bien en ligne sur une annonce réelle comptant trois signalements :
+« Ces personnes **se sont signalées** sur votre annonce ».
+
+La ligne d'en-tête, elle, affichait **« 3 personnes s'est signalée sur cette annonce »**. Même
+défaut que celui trouvé le 02/09 sur le changement de camp, et que celui de la section 224 :
+**un `s` conditionnel greffé sur un seul mot d'une phrase qui en accorde plusieurs.** Troisième
+occurrence de la même cause en une semaine ; les deux formes sont désormais écrites en entier
+plutôt que composées par morceaux.
+
+**Ce que l'écran a montré au passage, hors périmètre.** Ces listes ne sont pas théoriques :
+**12 annonces de 8 cabinets** ont au moins une personne signalée en attente, et un même candidat,
+Hippolyte JUE, figure sur les 12 sans avoir jamais publié de recherche. C'est exactement le trou
+que la section 206 vise, et il est mesurable.
+
 ---
 
 ### SECTION 223 — LE SIGNAL PART SUR L'INTÉRÊT, PLUS SUR LA VUE (02/09)

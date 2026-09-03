@@ -47,8 +47,14 @@ export default function InteressesSansRecherche({ missionId }: { missionId: stri
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
       >
         <span className={`text-amber-600 transition-transform ${ouvert ? "rotate-90" : ""}`}>▸</span>
+        {/* L'accord porte sur TOUTE la phrase, pas seulement sur « personne(s) » : au pluriel
+            l'écran affichait « 3 personnes s'est signalée ». Constaté en production le 03/09 —
+            troisième occurrence de ce défaut cette semaine, toujours la même cause : un `s`
+            conditionnel greffé sur un seul mot d'une phrase qui en accorde plusieurs. */}
         <span className="text-xs font-bold text-amber-800">
-          {items.length} personne{items.length > 1 ? "s" : ""} s&apos;est signalée sur cette annonce
+          {items.length > 1
+            ? `${items.length} personnes se sont signalées sur cette annonce`
+            : "1 personne s'est signalée sur cette annonce"}
         </span>
         <span className="text-[11px] text-amber-700/80 font-normal">
           sans recherche publiée — invisible{items.length > 1 ? "s" : ""} dans le fil
