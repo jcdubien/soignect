@@ -5611,6 +5611,60 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 224 — LE REPLI DU LIEN D'INTÉRÊT MÈNE ENFIN QUELQUE PART (03/09)
+
+#### L'impasse
+
+Quand le visiteur qui signale son intérêt n'a **aucune publication active**, le bouton de la
+notification et de l'email menait à `/planning` (ou `/disponibilites`) — c'est-à-dire nulle part en
+rapport avec l'intérêt signalé. Le texte était déjà honnête depuis la section 205 ; le bouton, lui,
+restait une promesse vide. Cas majoritaire, pas marginal : sur les 8 signalements les plus récents
+examinés le 02/09, **6 visiteurs sur 8** n'avaient rien publié.
+
+#### La destination existait déjà
+
+`InteressesSansRecherche` (section 206) affiche la **liste nominative** des personnes signalées sur
+une annonce donnée, rendue sur `/annonces?missionId=<id>`.
+
+Ce n'est pas un rapprochement approximatif — les trois conditions se recoupent exactement :
+
+| | Liste (section 206) | Repli (section 223) |
+|---|---|---|
+| source | swipes `RIGHT` | déclenché sur `RIGHT` |
+| exclusion | personnes déjà en relation | ne part pas s'il y a match |
+| « sans recherche » | `missions` actives = 0 | `annonceVisiteur` absent |
+
+La personne qui vient de se signaler figure donc dans cette liste **par construction**, pas par
+chance.
+
+#### Côté candidat : pas de bouton du tout
+
+Cette liste n'est rendue que sur `/annonces`, et seulement pour un `TITULAIRE`. Un candidat
+propriétaire d'une disponibilité n'a **aucun écran équivalent** — l'API `interesses` le
+permettrait (elle ne vérifie que la propriété), mais l'interface n'existe pas.
+
+Plutôt que de le renvoyer vers `/disponibilites`, qui ne dit rien de cet intérêt, **l'email ne
+porte aucun bouton**. Un bouton qui ne mène nulle part d'utile est pire qu'aucun bouton. Le texte
+reste complet.
+
+**Asymétrie assumée entre les deux canaux** : la ligne de la cloche est cliquable par construction
+et `Notification.linkUrl` est non nullable en base — elle doit mener quelque part. Côté candidat
+elle renvoie vers son propre espace, le message nommant déjà la publication concernée.
+
+#### Deux pièges retirés au passage
+
+**Un défaut imposé dans l'email.** `sendInteretEmail` faisait `opts.cta ?? { "Voir mes annonces",
+"/planning" }` : il était donc **impossible de ne pas afficher de bouton**, alors que c'est
+exactement ce qu'il faut ici. `layout` savait pourtant déjà n'en rendre aucun. Défaut supprimé.
+
+**Une heuristique d'URL.** Le paragraphe « cette personne n'a pas encore publié » se décidait sur
+`opts.cta.path.startsWith("/annonce/")`. Le nouveau repli `/annonces?missionId=…` donne le bon
+résultat — mais **par coïncidence de chaînes, à un caractère près** (`/annonces?` ne commence pas
+par `/annonce/`). Remplacé par un champ explicite `visiteurJoignable` : un fait de cette importance
+ne se déduit pas d'un préfixe d'URL.
+
+---
+
 ### SECTION 223 — LE SIGNAL PART SUR L'INTÉRÊT, PLUS SUR LA VUE (02/09)
 
 #### Ce que l'email disait, et ce qu'il valait

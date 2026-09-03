@@ -337,24 +337,55 @@ export async function POST(req: NextRequest) {
           : "Un remplaçant";
         const proprioEstCabinet = proprio.type === "TITULAIRE";
         const motAnnonce = proprioEstCabinet ? "annonce" : "disponibilité";
-        const cheminVisiteur = annonceVisiteur ? `/annonce/${annonceVisiteur.id}` : null;
-        const lien = cheminVisiteur ?? (proprioEstCabinet ? "/planning" : "/disponibilites");
-        const libelleCta = cheminVisiteur
-          ? (typeVisiteur === "TITULAIRE" ? "Voir son annonce →" : "Voir sa recherche →")
-          : (proprioEstCabinet ? "Voir mon planning" : "Voir mes disponibilités");
+        // ── OÙ MÈNE LE BOUTON (section 224, 03/09) ──────────────────────────────────────────
+        //
+        // Cas nominal : le visiteur a publié, on pointe sa publication. Rien ne change.
+        //
+        // REPLI — le visiteur n'a rien publié. Le bouton menait à `/planning` (ou
+        // `/disponibilites`), c'est-à-dire nulle part en rapport avec l'intérêt signalé. Il pointe
+        // désormais l'annonce concernée, où vit la liste nominative des personnes signalées
+        // (section 206, `InteressesSansRecherche`).
+        //
+        // CETTE DESTINATION EST EXACTE, pas approximative : la liste se construit sur les swipes
+        // RIGHT, exclut les personnes déjà en relation, et calcule `aPublieUneRecherche` avec la
+        // MÊME condition que le repli ici — une mission active. Les trois se recoupent, donc la
+        // personne qui vient de se signaler y figure par construction.
+        //
+        // CÔTÉ CANDIDAT, PAS DE BOUTON DU TOUT. Cette liste n'est rendue que sur `/annonces` et
+        // seulement pour un TITULAIRE ; un candidat propriétaire d'une disponibilité n'a aucun
+        // écran équivalent. Plutôt que de le renvoyer vers `/disponibilites`, qui ne dit rien de
+        // cet intérêt, on n'affiche rien : un bouton qui ne mène nulle part d'utile est pire que
+        // pas de bouton. Le texte de l'email, lui, reste complet.
+        const cta = annonceVisiteur
+          ? {
+              label: typeVisiteur === "TITULAIRE" ? "Voir son annonce →" : "Voir sa recherche →",
+              path: `/annonce/${annonceVisiteur.id}`,
+            }
+          : proprioEstCabinet
+            ? { label: "Voir qui s'est signalé →", path: `/annonces?missionId=${swipedMissionId}` }
+            : undefined;
 
         createNotification({
           userId: proprio.user.id,
           type: "interet",
           message: `${libelleVisiteur} s'intéresse à votre ${motAnnonce} « ${swipedMission.title} »`,
-          linkUrl: annonceVisiteur ? `/annonces?card=${annonceVisiteur.id}` : lien,
+          // ASYMÉTRIE ASSUMÉE ENTRE LES DEUX CANAUX. L'email peut n'avoir AUCUN bouton — un
+          // bouton promet une action, et sans destination utile il vaut mieux n'en promettre
+          // aucune. La ligne de la cloche, elle, est cliquable par construction et `linkUrl` est
+          // non nullable en base : elle doit mener quelque part. Côté candidat, faute de liste
+          // nominative, on la renvoie vers son propre espace — le message, lui, nomme déjà la
+          // publication concernée.
+          linkUrl: annonceVisiteur
+            ? `/annonces?card=${annonceVisiteur.id}`
+            : cta?.path ?? "/disponibilites",
         });
         await sendInteretEmail(proprio.user.email, {
           viewerLabel: libelleVisiteur,
           listingWord: motAnnonce,
           missionTitle: swipedMission.title,
           optIn: proprio.user.notifyConsultation,
-          cta: { label: libelleCta, path: lien },
+          visiteurJoignable: Boolean(annonceVisiteur),
+          cta,
         });
       })().catch(() => {});
     }

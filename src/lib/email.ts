@@ -189,6 +189,8 @@ export async function sendInteretEmail(
     // CTA direct vers l'annonce/recherche du VISITEUR (section 180) : le destinataire va voir
     // qui s'intéresse à lui. Repli sur ses propres annonces si le visiteur n'a rien publié.
     cta?: { label: string; path: string };
+    /** Le visiteur a-t-il une publication active ? Décide du paragraphe d'invitation. */
+    visiteurJoignable: boolean;
   }
 ): Promise<void> {
   if (!opts.optIn) return;
@@ -202,7 +204,12 @@ export async function sendInteretEmail(
   //
   // Le message ne doit donc pas laisser croire à une action possible quand il n'y en a
   // aucune — c'est le défaut de fond du produit (règle de méthode n°7).
-  const visiteurJoignable = Boolean(opts.cta && opts.cta.path.startsWith("/annonce/"));
+  // Renseigné par l'appelant, plus déduit du CHEMIN du bouton. L'heuristique
+  // `path.startsWith("/annonce/")` donnait le bon résultat pour le nouveau repli
+  // `/annonces?missionId=…` — mais par coïncidence de chaînes, à un caractère près. Un fait de
+  // cette importance (« peut-on faire quelque chose de cette personne ? ») ne se déduit pas d'un
+  // préfixe d'URL.
+  const visiteurJoignable = opts.visiteurJoignable;
   const invite = visiteurJoignable
     ? `<p style="font-size:14px;line-height:1.5;margin:8px 0 0;color:#4b5563">
          Découvrez son profil et sa publication d'un coup d'œil.
@@ -217,7 +224,11 @@ export async function sendInteretEmail(
      <p style="font-size:15px;line-height:1.6;margin:0">
        ${escapeHtml(opts.viewerLabel)} s'intéresse à votre ${listingWord}${about}.
      </p>${invite}`,
-    opts.cta ?? { label: "Voir mes annonces", path: "/planning" }
+    // AUCUN DÉFAUT (section 224). Ce repli imposait « Voir mes annonces → /planning » quand
+    // l'appelant ne fournissait pas de CTA : il rendait donc impossible de ne PAS afficher de
+    // bouton, alors que c'est précisément ce qu'il faut faire quand aucune destination n'est en
+    // rapport avec l'intérêt signalé. `layout` sait déjà n'en rendre aucun.
+    opts.cta
   );
   await sendEmail(to, `${opts.viewerLabel} s'intéresse à votre ${listingWord}`, html);
 }
