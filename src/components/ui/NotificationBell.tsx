@@ -16,7 +16,8 @@ const TYPE_ICON: Record<string, string> = {
   message: "💬",
   match: "💚",
   signature: "✍️",
-  consultation: "👀",
+  consultation: "👀", // historique : signal émis sur une simple vue, avant la section 223
+  interet: "🙋",
 };
 
 function timeAgo(iso: string): string {

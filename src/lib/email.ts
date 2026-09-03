@@ -172,7 +172,14 @@ export async function sendBillingTriggeredEmail(
 // ── g) Consultation d'annonce par un candidat (notif recruteur) ────────────────
 // Événement fréquent → soumis à l'opt-out dédié notifyConsultation (et non au
 // consentement email global), coupable séparément depuis /compte.
-export async function sendConsultationEmail(
+// ── g) INTÉRÊT signalé sur une annonce (section 223, 02/09) ────────────────────
+//
+// S'appelait `sendConsultationEmail` et disait « vient de consulter votre annonce ». Elle
+// partait sur l'AFFICHAGE d'une carte, pas sur un geste : 86 % des envois annonçaient
+// l'attention de quelqu'un qui n'était pas intéressé (mesure du 02/09 sur 235 consultations).
+// Le déclencheur est désormais le swipe « Intéressé » ; le texte devait suivre, sans quoi
+// l'email aurait annoncé un fait plus faible que celui qui s'est réellement produit.
+export async function sendInteretEmail(
   to: string,
   opts: {
     viewerLabel: string;
@@ -198,21 +205,21 @@ export async function sendConsultationEmail(
   const visiteurJoignable = Boolean(opts.cta && opts.cta.path.startsWith("/annonce/"));
   const invite = visiteurJoignable
     ? `<p style="font-size:14px;line-height:1.5;margin:8px 0 0;color:#4b5563">
-         Découvrez son profil et son annonce d'un coup d'œil.
+         Découvrez son profil et sa publication d'un coup d'œil.
        </p>`
     : `<p style="font-size:14px;line-height:1.5;margin:8px 0 0;color:#4b5563">
          Cette personne n'a pas encore publié de recherche : il n'est donc pas possible de la
          contacter ni de se positionner pour l'instant. Elle apparaîtra parmi les profils à
-         consulter dès qu'elle en publiera une.
+         consulter dès qu'elle en publiera une — son intérêt est enregistré en attendant.
        </p>`;
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0">
-       ${escapeHtml(opts.viewerLabel)} vient de consulter votre ${listingWord}${about}.
+       ${escapeHtml(opts.viewerLabel)} s'intéresse à votre ${listingWord}${about}.
      </p>${invite}`,
     opts.cta ?? { label: "Voir mes annonces", path: "/planning" }
   );
-  await sendEmail(to, `Votre ${listingWord} a été consultée sur Soignect`, html);
+  await sendEmail(to, `${opts.viewerLabel} s'intéresse à votre ${listingWord}`, html);
 }
 
 // ── h) Nouveau message dans une conversation (notif immédiate) ──────────────────

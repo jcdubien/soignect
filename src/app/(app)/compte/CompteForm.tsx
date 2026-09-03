@@ -484,8 +484,12 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
 
         <label className="flex items-center justify-between cursor-pointer">
           <span className="text-sm text-gray-700">
-            M&apos;avertir quand mon annonce est consultée
-            <span className="block text-xs text-gray-400">Fréquent — coupez si trop d&apos;emails</span>
+            {/* Le réglage garde son nom en base (`notifyConsultation`), mais ce qu'il gouverne a
+                changé le 02/09 (section 223) : le signal ne part plus sur une vue, il part sur un
+                « Intéressé ». Le libellé promettait donc plus d'emails qu'il n'en arrive, et
+                surtout il en annonçait d'une autre nature. */}
+            M&apos;avertir quand quelqu&apos;un s&apos;intéresse à ma publication
+            <span className="block text-xs text-gray-400">Uniquement sur un geste d&apos;intérêt, pas sur une simple vue</span>
           </span>
           <button
             type="button"

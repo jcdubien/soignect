@@ -5611,6 +5611,84 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 223 — LE SIGNAL PART SUR L'INTÉRÊT, PLUS SUR LA VUE (02/09)
+
+#### Ce que l'email disait, et ce qu'il valait
+
+« Un remplaçant vient de consulter votre annonce ». Le déclencheur était `CARD_CONSULTED`, posé
+dans `GET /api/missions/[id]/card` et appelé par `SwipeStack` **dès qu'une carte était présentée** —
+« vue = consultation », section 157. Le garde était `!swipe` : on notifiait tant que le visiteur
+n'avait rien décidé, et on cessait dès qu'il décidait. Le signal partait donc exactement quand il
+valait le moins.
+
+Mesuré sur les 235 consultations en base :
+
+| | |
+|---|---|
+| suivies d'un geste | 182 — **77 %** |
+| dont « Intéressé » | 34 — **14 %** |
+| jamais suivies d'aucun geste | 53 — **23 %** |
+
+**86 % des emails annonçaient l'attention de quelqu'un qui n'était pas intéressé**, ou qui ne s'est
+jamais prononcé. Un cas du 02/09 : quatre annonces consultées en deux minutes, quatre emails
+partis, quatre « Passer » ensuite.
+
+#### Le correctif
+
+Le signal quitte la route `card` pour la branche `RIGHT` de `POST /api/swipe`. Le geste de
+consentement qui rend une personne notifiable est le swipe « Intéressé », pas l'affichage d'une
+carte que le visiteur n'a pas choisi de voir.
+
+**Il ne part pas s'il y a mise en relation** : le propriétaire reçoit déjà « nouvelle mise en
+relation », qui dit strictement plus. Sinon, deux emails pour un seul geste.
+
+Le texte suit le sens : « **X s'intéresse à votre annonce** », objet compris. `TraceEvent` passe de
+`CARD_CONSULTED` à `INTERET_SIGNALE` — un « Intéressé » n'est pas une consultation. Le réglage
+`notifyConsultation` et sa déduplication (au plus un signal par couple annonce × visiteur) sont
+conservés tels quels : c'est le DÉCLENCHEUR qui change, pas le réglage.
+
+Le libellé dans `/compte` promettait « M'avertir quand mon annonce est consultée ». Il annonce
+désormais ce qui arrive : « quand quelqu'un s'intéresse à ma publication — uniquement sur un geste
+d'intérêt, pas sur une simple vue ».
+
+Les notifications `consultation` déjà en base gardent leur type et leur icône : leur contenu reste
+vrai de ce qui s'est passé quand elles ont été émises.
+
+#### Vérifié à l'écran, sur le vrai parcours
+
+Couple de test vierge, destinataire en `.invalid`, `RESEND_API_KEY` absente en local — aucun
+utilisateur réel ne pouvait être touché.
+
+| Étape | CARD_CONSULTED | INTERET_SIGNALE | Notification |
+|---|---|---|---|
+| avant | 0 | 0 | 0 |
+| ouverture de la fiche | **0** | **0** | **0** |
+| clic « Intéressé » | 0 | **1** | **1** |
+
+Notification obtenue : `interet — « Un cabinet s'intéresse à votre disponibilité « … » »`, avec un
+lien vers la publication du visiteur. Le mot suit le destinataire (« disponibilité » pour un
+candidat, « annonce » pour un cabinet).
+
+Au banc, en amont : « Passer » ne déclenche rien, un second « Intéressé » ne redéclenche rien.
+
+**Deux corrections à mon propre compte rendu.** J'ai d'abord observé « 0 notification » sur un
+swipe RIGHT et failli le rapporter comme un défaut : c'était mon banc, dont le `process.exit`
+coupait le travail *fire-and-forget*. Et ma première vérification « naviguer ne crée rien » n'était
+pas concluante — la capture montrait une page de production encore affichée pendant que la
+navigation locale se chargeait ; elle a été refaite sur un couple vierge.
+
+Données de test supprimées, suppression constatée par recomptage (0 sur les six compteurs).
+
+#### Effet de bord de mes propres vérifications
+
+Deux consultations enregistrées les 01 et 02/09 viennent de mes tests d'écran : en ouvrant
+`/annonces`, le feed présentait la carte de **Crevon John**, et le signal partait tout seul. Il a
+donc reçu deux notifications à cause d'une vérification, sans le moindre geste de ma part — ce qui
+illustre le défaut mieux que la mesure. Le correctif le rend impossible : naviguer n'écrit plus
+rien.
+
+---
+
 ### SECTION 222 — CHANGER DE CAMP EN SELF-SERVICE (02/09)
 
 #### Le besoin

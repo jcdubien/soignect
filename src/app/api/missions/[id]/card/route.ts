@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { BriqueStatus } from "@prisma/client";
-import { sendConsultationEmail } from "@/lib/email";
-import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -52,76 +50,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     select: { id: true },
   });
 
-  // Notification recruteur — consultation d'annonce (section notifications).
-  // On notifie le propriétaire uniquement lors d'une VRAIE consultation d'un tiers :
-  // pas sa propre annonce, et avant tout swipe (une fois décidé, plus d'email de consult).
-  // Dédup serveur (audit #6) : AU PLUS une notif/email par couple (annonce, visiteur), tracée
-  // via TraceEvent "CARD_CONSULTED". Sans ce garde, des GET répétés (avant tout swipe) pouvaient
-  // spammer le propriétaire. Fire-and-forget : ne bloque pas la réponse. Opt-out notifyConsultation.
-  if (mission.profileId !== swiperId && !swipe) {
-    (async () => {
-      const already = await prisma.traceEvent.findFirst({
-        where: { eventType: "CARD_CONSULTED", missionId: id, profileId: swiperId },
-        select: { id: true },
-      });
-      if (already) return; // ce visiteur a déjà consulté cette annonce → pas de nouvelle notif
-      await prisma.traceEvent.create({
-        data: { eventType: "CARD_CONSULTED", missionId: id, profileId: swiperId, missionType: mission.missionType },
-      });
-
-      const [owner, viewerMission] = await Promise.all([
-        prisma.profile.findUnique({
-          where: { id: mission.profileId },
-          select: { type: true, user: { select: { id: true, email: true, notifyConsultation: true } } },
-        }),
-        // Annonce/recherche du VISITEUR (section 180) — la plus récente encore active, pour un
-        // lien direct « aller voir qui s'intéresse à moi ».
-        prisma.mission.findFirst({
-          where: { profileId: swiperId, isActive: true },
-          orderBy: { createdAt: "desc" },
-          select: { id: true },
-        }),
-      ]);
-      if (!owner?.user?.email) return;
-      const viewerType = (session.user as { profileType?: string }).profileType;
-      const viewerLabel =
-        viewerType === "TITULAIRE" ? "Un cabinet" : viewerType === "ASSISTANT" ? "Un assistant" : "Un remplaçant";
-      // Lien + terme adaptés au propriétaire (section 157) : un cabinet a une « annonce »
-      // et un Planning ; un candidat a une « disponibilité » et la page /disponibilites.
-      const ownerIsCabinet = owner.type === "TITULAIRE";
-      const listingWord = ownerIsCabinet ? "annonce" : "disponibilité";
-      // CTA/lien : directement l'annonce du visiteur si elle existe (section 180), sinon repli
-      // sur l'espace du destinataire (comportement historique).
-      const viewerListingPath = viewerMission ? `/annonce/${viewerMission.id}` : null;
-      const linkUrl = viewerListingPath ?? (ownerIsCabinet ? "/planning" : "/disponibilites");
-      // Le libellé de repli annonçait « Voir mes annonces » alors que le lien mène au
-      // Planning — qui n'est pas une liste d'annonces (section 205). On nomme la destination
-      // réelle : quand le visiteur n'a rien publié, il n'y a rien de LUI à aller voir, et le
-      // bouton ne doit pas le suggérer.
-      const ctaLabel = viewerListingPath
-        ? (viewerType === "TITULAIRE" ? "Voir son annonce →" : "Voir sa recherche →")
-        : (ownerIsCabinet ? "Voir mon planning" : "Voir mes disponibilités");
-      // Notification in-app (section 155) — en parallèle de l'email. Le destinataire est
-      // connecté par construction : on l'envoie directement sur la fiche DÉCISIONNELLE du
-      // visiteur (?card=), pas sur la page publique. Celle-ci ne sait que présenter l'annonce
-      // et renvoyait vers le flux générique — d'où une notification sans issue : on voyait la
-      // recherche de l'intéressé sans pouvoir se prononcer. L'email, lui, garde le lien public
-      // (son lecteur peut être déconnecté) et propose ce deep link une fois la session ouverte.
-      createNotification({
-        userId: owner.user.id,
-        type: "consultation",
-        message: `${viewerLabel} a consulté votre ${listingWord} « ${mission.title} »`,
-        linkUrl: viewerMission ? `/annonces?card=${viewerMission.id}` : linkUrl,
-      });
-      await sendConsultationEmail(owner.user.email, {
-        viewerLabel,
-        listingWord,
-        missionTitle: mission.title,
-        optIn: owner.user.notifyConsultation,
-        cta: { label: ctaLabel, path: linkUrl },
-      });
-    })().catch(() => {});
-  }
+  // AUCUNE NOTIFICATION ICI (section 223, 02/09).
+  //
+  // Cette route envoyait un email et une notification « untel vient de consulter votre annonce »
+  // dès qu'une carte était PRÉSENTÉE — « vue = consultation », section 157. Le garde était
+  // `!swipe` : on notifiait tant que le visiteur n'avait rien décidé, et on cessait dès qu'il
+  // décidait. Le signal était donc envoyé exactement quand il valait le moins.
+  //
+  // Mesuré le 02/09 sur 235 consultations : 77 % ont été suivies d'un geste, dont seulement
+  // 14 % d'un « Intéressé ». **86 % des emails annonçaient donc l'attention de quelqu'un qui
+  // n'était pas intéressé**, ou qui ne s'est jamais prononcé.
+  //
+  // Le geste de consentement qui rend une personne notifiable est le swipe « Intéressé », pas
+  // l'affichage d'une carte que le visiteur n'a pas choisi de voir. La notification vit désormais
+  // dans POST /api/swipe, branche RIGHT. `notifyConsultation` et la déduplication par
+  // TraceEvent sont conservés tels quels — c'est le DÉCLENCHEUR qui change, pas le réglage.
 
   // Le lecteur a-t-il lui-même publié une recherche (section 206) ? De la réponse dépend le
   // SENS de son geste : avec une recherche, « Intéressé » ouvre une réciprocité possible — le

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Prisma, SwipeDirection } from "@prisma/client";
 import { computeAffinityScore } from "@/lib/deepseek";
 import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
-import { sendNewRelationEmail } from "@/lib/email";
+import { sendNewRelationEmail, sendInteretEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { logTraceEvent } from "@/lib/trace";
 import { bonusSaisonnier } from "@/lib/desirability";
@@ -285,6 +285,78 @@ export async function POST(req: NextRequest) {
       } else {
         match = existing;
       }
+    }
+
+    // ── Intérêt signalé au propriétaire (section 223, 02/09) ────────────────────────────────
+    //
+    // Ce signal vivait dans GET /api/missions/[id]/card et partait dès qu'une carte était
+    // PRÉSENTÉE. Il part maintenant sur le geste : « Intéressé ». Le déclencheur change, le
+    // réglage `notifyConsultation` et la déduplication par TraceEvent ne changent pas.
+    //
+    // SEULEMENT S'IL N'Y A PAS DE MISE EN RELATION. Quand le swipe est réciproque, le
+    // propriétaire reçoit déjà « nouvelle mise en relation » ci-dessus — qui dit strictement
+    // plus. Envoyer les deux ferait deux emails pour un seul geste.
+    if (!match) {
+      (async () => {
+        // Déduplication inchangée : au plus un signal par couple (annonce, visiteur). Le
+        // type d'événement suit le sens — un « Intéressé » n'est pas une consultation.
+        const deja = await prisma.traceEvent.findFirst({
+          where: { eventType: "INTERET_SIGNALE", missionId: swipedMissionId, profileId: swiperId },
+          select: { id: true },
+        });
+        if (deja) return;
+        await prisma.traceEvent.create({
+          data: {
+            eventType: "INTERET_SIGNALE",
+            missionId: swipedMissionId,
+            profileId: swiperId,
+            missionType: swipedMission.missionType,
+          },
+        });
+
+        const [proprio, annonceVisiteur] = await Promise.all([
+          prisma.profile.findUnique({
+            where: { id: swipedMission.profileId },
+            select: { type: true, user: { select: { id: true, email: true, notifyConsultation: true } } },
+          }),
+          // Annonce du VISITEUR, pour un lien direct. Sans publication de sa part il n'y a
+          // littéralement rien à aller voir — l'email le dit alors, plutôt que de proposer
+          // un bouton sans issue.
+          prisma.mission.findFirst({
+            where: { profileId: swiperId, isActive: true },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+          }),
+        ]);
+        if (!proprio?.user?.email) return;
+
+        const typeVisiteur = (session.user as { profileType?: string }).profileType;
+        const libelleVisiteur =
+          typeVisiteur === "TITULAIRE" ? "Un cabinet"
+          : typeVisiteur === "ASSISTANT" ? "Un assistant"
+          : "Un remplaçant";
+        const proprioEstCabinet = proprio.type === "TITULAIRE";
+        const motAnnonce = proprioEstCabinet ? "annonce" : "disponibilité";
+        const cheminVisiteur = annonceVisiteur ? `/annonce/${annonceVisiteur.id}` : null;
+        const lien = cheminVisiteur ?? (proprioEstCabinet ? "/planning" : "/disponibilites");
+        const libelleCta = cheminVisiteur
+          ? (typeVisiteur === "TITULAIRE" ? "Voir son annonce →" : "Voir sa recherche →")
+          : (proprioEstCabinet ? "Voir mon planning" : "Voir mes disponibilités");
+
+        createNotification({
+          userId: proprio.user.id,
+          type: "interet",
+          message: `${libelleVisiteur} s'intéresse à votre ${motAnnonce} « ${swipedMission.title} »`,
+          linkUrl: annonceVisiteur ? `/annonces?card=${annonceVisiteur.id}` : lien,
+        });
+        await sendInteretEmail(proprio.user.email, {
+          viewerLabel: libelleVisiteur,
+          listingWord: motAnnonce,
+          missionTitle: swipedMission.title,
+          optIn: proprio.user.notifyConsultation,
+          cta: { label: libelleCta, path: lien },
+        });
+      })().catch(() => {});
     }
   }
 
