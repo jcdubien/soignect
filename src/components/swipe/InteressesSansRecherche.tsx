@@ -67,10 +67,13 @@ export default function InteressesSansRecherche({ missionId }: { missionId: stri
               annonces à apparier : sans recherche de leur côté, le produit ne peut pas la
               créer. Laisser croire l'inverse serait pire que le silence d'avant. */}
           <p className="text-[11px] leading-snug text-amber-800/90">
-            Ces personnes ont vu votre annonce et ont voulu que vous le sachiez. Une mise en
-            relation n&apos;est pas encore possible : elle suppose une recherche publiée de leur
-            côté, à apparier avec la vôtre. Elles apparaîtront dans le fil dès qu&apos;elles en
-            publieront une.
+            {/* « ont vu » sous-disait le geste : cette liste se construit sur des swipes
+                « Intéressé », jamais sur des vues — c'était déjà le cas avant que le signal des
+                sections 223-224 ne s'y aligne. Un affichage ne doit pas nommer un fait plus
+                faible que celui qui s'est produit. */}
+            Ces personnes se sont signalées sur votre annonce. Une mise en relation n&apos;est pas
+            encore possible : elle suppose une recherche publiée de leur côté, à apparier avec la
+            vôtre. Elles apparaîtront dans le fil dès qu&apos;elles en publieront une.
           </p>
         </div>
       )}

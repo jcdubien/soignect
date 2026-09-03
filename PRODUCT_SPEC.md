@@ -5663,6 +5663,36 @@ résultat — mais **par coïncidence de chaînes, à un caractère près** (`/a
 par `/annonce/`). Remplacé par un champ explicite `visiteurJoignable` : un fait de cette importance
 ne se déduit pas d'un préfixe d'URL.
 
+#### Une formulation qui sous-disait le geste
+
+L'encart de la section 206 annonçait « Ces personnes **ont vu** votre annonce ». Cette liste se
+construit pourtant sur des swipes `RIGHT` — c'était déjà vrai avant que le signal ne s'y aligne.
+Devenue la destination du repli, elle nommait un fait plus faible que celui qui s'est produit.
+Corrigé en « Ces personnes **se sont signalées** sur votre annonce ».
+
+#### Vérifié à l'écran, les deux cas
+
+**Cas A — propriétaire cabinet, visiteur sans publication.** Geste réel en production, depuis
+`soignect test` :
+
+| | |
+|---|---|
+| notification | `interet — « Un assistant s'intéresse à votre annonce « Congés » »` |
+| lien | `/annonces?missionId=cms354dc…` — **conforme** |
+| destination ouverte côté propriétaire | bande « **1 personne s'est signalée sur cette annonce** », dépliée : **« soignect test »** |
+
+La chaîne est donc bouclée de bout en bout : le lien mène à une page qui **nomme la personne qui
+vient de se signaler**. À titre de comparaison, la notification précédente du même compte dit
+« a consulté votre annonce » et pointe `/planning`.
+
+**Cas B — propriétaire candidat, visiteur sans publication.** Notification
+`interet — « Un cabinet s'intéresse à votre disponibilité … »`, lien `/disponibilites`. Ce lien est
+la preuve observable que `cta` valait `undefined` : **aucun bouton dans l'email**, comme voulu.
+
+Données de test supprimées, y compris le geste porté sur une annonce réelle pendant l'essai
+(0 sur les huit compteurs). L'unique `INTERET_SIGNALE` restant en base appartient à un **vrai
+utilisateur** — un signalement du 03/09 à 08:20 en production — et n'a pas été touché.
+
 ---
 
 ### SECTION 223 — LE SIGNAL PART SUR L'INTÉRÊT, PLUS SUR LA VUE (02/09)
