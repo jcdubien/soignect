@@ -5611,6 +5611,55 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 226 — UN SWIPE N'A DE SENS QU'ENTRE CAMPS OPPOSÉS (03/09)
+
+#### Le défaut
+
+Le feed ne présente que le camp d'en face : un swipe de même camp ne peut donc pas NAÎTRE. Mais il
+peut **survivre** — quelqu'un qui change de camp garde ses gestes passés, et ceux-ci deviennent
+alors des affirmations fausses.
+
+Cas constaté, reconstitué par la trace :
+
+```
+27/08 13:02:31  SIGNUP {"src":"gp-landing","type":"REMPLACANT"}
+27/08 13:03     5 swipes RIGHT sur des annonces de cabinets
+28/08           profil devenu TITULAIRE
+```
+
+Etienne harzee s'était inscrit du mauvais côté, avait swipé dans la minute, puis s'était corrigé.
+**Deux conséquences symétriques**, chacune invisible depuis l'autre côté :
+
+- côté **cabinets** : il figurait parmi les « personnes intéressées » de 3 annonces, avec son offre
+  de recrutement en guise d'accroche ;
+- côté **lui** : « Vos choix » lui montrait 5 annonces de cabinets, indéfiniment « en attente de
+  réponse », alors qu'aucun match ne peut s'y produire.
+
+Ampleur : **6 swipes sur 194** (3 %), portés par 2 profils — Etienne (5) et Flora (1).
+
+#### Le filtre est à la LECTURE, pas à l'écriture
+
+`swipeExploitable(typeDuSwipeur, typeDuPropriétaire)` dans `lib/camp.ts`, à côté du vocabulaire des
+camps posé par la section 222.
+
+Supprimer les swipes au moment du basculement n'aurait réparé que les bascules **futures** : les
+lignes déjà en base seraient restées fausses, et Etienne aurait continué d'apparaître. La règle
+posée ici vaut quelle que soit la façon dont la donnée est arrivée — et **elle ne détruit rien**,
+ce qui suit la décision « désactiver, ne rien supprimer » prise pour le changement de camp.
+
+Appliqué aux deux versants : `api/missions/[id]/interesses` (ce que voit le propriétaire) et
+`api/tray` (ce que voit celui qui a basculé).
+
+#### Vérifié
+
+Routes exercées sur les données réelles : « Vos choix » d'Etienne passe de **5 à 0** entrées ;
+la liste des personnes signalées sur une annonce ne contient plus que des `REMPLACANT`.
+
+À l'écran, sur l'annonce de Cabinet des ravines qui le listait : l'encart passe de **2 personnes à
+1**, et ne montre plus qu'Hippolyte JUE. Etienne a disparu.
+
+---
+
 ### SECTION 225 — LES CANDIDATS QUI N'EXISTENT PAS (03/09)
 
 #### Le constat

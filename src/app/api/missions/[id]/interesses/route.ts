@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
+import { swipeExploitable } from "@/lib/camp";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const session = await auth();
   if (!session?.user?.profileId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
 
-  const mission = await prisma.mission.findUnique({ where: { id }, select: { profileId: true } });
+  const mission = await prisma.mission.findUnique({
+    where: { id },
+    // `profile.type` sert au filtre de camp ci-dessous : un swipe de même camp est une
+    // affirmation fausse, pas une candidature.
+    select: { profileId: true, profile: { select: { type: true } } },
+  });
   if (!mission) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   if (mission.profileId !== session.user.profileId) {
     return NextResponse.json({ error: "Interdit" }, { status: 403 });
@@ -51,6 +57,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const enRelation = new Set(dejaEnRelation.flatMap((m) => [m.profileAId, m.profileBId]));
 
   const interesses = swipes
+    // Camps opposés seulement (section 226). Sans ce filtre, un cabinet qui s'était d'abord
+    // inscrit comme candidat restait listé ici comme « personne intéressée » — son accroche
+    // étant en réalité son offre de recrutement.
+    .filter((s) => swipeExploitable(s.swiper.type, mission.profile.type))
     .filter((s) => !enRelation.has(s.swiper.id))
     .map((s) => ({
       profileId: s.swiper.id,

@@ -22,3 +22,26 @@ export function campDe(type: ProfileType): Camp {
 export function typePourCamp(camp: Camp): ProfileType {
   return camp === "TITULAIRE" ? ProfileType.TITULAIRE : ProfileType.REMPLACANT;
 }
+
+/**
+ * Un swipe n'a de sens qu'ENTRE CAMPS OPPOSÉS (section 226, 03/09).
+ *
+ * POURQUOI CET INVARIANT EXISTE. Le feed ne présente que le camp d'en face : un swipe de même
+ * camp ne peut donc pas naître aujourd'hui. Mais il peut SURVIVRE — quelqu'un qui change de camp
+ * garde ses gestes passés, et ceux-ci deviennent alors des affirmations fausses. Constaté le
+ * 03/09 : Etienne harzee s'était inscrit comme remplaçant, avait swipé cinq annonces dans la
+ * minute, puis était devenu titulaire ; il figurait depuis lors parmi les « personnes
+ * intéressées » de trois cabinets, avec son offre de recrutement en guise d'accroche, et voyait
+ * de son côté cinq annonces de cabinets dans « Vos choix », sans match possible.
+ *
+ * LE FILTRE EST À LA LECTURE, PAS À L'ÉCRITURE. Supprimer les swipes au moment du basculement ne
+ * réparerait que les bascules FUTURES : les lignes déjà en base resteraient fausses. Ici la règle
+ * vaut quelle que soit la façon dont la donnée est arrivée — et elle ne détruit rien, ce qui suit
+ * la décision « désactiver, ne rien supprimer » prise pour le changement de camp (section 222).
+ */
+export function swipeExploitable(
+  typeDuSwipeur: ProfileType | string,
+  typeDuProprietaire: ProfileType | string,
+): boolean {
+  return campDe(typeDuSwipeur as ProfileType) !== campDe(typeDuProprietaire as ProfileType);
+}

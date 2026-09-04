@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
+import { swipeExploitable } from "@/lib/camp";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
   const swiperId = session.user.profileId as string;
   const disponibiliteId = new URL(req.url).searchParams.get("disponibiliteId");
 
-  const swipes = await prisma.swipe.findMany({
+  const swipesBruts = await prisma.swipe.findMany({
     where: { swiperId, direction: SwipeDirection.RIGHT },
     include: {
       swipedMission: { include: { profile: true } },
@@ -28,6 +29,15 @@ export async function GET(req: Request) {
     ],
     take: 50,
   });
+
+  // Camps opposés seulement (section 226). Quelqu'un qui a changé de camp garde ses gestes
+  // passés : sans ce filtre, un cabinet anciennement candidat voyait dans « Vos choix » des
+  // annonces de cabinets, indéfiniment « en attente de réponse » alors qu'aucun match ne peut
+  // s'y produire. Le geste a bien eu lieu ; il ne veut simplement plus rien dire.
+  const moi = await prisma.profile.findUnique({ where: { id: swiperId }, select: { type: true } });
+  const swipes = moi
+    ? swipesBruts.filter((s) => swipeExploitable(moi.type, s.swipedMission.profile.type))
+    : swipesBruts;
 
   const missionIds = swipes.map((s) => s.swipedMissionId);
 
