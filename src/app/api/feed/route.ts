@@ -260,11 +260,26 @@ export async function GET(req: NextRequest) {
       })
     : -1;
 
+  // Le LECTEUR a-t-il publié quelque chose (section 227) ? Une propriété du lecteur, pas des
+  // annonces : elle voyage donc en en-tête, comme les autres faits qui décrivent CE feed pour
+  // CETTE personne, et non en la répétant sur chaque carte.
+  //
+  // Ce que ça permet de dire : la pile de cartes ignorait totalement ce fait, si bien qu'un
+  // candidat sans recherche publiée voyait « Intéressé » sans savoir que son geste resterait
+  // invisible. Mesuré le 03/09 — 14 candidats sur 19 n'ont jamais publié, et cette population
+  // totalise zéro mise en relation.
+  const aPublie = await prisma.mission.count({
+    where: { profileId: myProfile.id, isActive: true },
+    take: 1,
+  });
+
   // Expurge les champs sensibles du profil de chaque annonce (audit permissions, section 165) :
   // le feed ne doit exposer que les champs d'affichage (nom/photo/bio/région/note…).
   return NextResponse.json(stripMissionProfiles(missions), {
     headers: {
       "x-feed-seen-available": String(seenAvailable),
+      // 1 = le lecteur a une publication active, 0 = il n'apparaît dans aucun fil.
+      "x-feed-a-publie": aPublie > 0 ? "1" : "0",
       "x-feed-salariat-optin": String(candidatsOptes),
       // Combien d'annonces de CE feed sont réellement remontées par une priorité territoriale.
       // Sert uniquement à la mention de transparence : elle ne doit annoncer « zones

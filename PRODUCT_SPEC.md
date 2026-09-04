@@ -5611,6 +5611,68 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 227 — LA PILE DE CARTES DIT ENFIN AU LECTEUR QU'IL EST INVISIBLE (04/09)
+
+#### Ce qui manquait
+
+`SwipeStack` ignorait totalement si le lecteur avait publié quelque chose — le feed ne renvoyait
+même pas l'information. Un candidat sans recherche voyait donc « Intéressé » sans savoir que son
+geste resterait sans suite possible.
+
+La phrase honnête existait pourtant, mais **seulement dans la fiche détaillée**, qu'il faut penser
+à ouvrir. Sur l'écran par défaut — celui où l'on atterrissait juste après l'inscription — rien.
+
+Mesuré le 03/09 : **14 candidats sur 19 n'ont jamais publié**, et cette population totalise
+**zéro mise en relation**.
+
+#### Un fait du LECTEUR, donc un en-tête
+
+`x-feed-a-publie` rejoint les autres en-têtes du feed (`x-feed-seen-available`,
+`x-feed-priorite-territoriale`…). C'est une propriété de la personne qui lit, pas des annonces :
+la répéter sur chaque carte aurait dit la même chose vingt fois.
+
+`aPublie` vaut `null` tant que le feed n'a pas répondu, et **rien ne s'affiche dans cet état** —
+plutôt qu'un avertissement qui pourrait être faux le temps d'un chargement.
+
+#### La formulation ne dit pas que le geste est inutile
+
+> **Vous n'apparaissez dans aucun fil.** Sans recherche publiée, « Intéressé » signale votre nom au
+> cabinet concerné, mais aucune mise en relation ne peut se former.
+> **Publier ma recherche →**
+
+Un « Intéressé » sans recherche n'est pas perdu : le cabinet voit le nom dans son encart
+(section 206). Ce qui manque, c'est la réciprocité. Écrire « ça ne sert à rien » aurait été faux
+dans l'autre sens.
+
+L'encart est sous les boutons, il ne bloque rien et ne les recouvre pas.
+
+#### Côté cabinet, délibérément rien
+
+Un cabinet sans annonce a le même problème de visibilité, mais son parcours a été explicitement
+gardé hors périmètre (section 225, 50 % de publication contre 25 %). L'avertissement est donc
+conditionné à `!isTitulaire`.
+
+#### Vérifié à l'écran, les deux cas
+
+| Cas | Observé |
+|---|---|
+| En-tête, candidat sans recherche | `x-feed-a-publie: 0` |
+| En-tête, candidat avec recherche (Crevon John) | `x-feed-a-publie: 1` |
+| Écran, `soignect test` sans recherche | encart ambre affiché sous les boutons |
+| Écran, après publication d'une recherche | **encart disparu**, boutons inchangés |
+
+Le cas négatif a été obtenu en publiant une recherche temporaire puis en la retirant : total des
+missions revenu à 31, aucun résidu.
+
+#### Constat annexe — non corrigé
+
+Sur le serveur de développement, le premier chargement du feed dépasse parfois le délai de 12 s de
+`SwipeStack` (mesuré à 9,4 s puis 2,4 s au second appel) et l'écran affiche « Impossible de charger
+les annonces ». C'est la lenteur de compilation à froid en dev, pas un défaut de production —
+signalé pour mémoire, non traité.
+
+---
+
 ### SECTION 226 — UN SWIPE N'A DE SENS QU'ENTRE CAMPS OPPOSÉS (03/09)
 
 #### Le défaut

@@ -9,6 +9,7 @@ import {
   AnimatePresence,
 } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mission, MissionType, Profile } from "@prisma/client";
 import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
@@ -523,6 +524,10 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // ne nomme personne, ce qui reste vrai en toutes circonstances.
   const [institutionsPriorite, setInstitutionsPriorite] = useState<string[]>([]);
 
+  // Le lecteur a-t-il une publication active (section 227) ? `null` tant que le feed n'a pas
+  // répondu : on n'affiche RIEN dans le doute, plutôt qu'un avertissement qui pourrait être faux.
+  const [aPublie, setAPublie] = useState<boolean | null>(null);
+
   // Formule affichée pour la priorité territoriale (B2, 20/08).
   //
   // UNE seule institution → on la NOMME. C'est le point de B2 : la phrase s'adosse à une ligne
@@ -645,6 +650,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       }
       const seenHdr = r.headers.get("x-feed-seen-available");
       if (seenHdr != null) setSeenAvailable(parseInt(seenHdr, 10) || 0);
+      const publieHdr = r.headers.get("x-feed-a-publie");
+      if (publieHdr != null) setAPublie(publieHdr === "1");
       const optInHdr = r.headers.get("x-feed-salariat-optin");
       if (optInHdr != null) setSalariatOptIn(parseInt(optInHdr, 10));
       const prioriteHdr = r.headers.get("x-feed-priorite-territoriale");
@@ -1191,6 +1198,29 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
                   Intéressé
                 </button>
               </div>
+              {/* AVERTISSEMENT « vous n'êtes visible nulle part » (section 227).
+                  La pile ignorait ce fait : un candidat sans recherche publiée voyait
+                  « Intéressé » sans savoir que son geste resterait invisible. La phrase honnête
+                  existait, mais SEULEMENT dans la fiche détaillée — qu'il faut penser à ouvrir.
+                  Mesuré le 03/09 : 14 candidats sur 19 n'ont jamais publié, et cette population
+                  totalise zéro mise en relation.
+                  Affiché uniquement quand `aPublie === false` : `null` (feed pas encore revenu)
+                  ne dit rien, plutôt que d'affirmer à tort. */}
+              {aPublie === false && !isTitulaire && (
+                <div className="max-w-md rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-center">
+                  <p className="text-[11px] leading-snug text-amber-900">
+                    <strong>Vous n&apos;apparaissez dans aucun fil.</strong> Sans recherche
+                    publiée, « Intéressé » signale votre nom au cabinet concerné, mais aucune mise
+                    en relation ne peut se former.
+                  </p>
+                  <Link
+                    href="/disponibilites/create"
+                    className="mt-1.5 inline-block text-[11px] font-bold text-amber-900 underline hover:text-amber-950"
+                  >
+                    Publier ma recherche →
+                  </Link>
+                </div>
+              )}
               <p className="text-[11px] text-gray-400">
                 Raccourcis clavier : <kbd className="font-sans">←</kbd> passer ·{" "}
                 <kbd className="font-sans">→</kbd> intéressé
