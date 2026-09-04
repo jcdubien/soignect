@@ -225,7 +225,31 @@ function RegisterForm() {
     // qui vient de naître — mais quelqu'un qui s'inscrit depuis une session déjà ouverte tombe
     // exactement dessus. Laissé ouvert le 19/08 faute d'avoir été vérifié avec les deux autres,
     // pas parce qu'il était sain.
-    window.location.assign(photoUploaded ? (returnTo ?? "/annonces") : "/compte?photoError=1");
+    // ── OÙ ATTERRIT UN COMPTE QUI VIENT DE NAÎTRE (section 225, 03/09) ──────────────────────
+    //
+    // On arrivait sur `/annonces`, le fil de swipe. Or le feed interroge les PUBLICATIONS de
+    // l'autre camp, jamais les profils : quelqu'un qui n'a rien publié consomme le fil sans
+    // exister dedans. Mesuré le 03/09 — 14 candidats sur 19 n'ont JAMAIS publié de recherche,
+    // aucun n'a jamais obtenu de mise en relation, et aucun n'a publié puis désactivé. Ils ne
+    // sont pas partis : ils ne sont jamais entrés. Le canal Google Ads est à 0 sur 7.
+    //
+    // On les amène donc au geste qui les fait exister, plutôt qu'à celui qui les occupe. Ce
+    // n'est PAS un passage obligé : l'écran de publication a son propre « Annuler », qui
+    // renvoie vers l'espace du compte.
+    //
+    // `returnTo` GARDE LA PRIORITÉ (section 3) : quelqu'un venu depuis une annonce précise
+    // voulait cette annonce-là, et l'inscription n'était qu'un péage. Le rediriger vers un
+    // formulaire lui ferait perdre ce pour quoi il est venu.
+    //
+    // CÔTÉ CABINET, RIEN NE CHANGE — délibérément. Le même raisonnement s'y applique et 4
+    // titulaires sur 8 n'ont jamais publié non plus, mais ils convertissent à 50 % contre 25 %
+    // pour les candidats : deux situations d'ampleur différente, et le périmètre demandé porte
+    // sur le parcours candidat. À trancher séparément.
+    const apresInscription =
+      profileType === "TITULAIRE" ? "/annonces" : "/disponibilites/create";
+    window.location.assign(
+      photoUploaded ? (returnTo ?? apresInscription) : "/compte?photoError=1",
+    );
   }
 
   return (

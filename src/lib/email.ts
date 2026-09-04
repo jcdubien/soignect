@@ -71,18 +71,42 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 }
 
 // ── a) Bienvenue à l'inscription ───────────────────────────────────────────────
+// ── a) Bienvenue (section 225, 03/09) ─────────────────────────────────────────
+//
+// CE QU'IL DISAIT DE FAUX. « Complétez votre profil pour être visible par les … », bouton vers
+// /compte. Or compléter son profil ne rend visible de PERSONNE : le feed interroge les
+// PUBLICATIONS de l'autre camp, jamais les profils. Le tout premier message reçu envoyait donc
+// au mauvais endroit avec une promesse que le produit ne tient pas — des deux côtés du marché,
+// pas seulement pour les candidats.
+//
+// Mesuré le 03/09 : 14 candidats sur 19 n'ont JAMAIS publié de recherche, et aucun d'eux n'a
+// jamais obtenu de mise en relation. Aucun n'a publié puis désactivé : ils ne sont pas partis,
+// ils ne sont jamais entrés.
 export async function sendWelcomeEmail(
   to: string,
-  opts: { firstName: string; cibleLabel: string; optIn: boolean }
+  opts: {
+    firstName: string;
+    cibleLabel: string;
+    optIn: boolean;
+    /** Ce que la personne doit publier pour exister dans le fil d'en face.
+     *  `avecArticle` porte le groupe nominal ENTIER (« la recherche », « l'annonce ») : composer
+     *  `la ${mot}` produisait « c'est la annonce », constaté sur le rendu réel. Une phrase ne se
+     *  fabrique pas par morceaux — troisième fois cette semaine. */
+    publication: { mot: string; avecArticle: string; label: string; path: string };
+  }
 ): Promise<void> {
   if (!opts.optIn) return;
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour ${opts.firstName},</p>
      <p style="font-size:15px;line-height:1.6;margin:0 0 8px">Votre compte est créé.</p>
-     <p style="font-size:15px;line-height:1.6;margin:0">
-       Complétez votre profil pour être visible par les ${opts.cibleLabel}.
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       Publiez votre ${opts.publication.mot} pour apparaître auprès des ${opts.cibleLabel}.
+     </p>
+     <p style="font-size:14px;line-height:1.5;margin:0;color:#4b5563">
+       Tant qu&rsquo;elle n&rsquo;est pas publiée, votre profil n&rsquo;apparaît dans aucun fil :
+       c&rsquo;est ${opts.publication.avecArticle} qui vous rend visible, pas le profil.
      </p>`,
-    { label: "Compléter mon profil", path: "/compte" }
+    { label: opts.publication.label, path: opts.publication.path }
   );
   await sendEmail(to, "Bienvenue sur Soignect", html);
 }

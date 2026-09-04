@@ -114,7 +114,14 @@ export async function POST(req: NextRequest) {
     metadata: { type, src: src ?? "direct", parInvitation: !!inviteToken },
   });
 
-  await sendWelcomeEmail(email, { firstName, cibleLabel, optIn });
+  // Ce qui rend RÉELLEMENT visible, par camp (section 225). Le feed interroge les publications
+  // de l'autre camp, jamais les profils : un compte sans publication n'apparaît nulle part.
+  const publication =
+    type === "TITULAIRE"
+      ? { mot: "annonce",   avecArticle: "l'annonce",    label: "Publier mon annonce",  path: "/missions/create" }
+      : { mot: "recherche", avecArticle: "la recherche", label: "Publier ma recherche", path: "/disponibilites/create" };
+
+  await sendWelcomeEmail(email, { firstName, cibleLabel, optIn, publication });
 
   return NextResponse.json(
     { id: user.id, email: user.email, profile: user.profile },

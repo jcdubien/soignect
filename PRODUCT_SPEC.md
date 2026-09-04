@@ -5611,6 +5611,94 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 225 — LES CANDIDATS QUI N'EXISTENT PAS (03/09)
+
+#### Le constat
+
+**14 candidats sur 19 n'ont jamais publié de recherche** — 74 %. Aucun n'a publié puis désactivé :
+ils ne sont pas partis, ils ne sont jamais entrés. Et cette population totalise **0 mise en
+relation**.
+
+Le cas pur : Hippolyte JUE, inscrit le 23/08, **12 « Intéressé », 0 « Passer », 0 publication**.
+Il a dit oui à tout ce qu'on lui a montré, sur 12 annonces de 8 cabinets, et n'existe nulle part.
+
+#### La chaîne causale, mesurée
+
+1. **L'inscription atterrissait sur le fil de swipe** (`/annonces`), jamais sur la publication.
+2. **La pile de cartes ne prévient de rien** : `SwipeStack` ne connaît pas `aPublieUneRecherche`
+   — le feed ne le renvoie même pas. L'avertissement honnête n'existe que dans la fiche
+   détaillée, qu'il faut penser à ouvrir.
+3. **L'email de bienvenue disait le contraire de la vérité** (voir ci-dessous).
+4. **Aucune relance** : un seul cron existe, pour les messages.
+
+| Source d'inscription | Inscrits | Ont publié |
+|---|---|---|
+| direct | 9 | 4 — **44 %** |
+| `gp-landing` (Google Ads) | 7 | **0 — 0 %** |
+
+Délai médian avant la première publication : **10 minutes**. Cela se joue dans la foulée de
+l'inscription, ou jamais.
+
+#### L'email de bienvenue disait faux, des DEUX côtés
+
+« Complétez votre profil pour être visible par les … », bouton vers `/compte`. Or **compléter son
+profil ne rend visible de personne** : le feed interroge les PUBLICATIONS du camp opposé, jamais
+les profils. Le tout premier message reçu envoyait au mauvais endroit avec une promesse que le
+produit ne tient pas.
+
+Il nomme désormais le geste qui rend visible, et y mène :
+
+| Camp | Texte | Bouton |
+|---|---|---|
+| Candidat | « Publiez votre **recherche** pour apparaître auprès des cabinets et établissements qui recrutent » | Publier ma recherche → `/disponibilites/create` |
+| Cabinet | « Publiez votre **annonce** pour apparaître auprès des kinésithérapeutes en recherche de poste » | Publier mon annonce → `/missions/create` |
+
+Suivi de : « Tant qu'elle n'est pas publiée, votre profil n'apparaît dans aucun fil : c'est la
+recherche qui vous rend visible, pas le profil. »
+
+#### Le parcours candidat mène au geste qui le fait exister
+
+Après inscription, un candidat arrive sur `/disponibilites/create` au lieu du fil. **Ce n'est pas
+un passage obligé** : l'écran a son propre « Annuler ». Et `returnTo` garde la priorité — quelqu'un
+venu depuis une annonce précise voulait cette annonce-là, l'inscription n'était qu'un péage.
+
+**Côté cabinet, rien ne change — délibérément.** Le même raisonnement s'y applique et 4 titulaires
+sur 8 n'ont jamais publié non plus, mais ils convertissent à **50 % contre 25 %** : deux situations
+d'ampleur différente, et le périmètre demandé portait sur le parcours candidat. À trancher
+séparément.
+
+#### Un défaut de composition, encore
+
+Le rendu réel de l'email a montré « **c'est la annonce** qui vous rend visible ». La phrase était
+composée en `la ${mot}` — juste pour « recherche », faux pour « annonce ». Le groupe nominal entier
+voyage désormais dans `avecArticle`.
+
+**Troisième occurrence de la même cause en une semaine**, après « 1 mise en relation… finalisez-les »
+et « 3 personnes s'est signalée ». À chaque fois : une phrase fabriquée par morceaux, correcte dans
+le cas testé et fausse dans l'autre. Et à chaque fois, seul le rendu l'a montrée.
+
+#### Vérifié, et ce qui ne l'est pas
+
+Les deux emails ont été **rendus réellement**, en interceptant l'appel réseau de Resend : texte
+complet et destination du bouton conformes pour chaque camp.
+
+**Le parcours d'inscription n'a pas été vérifié à l'écran.** Le faire supposerait de créer un compte
+en saisissant un mot de passe, ce que je ne fais pas. Sont vérifiés par lecture : l'inscription
+ouvre bien la session (`signIn` avant la redirection) et `/disponibilites/create` écarte les
+titulaires — donc la destination est cohérente avec le camp qu'on y envoie.
+
+#### Un défaut distinct, trouvé en tirant le fil — NON corrigé
+
+**Etienne harzee est un TITULAIRE listé comme candidat intéressé** sur 5 annonces, avec son offre
+de recrutement en guise d'accroche. La trace le prouve : `SIGNUP {"src":"gp-landing",
+"type":"REMPLACANT"}` à 13:02:31, cinq swipes à 13:03, profil devenu TITULAIRE le 28/08.
+
+Il s'est trompé de camp, a swipé dans la minute, s'est corrigé — et **ses swipes ont survécu au
+changement de type**. Cela concerne directement la section 222 : le basculement désactive les
+annonces, il ne touche pas aux swipes. Sur 19 entrées de ces encarts, **5 sont des cabinets**.
+
+---
+
 ### SECTION 224 — LE REPLI DU LIEN D'INTÉRÊT MÈNE ENFIN QUELQUE PART (03/09)
 
 #### L'impasse
