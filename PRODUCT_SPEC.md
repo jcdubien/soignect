@@ -5611,6 +5611,65 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 231 — MODALE DE PARTAGE À LA PUBLICATION (05/09)
+
+#### Ce qui existait déjà
+
+`ShareActions` — deux actions : « Copier le lien » (toujours) et « Partager… » via
+`navigator.share` (si supporté). Déjà présent sur la page publique ET dans le bandeau de
+confirmation après publication, mais **replié sous une ligne de texte** : il fallait le remarquer.
+
+Aucun second composant n'a été écrit. La modale a `ShareActions` pour corps, avec une option
+`plateformes`. Une seconde implémentation aurait divergé de la première au premier changement —
+c'est exactement ce qui est arrivé à `fmtDateUTC`, dupliqué sept fois (section 220).
+
+#### Pourquoi le bouton Facebook revient, alors qu'il avait été retiré
+
+Le fichier documentait son retrait : « le sélecteur natif propose déjà Facebook ». C'est vrai
+**sur mobile et seulement si l'application est installée** — la réserve était d'ailleurs écrite
+juste en dessous. Sur un ordinateur, `navigator.share` n'existe souvent pas (Firefox de bureau ne
+l'implémente pas), et il ne restait alors **aucun** chemin vers Facebook. `sharer.php` couvre ce
+cas, sans rien retirer au sélecteur natif.
+
+#### Instagram : pas de bouton, parce qu'aucun n'est possible
+
+Instagram n'expose **aucune** URL de partage de lien — ni équivalent de `sharer.php`, ni de
+`wa.me`. Les schémas `instagram-stories://` sont réservés aux applications natives déclarant un
+App ID et ne fonctionnent pas depuis une page web.
+
+Un bouton « Instagram » ne pourrait donc que copier le lien en se faisant passer pour autre chose.
+On dit ce qui est vrai, et le texte s'adapte à ce qui est réellement disponible :
+
+- partage natif présent → « Passez par *Partager…*, Instagram y figure si l'application est installée » ;
+- sinon → « Copiez le lien et collez-le dans votre story ou votre bio ».
+
+#### Le partage quitte le bandeau
+
+Le proposer aux deux endroits l'aurait dilué. Le bandeau garde ce qu'il fait de mieux — confirmer,
+donner le lien d'édition — et porte désormais un simple lien « Partager cette annonce → » qui
+rouvre la modale. Elle ne bloque rien : « Plus tard » la ferme, ce qui a été publié ne dépend pas
+du fait de l'avoir partagé.
+
+#### Vérifié à l'écran
+
+Sur `/annonces?published=1&pid=…`, sans rien publier de réel.
+
+| | |
+|---|---|
+| Modale à l'ouverture | titre, accroche, Facebook + WhatsApp, note Instagram, Copier + Partager…, « Plus tard » |
+| Vocabulaire | « Votre **recherche** est en ligne » pour un candidat — suit l'auteur |
+| URL Facebook | `sharer.php?u=…/annonce/<id>` — interceptée, pas supposée |
+| URL WhatsApp | `wa.me/?text=<titre> — …/annonce/<id>` |
+| Copier le lien | séquence relevée : `Copier le lien → ✓ Lien copié ! → Copier le lien` |
+| « Plus tard » puis lien du bandeau | ferme, puis rouvre |
+
+**J'ai failli rapporter un défaut inexistant.** Deux captures montraient « Copier le lien » sans
+confirmation — mais elles tombaient hors de la fenêtre de 2 secondes. Il a fallu poser un
+enregistreur avant le clic pour voir la séquence réelle. Même erreur de méthode que le
+*fire-and-forget* du 02/09 : l'instrument de mesure trop lent, pas le produit en faute.
+
+---
+
 ### SECTION 230 — UN COMPTE POUVAIT NE PAS ÊTRE SUPPRIMABLE (05/09)
 
 #### Bien plus large que le symptôme signalé

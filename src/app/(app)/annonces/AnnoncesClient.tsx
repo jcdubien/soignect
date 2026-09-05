@@ -10,7 +10,7 @@ import LaunchOfferBanner from "@/components/ui/LaunchOfferBanner";
 import MissionDetailSheet, { DetailMission, MissionRelation } from "@/components/swipe/MissionDetailSheet";
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
 import InteressesSansRecherche from "@/components/swipe/InteressesSansRecherche";
-import ShareActions from "@/components/share/ShareActions";
+import PartageApresPublication from "@/components/share/PartageApresPublication";
 
 interface Props {
   profileType: string;
@@ -37,6 +37,8 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
   const publishedTitle = searchParams.get("pt") ?? "";
   const publishedId = searchParams.get("pid") ?? "";
   const [showPublished, setShowPublished] = useState(justPublished);
+  // La modale s'ouvre d'elle-même à la publication, et peut être rouverte depuis le bandeau.
+  const [partageOuvert, setPartageOuvert] = useState(justPublished && !!searchParams.get("pid"));
 
   // Un cabinet publie une « annonce » et l'édite via le formulaire ; un candidat publie une
   // « recherche » et la modifie en place sur /disponibilites (feuille « Modifier ma recherche »,
@@ -141,17 +143,18 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
             </button>
           </div>
 
-          {/* Partage à chaud. Le moment le plus motivé pour diffuser une annonce est celui où
-              elle vient d'être publiée ; il fallait jusqu'ici repasser par le Planning, ouvrir
-              l'entrée et y chercher la section de partage. Mêmes actions, même composant. */}
+          {/* Le partage a quitté ce bandeau pour la MODALE (section 231) : replié sous une ligne
+              de texte, il fallait le remarquer. Le bandeau garde ce qu'il fait de mieux —
+              confirmer, et donner le lien d'édition. Proposer le partage aux deux endroits
+              l'aurait dilué au lieu de le renforcer. */}
           {publishedId && (
-            <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
-              <p className="text-xs font-semibold text-emerald-700 shrink-0">Partagez-la maintenant :</p>
-              {/* Élargi depuis que les deux actions sont côte à côte : 260 px les auraient serrées. */}
-              <div className="w-full sm:w-auto sm:min-w-[380px]">
-                <ShareActions path={`/annonce/${publishedId}`} title={publishedTitle || (viseCandidats ? "Annonce" : "Recherche")} />
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setPartageOuvert(true)}
+              className="mt-2.5 text-xs font-bold text-emerald-800 underline hover:text-emerald-900"
+            >
+              Partager {viseCandidats ? "cette annonce" : "cette recherche"} →
+            </button>
           )}
         </div>
       )}
@@ -184,6 +187,16 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
 
         <MatchTray isAdmin={isAdmin} refreshKey={trayKey} titulaireMissions={titulaireMissions} myProfileType={profileType} myProfileId={profileId} isPremium={isPremium} disponibiliteId={disponibiliteId} />
       </div>
+
+      {publishedId && (
+        <PartageApresPublication
+          ouvert={partageOuvert}
+          onClose={() => setPartageOuvert(false)}
+          missionId={publishedId}
+          titre={publishedTitle}
+          motPublie={motPublie}
+        />
+      )}
 
       {/* Fiche détaillée hors carrousel — même composant que l'icône "i", avec statut + actions */}
       {detail && (
