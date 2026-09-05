@@ -4,6 +4,7 @@ import { hash } from "bcryptjs";
 import { z } from "zod";
 import { ProfileType, TitulaireKind } from "@prisma/client";
 import { sendWelcomeEmail } from "@/lib/email";
+import { publicationPour, cibleVisibilitePour } from "@/lib/camp";
 import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
@@ -101,10 +102,7 @@ export async function POST(req: NextRequest) {
   // « visible par les remplaçants » disait faux a un etablissement, qui recrute des salaries ;
   // et « visible par les cabinets » disait a un candidat qu'il ne s'expose qu'aux liberaux,
   // alors que les etablissements recrutent aussi. C'est le tout premier message recu.
-  const cibleLabel =
-    type === "TITULAIRE"
-      ? "kinésithérapeutes en recherche de poste"
-      : "cabinets et établissements qui recrutent";
+  const cibleLabel = cibleVisibilitePour(type);
   // Création de compte tracée (section 86) — aucun événement ne la capturait, si bien qu'on ne
   // pouvait pas relier une inscription à la page qui l'avait amenée. `src` vient d'un paramètre
   // d'URL : il documente une provenance, il n'accorde aucun droit.
@@ -114,12 +112,9 @@ export async function POST(req: NextRequest) {
     metadata: { type, src: src ?? "direct", parInvitation: !!inviteToken },
   });
 
-  // Ce qui rend RÉELLEMENT visible, par camp (section 225). Le feed interroge les publications
-  // de l'autre camp, jamais les profils : un compte sans publication n'apparaît nulle part.
-  const publication =
-    type === "TITULAIRE"
-      ? { mot: "annonce",   avecArticle: "l'annonce",    label: "Publier mon annonce",  path: "/missions/create" }
-      : { mot: "recherche", avecArticle: "la recherche", label: "Publier ma recherche", path: "/disponibilites/create" };
+  // Ce qui rend RÉELLEMENT visible, par camp (section 225) — source unique dans lib/camp,
+  // partagée avec la relance (section 229).
+  const publication = publicationPour(type);
 
   await sendWelcomeEmail(email, { firstName, cibleLabel, optIn, publication });
 

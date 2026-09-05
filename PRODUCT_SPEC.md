@@ -5611,6 +5611,82 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 229 — RELANCE DES INSCRITS SANS PUBLICATION (04/09)
+
+#### Le trou que les correctifs de la semaine ne bouchaient pas
+
+L'email de bienvenue ne parle qu'au premier jour ; l'avertissement de la pile ne parle qu'à ceux
+qui reviennent sur le fil. **Personne ne parlait à celui qui s'inscrit, ne publie rien, et ne
+revient jamais.** C'est exactement le profil des 14 candidats sur 19 mesurés le 03/09 — population
+qui totalise zéro mise en relation.
+
+#### Conventions reprises du cron existant
+
+`message-reminders` fixait le motif : route `GET /api/cron/…`, protection par `CRON_SECRET`
+(en-tête `Authorization` **ou** `?key=`), marquage de la cible **même quand aucun email n'a pu
+partir**, réponse `{ ok, … }` chiffrée. Tout est repris à l'identique.
+
+**Fréquence quotidienne, jamais plus.** Un cron infra-journalier dans `vercel.json` bloque
+silencieusement tous les builds sur le plan Hobby — la production a déjà gelé pour cette raison.
+Le nouveau job tourne à 09h15, décalé de celui des messages (09h00).
+
+#### Ce que « sans publication » veut dire exactement
+
+La définition du feed, reprise mot pour mot : `isActive: true` **et** `briqueStatus ≠ INDISPONIBLE`.
+
+Deux conséquences vérifiées en base plutôt que supposées :
+
+- une **absence de cabinet** (`ABSENT_CONGE`) est `isActive: true` par défaut et compte donc comme
+  publication — c'est correct, elle apparaît réellement dans le fil des candidats et constitue même
+  la période à pourvoir (section 188) ;
+- les **« Dates bloquées »** d'un candidat sont `isActive: false` : aucun écart possible, et il n'en
+  existe aucune en base avec `isActive: true`.
+
+#### Envoi unique, garanti par un marqueur partagé
+
+Un `TraceEvent` `RELANCE_PUBLICATION` par profil — motif déjà utilisé dans le dépôt pour compter
+sans migration (budget DeepSeek). Il sert aux **deux** chemins, cron et campagne : une personne
+rattrapée par l'un ne peut pas être relancée par l'autre.
+
+Le marqueur est écrit **même si l'email n'a pas pu partir** (opt-out, adresse invalide). Sans cela,
+une adresse cassée serait retentée chaque jour à vie.
+
+#### Deux points d'entrée
+
+| | |
+|---|---|
+| `GET /api/cron/publication-reminders` | quotidien, inscrits de **plus de 2 jours** ; `?simulation=1` compte sans agir |
+| `POST /api/admin/relance-publication` | campagne de rattrapage, **tous âges**, réservée `ADMIN` ; **simule par défaut**, envoie seulement avec `?envoyer=1` |
+
+La campagne peut être rejouée sans risque : chaque cible est marquée à l'envoi, un second appel ne
+trouve plus personne. C'est ce qui rend acceptable de laisser cet endpoint en place.
+
+#### Population de rattrapage, mesurée
+
+**19 comptes** sans aucune publication : **5 cabinets, 14 candidats**, tous en `emailOptIn`.
+**18 joignables** — `marmushfares` est une adresse sans `@`, écartée de l'envoi mais marquée pour
+ne pas être reprise indéfiniment.
+
+#### Vérifié
+
+- **Email rendu réellement** (interception de l'appel Resend), les deux camps, plus le cas
+  opt-out : 3 appels, 2 emails, celui du désinscrit n'existe pas.
+- **Sélection** : cron et campagne trouvent les mêmes 19, dont 18 envoyables.
+- **Déduplication** : marqueur posé sur un profil → 19 devient 18, ce profil disparaît des cibles.
+- **Garde de rôle** : un `USER` sur la route de campagne reçoit **403**.
+
+**Un défaut de composition, encore, attrapé par le rendu.** Le texte disait « vous n'avez pas encore
+publié **la** recherche » : `avecArticle` avait été conçu pour l'emplacement « c'est **la
+recherche** qui vous rend visible » et sonne faux après « publier ». Remplacé par le possessif,
+qui vaut pour les deux mots. **Quatrième occurrence de la même cause cette semaine** — une phrase
+assemblée à partir d'un fragment prévu pour un autre usage.
+
+#### Non fait à ce stade
+
+**Aucun email n'a été envoyé.** La campagne attend la validation des 19 destinataires nommés.
+
+---
+
 ### SECTION 228 — LE BARÈME BRUT N'EST PAS UN OUBLI DE DÉBOGAGE (04/09)
 
 #### La fausse alerte

@@ -45,3 +45,33 @@ export function swipeExploitable(
 ): boolean {
   return campDe(typeDuSwipeur as ProfileType) !== campDe(typeDuProprietaire as ProfileType);
 }
+
+/**
+ * Ce qu'une personne doit PUBLIER pour exister dans le fil d'en face (section 229).
+ *
+ * Vivait en clair dans `api/profiles/route.ts` pour l'email de bienvenue. Déplacé ici dès qu'un
+ * second appelant est apparu — la relance : deux copies d'un même vocabulaire finissent toujours
+ * par diverger, et celle-ci porte une promesse faite à l'utilisateur.
+ *
+ * `avecArticle` porte le groupe nominal ENTIER. Composer `la ${mot}` produisait « c'est la
+ * annonce », constaté sur un rendu réel le 03/09.
+ */
+export interface Publication {
+  mot: string;
+  avecArticle: string;
+  label: string;
+  path: string;
+}
+
+export function publicationPour(type: ProfileType | string): Publication {
+  return campDe(type as ProfileType) === "TITULAIRE"
+    ? { mot: "annonce",   avecArticle: "l'annonce",    label: "Publier mon annonce",  path: "/missions/create" }
+    : { mot: "recherche", avecArticle: "la recherche", label: "Publier ma recherche", path: "/disponibilites/create" };
+}
+
+/** À qui l'on devient visible en publiant. Même découpage que la publication elle-même. */
+export function cibleVisibilitePour(type: ProfileType | string): string {
+  return campDe(type as ProfileType) === "TITULAIRE"
+    ? "kinésithérapeutes en recherche de poste"
+    : "cabinets et établissements qui recrutent";
+}

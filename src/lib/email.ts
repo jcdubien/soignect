@@ -111,6 +111,48 @@ export async function sendWelcomeEmail(
   await sendEmail(to, "Bienvenue sur Soignect", html);
 }
 
+// ── a bis) Relance « vous n'avez encore rien publié » (section 229) ────────────
+//
+// ENVOI UNIQUE. Une seule piqûre de rappel, jamais répétée : la déduplication vit dans un
+// TraceEvent `RELANCE_PUBLICATION`, écrit MÊME quand l'email n'a pas pu partir. Sans cela, une
+// adresse invalide serait retentée chaque jour indéfiniment — c'est la règle déjà appliquée par
+// le cron des messages, qui marque le seuil traité même sans envoi possible.
+//
+// Le texte reprend mot pour mot la correction du 03/09 : ce qui rend visible est la publication,
+// pas le profil. Dire autre chose ici rouvrirait le malentendu que l'email de bienvenue vient de
+// fermer.
+export async function sendRelancePublicationEmail(
+  to: string,
+  opts: {
+    firstName: string;
+    cibleLabel: string;
+    optIn: boolean;
+    joursDepuisInscription: number;
+    publication: { mot: string; avecArticle: string; label: string; path: string };
+  }
+): Promise<void> {
+  if (!opts.optIn) return;
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour ${opts.firstName},</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       Votre compte Soignect existe, mais vous n&rsquo;avez pas encore publié votre ${opts.publication.mot}.
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       Tant qu&rsquo;elle n&rsquo;est pas publiée, votre profil n&rsquo;apparaît dans aucun fil : les
+       ${opts.cibleLabel} ne peuvent pas vous voir, et aucune mise en relation ne peut se former.
+     </p>
+     <p style="font-size:14px;line-height:1.5;margin:0;color:#4b5563">
+       Cela prend quelques minutes. Vous pourrez la modifier ou la retirer à tout moment.
+     </p>`,
+    { label: opts.publication.label, path: opts.publication.path }
+  );
+  // « publier votre recherche », pas « publier la recherche » : `avecArticle` est fait pour
+  // l'emplacement « c'est LA recherche qui vous rend visible », et sonne faux après « publier ».
+  // Constaté sur le rendu réel — encore une phrase assemblée à partir d'un fragment prévu pour
+  // un autre usage.
+  await sendEmail(to, `Il vous reste à publier votre ${opts.publication.mot}`, html);
+}
+
 // ── b) Nouvelle mise en relation ───────────────────────────────────────────────
 export async function sendNewRelationEmail(
   to: string,
