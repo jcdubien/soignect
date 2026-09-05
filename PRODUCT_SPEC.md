@@ -5611,6 +5611,46 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 228 — LE BARÈME BRUT N'EST PAS UN OUBLI DE DÉBOGAGE (04/09)
+
+#### La fausse alerte
+
+Signalé depuis une capture : sous les étiquettes lisibles de l'écran de mise en relation
+(« Dates compatibles », « Même secteur »…), une ligne en police à chasse fixe —
+`Remplacement · dates 34 · géo 30 · bio 24 · log 0 · véh 0 · sec 0 · coord 0 · socle/100`.
+L'hypothèse naturelle était un affichage de débogage resté actif.
+
+**Ce n'en est pas un.** La ligne existe à deux endroits, tous deux conditionnés au rôle :
+
+| Fichier | Garde |
+|---|---|
+| `MatchScoreBlock.tsx:109` | `isAdmin && factors` |
+| `MatchTray.tsx:189` | `isAdmin` |
+
+Le drapeau vient de `session.user.role === "ADMIN"` dans les deux chaînes de props, sans détour.
+Son objet est écrit dans le code : « le barème brut, pour diagnostiquer un score aberrant — ce qui
+s'est déjà produit et qu'aucun affichage qualitatif ne révélerait ».
+
+#### Un seul compte la voit
+
+`ADMIN : 1` (jcdubien@gmail.com) contre `USER : 32`. Aucun utilisateur normal ne l'a jamais vue ni
+n'aurait pu la voir.
+
+À noter : le rôle vivait dans un jeton figé au sign-in jusqu'au 03/09. Depuis la section 219 il est
+relu en base au plus toutes les 5 minutes — un compte rétrogradé perd donc cet affichage seul, ce
+qui n'était pas vrai avant.
+
+#### Décision : on n'y touche pas (04/09)
+
+Options écartées : replier la ligne derrière un « détail du score » à déplier, ou la déplacer vers
+`/admin`. **Décision de Jean-Charles : A — statu quo.** Le besoin qu'elle sert est réel et un seul
+œil la voit.
+
+Consigné ici pour que la même capture ne relance pas la même investigation : ce n'est pas un
+résidu, c'est un outil de diagnostic assumé.
+
+---
+
 ### SECTION 227 — LA PILE DE CARTES DIT ENFIN AU LECTEUR QU'IL EST INVISIBLE (04/09)
 
 #### Ce qui manquait
