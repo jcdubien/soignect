@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { supprimerCompte } from "@/lib/suppressionCompte";
 
 export const dynamic = "force-dynamic";
 
@@ -41,8 +42,15 @@ export async function DELETE(
   if (!isAdmin(session)) return NextResponse.json({ error: "Interdit" }, { status: 403 });
 
   const { id } = await params;
-  await prisma.user.delete({ where: { id } });
+  // Même chemin que la suppression self-service (section 230) : les deux routes faisaient un
+  // `user.delete()` nu et échouaient identiquement. Un admin ne pouvait donc pas non plus
+  // supprimer un compte ayant le moindre swipe.
+  const r = await supprimerCompte(id);
+  if (!r.supprime) {
+    console.warn(`[admin] suppression refusée pour ${id}: ${r.blocage?.motif}`);
+    return NextResponse.json({ error: r.blocage?.motif, details: r.blocage?.details }, { status: 409 });
+  }
 
-  console.log(`[admin] user deleted: ${id}`);
-  return NextResponse.json({ ok: true });
+  console.log(`[admin] user deleted: ${id}`, r.compte);
+  return NextResponse.json({ ok: true, supprime: r.compte });
 }

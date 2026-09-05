@@ -5611,6 +5611,77 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 230 — UN COMPTE POUVAIT NE PAS ÊTRE SUPPRIMABLE (05/09)
+
+#### Bien plus large que le symptôme signalé
+
+Le signalement portait sur les cabinets ayant des postes de planning — 5 comptes. Le recensement
+donne autre chose : **28 comptes sur 32 (88 %) ne pouvaient pas être supprimés.**
+
+Presque rien ne cascade depuis `Profile`. `Swipe`, `Match`, `Message`, les trois tables de notes et
+`CabinetPost` sont toutes en `Restrict` (aucun `onDelete` déclaré). **Un seul swipe donné suffisait**
+— et 23 profils sur 32 en ont au moins un. Le défaut n'était pas rare, il était l'état normal.
+
+Les **deux** chemins de suppression — self-service et admin — faisaient le même `user.delete()` nu
+et échouaient identiquement en `P2003`. Aucun précédent réutilisable : une fonction partagée a été
+écrite, plutôt qu'une seconde copie divergente.
+
+#### Suppression explicite, pas cascade déclarative
+
+Une cascade en base serait plus courte, mais elle ferait la même chose partout — or **deux
+relations ne doivent surtout pas être suivies** :
+
+| Relation | Traitement | Pourquoi |
+|---|---|---|
+| `CabinetPost.linkedUserId` | **détacher** (`null`) | Le poste appartient à un AUTRE cabinet. Effacer le compte de Marion ne doit pas démolir le planning de Jean-Charles. |
+| `PrioriteTerritoriale.saisiParId` | **refuser**, en nommant | La priorité appartient à la CPTS, pas à l'administrateur qui l'a saisie. |
+
+Le second est un **blocage assumé** : la colonne n'est pas nullable, on ne peut donc ni détacher ni
+garder la trace sans conserver un lien vers une personne effacée. La route répond **409** — pas 500
+— avec la liste de ce qu'il faut transférer. Rendre la colonne nullable lèverait ce cas ; c'est une
+migration, hors périmètre.
+
+#### Le principe diffère de celui du 03/09
+
+Pour les swipes qui survivaient à un changement de camp, la règle était « désactiver, ne rien
+supprimer » : il s'agissait de préserver un historique que **d'autres** lisent. Ici c'est le
+**propriétaire** qui demande l'effacement de **ses** données — un droit, pas un nettoyage. On
+supprime réellement, traces d'usage comprises : `TraceEvent.profileId` n'a aucune clé étrangère et
+survivrait donc en silence en gardant l'identifiant d'une personne effacée.
+
+#### Une convention du dépôt que j'avais enfreinte
+
+La première version utilisait `$transaction(async tx => …)`. Elle a échoué en **P2028** contre le
+pooler Supabase : le port 6543 est en mode « transaction » et ne tient pas une transaction
+interactive entre deux requêtes. **Les six autres transactions du dépôt utilisent déjà la forme en
+tableau** — c'était la convention, et elle suffit ici puisque tous les filtres sont calculés avant.
+Seul le rendu à l'exécution l'a montré : le typage passait.
+
+#### Vérifié sur une fixture complète
+
+Cabinet de test doté de tout ce qui bloquait : 1 poste, 1 annonce, 1 swipe donné, 1 swipe reçu,
+1 match avec **contrat signé des deux côtés**, 1 message, 1 note reçue, 1 trace, plus **un poste
+appartenant à un autre cabinet** et rattaché à lui.
+
+| | |
+|---|---|
+| Suppression | **200** — `postesDetaches:1, notesCabinet:1, messages:1, matchs:1, swipesDonnes:1, swipesRecus:1, missions:1, postes:1, traces:1` |
+| Après | tous les compteurs à **0** |
+| Poste de l'autre cabinet | **existe toujours**, `linkedUserId` à `null` |
+| L'autre partie du match | **son compte et ses données propres survivent** ; seuls le match et les messages partagés disparaissent |
+| Cas de refus (priorités) | **409** avec `["97111 · KINESITHERAPEUTE", "97129 · KINESITHERAPEUTE"]`, compte **intact** |
+
+Données de test supprimées ; aucun compte ni poste `[TEST]` résiduel.
+
+#### Effet de la relance, 20 h après (mesure honnête)
+
+**0 des 18 personnes relancées n'a publié.** Les 5 annonces créées depuis l'envoi viennent de
+Jean-Charles (3) et de deux inscriptions du jour (2), qui n'avaient pas reçu la relance. Vingt
+heures est court pour conclure — mais le chiffre est celui-là, et il ne dit pour l'instant rien de
+positif sur la campagne.
+
+---
+
 ### SECTION 229 — RELANCE DES INSCRITS SANS PUBLICATION (04/09)
 
 #### Le trou que les correctifs de la semaine ne bouchaient pas

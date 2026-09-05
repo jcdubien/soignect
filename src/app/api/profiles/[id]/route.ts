@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { supprimerCompte } from "@/lib/suppressionCompte";
 import { z } from "zod";
 import { Profession, Region, TitulaireKind } from "@prisma/client";
 import { stripSensitiveProfile } from "@/lib/publicProfile";
@@ -128,8 +129,16 @@ export async function DELETE(
     return NextResponse.json({ error: "Interdit" }, { status: 403 });
   }
 
-  // Cascade via Prisma (onDelete: Cascade on Profile → User)
-  await prisma.user.delete({ where: { id: profile.userId } });
+  // Suppression ORDONNÉE (section 230). Le `prisma.user.delete()` nu qui vivait ici échouait en
+  // P2003 dès que le compte avait le moindre swipe, match, message, note ou poste de planning —
+  // c'est-à-dire pour 28 comptes sur 32 au 04/09. Le détail de l'ordre et des deux relations à
+  // détacher plutôt qu'à suivre vit dans lib/suppressionCompte, partagé avec la route admin.
+  const r = await supprimerCompte(profile.userId);
+  if (!r.supprime) {
+    // 409 et non 500 : ce n'est pas une panne, c'est une condition nommée que l'utilisateur
+    // peut lever. Le message dit quoi transférer.
+    return NextResponse.json({ error: r.blocage?.motif, details: r.blocage?.details }, { status: 409 });
+  }
 
-  return NextResponse.json({ deleted: true });
+  return NextResponse.json({ deleted: true, supprime: r.compte });
 }
