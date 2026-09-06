@@ -67,6 +67,10 @@ export default function CreateDisponibilitePage() {
     rechercheSecretariat: false,       // privilégie un cabinet avec secrétariat (section 190)
     rechercheExerciceCoordonne: false, // souhaite exercer en structure coordonnée (section 190)
     ouvertSalariat: false,
+    // Diffusion Facebook (section 234) — coché par défaut, mais VISIBLE et décochable. Une
+    // diffusion silencieuse serait un réglage caché ; une case décochée par défaut serait un
+    // canal que personne n'active. Le choix existe et il est fait sciemment.
+    diffuserSurFacebook: true,
     rawText: "", // texte libre (refonte saisie texte-libre + extraction IA)
   });
 
@@ -248,6 +252,7 @@ export default function CreateDisponibilitePage() {
         rechercheSecretariat: form.rechercheSecretariat,
         rechercheExerciceCoordonne: form.rechercheExerciceCoordonne,
         ouvertSalariat: form.ouvertSalariat,
+        diffuserSurFacebook: form.diffuserSurFacebook,
       }),
     });
 
@@ -921,6 +926,26 @@ export default function CreateDisponibilitePage() {
 
         {/* ── Besoin d'un véhicule (feature terrain) — symétrique du logement, alimente le
              bonus véhicule du score face aux annonces qui mettent un véhicule à disposition. ── */}
+        {/* ── Diffusion sur la Page Facebook (section 234) ──
+             Placée AVANT le bouton de publication et dite en clair : votre nom et vos dates
+             partiront sur une page publique. C'est un acte distinct de publier ici, où le
+             lecteur est un professionnel connecté. Décochable, sans conséquence sur le reste. ── */}
+        <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+          <input
+            type="checkbox"
+            checked={form.diffuserSurFacebook}
+            onChange={(e) => setForm({ ...form, diffuserSurFacebook: e.target.checked })}
+            className="w-4 h-4 mt-0.5 rounded accent-kine-600"
+          />
+          <span className="text-sm text-gray-700">
+            Diffuser aussi sur la page Facebook Soignect
+            <span className="block text-xs text-gray-400 mt-0.5 leading-snug">
+              Votre nom, votre secteur et vos dates apparaîtront dans une publication publique.
+              Décochez si vous préférez rester visible uniquement sur Soignect.
+            </span>
+          </span>
+        </label>
+
         <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
           <input
             type="checkbox"

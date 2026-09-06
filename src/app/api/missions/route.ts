@@ -5,6 +5,7 @@ import { z } from "zod";
 import { BriqueStatus, MissionType, ProfileType, ZoneGeographique } from "@prisma/client";
 import { getCommuneZonage } from "@/lib/communes";
 import { logTraceEvent } from "@/lib/trace";
+import { publierSurLaPage, messagePourAnnonce } from "@/lib/facebookPage";
 import { bioLimitFor } from "@/lib/bio";
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
@@ -39,6 +40,10 @@ const createMissionSchema = z.object({
   rawText: z.string().max(8000).optional().nullable(),                            // texte libre de l'annonce (refonte saisie)
   ouvertSalariat: z.boolean().optional(),    // dispo candidat : ouvert au salariat (→ Profile, section 154)
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),
+  // Diffusion sur la Page Facebook (section 234). CHOIX DU CANDIDAT, pas réglage caché : sa
+  // disponibilité nomme une personne, ses dates et son secteur. Un cabinet, lui, publie une
+  // offre d'organisation — la diffusion y est l'objet même de la publication.
+  diffuserSurFacebook: z.boolean().optional(),
   cabinetPostId: z.string().optional().nullable(),
 });
 
@@ -116,7 +121,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, remunerationBrute, rawText, ouvertSalariat, briqueStatus, cabinetPostId } = parsed.data;
+  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, remunerationBrute, rawText, ouvertSalariat, briqueStatus, cabinetPostId, diffuserSurFacebook } = parsed.data;
 
   // Le SIÈGE du titulaire n'accueille que du remplacement (section 191). Un assistant occupe
   // structurellement une autre ligne du planning — un nouveau poste, ou un poste d'assistant
@@ -144,11 +149,13 @@ export async function POST(req: NextRequest) {
   // rétroactive : un profil créé avant l'onboarding-photo pouvait publier sans photo).
   // On n'exige rien pour les "dates bloquées" (INDISPONIBLE), qui ne sont pas des annonces.
   const effectiveBrique = briqueStatus ?? BriqueStatus.RECHERCHE;
+  // Hissé hors du bloc : le type et la région servent aussi à la diffusion Facebook en fin de
+  // route (section 234), et une seconde lecture du même profil serait une requête pour rien.
+  const me = await prisma.profile.findUnique({
+    where: { id: session.user.profileId },
+    select: { photoUrl: true, type: true, region: true },
+  });
   if (effectiveBrique !== BriqueStatus.INDISPONIBLE) {
-    const me = await prisma.profile.findUnique({
-      where: { id: session.user.profileId },
-      select: { photoUrl: true, type: true },
-    });
     if (!me?.photoUrl) {
       return NextResponse.json(
         { error: "Ajoutez une photo de profil avant de publier une annonce.", needsPhoto: true },
@@ -329,6 +336,37 @@ export async function POST(req: NextRequest) {
     commune: mission.location,
     missionType: mission.missionType,
   });
+
+  // ── Diffusion sur la Page Facebook (section 234) ───────────────────────────────────────────
+  //
+  // DEUX RÉGIMES, ET C'EST VOULU.
+  //   • Cabinet : automatique. Une offre de poste publiée par un cabinet EST faite pour circuler,
+  //     et elle n'expose aucune disponibilité personnelle.
+  //   • Candidat : sur choix explicite. Sa publication nomme une personne, ses dates et son
+  //     secteur ; la diffuser sur une Page publique est un acte distinct de la publier ici, et
+  //     rien dans les CGU ne l'annonce à ce jour.
+  //
+  // SEULEMENT CE QUI A UNE CARTE. L'image de partage n'existe que pour `isActive` + `RECHERCHE`
+  // (voir opengraph-image) : poster une absence ou des dates bloquées produirait un lien sans
+  // prévisualisation, et un post intitulé « Congés ».
+  const estCabinet = me?.type === "TITULAIRE";
+  const diffusable =
+    mission.isActive &&
+    mission.briqueStatus === BriqueStatus.RECHERCHE &&
+    (estCabinet || diffuserSurFacebook === true);
+
+  if (diffusable) {
+    // Fire-and-forget, comme les emails : la publication sur Soignect a déjà réussi, Facebook ne
+    // doit jamais pouvoir la transformer en erreur à l'écran.
+    void publierSurLaPage({
+      message: messagePourAnnonce({
+        estCabinet,
+        titre: mission.title,
+        commune: mission.location || (me?.region ?? "Guadeloupe"),
+      }),
+      cheminAnnonce: `/annonce/${mission.id}`,
+    });
+  }
 
   return NextResponse.json(mission, { status: 201 });
 }

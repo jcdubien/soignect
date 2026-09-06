@@ -5611,6 +5611,76 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 234 — PUBLICATION AUTOMATIQUE SUR LA PAGE FACEBOOK (06/09)
+
+#### Le jeton ne vit que dans l'environnement
+
+`process.env.FACEBOOK_PAGE_ACCESS_TOKEN`, jamais en dur : c'est un jeton de Page à longue durée
+qui autorise à publier au nom de la marque. Écrit dans le dépôt, il partirait avec le premier
+`git clone`. Son absence n'est pas une panne mais une fonctionnalité non configurée — c'est
+l'état normal en développement, et le module le dit sans bruit d'erreur.
+
+#### Aucune image envoyée — et c'est délibéré
+
+On poste un **lien**. Facebook va chercher lui-même la prévisualisation sur `/annonce/[id]`, qui
+porte déjà son bloc `openGraph` et son image générée (section 158, retouchée en 220). Joindre une
+image au post créerait une **seconde source de vérité** pour la même carte : celle du post et
+celle de la page divergeraient au premier changement de gabarit.
+
+Conséquence directe sur le périmètre : l'image de partage n'existe que pour `isActive` +
+`RECHERCHE`. On ne poste donc que ces cas — une absence produirait un lien sans prévisualisation
+et un post intitulé « Congés ».
+
+#### Deux régimes, et c'est le vrai sujet
+
+| | Diffusion |
+|---|---|
+| **Cabinet** | automatique |
+| **Candidat** | sur **choix explicite**, case cochée par défaut mais visible et décochable |
+
+Une offre publiée par un cabinet **est faite pour circuler**, et n'expose aucune disponibilité
+personnelle. La publication d'un candidat nomme **une personne, ses dates et son secteur** :
+la diffuser sur une Page publique est un acte distinct de la publier ici, où le lecteur est un
+professionnel connecté.
+
+**Rien dans les CGU ni la politique de confidentialité n'annonce cette diffusion** — vérifié le
+06/09. La case existe pour cette raison : à défaut d'une clause, le consentement se demande à
+l'endroit et au moment où l'acte a lieu. Cochée par défaut parce qu'une case décochée est un canal
+que personne n'active ; visible et explicite parce qu'une diffusion silencieuse serait un réglage
+caché.
+
+#### L'échec ne remonte jamais à l'écran
+
+`publierSurLaPage` **ne jette jamais**. La publication sur Soignect est déjà faite quand elle
+s'exécute : un jeton expiré ou un Facebook indisponible ne doit pas transformer une publication
+réussie en erreur. Appel en *fire-and-forget*, délai borné à 6 s pour qu'un Facebook lent ne
+retienne pas notre propre réponse.
+
+Le message d'erreur de Graph est journalisé tel quel : c'est lui qui distingue un jeton expiré
+(code 190) d'une panne, et c'est cette distinction qui dira s'il faut agir.
+
+#### Vérifié — les quatre chemins
+
+| Cas | Résultat |
+|---|---|
+| Jeton absent | `{publie:false, motif:"token-absent"}`, avertissement, aucune exception |
+| Jeton expiré (Graph code 190) | `{publie:false, motif:"graph-190"}`, message Graph journalisé |
+| Réseau injoignable | `{publie:false, motif:"reseau"}` |
+| Succès | `{publie:true, postId:"61593123871262_999"}` |
+
+Appel constaté : `POST https://graph.facebook.com/v21.0/61593123871262/feed`, corps
+`{message, link, access_token}`. La case de consentement a été vue à l'écran, cochée par défaut,
+avec sa mention complète.
+
+#### Une limite de ma vérification
+
+**Aucun post réel n'a été envoyé sur la Page.** Le jeton n'existe que dans Vercel ; en local
+l'appel est ignoré. Les quatre chemins ont été exercés avec un `fetch` intercepté — l'URL, le
+corps et le traitement des erreurs sont donc prouvés, mais pas l'acceptation par Facebook ni le
+rendu réel de la carte dans le fil.
+
+---
+
 ### SECTION 233 — L'ESPACE PARTENAIRE CONSULTE ET REMONTE, IL NE RÈGLE RIEN (05/09)
 
 #### Correction de la section 232, le jour même
