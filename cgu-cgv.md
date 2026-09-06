@@ -1,6 +1,6 @@
 # Conditions Générales d'Utilisation et de Vente
 
-*Dernière mise à jour : 16 juillet 2026*
+*Dernière mise à jour : 6 septembre 2026*
 
 ## 1. Objet
 
@@ -32,14 +32,40 @@ aide à la rédaction ; il appartient à chaque utilisateur de vérifier
 leur conformité et, en cas de doute, de consulter un professionnel 
 du droit avant signature.
 
-## 4. Inscription et compte utilisateur
+## 4. Diffusion de vos publications sur Facebook
+
+Soignect anime une page Facebook publique. Les publications faites 
+sur la plateforme peuvent y être relayées automatiquement, sous la 
+forme d'un lien accompagné d'un aperçu.
+
+**Annonces des cabinets et établissements.** Elles sont relayées 
+automatiquement : faire circuler une offre de poste est l'objet même 
+de sa publication.
+
+**Disponibilités des remplaçants et assistants.** Elles ne sont 
+relayées que si vous l'acceptez. Une case vous est présentée au 
+moment de la publication. Elle est cochée par défaut : décochez-la 
+si vous ne souhaitez pas cette diffusion. Votre annonce reste alors 
+publiée normalement sur Soignect.
+
+Ce qui apparaît publiquement si vous acceptez : **votre nom, votre 
+secteur géographique et vos dates de disponibilité**. Ce sont les 
+mêmes informations que sur la page publique de votre annonce, mais 
+présentées à un public plus large, y compris à des personnes qui ne 
+sont pas inscrites sur Soignect.
+
+Retirer une annonce de Soignect ne supprime pas automatiquement la 
+publication déjà parue sur Facebook. Écrivez-nous et nous la 
+retirerons.
+
+## 5. Inscription et compte utilisateur
 
 L'inscription est réservée aux professionnels de santé et structures 
 de santé légalement autorisés à exercer. Chaque utilisateur est 
 responsable de l'exactitude des informations fournies (identité, 
 qualification professionnelle, numéro RPPS ou SIRET).
 
-## 5. Offres et tarifs
+## 6. Offres et tarifs
 
 Soignect propose plusieurs formules d'abonnement (Gratuit, Premium, 
 Boost, offre Structures privées), dont le détail et les tarifs sont 
@@ -54,14 +80,14 @@ utilisateurs concernés avant l'application de toute facturation.
 Les abonnements payants sont facturés via Stripe, prestataire de 
 paiement sécurisé. Soignect ne stocke aucune donnée bancaire.
 
-## 6. Résiliation
+## 7. Résiliation
 
 Chaque utilisateur peut résilier son abonnement à tout moment depuis 
 son espace compte. La résiliation prend effet à la fin de la période 
 de facturation en cours, sans remboursement au prorata sauf 
 disposition légale contraire.
 
-## 7. Responsabilité
+## 8. Responsabilité
 
 Soignect met en œuvre les moyens raisonnables pour assurer le bon 
 fonctionnement de la plateforme, sans garantie de résultat quant à 
@@ -75,17 +101,17 @@ Soignect ne saurait être tenu responsable :
 - De l'exactitude des informations professionnelles déclarées par 
   les utilisateurs (RPPS, SIRET, qualifications)
 
-## 8. Propriété intellectuelle
+## 9. Propriété intellectuelle
 
 Voir les Mentions légales.
 
-## 9. Droit applicable et juridiction compétente
+## 10. Droit applicable et juridiction compétente
 
 Les présentes CGU/CGV sont soumises au droit français. En cas de 
 litige, et à défaut de résolution amiable, les tribunaux français 
 compétents seront seuls saisis.
 
-## 10. Contact
+## 11. Contact
 
 Pour toute question relative aux présentes conditions, contactez 
 l'éditeur à l'adresse indiquée dans les Mentions légales.

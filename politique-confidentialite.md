@@ -1,6 +1,6 @@
 # Politique de confidentialité
 
-*Dernière mise à jour : 18 juillet 2026*
+*Dernière mise à jour : 6 septembre 2026*
 
 ## 1. Qui traite vos données ?
 
@@ -37,6 +37,9 @@ eux, elle n'intervient jamais dans le suivi de patients.
 - Assurer la sécurité et le bon fonctionnement du service
 - Vous contacter (notifications de mise en relation, de message, 
   rappels)
+- Diffuser les annonces sur la page Facebook de Soignect — 
+  automatiquement pour les cabinets, avec votre accord pour les 
+  remplaçants et assistants (voir section 5)
 
 ## 4. Traitement par intelligence artificielle — point d'attention
 
@@ -53,7 +56,29 @@ du service de mise en relation.
 Nous vous recommandons de ne pas inclure d'informations sensibles 
 non nécessaires dans ce champ de texte libre.
 
-## 5. Combien de temps vos données sont-elles conservées ?
+## 5. Diffusion publique sur Facebook — point d'attention
+
+Vos publications peuvent être relayées sur la page Facebook de 
+Soignect, qui est **publique**.
+
+Pour les **cabinets et établissements**, ce relais est automatique : 
+une offre de poste est faite pour circuler.
+
+Pour les **remplaçants et assistants**, il n'a lieu que si vous 
+l'acceptez. La case correspondante vous est présentée au moment où 
+vous publiez votre disponibilité, et vous pouvez la décocher.
+
+**Si vous l'acceptez, votre nom, votre secteur et vos dates 
+deviennent visibles de tous**, y compris de personnes non inscrites 
+sur Soignect. Ce contenu peut être indexé par les moteurs de 
+recherche ou repris par des tiers, et Facebook lui applique ses 
+propres règles.
+
+Vous pouvez revenir sur ce choix à tout moment en nous écrivant : 
+nous retirerons la publication. Supprimer votre annonce sur Soignect 
+ne l'efface pas de Facebook automatiquement.
+
+## 6. Combien de temps vos données sont-elles conservées ?
 
 Vos données sont conservées pendant la durée d'utilisation active de 
 votre compte, puis archivées ou supprimées selon les délais légaux 
@@ -61,7 +86,7 @@ applicables (notamment pour les documents contractuels, soumis à des
 obligations de conservation propres au droit du travail et de la 
 santé).
 
-## 6. Quels sont vos droits ?
+## 7. Quels sont vos droits ?
 
 Conformément au Règlement Général sur la Protection des Données 
 (RGPD), vous disposez des droits suivants sur vos données 
@@ -81,7 +106,7 @@ Vous disposez également du droit d'introduire une réclamation auprès
 de la CNIL (Commission Nationale de l'Informatique et des Libertés) 
 si vous estimez que vos droits ne sont pas respectés.
 
-## 7. Sécurité des données
+## 8. Sécurité des données
 
 Vos données sont hébergées via Supabase (base de données) et Vercel 
 (application), avec des mesures de sécurité standard de l'industrie 
@@ -89,7 +114,7 @@ Vos données sont hébergées via Supabase (base de données) et Vercel
 traités par Stripe, qui ne transmet jamais vos coordonnées bancaires 
 complètes à Soignect.
 
-## 8. Cookies
+## 9. Cookies
 
 Soignect utilise uniquement des cookies techniques essentiels au 
 fonctionnement du service (authentification, maintien de la session 
@@ -101,7 +126,7 @@ expressément demandé.
 Soignect n'utilise, à ce stade, aucun cookie de mesure d'audience, 
 de publicité ou de traçage à des fins commerciales.
 
-## 9. Modification de cette politique
+## 10. Modification de cette politique
 
 Cette politique de confidentialité peut être amenée à évoluer, 
 notamment pendant la phase de développement de Soignect. Toute 

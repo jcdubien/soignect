@@ -5611,6 +5611,64 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 235 — LA DIFFUSION FACEBOOK EST ANNONCÉE DANS LES CGU (06/09)
+
+#### Le correctif de fond de la section 234
+
+La case à cocher protégeait les candidats, mais **rien n'annonçait la diffusion** — vérifié le
+06/09 : aucune occurrence de « Facebook » ni de « réseaux sociaux » dans les deux documents.
+
+#### Format respecté, pas imposé
+
+Les pages `/cgu` et `/confidentialite` ne contiennent pas de texte : elles lisent des **fichiers
+Markdown à la racine** (`cgu-cgv.md`, `politique-confidentialite.md`) via `readLegalDoc`, rendus
+par `MarkdownView`. Ce sont donc ces fichiers qui ont été modifiés, dans leur style existant —
+sections `##` numérotées, phrases courtes, gras sur ce qui doit être lu.
+
+Le modèle suivi est la section « Traitement par intelligence artificielle — **point d'attention** »
+de la politique de confidentialité : une section dédiée, nommée, qui dit franchement ce qui se
+passe. La clause Facebook reprend ce suffixe.
+
+#### Où elle se trouve
+
+| Document | Section | Renumérotation |
+|---|---|---|
+| CGU | **4. Diffusion de vos publications sur Facebook**, juste après « Description du service » | 4→5 … 10→11 |
+| Confidentialité | **5. Diffusion publique sur Facebook — point d'attention**, juste après le point d'attention IA | 5→6 … 9→10 |
+
+Aucun lien ni ancre ne référençait ces numéros — vérifié avant de renuméroter. Numérotation
+contiguë constatée sur les pages rendues.
+
+Deux compléments de cohérence : la **liste des finalités** (section 3 de la confidentialité) gagne
+la diffusion, qui en est une — l'omettre y aurait laissé une liste incomplète. Et les **dates de
+dernière mise à jour** passent au 06/09 : un document modifié qui garde son ancienne date se donne
+pour inchangé.
+
+#### Ce que la clause dit, et qui ne va pas de soi
+
+Trois points qu'un texte de conformité aurait pu taire :
+
+- **ce qui devient visible** — nom, secteur, dates — et pour qui : « y compris de personnes non
+  inscrites sur Soignect » ;
+- **l'indexation** : le contenu peut être repris par les moteurs de recherche ou des tiers, et
+  Facebook lui applique ses propres règles ;
+- **la limite du retrait** : « Supprimer votre annonce sur Soignect ne l'efface pas de Facebook
+  automatiquement. » C'est vrai — l'implémentation de la section 234 publie, elle ne supprime
+  jamais. Le taire aurait été promettre un effacement qui n'existe pas.
+
+#### Vérifié
+
+Pages rendues à **200**, titres contigus 1→11 et 1→10, et la clause lue à l'écran dans son rendu
+Markdown réel.
+
+#### Ce que cela ne règle pas
+
+La clause **annonce** le retrait sur demande ; **aucun mécanisme ne le réalise**. Retirer un post
+demande aujourd'hui une action manuelle sur la Page. Tant que le volume est nul, c'est tenable ;
+une suppression déclenchée depuis le retrait de l'annonce reste à construire.
+
+---
+
 ### SECTION 234 — PUBLICATION AUTOMATIQUE SUR LA PAGE FACEBOOK (06/09)
 
 #### Le jeton ne vit que dans l'environnement
