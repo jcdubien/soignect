@@ -19,6 +19,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session.user.profileId) redirect("/register");
 
   const isAdmin = (session.user as { role: string }).role === "ADMIN";
+  // Un partenaire territorial n'est PAS un admin : il n'a ni le bouton Admin, ni ses écrans.
+  // Il lui faut néanmoins une entrée vers le sien, sinon la fonctionnalité n'existe que pour
+  // qui connaît l'URL (section 232).
+  const estPartenaire = (session.user as { role: string }).role === "PARTENAIRE_TERRITORIAL";
   const profileType = (session.user as { profileType?: string }).profileType;
   const profileId = session.user.profileId as string;
 
@@ -185,6 +189,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Admin
             </Link>
           )}
+          {estPartenaire && (
+            <Link
+              href="/territoire/priorites"
+              className="hidden sm:inline-flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 transition shadow-sm"
+            >
+              Priorités territoriales
+            </Link>
+          )}
           {/* + Annonce / + Disponibilité : masqué sur mobile (< sm) — redondant avec le gros
               bouton central de la bottom-nav, et sa largeur faisait déborder le header (rognage
               de la déconnexion). Conservé sur desktop. */}
@@ -310,6 +322,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </svg>
           <span className="text-[10px] font-medium truncate max-w-full">Relations</span>
         </Link>
+
+        {estPartenaire && (
+          <Link href="/territoire/priorites" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-amber-600 hover:text-amber-700 transition">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+            <span className="text-[10px] font-semibold truncate max-w-full">Territoire</span>
+          </Link>
+        )}
 
         {isAdmin && (
           <Link href="/admin" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-amber-600 hover:text-amber-700 transition">

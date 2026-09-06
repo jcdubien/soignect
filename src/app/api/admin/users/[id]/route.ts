@@ -20,7 +20,10 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
 
-  if (!["ADMIN", "USER"].includes(body.role)) {
+  // PARTENAIRE_TERRITORIAL accepté ici (section 232) : sans cela le rôle existerait en base sans
+  // aucun moyen de l'attribuer autrement qu'en SQL. La garde de la route reste `role === ADMIN` —
+  // un partenaire ne peut donc pas se promouvoir ni promouvoir quelqu'un.
+  if (!["ADMIN", "USER", "PARTENAIRE_TERRITORIAL"].includes(body.role)) {
     return NextResponse.json({ error: "Rôle invalide" }, { status: 400 });
   }
 

@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { peutGererPriorites } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
+// Priorisation territoriale : ADMIN **et** PARTENAIRE_TERRITORIAL (section 232). C'est la SEULE
+// route `/api/admin/*` ouverte au second rôle — toutes les autres gardent `isAdmin` et lui
+// répondent 403.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isAdmin(session: any): boolean {
-  return session?.user?.role === "ADMIN";
+  return peutGererPriorites(session?.user?.role);
 }
 
 // NI LA COMMUNE NI LA PROFESSION NE SONT MODIFIABLES. Changer l'une des deux ne corrige pas une

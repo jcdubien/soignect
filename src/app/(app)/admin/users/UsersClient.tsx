@@ -37,11 +37,12 @@ export default function UsersClient({ initialUsers }: { initialUsers: User[] }) 
     [users, search]
   );
 
-  async function toggleRole(user: User) {
-    const newRole = user.role === "ADMIN" ? "USER" : "ADMIN";
-    if (newRole === "USER") {
-      if (!confirm(`Rétrograder ${user.email} en USER ?`)) return;
-    }
+  // Trois rôles depuis la section 232 : un simple bascule à deux états ne suffit plus. On
+  // demande lequel, plutôt que d'inventer un cycle USER → ADMIN → PARTENAIRE dont l'ordre
+  // n'aurait aucun sens pour celui qui clique.
+  async function changerRole(user: User, newRole: string) {
+    if (newRole === user.role) return;
+    if (!confirm(`Passer ${user.email} en ${newRole} ?`)) return;
     setLoading(user.id);
     const r = await fetch(`/api/admin/users/${user.id}`, {
       method: "PATCH",
@@ -111,6 +112,10 @@ export default function UsersClient({ initialUsers }: { initialUsers: User[] }) 
                     <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-semibold">
                       ADMIN
                     </span>
+                  ) : u.role === "PARTENAIRE_TERRITORIAL" ? (
+                    <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full font-semibold">
+                      PARTENAIRE
+                    </span>
                   ) : (
                     <span className="text-xs text-gray-400">USER</span>
                   )}
@@ -118,13 +123,19 @@ export default function UsersClient({ initialUsers }: { initialUsers: User[] }) 
                 <td className="px-4 py-3 text-gray-400 text-xs">{fmt(u.createdAt)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => toggleRole(u)}
+                    {/* Trois rôles : on CHOISIT, on ne fait plus basculer. Un cycle à trois
+                        états aurait obligé à cliquer deux fois pour revenir en arrière, sans
+                        que l'ordre soit devinable. */}
+                    <select
+                      value={u.role}
+                      onChange={(e) => changerRole(u, e.target.value)}
                       disabled={loading === u.id}
-                      className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition"
+                      className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-600 bg-white disabled:opacity-50"
                     >
-                      {u.role === "ADMIN" ? "Rétrograder USER" : "Passer ADMIN"}
-                    </button>
+                      <option value="USER">Utilisateur</option>
+                      <option value="PARTENAIRE_TERRITORIAL">Partenaire territorial</option>
+                      <option value="ADMIN">Administrateur</option>
+                    </select>
                     <button
                       onClick={() => deleteUser(u)}
                       disabled={loading === u.id}

@@ -5611,6 +5611,83 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 232 — RÔLE PARTENAIRE TERRITORIAL (05/09)
+
+#### Ce que « ADMIN » ouvre vraiment
+
+Recensement avant toute décision : le rôle `ADMIN` donne accès à **13 écrans et 20 routes**.
+Entre autres — la liste de tous les comptes, leur **suppression**, le **changement de rôle**,
+l'envoi d'**emails de masse**, le barème brut des scores, les notes, les statistiques, et
+l'**édition de l'annonce de n'importe quel utilisateur**.
+
+Le donner à un partenaire externe pour qu'il ajuste des priorités de commune serait hors de
+proportion. Un seul compte l'a aujourd'hui.
+
+#### Un rôle distinct, pas un ADMIN diminué
+
+`PARTENAIRE_TERRITORIAL` s'ajoute à l'enum `Role` (migration `ALTER TYPE … ADD VALUE`, appliquée
+via `prisma db execute` sur `DIRECT_URL`, conformément à l'usage du dépôt). Il ouvre **une seule
+chose** : la priorisation territoriale.
+
+#### Pourquoi son écran vit HORS de /admin
+
+`/admin/layout.tsx` protège les 13 écrans **d'un seul contrôle**. Y admettre le partenaire aurait
+obligé à ajouter une garde sur chacun des 12 autres — et surtout, **tout écran admin créé ensuite
+aurait été ouvert par défaut.**
+
+Le défaut doit rester « refusé ». Le partenaire a donc son propre segment `/territoire`, avec sa
+propre garde, et `/admin` n'a pas bougé d'une ligne. L'écran lui-même n'est pas recopié : la page
+`/territoire/priorites` **réexporte** celle de `/admin/priorites`, pour que deux formulaires
+pilotant le même levier ne divergent jamais.
+
+Côté API, `peutGererPriorites` ne remplace `isAdmin` que dans `/api/admin/priorites` et
+`[id]` — les 18 autres routes gardent `isAdmin` intact.
+
+#### Attribution du rôle
+
+L'écran `/admin/users` passait d'un bouton à deux états à un **sélecteur à trois** : un cycle
+USER → ADMIN → PARTENAIRE aurait obligé à cliquer deux fois pour revenir en arrière, sans que
+l'ordre soit devinable. La route accepte la nouvelle valeur, mais **sa garde reste `ADMIN`** :
+un partenaire ne peut ni se promouvoir ni promouvoir quelqu'un.
+
+Une entrée « Priorités territoriales » apparaît dans l'en-tête pour ce rôle — sans elle, la
+fonctionnalité n'existerait que pour qui connaît l'URL. Le bouton « Admin » reste réservé à ADMIN.
+
+#### Vérifié — le REFUS autant que l'accès
+
+Compte de test réel portant le rôle, huit routes exercées :
+
+| Route | Partenaire | Admin |
+|---|---|---|
+| `admin/priorites` | **200** | 200 |
+| `admin/users`, `profiles`, `stats`, `relance-publication`, `clients`, `apl`, `ratings` | **403** | 200 |
+
+Un simple `USER` sur `/api/admin/priorites` : **403**.
+
+Au niveau écran, avec une session forgée portant le rôle :
+
+```
+/territoire/priorites  -> 200
+/admin                 -> 307 vers /annonces
+/admin/priorites       -> 307 vers /annonces
+/admin/users           -> 307 vers /annonces
+/admin/stats           -> 307 vers /annonces
+```
+
+Le HTML rendu contient « Espace partenaire » et la liste des relations, et **aucun** marqueur de
+navigation admin (`Utilisateurs`, `Statistiques`, `DeepSeek`, `Diffusion` : 0 occurrence).
+
+#### Deux points à connaître
+
+**Le partenaire voit les relations institutionnelles** (nom, date de revue, clôture) — il doit en
+choisir une pour déclarer. L'URPS saura donc qu'une relation CPTS existe. C'est une exposition
+réelle, assumée faute de pouvoir déclarer sans client.
+
+**Le compte `urps971@gmail.com` n'existe pas encore.** Le rôle est prêt et s'attribue depuis
+`/admin/users` une fois le compte créé.
+
+---
+
 ### SECTION 231 — MODALE DE PARTAGE À LA PUBLICATION (05/09)
 
 #### Ce qui existait déjà

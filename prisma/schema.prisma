@@ -11,6 +11,11 @@ datasource db {
 enum Role {
   USER
   ADMIN
+  // Partenaire institutionnel (URPS, CPTS…) — accès STRICTEMENT limité à la priorisation
+  // territoriale (section 232). Ce n'est pas un ADMIN diminué : c'est un rôle distinct, dont
+  // le seul écran vit hors de /admin pour que l'assouplissement d'une garde ne puisse jamais
+  // ouvrir le reste par inadvertance.
+  PARTENAIRE_TERRITORIAL
 }
 
 enum ProfileType {
