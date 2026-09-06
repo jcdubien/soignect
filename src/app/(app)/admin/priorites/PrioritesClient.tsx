@@ -66,17 +66,44 @@ const prioriteAgit = (p: Priorite) =>
   clientActif(p.client) &&
   (p.expireLe === null || new Date(p.expireLe) > new Date());
 
+interface DemandePartenaire {
+  id: string; commune: string; profession: string; niveau: number; motif: string;
+  statut: "EN_ATTENTE" | "RETENUE" | "REFUSEE"; reponse: string | null;
+  createdAt: string; demandeur: { email: string };
+}
+
 export default function PrioritesClient({
+  initialDemandes,
   initialData,
   initialClients,
   communes,
   professions,
 }: {
+  initialDemandes: DemandePartenaire[];
   initialData: Priorite[];
   initialClients: Client[];
   communes: string[];
   professions: OptionProfession[];
 }) {
+  const [demandes, setDemandes] = useState<DemandePartenaire[]>(initialDemandes);
+
+  // Répondre NE CRÉE PAS la priorité : la déclaration reste un geste séparé, avec sa relation
+  // institutionnelle et sa date de revue. Enchaîner les deux produirait un levier sans client
+  // rattaché, ce que le gating du 19/08 interdit.
+  async function arbitrer(d: DemandePartenaire, statut: "RETENUE" | "REFUSEE") {
+    const reponse = window.prompt(
+      statut === "RETENUE"
+        ? "Réponse au partenaire (elle lui sera affichée) :"
+        : "Motif du refus (il lui sera affiché) :",
+      "",
+    );
+    if (reponse === null) return;
+    const r = await fetch(`/api/admin/demandes/${d.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ statut, reponse }),
+    });
+    if (r.ok) setDemandes((prev) => prev.map((x) => (x.id === d.id ? { ...x, statut, reponse } : x)));
+  }
   const libelleProfession = (v: string) => professions.find((p) => p.value === v)?.label ?? v;
   const [data, setData] = useState<Priorite[]>(initialData);
   const [clients, setClients] = useState<Client[]>(initialClients);
@@ -208,8 +235,43 @@ export default function PrioritesClient({
 
   const champ = "w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-800";
 
+  const enAttente = demandes.filter((d) => d.statut === "EN_ATTENTE");
+
   return (
     <div className="max-w-7xl mx-auto w-full px-4 py-6 space-y-6">
+      {/* Demandes des partenaires territoriaux (section 233) — en tête, parce qu'une file
+          qu'on doit aller chercher n'est jamais traitée. */}
+      {enAttente.length > 0 && (
+        <section className="mb-5 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+          <h2 className="text-sm font-bold text-amber-900 uppercase tracking-wide">
+            {enAttente.length} demande{enAttente.length > 1 ? "s" : ""} de partenaire en attente
+          </h2>
+          <div className="mt-2 space-y-2">
+            {enAttente.map((d) => (
+              <div key={d.id} className="rounded-xl bg-white border border-amber-100 p-3">
+                <p className="text-sm font-semibold text-gray-800">
+                  {d.commune} · {libelleProfession(d.profession)} · niveau {d.niveau}
+                </p>
+                <p className="text-[11px] text-gray-400">demandé par {d.demandeur.email}</p>
+                <p className="text-xs text-gray-600 mt-1 leading-snug">{d.motif}</p>
+                <div className="flex gap-2 mt-2">
+                  <button type="button" onClick={() => arbitrer(d, "RETENUE")}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition">
+                    Retenir
+                  </button>
+                  <button type="button" onClick={() => arbitrer(d, "REFUSEE")}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition">
+                    Ne pas retenir
+                  </button>
+                </div>
+                <p className="text-[11px] text-amber-800 mt-1.5">
+                  Retenir n&apos;applique rien : saisissez ensuite la déclaration ci-dessous.
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <h1 className="text-xl font-bold text-gray-800">Priorités territoriales</h1>
 
       {/* Ce bandeau n'est pas décoratif. L'écran /admin/apl a passé des mois à inviter à régler

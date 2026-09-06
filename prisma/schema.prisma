@@ -176,6 +176,7 @@ model User {
   notifications    Notification[]
   // Priorités territoriales co-saisies par cet administrateur (section 214, B3).
   prioritesSaisies PrioriteTerritoriale[] @relation("PrioritesSaisies")
+  demandesPriorite DemandePriorite[]      @relation("DemandesPriorite")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
@@ -652,6 +653,37 @@ model CommuneAPL {
 // UNE DÉCLARATION VIEILLIT. `expireLe` permet de poser une échéance à la saisie ; passée cette
 // date la ligne cesse d'agir sans être supprimée, et reste consultable. Sans ce champ, un
 // jugement de 2026 continuerait de classer le feed en 2031 sans que personne ne le décide.
+// Demande de priorisation remontée par un PARTENAIRE TERRITORIAL (section 233).
+//
+// Ce n'est PAS une PrioriteTerritoriale : elle n'a aucun effet sur le feed. C'est une proposition
+// qu'un administrateur examine, puis saisit lui-même s'il la retient. La distinction est le sujet
+// même de ce rôle — le partenaire signale un besoin de terrain, il ne règle pas le levier.
+model DemandePriorite {
+  id          String   @id @default(cuid())
+  demandeurId String   // User.id du partenaire
+  demandeur   User     @relation("DemandesPriorite", fields: [demandeurId], references: [id])
+  commune     String   @db.VarChar(120)
+  profession  Profession
+  // Ce que le partenaire juge nécessaire, sur la même échelle que la déclaration réelle.
+  niveau      Int
+  // Le POURQUOI, obligatoire : une demande sans motif ne peut pas être arbitrée.
+  motif       String   @db.VarChar(500)
+  statut      StatutDemande @default(EN_ATTENTE)
+  // Réponse de l'administrateur — visible par le demandeur, pour que la boucle se ferme.
+  reponse     String?  @db.VarChar(500)
+  traiteeLe   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([statut, createdAt])
+  @@index([demandeurId, createdAt])
+}
+
+enum StatutDemande {
+  EN_ATTENTE
+  RETENUE
+  REFUSEE
+}
+
 model PrioriteTerritoriale {
   id          String     @id @default(cuid())
   // Le code INSEE est la clé, jamais le libellé — c'est tout l'objet du pont `COMMUNE_INSEE`

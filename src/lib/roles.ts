@@ -20,9 +20,15 @@ export function estAdmin(role: string | null | undefined): boolean {
   return role === Role.ADMIN;
 }
 
-/** Peut consulter et ajuster la priorisation territoriale — et rien d'autre.
- *  Un ADMIN le peut aussi : c'est lui qui a saisi les déclarations existantes. */
-export function peutGererPriorites(role: string | null | undefined): boolean {
+/** Accès à l'espace territorial : des AGRÉGATS, et la possibilité de remonter une demande.
+ *  AUCUN réglage (section 233) — le partenaire signale un besoin, l'administrateur tranche. */
+export function peutVoirEspaceTerritoire(role: string | null | undefined): boolean {
+  return role === Role.ADMIN || role === Role.PARTENAIRE_TERRITORIAL;
+}
+
+/** Peut déposer une demande de priorisation. Même périmètre que ci-dessus : c'est la SEULE
+ *  écriture ouverte à ce rôle, et elle ne touche à rien de ce que le feed lit. */
+export function peutRemonterDemande(role: string | null | undefined): boolean {
   return role === Role.ADMIN || role === Role.PARTENAIRE_TERRITORIAL;
 }
 

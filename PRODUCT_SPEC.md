@@ -5611,6 +5611,73 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 233 — L'ESPACE PARTENAIRE CONSULTE ET REMONTE, IL NE RÈGLE RIEN (05/09)
+
+#### Correction de la section 232, le jour même
+
+La 232 donnait au partenaire le **droit d'écriture** sur les priorités territoriales. Décision de
+Jean-Charles quelques heures plus tard : il doit avoir **l'impression d'un espace d'administration**
+sans pouvoir régler quoi que ce soit — trois ou quatre indicateurs, et un canal pour faire remonter
+des besoins au vrai administrateur.
+
+L'écriture a donc été **retirée**, et `/api/admin/priorites` refermée sur `ADMIN` seul — **y compris
+en lecture** : elle expose le nom du client institutionnel et ses dates de revue, qui n'ont pas à
+sortir. L'écran partagé `/territoire/priorites` a été supprimé.
+
+#### Ce que l'espace montre
+
+Quatre indicateurs, tous **agrégés** : postes ouverts, praticiens disponibles, mises en relation
+confirmées sur 90 jours, communes actuellement priorisées. Plus une répartition **par zone** et la
+liste des communes priorisées.
+
+**Aucune donnée nominative ne sort de `lib/statsTerritoire`.** Ce n'est pas une précaution
+d'affichage qu'un futur écran pourrait contourner : la fonction ne renvoie que des comptages. Le
+regroupement se fait par ZONE et non par commune — une commune isolée à une seule annonce
+redeviendrait nominative pour qui connaît le terrain.
+
+Les priorités en vigueur sont montrées **sans nommer l'institution** qui les a déclarées : le
+partenaire doit savoir ce qui est déjà priorisé pour ne pas le redemander, pas savoir avec qui la
+plateforme travaille. L'exposition signalée en 232 disparaît donc d'elle-même.
+
+#### Le canal de remontée
+
+`DemandePriorite` — nouvelle table, migration manuelle avec RLS activée. Ce **n'est pas** une
+`PrioriteTerritoriale` : elle n'a aucun effet sur le feed. Le motif est **obligatoire** (10
+caractères minimum) : c'est la seule chose que le partenaire apporte que la plateforme ne sait pas
+déjà mesurer.
+
+La route vit dans `/api/territoire/`, **hors de `/api/admin/`** : ce n'est pas une action
+d'administration, c'est la seule écriture d'un rôle qui n'administre rien. La ranger avec les
+autres aurait brouillé la frontière que ce rôle existe pour tracer.
+
+Côté administrateur, les demandes en attente s'affichent **en tête de l'écran des priorités** — une
+file qu'il faut aller chercher n'est jamais traitée. **Retenir une demande n'applique rien** : la
+déclaration reste un geste séparé, avec sa relation institutionnelle et sa date de revue.
+Enchaîner les deux produirait un levier sans client rattaché, ce que le gating du 19/08 interdit.
+
+#### Vérifié — refus et accès, sur un compte portant réellement le rôle
+
+| | Partenaire | USER |
+|---|---|---|
+| `GET /api/admin/priorites` | **403** | 403 |
+| `POST /api/admin/priorites` | **403** | 403 |
+| `PATCH /api/admin/demandes/[id]` | **403** | 403 |
+| `GET /api/territoire/demandes` | **200** | 403 |
+| `POST /api/territoire/demandes` | **201** | 403 |
+
+À l'écran, session portant le rôle : `/territoire` à **200**, `/admin`, `/admin/priorites` et
+`/admin/users` à **307** vers `/annonces`.
+
+Contenu de `/territoire` : les quatre indicateurs et le formulaire présents ; **0 occurrence** de
+« CPTS NORD BASSE TERRE », de « @gmail.com », ou de la navigation admin.
+
+#### Non fait
+
+Le compte `urps971@gmail.com` n'existe toujours pas. Le rôle s'attribue depuis `/admin/users`.
+Le rapport statistique trimestriel reste hors périmètre.
+
+---
+
 ### SECTION 232 — RÔLE PARTENAIRE TERRITORIAL (05/09)
 
 #### Ce que « ADMIN » ouvre vraiment

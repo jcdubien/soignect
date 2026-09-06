@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { peutGererPriorites } from "@/lib/roles";
+import { peutVoirEspaceTerritoire } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -14,18 +13,16 @@ export const dynamic = "force-dynamic";
 export default async function TerritoireLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const role = (session?.user as { role?: string })?.role;
-  if (!peutGererPriorites(role)) redirect("/annonces");
+  if (!peutVoirEspaceTerritoire(role)) redirect("/annonces");
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="shrink-0 border-b border-gray-100 bg-white px-4 py-3">
         <p className="text-sm font-bold text-gray-800">Priorisation territoriale</p>
         <p className="text-[11px] text-gray-400 mt-0.5">
-          Espace partenaire — vous n&apos;avez accès qu&apos;à cet écran.
+          Espace partenaire — consultation et remontée de besoins. Les réglages restent du
+          ressort de l&apos;équipe Soignect.
         </p>
-        <Link href="/territoire/priorites" className="sr-only">
-          Priorités
-        </Link>
       </div>
       <div className="flex-1 min-w-0 overflow-y-auto">{children}</div>
     </div>

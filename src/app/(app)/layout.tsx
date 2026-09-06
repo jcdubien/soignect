@@ -191,10 +191,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
           {estPartenaire && (
             <Link
-              href="/territoire/priorites"
+              href="/territoire"
               className="hidden sm:inline-flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 transition shadow-sm"
             >
-              Priorités territoriales
+              Espace territoire
             </Link>
           )}
           {/* + Annonce / + Disponibilité : masqué sur mobile (< sm) — redondant avec le gros
@@ -324,7 +324,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </Link>
 
         {estPartenaire && (
-          <Link href="/territoire/priorites" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-amber-600 hover:text-amber-700 transition">
+          <Link href="/territoire" className="flex-1 min-w-0 flex flex-col items-center gap-0.5 py-1.5 text-amber-600 hover:text-amber-700 transition">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
             </svg>

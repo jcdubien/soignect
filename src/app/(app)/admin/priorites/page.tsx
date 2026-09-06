@@ -41,8 +41,17 @@ export default async function AdminPrioritesPage() {
     label: libelleProfession(valeur),
   }));
 
+  // Demandes remontées par les partenaires (section 233). Sur le MÊME écran que les déclarations :
+  // une demande retenue se saisit juste en dessous, et les séparer aurait produit une file que
+  // personne n'ouvre.
+  const demandes = await prisma.demandePriorite.findMany({
+    orderBy: [{ statut: "asc" }, { createdAt: "desc" }],
+    include: { demandeur: { select: { email: true } } },
+  });
+
   return (
     <PrioritesClient
+      initialDemandes={JSON.parse(JSON.stringify(demandes))}
       initialData={JSON.parse(JSON.stringify(priorites))}
       initialClients={JSON.parse(JSON.stringify(clients))}
       communes={communes}

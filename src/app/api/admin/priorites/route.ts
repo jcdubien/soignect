@@ -4,16 +4,16 @@ import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
 import { inseeOfCommune } from "@/lib/communes";
 import { z } from "zod";
-import { peutGererPriorites } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
-// Priorisation territoriale : ADMIN **et** PARTENAIRE_TERRITORIAL (section 232). C'est la SEULE
-// route `/api/admin/*` ouverte au second rôle — toutes les autres gardent `isAdmin` et lui
-// répondent 403.
+// ADMIN SEUL — y compris en lecture (section 233). Le partenaire territorial ne règle rien :
+// il consulte des agrégats sur son propre écran et REMONTE des demandes. Cette route reste donc
+// fermée pour lui, écriture comme lecture — elle expose le détail des relations institutionnelles
+// (nom du client, dates de revue), qui n'a pas à sortir.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isAdmin(session: any): boolean {
-  return peutGererPriorites(session?.user?.role);
+  return session?.user?.role === "ADMIN";
 }
 
 // La commune arrive en LIBELLÉ PRODUIT (celui des annonces), pas en code INSEE : c'est ce que
