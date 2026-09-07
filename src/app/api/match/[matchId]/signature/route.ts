@@ -10,7 +10,7 @@ import { reportStructureContractUsage } from "@/lib/stripe-usage";
 import { attachAssistantPostForMatch } from "@/lib/assistantPost";
 import { createNotification } from "@/lib/notifications";
 import { isContractProfileEnforced } from "@/lib/platform";
-import { missingContractFields, missingContractLabels } from "@/lib/contractProfile";
+import { missingContractFields, missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -79,7 +79,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
   if (await isContractProfileEnforced()) {
     const parties = await prisma.profile.findMany({
       where: { id: { in: [match.profileAId, match.profileBId] } },
-      select: { id: true, titulaireKind: true, rpps: true, numeroOrdre: true, adresse: true, siret: true },
+      // Liste dérivée de la source unique (section 236), plus recopiée : cette copie-ci avait
+      // oublié `name`, et bloquait la signature de tout le monde sur un champ pourtant rempli.
+      select: { id: true, ...CONTRACT_IDENTITY_SELECT },
     });
     const incomplet = parties.find((x) => missingContractFields(x).length > 0);
     if (incomplet) {

@@ -5611,6 +5611,66 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 236 — LE CONTRAT RÉCLAMAIT UN CHAMP QU'IL N'AVAIT PAS CHARGÉ (06/09)
+
+#### Le champ existait, et il était rempli
+
+Signalé avec captures : l'écran de signature réclame « Nom complet », introuvable dans `/compte`.
+
+Le champ vérifié est `Profile.name` — **celui-là même que le formulaire intitule « Nom du
+cabinet »**, et il était renseigné. Vérifié en base : **0 profil sur 36 n'a le nom vide.**
+
+La cause est dans la requête, pas dans la donnée. La route de signature écrivait :
+
+```ts
+select: { id, titulaireKind, rpps, numeroOrdre, adresse, siret }   // `name` absent
+```
+
+`name` n'étant pas chargé valait `undefined`, et `missingContractFields` le déclarait manquant.
+**Le blocage touchait donc TOUS les profils**, quel que soit leur contenu — pas certains.
+
+Et il était sans issue : le message nommait « Nom complet », le formulaire affiche « Nom du
+cabinet », et le champ était de toute façon déjà rempli. Aucune action de l'utilisateur ne pouvait
+lever le blocage.
+
+Il n'était visible que depuis peu : `enforceContractProfile` était encore à `false` (avertissement
+seul) lors de l'écriture de cette garde ; il est passé à `true` depuis.
+
+#### La cause profonde : une liste de champs recopiée
+
+`contrat-info` avait déjà un `IDENTITY_SELECT` partagé, **et il contenait `name`**. La route de
+signature en avait une seconde copie, écrite à la main, qui l'avait perdu.
+
+La liste est désormais déclarée **une seule fois**, dans `lib/contractProfile.ts`, à côté de la
+fonction qui la consomme — `CONTRACT_IDENTITY_SELECT`. Les deux routes la dérivent. Une liste de
+champs recopiée est une liste qui divergera ; c'est la même cause que `fmtDateUTC` dupliqué sept
+fois (section 220).
+
+Aucune autre copie manuscrite ne subsiste : la seule autre requête qui sélectionne ces champs est
+celle de `/compte`, qui charge `name` — vérifié.
+
+#### Le libellé aussi était trompeur
+
+`CONTRACT_FIELD_LABELS.name` disait « Nom complet ». Le formulaire intitule ce champ « Nom du
+cabinet » ou « Votre nom » selon le camp. Même une fois la requête corrigée, un profil réellement
+sans nom aurait été envoyé chercher un champ qui n'existe sous ce nom nulle part. Devenu « Nom ».
+
+#### Vérifié par un avant/après réel
+
+Sur une vraie mise en relation dont les deux parties sont complètes (Jean-Charles DUBIEN ↔ Pauline
+Bouyrie), appel de la route **sans fichier** — ce qui échoue juste APRÈS le contrôle d'identité,
+donc sans rien écrire :
+
+| Version | Réponse |
+|---|---|
+| `select` bogué (rétabli temporairement) | **422** « Identité contractuelle incomplète … (Nom) » |
+| `select` corrigé | **400** « Aucun fichier reçu » |
+
+Le lien de cause est donc démontré, pas supposé : le contrôle d'identité passe, et seul le fichier
+manquant arrête la requête.
+
+---
+
 ### SECTION 235 — LA DIFFUSION FACEBOOK EST ANNONCÉE DANS LES CGU (06/09)
 
 #### Le correctif de fond de la section 234

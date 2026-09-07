@@ -4,11 +4,12 @@ import { gabaritsSalariePour, NATURE_PAR_MISSION } from "@/lib/contrats/gabarits
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
-import { missingContractLabels } from "@/lib/contractProfile";
+import { missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
 
-const IDENTITY_SELECT = {
-  type: true, name: true, rpps: true, numeroOrdre: true, adresse: true, siret: true, titulaireKind: true,
-} as const;
+// `type` en plus des champs d'identité : il sert au choix du gabarit, pas à la vérification.
+// Le reste vient de la source unique (section 236) — c'est la copie manuscrite de cette liste,
+// dans la route de signature, qui avait perdu `name`.
+const IDENTITY_SELECT = { type: true, ...CONTRACT_IDENTITY_SELECT } as const;
 
 export const dynamic = "force-dynamic";
 

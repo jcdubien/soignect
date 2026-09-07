@@ -15,12 +15,36 @@ export interface ContractIdentity {
 export type ContractField = "name" | "adresse" | "rpps" | "numeroOrdre" | "siret";
 
 export const CONTRACT_FIELD_LABELS: Record<ContractField, string> = {
-  name:        "Nom complet",
+  // « Nom » et non « Nom complet » : le formulaire de compte intitule ce champ « Nom du cabinet »
+  // ou « Votre nom » selon le camp. Réclamer un « Nom complet » envoyait chercher un champ qui
+  // n'existe sous ce nom nulle part — signalé le 06/09, captures d'écran à l'appui.
+  name:        "Nom",
   adresse:     "Adresse professionnelle",
   rpps:        "N° RPPS",
   numeroOrdre: "N° d'inscription à l'Ordre",
   siret:       "N° SIRET",
 };
+
+/**
+ * Les champs à SÉLECTIONNER pour pouvoir évaluer l'identité contractuelle (section 236).
+ *
+ * POURQUOI CETTE CONSTANTE EXISTE. La liste vivait recopiée à la main dans chaque requête. Celle
+ * de la route de signature avait oublié `name` : le champ n'étant pas chargé, il valait
+ * `undefined`, et la vérification le déclarait manquant — pour TOUS les profils, y compris ceux
+ * dont le nom était rempli. « Nom complet » était donc réclamé sans qu'aucun écran ne puisse le
+ * satisfaire, puisque le formulaire l'appelle « Nom du cabinet » et qu'il était déjà renseigné.
+ *
+ * Une liste de champs recopiée est une liste qui divergera. Elle est déclarée ici, à côté de la
+ * fonction qui la consomme, pour que les deux ne puissent plus se contredire.
+ */
+export const CONTRACT_IDENTITY_SELECT = {
+  name: true,
+  adresse: true,
+  rpps: true,
+  numeroOrdre: true,
+  siret: true,
+  titulaireKind: true,
+} as const;
 
 export function isStructureProfile(p: Pick<ContractIdentity, "titulaireKind">): boolean {
   return p.titulaireKind === "STRUCTURE";
