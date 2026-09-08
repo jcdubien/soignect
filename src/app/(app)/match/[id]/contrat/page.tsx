@@ -25,6 +25,13 @@ interface MatchInfo {
   jeSuisTitulaire?: boolean;
   /** Profession du contrat — nomme l'ordre et l'article de code exacts (section 240). */
   profession?: string;
+  /** Durée, préavis et non-concurrence (section 237, lot 4). */
+  defautsDuree?: {
+    preavisJours: number; preavisCommunAccordJours: number; preavisUnilateralJours: number;
+    preavisEssaiJours: number; periodeEssaiMoisInfirmier: number; periodeEssaiMoisCdi: number;
+    dureeMois: number; renouvellementsMax: number; dureeMaxMois: number;
+    nonConcurrenceDureeMois: number; nonConcurrenceIndemnitePct: number;
+  };
   /** Valeurs pré-remplies du contrat de travail, calculées serveur (section 237, lot 2). */
   defautsSalarie?: {
     lieuTravail: string;
@@ -58,6 +65,76 @@ const SIGNATURE_LEGAL =
   "reconnaissent la validité de ce mode de signature pour les besoins de ce contrat.";
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+
+/**
+ * Groupe de clauses repliable (section 237, lot 4).
+ *
+ * POURQUOI LE RÉSUMÉ EST OBLIGATOIRE. La règle posée par Jean-Charles est qu'aucune valeur par
+ * défaut n'atteigne le PDF sans avoir été montrée. Un groupe replié qui ne dirait que son titre
+ * la violerait : le préavis serait de nouveau invisible. L'en-tête porte donc TOUJOURS les
+ * valeurs qu'il contient — replié, on les lit quand même ; déplié, on les modifie.
+ *
+ * `<details>` natif plutôt qu'un état React : le repli reste accessible au clavier et aux
+ * lecteurs d'écran sans qu'on ait à le réimplémenter.
+ */
+function Groupe({ titre, resume, children, ouvert = false }: {
+  titre: string; resume: string; children: React.ReactNode; ouvert?: boolean;
+}) {
+  return (
+    <details open={ouvert} className="border-t border-gray-100 pt-4 group">
+      <summary className="cursor-pointer list-none flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-gray-900">{titre}</span>
+          <span className="block text-xs text-gray-500 mt-0.5">{resume}</span>
+        </span>
+        <span className="text-xs text-kine-700 font-semibold shrink-0 mt-0.5">
+          <span className="group-open:hidden">Modifier</span>
+          <span className="hidden group-open:inline">Replier</span>
+        </span>
+      </summary>
+      <div className="mt-4 flex flex-col gap-4">{children}</div>
+    </details>
+  );
+}
+
+/** Champ numérique compact, avec son unité et sa note. Répété une quinzaine de fois au lot 4. */
+function ChampNombre({ label, valeur, onChange, min, max, unite, note }: {
+  label: string; valeur: number; onChange: (v: number) => void;
+  min: number; max: number; unite?: string; note?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          type="number" min={min} max={max} step={1} value={valeur}
+          onChange={e => onChange(Math.min(max, Math.max(min, Number(e.target.value) || min)))}
+          className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-kine-200"
+        />
+        {unite && <span className="text-sm text-gray-500">{unite}</span>}
+      </div>
+      {note && <p className="text-[11px] text-gray-400 mt-1">{note}</p>}
+    </div>
+  );
+}
+
+/** Champ texte libre, pour les mentions administratives. */
+function ChampTexte({ label, valeur, onChange, max, placeholder, note }: {
+  label: string; valeur: string; onChange: (v: string) => void;
+  max: number; placeholder?: string; note?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
+      <input
+        type="text" value={valeur} placeholder={placeholder}
+        onChange={e => onChange(e.target.value.slice(0, max))}
+        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-kine-200"
+      />
+      {note && <p className="text-[11px] text-gray-400 mt-1">{note}</p>}
+    </div>
+  );
+}
 
 const TYPE_LABELS: Record<string, string> = {
   REMPLACEMENT:  "Remplacement",
@@ -121,6 +198,38 @@ export default function ContratPage() {
   const [jourVersementRedevance,     setJourVersementRedevance]     = useState(10);
   const [forfaitDelaiReversement,    setForfaitDelaiReversement]    = useState(30);
 
+  // Durée, préavis, non-concurrence et mentions administratives (section 237, lot 4).
+  // Vingt-quatre paramètres que la route lisait et que l'écran n'envoyait jamais : leurs valeurs
+  // par défaut partaient donc dans le PDF sans avoir été montrées une seule fois.
+  const [preavisJours,        setPreavisJours]        = useState(30);
+  const [preavisCommunAccord, setPreavisCommunAccord] = useState(8);
+  const [preavisUnilateral,   setPreavisUnilateral]   = useState(8);
+  const [preavisEssaiJours,   setPreavisEssaiJours]   = useState(15);
+  const [essaiCdiActif,       setEssaiCdiActif]       = useState(false);
+  const [essaiCdiMois,        setEssaiCdiMois]        = useState(2);
+  const [essaiInfMois,        setEssaiInfMois]        = useState(3);
+  const [dureeMois,           setDureeMois]           = useState(12);
+  const [renouvellementsMax,  setRenouvellementsMax]  = useState(1);
+  const [dureeMaxMois,        setDureeMaxMois]        = useState(24);
+  const [ncDureeMois,         setNcDureeMois]         = useState(12);
+  const [ncIndemnitePct,      setNcIndemnitePct]      = useState(25);
+  const [ncPeriodicite,       setNcPeriodicite]       = useState("MENSUELLE");
+  const [dureeInfoSollicit,   setDureeInfoSollicit]   = useState("");
+  // Mentions administratives — champs TEXTE, tous vides par défaut côté route : le gabarit
+  // imprime alors « [à compléter] ». Les montrer, c'est donner la chance de les remplir.
+  const [urssafVille,      setUrssafVille]      = useState("");
+  const [numeroSecu,       setNumeroSecu]       = useState("");
+  const [caisseRetraite,   setCaisseRetraite]   = useState("");
+  const [regimeFraisSante, setRegimeFraisSante] = useState("");
+  const [regimePrevoyance, setRegimePrevoyance] = useState("");
+  const [autorisationNum,  setAutorisationNum]  = useState("");
+  const [autorisationDate, setAutorisationDate] = useState("");
+  const [cpamRattachement, setCpamRattachement] = useState("");
+  const [cabinetRemplacant, setCabinetRemplacant] = useState("");
+  const [moyensMisADispo,  setMoyensMisADispo]  = useState("");
+  const [recensementDispo, setRecensementDispo] = useState("");
+  const [forfaitRepartition, setForfaitRepartition] = useState("");
+
   // Champs du formulaire
   const [rayonKm,      setRayonKm]      = useState(20);
   const [dureeAns,     setDureeAns]     = useState(2);
@@ -171,6 +280,20 @@ export default function ContratPage() {
           setHeures(d.defautsSalarie.heuresHebdomadaires ?? 35);
           setHeuresComplMax(d.defautsSalarie.heuresComplementairesMax ?? 4);
         }
+        if (d.defautsDuree) {
+          const u = d.defautsDuree;
+          setPreavisJours(u.preavisJours);
+          setPreavisCommunAccord(u.preavisCommunAccordJours);
+          setPreavisUnilateral(u.preavisUnilateralJours);
+          setPreavisEssaiJours(u.preavisEssaiJours);
+          setEssaiCdiMois(u.periodeEssaiMoisCdi);
+          setEssaiInfMois(u.periodeEssaiMoisInfirmier);
+          setDureeMois(u.dureeMois);
+          setRenouvellementsMax(u.renouvellementsMax);
+          setDureeMaxMois(u.dureeMaxMois);
+          setNcDureeMois(u.nonConcurrenceDureeMois);
+          setNcIndemnitePct(u.nonConcurrenceIndemnitePct);
+        }
         if (d.defautsInfirmier) {
           const i = d.defautsInfirmier;
           setReversementDirectPct(i.reversementPct);
@@ -217,9 +340,7 @@ export default function ContratPage() {
       // date à l'écran serait sans effet sur le document.
       dateDebut,
       dateFin,
-      rayonKm:      String(rayonKm),
-      dureeAns:     String(dureeAns),
-      periodeEssai: String(periodeEssai),
+
       modePaiement,
       delaiPaiementJours: String(delaiPaiementJours),
       modalitesLocaux,
@@ -235,6 +356,9 @@ export default function ContratPage() {
     //
     // La règle est désormais symétrique de celle des défauts : un paramètre n'est transmis que si
     // le contrôle qui le règle est à l'écran.
+    if (montrePeriodeEssaiLiberale) params.set("periodeEssai", String(periodeEssai));
+    if (montreRayon)        params.set("rayonKm",  String(rayonKm));
+    if (montreDureeAns)     params.set("dureeAns", String(dureeAns));
     if (montreRetrocession) params.set("retrocessionPct", String(retrocessionPct));
     if (montreRedevance)    params.set("redevancePct",    String(redevancePct));
     if (gabaritId) params.set("gabaritId", gabaritId);
@@ -271,6 +395,49 @@ export default function ContratPage() {
     if (gabaritId === "INFIRMIER_COLLABORATION") {
       params.set("jourVersementRedevance", String(jourVersementRedevance));
       params.set("forfaitDelaiReversementJours", String(forfaitDelaiReversement));
+    }
+
+    // ── Lot 4 : durée, préavis, non-concurrence, mentions administratives ─────────────────
+    // Toujours par gabarit, jamais en bloc : la règle du lot 3 vaut ici aussi, un paramètre ne
+    // part que si le champ qui le règle est à l'écran.
+    if (info?.isSalariat) {
+      params.set("preavisJours", String(preavisJours));
+      params.set("nonConcurrenceDureeMois", String(ncDureeMois));
+      params.set("nonConcurrenceIndemnitePct", String(ncIndemnitePct));
+      params.set("nonConcurrencePeriodicite", ncPeriodicite);
+      // Vide = pas de période d'essai. La route distingue déjà l'absent du vide sur ce champ.
+      params.set("periodeEssaiMois", essaiCdiActif ? String(essaiCdiMois) : "");
+      params.set("urssafVille", urssafVille);
+      params.set("numeroSecuriteSociale", numeroSecu);
+      params.set("caisseRetraite", caisseRetraite);
+      params.set("regimeFraisSante", regimeFraisSante);
+      params.set("regimePrevoyance", regimePrevoyance);
+    }
+    if (gabaritId === "INFIRMIER_REMPLACEMENT_AUTORISATION") {
+      params.set("preavisCommunAccordJours", String(preavisCommunAccord));
+      params.set("preavisUnilateralJours", String(preavisUnilateral));
+      params.set("autorisationNumero", autorisationNum);
+      params.set("autorisationDate", autorisationDate);
+      params.set("cpamRattachement", cpamRattachement);
+      params.set("moyensMisADisposition", moyensMisADispo);
+    }
+    if (gabaritId === "INFIRMIER_REMPLACEMENT_CONFRERE") {
+      params.set("preavisCommunAccordJours", String(preavisCommunAccord));
+      params.set("preavisUnilateralJours", String(preavisUnilateral));
+      params.set("dureeInformationSollicitation", dureeInfoSollicit);
+      params.set("cabinetRemplacant", cabinetRemplacant);
+      params.set("moyensMisADisposition", moyensMisADispo);
+    }
+    if (gabaritId === "INFIRMIER_COLLABORATION") {
+      params.set("dureeMois", String(dureeMois));
+      params.set("renouvellementsMax", String(renouvellementsMax));
+      params.set("dureeMaxMois", String(dureeMaxMois));
+      params.set("periodeEssaiMois", String(essaiInfMois));
+      params.set("preavisEssaiJours", String(preavisEssaiJours));
+      params.set("dureeInformationSollicitation", dureeInfoSollicit);
+      params.set("moyensMisADisposition", moyensMisADispo);
+      params.set("recensementDispositions", recensementDispo);
+      if (forfaitPartage === "CHARGE_TRAVAIL") params.set("forfaitRepartition", forfaitRepartition);
     }
 
     if (draft) params.set("draft", "true");
@@ -404,6 +571,37 @@ export default function ContratPage() {
   // Vocabulaire de l'ordre concerné (section 240). Ces deux textes étaient codés en dur pour les
   // kinésithérapeutes : un infirmier lisait le mauvais nom d'ordre et le mauvais article de code,
   // sur l'écran même qui produit son contrat.
+  // Résumés d'en-tête des groupes repliés (section 237, lot 4). Ils ne sont pas décoratifs :
+  // c'est par eux qu'un groupe fermé continue de MONTRER ses valeurs. Sans eux, replier un
+  // groupe recréerait exactement le défaut que ce lot ferme.
+  const resumeDuree = [
+    info.isSalariat && (essaiCdiActif ? `essai ${essaiCdiMois} mois` : "sans période d'essai"),
+    info.isSalariat && `préavis ${preavisJours} j`,
+    (gabaritId === "INFIRMIER_REMPLACEMENT_AUTORISATION" || gabaritId === "INFIRMIER_REMPLACEMENT_CONFRERE")
+      && `préavis ${preavisCommunAccord} j d'un commun accord, ${preavisUnilateral} j unilatéral`,
+    gabaritId === "INFIRMIER_COLLABORATION"
+      && `${dureeMois} mois, ${renouvellementsMax} renouvellement${renouvellementsMax > 1 ? "s" : ""}, ${dureeMaxMois} mois au total · essai ${essaiInfMois} mois, préavis ${preavisEssaiJours} j`,
+  ].filter(Boolean).join(" · ");
+
+  const resumeNonConcurrence =
+    `${ncDureeMois} mois · contrepartie ${ncIndemnitePct} % du salaire, versée ${ncPeriodicite === "TRIMESTRIELLE" ? "trimestriellement" : "mensuellement"}`;
+
+  // Ce résumé-ci compte les champs RESTÉS VIDES : ils s'imprimeront « [à compléter] » dans le
+  // document. Annoncer « tout est rempli » quand ce n'est pas le cas serait le même mensonge
+  // d'écran que ceux corrigés aujourd'hui.
+  const champsMentions = [
+    ...(info.isSalariat ? [urssafVille, numeroSecu, caisseRetraite, regimeFraisSante, regimePrevoyance] : []),
+    ...(gabaritId === "INFIRMIER_REMPLACEMENT_AUTORISATION" ? [autorisationNum, autorisationDate, cpamRattachement] : []),
+    ...(gabaritId === "INFIRMIER_REMPLACEMENT_CONFRERE" ? [cabinetRemplacant] : []),
+    ...(estInfirmier ? [moyensMisADispo] : []),
+    ...(gabaritId === "INFIRMIER_COLLABORATION" ? [recensementDispo] : []),
+  ];
+  const vides = champsMentions.filter((v) => !v.trim()).length;
+  const resumeMentions =
+    vides === 0
+      ? "toutes renseignées"
+      : `${vides} sur ${champsMentions.length} non renseignée${vides > 1 ? "s" : ""} — le contrat portera « à compléter »`;
+
   const ordre = libelleOrdre(info.profession);
   const articleNonInstall = articleNonInstallation(info.profession);
 
@@ -414,6 +612,19 @@ export default function ContratPage() {
   const montreRetrocession = isRemplacement  && !info.isSalariat && !estInfirmier;
   // La redevance, elle, EST lue par la collaboration infirmier — on la garde donc là.
   const montreRedevance    = !isRemplacement && !info.isSalariat;
+
+  // Derniers leviers dormants, consignés au lot 3 et fermés ici (section 237, lot 4).
+  // `rayonKm` n'est lu ni par le remplacement infirmier entre confrères ni par la collaboration
+  // infirmier ; `dureeAns` ne l'est par aucun gabarit infirmier. Les afficher offrirait des
+  // réglages sans effet sur le document.
+  const montreRayon =
+    gabaritId !== "INFIRMIER_REMPLACEMENT_CONFRERE" && gabaritId !== "INFIRMIER_COLLABORATION";
+  const montreDureeAns = !isRemplacement && !info.isSalariat && !estInfirmier;
+  // La case d'essai LIBÉRALE est booléenne (`periodeEssai`) : seuls les gabarits kiné la lisent.
+  // Les modèles infirmier ont leur propre essai, en MOIS, réglé dans « Durée et préavis ». Les
+  // afficher tous les deux ne donnait pas seulement un levier sans effet : les deux se
+  // contredisaient à l'écran. Constaté de visu sur la collaboration infirmier.
+  const montrePeriodeEssaiLiberale = !info.isSalariat && !estInfirmier;
   const seuilRedevance = info.defautsInfirmier?.redevanceCabinetSeuilAlerte ?? 10;
   const periode = info.periode;
 
@@ -868,9 +1079,11 @@ export default function ContratPage() {
 
         {/* Rayon non-concurrence */}
         <div className="border-t border-gray-100 pt-4">
-          <label className="block text-sm font-semibold text-gray-800 mb-1">
-            Rayon de non-{isRemplacement ? "installation" : "concurrence"} (km)
-          </label>
+          {montreRayon && (
+            <label className="block text-sm font-semibold text-gray-800 mb-1">
+              Rayon de non-{isRemplacement ? "installation" : "concurrence"} (km)
+            </label>
+          )}
           {/* ── Modèle de contrat ─────────────────────────────────────────────────────────
               Affiché SEULEMENT quand plusieurs modèles existent. Un seul : rien à demander.
               Aucun : on le dit — le bouton de génération échouerait en 422, et laisser
@@ -946,6 +1159,7 @@ export default function ContratPage() {
             </div>
           )}
 
+          {montreRayon && (
           <div className="flex items-center gap-3">
             <input
               type="range" min={5} max={100} step={5}
@@ -957,7 +1171,8 @@ export default function ContratPage() {
               {rayonKm} km
             </span>
           </div>
-          {isRemplacement && (
+          )}
+          {montreRayon && isRemplacement && (
             <p className="text-xs text-gray-400 mt-1">
               La durée est fixée à 2 ans
               {articleNonInstall ? ` par l'art. ${articleNonInstall}` : " par le code de la santé publique"}
@@ -968,7 +1183,7 @@ export default function ContratPage() {
 
         {/* Durée non-concurrence (uniquement hors remplacement, et hors contrat de travail :
             le CDI porte sa propre durée de non-concurrence, en mois, réglée au lot 4). */}
-        {!isRemplacement && !info.isSalariat && (
+        {montreDureeAns && (
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">
               Durée de non-concurrence (années)
@@ -1082,10 +1297,9 @@ export default function ContratPage() {
         </div>
         )}
 
-        {/* Période d'essai — variante LIBÉRALE (booléenne). Le contrat de travail a la sienne, en
-            mois (`periodeEssaiMois`), que ce formulaire n'envoie pas encore : la case ci-dessous
-            n'aurait donc aucun effet sur un CDI. */}
-        {!info.isSalariat && (
+        {/* Période d'essai — variante LIBÉRALE (booléenne), propre aux gabarits kiné. Le CDI et
+            les modèles infirmier ont la leur, en MOIS, dans le groupe « Durée et préavis ». */}
+        {montrePeriodeEssaiLiberale && (
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -1102,6 +1316,169 @@ export default function ContratPage() {
             </p>
           </div>
         </label>
+        )}
+      </div>
+
+      {/* ── Lot 4 : trois groupes repliables, chacun résumant ses valeurs dans son en-tête ──
+          Repliés par défaut : ce sont des clauses standard, moins souvent négociées que la
+          période ou l'argent. Mais leurs valeurs restent LISIBLES sans ouvrir — sinon le
+          préavis redeviendrait invisible, ce que ce lot corrige précisément. */}
+      <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-1 ${locked ? "opacity-60 pointer-events-none" : ""}`}>
+
+        <Groupe titre="Durée et préavis" resume={resumeDuree}>
+          {info.isSalariat && (
+            <>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox" checked={essaiCdiActif}
+                  onChange={e => setEssaiCdiActif(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-kine-600"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Inclure une période d&apos;essai</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Sans elle, le contrat ne comporte aucune clause d&apos;essai.
+                  </p>
+                </div>
+              </label>
+              {essaiCdiActif && (
+                <ChampNombre label="Durée de la période d'essai" valeur={essaiCdiMois}
+                  onChange={setEssaiCdiMois} min={0} max={8} unite="mois"
+                  note="2 mois pour un non-cadre, renouvellement non compris." />
+              )}
+              <ChampNombre label="Préavis de rupture" valeur={preavisJours}
+                onChange={setPreavisJours} min={0} max={180} unite="jours" />
+            </>
+          )}
+
+          {(gabaritId === "INFIRMIER_REMPLACEMENT_AUTORISATION" || gabaritId === "INFIRMIER_REMPLACEMENT_CONFRERE") && (
+            <>
+              <ChampNombre label="Préavis en cas de rupture d'un commun accord" valeur={preavisCommunAccord}
+                onChange={setPreavisCommunAccord} min={0} max={180} unite="jours" />
+              <ChampNombre label="Préavis en cas de rupture unilatérale" valeur={preavisUnilateral}
+                onChange={setPreavisUnilateral} min={0} max={180} unite="jours" />
+            </>
+          )}
+
+          {gabaritId === "INFIRMIER_COLLABORATION" && (
+            <>
+              <ChampNombre label="Durée initiale du contrat" valeur={dureeMois}
+                onChange={setDureeMois} min={1} max={240} unite="mois"
+                note="Reprise de l'annonce quand elle en déclare une." />
+              <ChampNombre label="Nombre de renouvellements possibles" valeur={renouvellementsMax}
+                onChange={setRenouvellementsMax} min={0} max={20} />
+              <ChampNombre label="Durée totale maximale, renouvellements compris" valeur={dureeMaxMois}
+                onChange={setDureeMaxMois} min={1} max={480} unite="mois" />
+              <ChampNombre label="Période d'essai" valeur={essaiInfMois}
+                onChange={setEssaiInfMois} min={0} max={24} unite="mois" />
+              <ChampNombre label="Préavis pendant la période d'essai" valeur={preavisEssaiJours}
+                onChange={setPreavisEssaiJours} min={0} max={180} unite="jours" />
+            </>
+          )}
+
+          {(gabaritId === "INFIRMIER_COLLABORATION" || gabaritId === "INFIRMIER_REMPLACEMENT_CONFRERE") && (
+            <ChampTexte label="Durée de l'obligation d'information en cas de sollicitation"
+              valeur={dureeInfoSollicit} onChange={setDureeInfoSollicit} max={60}
+              placeholder="Ex. : six mois"
+              note="Laissé vide, le contrat portera « [à compléter] »." />
+          )}
+        </Groupe>
+
+        {/* Non-concurrence — propre au CDI, seul modèle dont la clause se négocie. Les modèles
+            libéraux ont une durée fixée par la loi, déjà indiquée sous le rayon. */}
+        {info.isSalariat && (
+          <Groupe titre="Non-concurrence" resume={resumeNonConcurrence}>
+            <ChampNombre label="Durée de la clause après la rupture" valeur={ncDureeMois}
+              onChange={setNcDureeMois} min={0} max={60} unite="mois" />
+            <ChampNombre label="Contrepartie financière" valeur={ncIndemnitePct}
+              onChange={setNcIndemnitePct} min={0} max={100} unite="% du salaire"
+              note="Une clause de non-concurrence sans contrepartie financière est nulle." />
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Périodicité du versement de la contrepartie
+              </label>
+              <select
+                value={ncPeriodicite}
+                onChange={e => setNcPeriodicite(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white"
+              >
+                <option value="MENSUELLE">Mensuelle</option>
+                <option value="TRIMESTRIELLE">Trimestrielle</option>
+              </select>
+            </div>
+          </Groupe>
+        )}
+
+        {(info.isSalariat || estInfirmier) && (
+          <Groupe titre="Mentions administratives" resume={resumeMentions}>
+            {info.isSalariat && (
+              <>
+                <ChampTexte label="Ville de l'URSSAF" valeur={urssafVille}
+                  onChange={setUrssafVille} max={80} placeholder="Ex. : Pointe-à-Pitre" />
+                <ChampTexte label="N° de sécurité sociale du salarié" valeur={numeroSecu}
+                  onChange={setNumeroSecu} max={25} />
+                <ChampTexte label="Caisse de retraite complémentaire" valeur={caisseRetraite}
+                  onChange={setCaisseRetraite} max={120} />
+                <ChampTexte label="Régime de frais de santé" valeur={regimeFraisSante}
+                  onChange={setRegimeFraisSante} max={120} />
+                <ChampTexte label="Régime de prévoyance" valeur={regimePrevoyance}
+                  onChange={setRegimePrevoyance} max={120} />
+              </>
+            )}
+
+            {gabaritId === "INFIRMIER_REMPLACEMENT_AUTORISATION" && (
+              <>
+                <ChampTexte label="N° d'autorisation de remplacement" valeur={autorisationNum}
+                  onChange={setAutorisationNum} max={60}
+                  note="Délivrée par le conseil départemental de l'ordre." />
+                <ChampTexte label="Date de l'autorisation" valeur={autorisationDate}
+                  onChange={setAutorisationDate} max={40} placeholder="Ex. : 12 janvier 2026" />
+                <ChampTexte label="CPAM de rattachement" valeur={cpamRattachement}
+                  onChange={setCpamRattachement} max={120} />
+              </>
+            )}
+
+            {gabaritId === "INFIRMIER_REMPLACEMENT_CONFRERE" && (
+              <ChampTexte label="Cabinet du remplaçant" valeur={cabinetRemplacant}
+                onChange={setCabinetRemplacant} max={200}
+                note="Adresse de son propre cabinet, puisqu'il est installé." />
+            )}
+
+            {estInfirmier && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Moyens mis à disposition
+                </label>
+                <textarea
+                  value={moyensMisADispo} rows={2}
+                  onChange={e => setMoyensMisADispo(e.target.value.slice(0, 600))}
+                  placeholder="Ex. : local, matériel de soins, logiciel de facturation…"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 resize-y"
+                />
+              </div>
+            )}
+
+            {gabaritId === "INFIRMIER_COLLABORATION" && (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Recensement des dispositions particulières
+                  </label>
+                  <textarea
+                    value={recensementDispo} rows={2}
+                    onChange={e => setRecensementDispo(e.target.value.slice(0, 600))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 resize-y"
+                  />
+                </div>
+                {forfaitPartage === "CHARGE_TRAVAIL" && (
+                  <ChampTexte label="Répartition des forfaits selon la charge de travail"
+                    valeur={forfaitRepartition} onChange={setForfaitRepartition} max={300}
+                    placeholder="Ex. : 60 % titulaire / 40 % collaborateur"
+                    note="Exigée par le mode de partage choisi plus haut." />
+                )}
+              </>
+            )}
+          </Groupe>
         )}
       </div>
 

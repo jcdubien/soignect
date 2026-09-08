@@ -12,6 +12,10 @@ import {
   REVERSEMENT_PCT_DEFAUT, REVERSEMENT_DELAI_MOIS_DEFAUT, REDEVANCE_CABINET_PCT_DEFAUT,
   REDEVANCE_CABINET_SEUIL_ALERTE, JOUR_VERSEMENT_REDEVANCE_DEFAUT,
   FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT,
+  PREAVIS_JOURS_DEFAUT, PREAVIS_COMMUN_ACCORD_JOURS_DEFAUT, PREAVIS_UNILATERAL_JOURS_DEFAUT,
+  PREAVIS_ESSAI_JOURS_DEFAUT, PERIODE_ESSAI_MOIS_INFIRMIER_DEFAUT, PERIODE_ESSAI_MOIS_CDI_DEFAUT,
+  RENOUVELLEMENTS_MAX_DEFAUT, DUREE_MAX_MOIS_DEFAUT, dureeMoisParDefaut,
+  NON_CONCURRENCE_DUREE_MOIS_DEFAUT, NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT,
 } from "@/lib/contrats/defauts";
 
 // `type` en plus des champs d'identité : il sert au choix du gabarit, pas à la vérification.
@@ -38,8 +42,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, profession: true, ...IDENTITY_SELECT } },
       // `startDate`/`endDate` : l'écran doit pré-remplir la période ET pouvoir dire d'où elle
       // vient quand les deux annonces divergent (section 237).
-      missionA: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true, location: true } },
-      missionB: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true, location: true } },
+      missionA: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true, location: true, minMonths: true } },
+      missionB: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true, location: true, minMonths: true } },
     },
   });
 
@@ -136,8 +140,25 @@ export async function GET(_req: NextRequest, { params }: Params) {
             source: g.source, composeSansModele: false,
           }));
 
+  // Durée, préavis et non-concurrence (section 237, lot 4). Mêmes constantes que la génération.
+  // `dureeMois` est la seule qui dépende des annonces : la durée déclarée y prime sur le défaut.
+  const defautsDuree = {
+    preavisJours: PREAVIS_JOURS_DEFAUT,
+    preavisCommunAccordJours: PREAVIS_COMMUN_ACCORD_JOURS_DEFAUT,
+    preavisUnilateralJours: PREAVIS_UNILATERAL_JOURS_DEFAUT,
+    preavisEssaiJours: PREAVIS_ESSAI_JOURS_DEFAUT,
+    periodeEssaiMoisInfirmier: PERIODE_ESSAI_MOIS_INFIRMIER_DEFAUT,
+    periodeEssaiMoisCdi: PERIODE_ESSAI_MOIS_CDI_DEFAUT,
+    dureeMois: dureeMoisParDefaut(missionTitulaire, missionCandidat),
+    renouvellementsMax: RENOUVELLEMENTS_MAX_DEFAUT,
+    dureeMaxMois: DUREE_MAX_MOIS_DEFAUT,
+    nonConcurrenceDureeMois: NON_CONCURRENCE_DUREE_MOIS_DEFAUT,
+    nonConcurrenceIndemnitePct: NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT,
+  };
+
   return NextResponse.json({
     gabarits,
+    defautsDuree,     // durée, préavis, non-concurrence — lot 4
     missionType,
     theirName:       theirProfile.name,
     hasPremium,

@@ -65,3 +65,55 @@ export const JOUR_VERSEMENT_REDEVANCE_DEFAUT = 10;
 
 /** Délai de reversement des forfaits de prise en charge, en jours. */
 export const FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT = 30;
+
+// ── Durée, préavis et non-concurrence (section 237, lot 4) ─────────────────────────────────
+//
+// Ces valeurs viennent des modèles-types CNOMK et CNOI, ou des usages qu'ils décrivent. Elles
+// sont plausibles — c'est pourquoi elles restent des DÉFAUTS et non des champs obligatoires,
+// contrairement au salaire du lot 2, où `0` n'était pas une valeur mais son absence.
+//
+// Ce qui change au lot 4 n'est donc pas leur valeur, c'est leur VISIBILITÉ : aucune ne partait
+// vers le PDF sans que l'écran ne l'ait montrée. Vingt-quatre paramètres étaient dans ce cas.
+
+/** Préavis de rupture d'un CDI, en jours. */
+export const PREAVIS_JOURS_DEFAUT = 30;
+
+/** Préavis de rupture d'un commun accord (modèles infirmier), en jours. */
+export const PREAVIS_COMMUN_ACCORD_JOURS_DEFAUT = 8;
+
+/** Préavis de rupture unilatérale (modèles infirmier), en jours. */
+export const PREAVIS_UNILATERAL_JOURS_DEFAUT = 8;
+
+/** Préavis pendant la période d'essai d'une collaboration infirmier, en jours. */
+export const PREAVIS_ESSAI_JOURS_DEFAUT = 15;
+
+/** Période d'essai d'une collaboration infirmier, en mois. */
+export const PERIODE_ESSAI_MOIS_INFIRMIER_DEFAUT = 3;
+
+/** Période d'essai d'un CDI, en mois. Cadres exclus — 2 mois est le régime de droit commun. */
+export const PERIODE_ESSAI_MOIS_CDI_DEFAUT = 2;
+
+/** Nombre de renouvellements d'une collaboration infirmier. */
+export const RENOUVELLEMENTS_MAX_DEFAUT = 1;
+
+/** Durée totale maximale d'une collaboration infirmier, renouvellements compris, en mois. */
+export const DUREE_MAX_MOIS_DEFAUT = 24;
+
+/** Durée initiale d'une collaboration, en mois, quand l'annonce n'en déclare aucune. */
+export const DUREE_MOIS_DEFAUT = 12;
+
+/** Durée de la clause de non-concurrence d'un CDI, en mois. */
+export const NON_CONCURRENCE_DUREE_MOIS_DEFAUT = 12;
+
+/** Contrepartie financière de la non-concurrence d'un CDI, en % du salaire.
+ *  Une clause de non-concurrence SANS contrepartie financière est nulle : ce n'est pas un
+ *  réglage cosmétique, c'est ce qui rend la clause opposable. */
+export const NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT = 25;
+
+/** Durée initiale d'une collaboration : celle de l'annonce si elle en porte une. */
+export function dureeMoisParDefaut(
+  missionTitulaire: { minMonths?: number | null } | null | undefined,
+  missionCandidat: { minMonths?: number | null } | null | undefined,
+): number {
+  return missionTitulaire?.minMonths ?? missionCandidat?.minMonths ?? DUREE_MOIS_DEFAUT;
+}

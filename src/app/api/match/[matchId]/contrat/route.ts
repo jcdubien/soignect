@@ -23,6 +23,10 @@ import {
   lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
   REVERSEMENT_PCT_DEFAUT, REVERSEMENT_DELAI_MOIS_DEFAUT, REDEVANCE_CABINET_PCT_DEFAUT,
   JOUR_VERSEMENT_REDEVANCE_DEFAUT, FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT,
+  PREAVIS_JOURS_DEFAUT, PREAVIS_COMMUN_ACCORD_JOURS_DEFAUT, PREAVIS_UNILATERAL_JOURS_DEFAUT,
+  PREAVIS_ESSAI_JOURS_DEFAUT, PERIODE_ESSAI_MOIS_INFIRMIER_DEFAUT, PERIODE_ESSAI_MOIS_CDI_DEFAUT,
+  RENOUVELLEMENTS_MAX_DEFAUT, DUREE_MAX_MOIS_DEFAUT, dureeMoisParDefaut,
+  NON_CONCURRENCE_DUREE_MOIS_DEFAUT, NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT,
 } from "@/lib/contrats/defauts";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -365,19 +369,19 @@ export async function GET(req: NextRequest, { params }: Params) {
         urssafVille: texteS("urssafVille", 80),
         numeroSecuriteSociale: texteS("numeroSecuriteSociale", 25),
         lieuTravail: texteS("lieuTravail") || locationTitulaire,
-        periodeEssaiMois: essaiBrut === null || essaiBrut === "" ? null : entierS("periodeEssaiMois", 2, 0, 8),
+        periodeEssaiMois: essaiBrut === null || essaiBrut === "" ? null : entierS("periodeEssaiMois", PERIODE_ESSAI_MOIS_CDI_DEFAUT, 0, 8),
         remunerationBrutMensuelle: remuneration,
         caisseRetraite:   texteS("caisseRetraite", 120),
         regimeFraisSante: texteS("regimeFraisSante", 120),
         regimePrevoyance: texteS("regimePrevoyance", 120),
         nonConcurrence: {
-          dureeMois:    entierS("nonConcurrenceDureeMois", 12, 0, 60),
+          dureeMois:    entierS("nonConcurrenceDureeMois", NON_CONCURRENCE_DUREE_MOIS_DEFAUT, 0, 60),
           rayonKm,
-          indemnitePct: entierS("nonConcurrenceIndemnitePct", 25, 0, 100),
+          indemnitePct: entierS("nonConcurrenceIndemnitePct", NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT, 0, 100),
           periodicite: sp.get("nonConcurrencePeriodicite") === "TRIMESTRIELLE" ? "TRIMESTRIELLE" : "MENSUELLE",
         },
         indemnitePrecaritePct: null, // sans objet en CDI
-        preavisJours: entierS("preavisJours", 30, 0, 180),
+        preavisJours: entierS("preavisJours", PREAVIS_JOURS_DEFAUT, 0, 180),
         generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
       });
       filename = "contrat-travail-cdi.pdf";
@@ -453,8 +457,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       reversementTiersPayantPct:     entier("reversementTiersPayantPct", REVERSEMENT_PCT_DEFAUT, 0, 100),
       reversementTiersPayantDelaiMois: entier("reversementTiersPayantDelaiMois", REVERSEMENT_DELAI_MOIS_DEFAUT, 0, 12),
       rayonKm,
-      preavisCommunAccordJours: entier("preavisCommunAccordJours", 8, 0, 180),
-      preavisUnilateralJours:   entier("preavisUnilateralJours", 8, 0, 180),
+      preavisCommunAccordJours: entier("preavisCommunAccordJours", PREAVIS_COMMUN_ACCORD_JOURS_DEFAUT, 0, 180),
+      preavisUnilateralJours:   entier("preavisUnilateralJours", PREAVIS_UNILATERAL_JOURS_DEFAUT, 0, 180),
       moyensMisADisposition: texte("moyensMisADisposition"),
       generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
@@ -478,8 +482,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       redevancePct: entier("redevanceCabinetPct", REDEVANCE_CABINET_PCT_DEFAUT, 0, 100),
       moyensMisADisposition: texte("moyensMisADisposition"),
       cabinetRemplacant:     texte("cabinetRemplacant", 200),
-      preavisCommunAccordJours: entier("preavisCommunAccordJours", 8, 0, 180),
-      preavisUnilateralJours:   entier("preavisUnilateralJours", 8, 0, 180),
+      preavisCommunAccordJours: entier("preavisCommunAccordJours", PREAVIS_COMMUN_ACCORD_JOURS_DEFAUT, 0, 180),
+      preavisUnilateralJours:   entier("preavisUnilateralJours", PREAVIS_UNILATERAL_JOURS_DEFAUT, 0, 180),
       dureeInformationSollicitation: texte("dureeInformationSollicitation", 60),
       generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
@@ -491,9 +495,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     element = buildCollaborationInfirmierPdf({
       titulaire: titulaireParty, collaborateur: autreParty,
       startDate: periode.debut,
-      dureeMois:          entier("dureeMois", missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? 12, 1, 240),
-      renouvellementsMax: entier("renouvellementsMax", 1, 0, 20),
-      dureeMaxMois:       entier("dureeMaxMois", 24, 1, 480),
+      dureeMois:          entier("dureeMois", dureeMoisParDefaut(missionTitulaire, missionAutre), 1, 240),
+      renouvellementsMax: entier("renouvellementsMax", RENOUVELLEMENTS_MAX_DEFAUT, 0, 20),
+      dureeMaxMois:       entier("dureeMaxMois", DUREE_MAX_MOIS_DEFAUT, 1, 480),
       redevancePct,
       jourVersementRedevance: entier("jourVersementRedevance", JOUR_VERSEMENT_REDEVANCE_DEFAUT, 1, 31),
       moyensMisADisposition:   texte("moyensMisADisposition"),
@@ -501,8 +505,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       forfaitPartage,
       forfaitRepartition:           texte("forfaitRepartition", 300),
       forfaitDelaiReversementJours: entier("forfaitDelaiReversementJours", FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT, 0, 365),
-      periodeEssaiMois:  entier("periodeEssaiMois", 3, 0, 24),
-      preavisEssaiJours: entier("preavisEssaiJours", 15, 0, 180),
+      periodeEssaiMois:  entier("periodeEssaiMois", PERIODE_ESSAI_MOIS_INFIRMIER_DEFAUT, 0, 24),
+      preavisEssaiJours: entier("preavisEssaiJours", PREAVIS_ESSAI_JOURS_DEFAUT, 0, 180),
       dureeInformationSollicitation: texte("dureeInformationSollicitation", 60),
       generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });

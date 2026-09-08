@@ -5611,6 +5611,82 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 241 — PLUS AUCUNE VALEUR N'ATTEINT LE PDF SANS PASSER PAR L'ÉCRAN (08/09) — lot 4 sur 4
+
+#### L'inventaire, fait mécaniquement
+
+Avant d'écrire une ligne, la liste exacte de ce qui restait invisible, obtenue en comparant les
+paramètres **lus par la route** à ceux **envoyés par l'écran** :
+
+```
+LUS mais JAMAIS ENVOYÉS : 24 paramètres
+```
+
+Durées, préavis, non-concurrence et mentions administratives : leurs valeurs par défaut partaient
+dans le document sans que personne ne les ait vues. Le même inventaire, rejoué après le lot,
+renvoie **zéro** dans les deux sens — ni défaut invisible, ni levier dormant.
+
+Quatre écarts apparents subsistaient au diff final ; les quatre ont été **vérifiés un par un** et
+se sont révélés des artefacts de mon grep (envoi en abrégé d'objet, `params.set` sur plusieurs
+lignes, lecture via une variable dans `periode.ts`). Mon instrument m'ayant déjà trompé trois fois
+dans la journée, aucun n'a été écarté sur présomption.
+
+#### Trois groupes repliés, mais jamais muets
+
+La conception validée prévoyait des groupes repliables. Un groupe replié qui n'afficherait que son
+titre **recréerait le défaut que ce lot ferme** : le préavis redeviendrait invisible.
+
+L'en-tête porte donc toujours ses valeurs :
+
+```
+Durée et préavis            sans période d'essai · préavis 30 j
+Non-concurrence             12 mois · contrepartie 25 % du salaire, versée mensuellement
+Mentions administratives    5 sur 5 non renseignées — le contrat portera « à compléter »
+```
+
+Le troisième résumé **compte les champs restés vides**. Annoncer « tout est rempli » quand ce n'est
+pas le cas serait le même mensonge d'écran que ceux corrigés aujourd'hui.
+
+`<details>` natif plutôt qu'un état React : le repli reste utilisable au clavier et par un lecteur
+d'écran sans qu'on ait à le réimplémenter.
+
+#### Les derniers leviers dormants
+
+Consignés au lot 3, fermés ici : `rayonKm` n'est lu ni par le remplacement infirmier entre
+confrères ni par la collaboration infirmier ; `dureeAns` par aucun gabarit infirmier.
+
+Et un troisième, **trouvé à l'écran seulement** : la case « Inclure une période d'essai de 3 mois »
+s'affichait sur une collaboration infirmier. Ce gabarit ne lit pas `periodeEssai` — il a son propre
+essai, en **mois**, désormais réglé juste en dessous dans « Durée et préavis ». Les deux
+apparaissaient donc ensemble et **se contredisaient**. Vérifié : zéro lecture de `periodeEssai`
+dans les gabarits infirmier.
+
+#### Vérifié par la route et à l'écran
+
+Cinq documents générés par la route réelle sur un couple de test (créé, puis supprimé) :
+
+| Cas | Ce que le PDF imprime |
+|---|---|
+| CDI complet | `période d'essai fixée à 4 mois` · `préavis de 45 jours` · `durée de 18 mois` · `indemnité spéciale trimestrielle … égale à 33 %` |
+| CDI, mentions | `URSSAF de Pointe-a-Pitre` · `AGIRC-ARRCO` · `Mutuelle Verif` · `Prevoyance Verif` |
+| CDI sans essai | `Les parties ne conviennent d'aucune période d'essai. L'engagement est définitif dès la prise d'effet.` |
+| Avec autorisation | `préavis de 12 jours` · `préavis de 21 jours` · `CPAM de Guadeloupe` |
+| Entre confrères | `son propre cabinet sis Cabinet de Sainte-Anne` · `sollicitation … pendant une durée de six mois` |
+| Collaboration | `durée de 18 mois, renouvelable 3 fois dans la limite … de 72 mois` · `Les 6 premiers mois … période d'essai` · `préavis de 21 jours` |
+
+À l'écran, sur le CDI comme sur la collaboration infirmier : groupes repliés portant leurs valeurs,
+ouverture au clic, et la mention légale disant enfin **« l'Ordre des infirmiers »** côté CNOI
+(section 240 vérifiée de visu au passage).
+
+#### La série est close
+
+Les quatre lots sont livrés. La règle tient dans les deux sens :
+
+> Aucune valeur par défaut n'atteint le PDF sans que l'écran l'ait montrée.
+> Aucun paramètre n'est transmis si le contrôle qui le règle n'est pas à l'écran.
+
+---
+
 ### SECTION 240 — L'ÉCRAN NOMMAIT LE MAUVAIS ORDRE ET LE MAUVAIS ARTICLE (08/09)
 
 #### Deux énoncés faux sur un écran juridique
