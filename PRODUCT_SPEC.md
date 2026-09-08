@@ -5674,6 +5674,85 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 243 — REPRENDRE LE TEXTE D'UNE ANNONCE PRÉCÉDENTE (08/09)
+
+#### Ce qui existait
+
+Le formulaire de publication a **deux** champs de texte libre selon le camp :
+
+- `rawText` — le texte long, source de vérité dont les champs structurés sont extraits par l'IA.
+  Affiché aux **cabinets** seulement ;
+- `accroche` — l'accroche de la carte de swipe (`bioTinder`, `pitch` en repli), affichée à **tous**
+  et qui EST le texte libre du candidat.
+
+Aucune route ne listait les annonces du lecteur : `/api/missions` renvoie celles **des autres**
+(camp opposé), et `active-check` ne renvoie que des identifiants. Nouvelle route nécessaire.
+
+#### La garantie vit dans le `select`, pas dans l'écran
+
+La consigne était de ne reprendre que le texte libre. Une annonce de l'an dernier porte des dates
+périmées, une commune, un taux de rétrocession : les recopier en silence produirait une annonce
+fausse que personne n'aurait relue.
+
+`GET /api/missions/textes-precedents` **ne renvoie donc pas ces champs**. Pas « l'écran ne les
+affiche pas » : ils ne sortent pas de la base. Une discipline d'affichage se perd au premier
+refactor ; un `select` qui ne les contient pas rend l'erreur impossible à commettre. Même principe
+que `stripMissionProfiles`.
+
+`title` sort — mais pour **identifier** l'annonce dans la liste de choix, jamais pour être recopié.
+Sans titre on ne saurait pas quel texte on reprend.
+
+#### Ce que la route écarte
+
+**Actives ou non**, délibérément : une annonce close est justement celle dont on veut reprendre le
+texte pour republier. C'est le cas d'usage principal.
+
+En revanche elle écarte ce qui n'est pas une annonce — les **absences** (`isSelfPresence`) et les
+**marqueurs de calendrier privés** (`briqueStatus INDISPONIBLE`). Proposer « Congés » ferait passer
+un blocage d'agenda pour une publication passée.
+
+#### Remplacer puis annuler, plutôt que demander avant
+
+Première version écrite avec `confirm()`. Vérification faite : le produit ne s'en sert que dans les
+écrans **d'administration** — aucun écran utilisateur n'ouvre de boîte native.
+
+Et ce formulaire a déjà son motif pour son seul autre geste destructif, la reformulation IA : il
+remplace, puis propose d'annuler. On s'y aligne. Une question posée avant force à trancher sans
+voir le résultat ; un retour arrière après coup laisse comparer.
+
+Le retour arrière n'apparaît que s'il y avait quelque chose à perdre — sur un premier jet, champ
+vide, il ferait du bruit pour rien.
+
+#### Vérifié à l'écran
+
+Profil de test avec une annonce passée **volontairement chargée de champs périmés** : Deshaies,
+01/03/2024 → 30/04/2024, rétrocession 82 %, 6 mois minimum, CA 9 000 €, 4 demi-journées, logement
+et véhicule. Plus une absence, qui ne devait pas apparaître.
+
+| Contrôle | Résultat |
+|---|---|
+| Clés renvoyées par la route | `id`, `titre`, `creeeLe`, `rawText`, `accroche` — **aucun champ structuré** |
+| Absence proposée dans la liste | non |
+| Texte repris dans le champ | oui |
+| Dates du formulaire après reprise | vides |
+| Commune sélectionnée | aucune |
+| Cases cochées | 0 |
+| Champs numériques | vides |
+| « 82 » ou « 9000 » présents sur la page | non |
+| Annulation après reprise | brouillon restauré, bandeau disparu |
+
+#### Trois faux négatifs de mon instrument
+
+La bannière d'annulation a paru absente **trois fois**. À chaque fois la cause était mon test, pas
+le produit : d'abord une injection JavaScript qui ne déclenchait pas le `onChange` de React, puis
+deux clics qui manquaient la zone de texte — le champ restait vide, donc il n'y avait rien à
+annuler.
+
+Leçon consignée : **vérifier la condition de départ avant de conclure sur le résultat.** Trois
+tentatives auraient été évitées par une lecture du champ avant d'agir.
+
+---
+
 ### SECTION 242 — LA SIGNATURE SE CONSERVE, SUR CONSENTEMENT (08/09)
 
 #### Ce qui se passait

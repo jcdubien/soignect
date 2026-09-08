@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { COMMUNES_GUADELOUPE } from "@/lib/communes";
 import { bioLimitFor } from "@/lib/bio";
 import Link from "next/link";
+import ReprendreTexte from "@/components/missions/ReprendreTexte";
 
 export const dynamic = "force-dynamic";
 
@@ -617,6 +618,14 @@ export default function CreateMissionClient({ typesContractualisables }: { types
               className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800"
               placeholder={cfg.rawPlaceholder}
             />
+            {/* Reprendre un texte précédent (section 243) — le TEXTE seul, jamais les dates ni
+                les montants d'une annonce passée. Posé sous le champ qu'il remplit. */}
+            <ReprendreTexte
+              champ="rawText"
+              valeurActuelle={form.rawText}
+              exclureId={editId}
+              onReprendre={(t) => setForm((prev) => ({ ...prev, rawText: t }))}
+            />
             {/* Boutons d'assistance — chacun = 1 appel IA explicite (jamais à la frappe).
                 Libellés décrivant le RÉSULTAT, pas l'action : « Analyser » et « Optimiser »
                 sonnaient pareil et rien n'indiquait lequel modifiait quoi. La ligne d'aide
@@ -846,6 +855,17 @@ export default function CreateMissionClient({ typesContractualisables }: { types
               <span className="text-xs text-gray-300">{form.accroche.length}/{bioLimit}</span>
             )}
           </div>
+          {/* Côté CANDIDAT, l'accroche EST le texte libre : le bouton s'y rattache. Côté cabinet
+              il est déjà posé sous le texte long, et le dupliquer ici sèmerait la confusion sur
+              lequel des deux champs serait rempli. */}
+          {formType !== "TITULAIRE" && (
+            <ReprendreTexte
+              champ="accroche"
+              valeurActuelle={form.accroche}
+              exclureId={editId}
+              onReprendre={(t) => setForm((prev) => ({ ...prev, accroche: t.slice(0, bioLimit) }))}
+            />
+          )}
         </div>
         )}
 
