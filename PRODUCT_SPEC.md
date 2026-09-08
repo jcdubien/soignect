@@ -5692,12 +5692,52 @@ Les gabarits ont été appelés directement et les PDF produits relus au texte e
 | Entre confrères, défaut | `Une redevance de 5 %` |
 | Entre confrères, saisie | `Une redevance de 8 %` |
 
-#### Limite de cette vérification
+#### Vérifié ensuite par la ROUTE et à l'ÉCRAN, sur un couple de test
 
-**Aucun contrat infirmier n'a été généré par la route elle-même, ni vu à l'écran.** Il n'existe
-aucune mise en relation infirmier en base : les six existantes sont toutes kiné. Ce qui est prouvé,
-c'est que les gabarits impriment les valeurs qu'on leur passe. Le câblage route ↔ écran, lui, ne
-l'est que par relecture et par le compilateur.
+Aucune mise en relation infirmier n'existait en base — les six existantes sont toutes kiné. Un
+couple de test a donc été créé sur autorisation de Jean-Charles, avec deux mises en relation
+(remplacement et collaboration) pour couvrir les trois gabarits, puis **supprimé aussitôt après**.
+Écrit directement en base, jamais via les routes : ni publication Facebook, ni email, ni
+notification. Annonces `isActive: false`, invisibles dans le feed — l'en-tête affichait « 0 annonce
+active ». `passwordHash` invalide : aucune connexion par le formulaire n'était possible.
+
+**Le test décisif** — rejouer l'ancien envoi de l'écran :
+
+| Paramètres transmis | Ce que le PDF imprime |
+|---|---|
+| `redevancePct=40`, **sans** `redevanceCabinetPct` (ancien écran) | `Une redevance de 5 %` |
+| `redevanceCabinetPct=8` **avec** `redevancePct=40` encore présent | `Une redevance de 8 %` |
+
+La fuite est fermée des deux côtés : le paramètre générique n'est plus lu, et son absence retombe
+sur la valeur sûre.
+
+Les autres cas, générés par la route puis relus au texte extrait :
+
+| Gabarit | Phrase imprimée |
+|---|---|
+| Avec autorisation | `le Remplacé lui en reversera 85 %, dans un délai de 2 mois` |
+| Avec autorisation, tiers payant | `le Remplacé lui en reversera 80 %, dans un délai de 3 mois` |
+| Collaboration | `une redevance d'un montant équivalant à 30 % de son chiffre` |
+| Collaboration, forfaits | `dans un délai de 45 jours à compter de la perception du forfait` |
+| Collaboration, versement | `avant le 15 du mois suivant` |
+
+À l'écran, les trois gabarits ont été ouverts : le sélecteur de modèle propose les deux variantes
+de remplacement avec leurs descriptions, le bloc « Honoraires et reversements » s'adapte au modèle
+retenu, et **l'avertissement R.4312-30 apparaît bien dès que la redevance dépasse 10 %** (constaté
+à 14 %). Le curseur de rétrocession et les modalités de paiement sont absents, comme voulu.
+
+#### DEUX AFFIRMATIONS FAUSSES trouvées à l'écran, hors périmètre du lot
+
+L'écran de contrat **infirmier** affiche deux textes codés en dur pour les kinésithérapeutes :
+
+- sous le rayon : « La durée est fixée à 2 ans par l'**art. R.4321-130** » — article du code de la
+  santé publique propre aux **masseurs-kinésithérapeutes** ;
+- en mention légale : « À faire valider par un avocat ou **l'Ordre des masseurs-kinésithérapeutes**
+  avant signature » — sur un contrat relevant du CNOI.
+
+Ce ne sont pas des leviers dormants mais des **énoncés faux**, affichés à un infirmier sur un écran
+juridique. Ils préexistaient au lot 3 et n'ont pas été corrigés dans le même geste. **À trancher
+avec Jean-Charles.**
 
 ---
 
