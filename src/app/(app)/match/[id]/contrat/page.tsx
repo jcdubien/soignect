@@ -583,6 +583,25 @@ export default function ContratPage() {
       && `${dureeMois} mois, ${renouvellementsMax} renouvellement${renouvellementsMax > 1 ? "s" : ""}, ${dureeMaxMois} mois au total · essai ${essaiInfMois} mois, préavis ${preavisEssaiJours} j`,
   ].filter(Boolean).join(" · ");
 
+  // QUELS GROUPES ONT QUELQUE CHOSE À DIRE (section 241, correctif du 08/09).
+  //
+  // Les trois groupes du lot 4 ne concernent que le CDI et les modèles infirmier. Sur un contrat
+  // KINÉ LIBÉRAL — le cas le plus courant, quatre des six mises en relation réelles — aucune des
+  // conditions internes n'est vraie : le groupe « Durée et préavis » s'affichait vide, sans
+  // résumé, avec un lien « Modifier » qui n'ouvrait rien.
+  //
+  // Rien n'est perdu pour ces gabarits : leur préavis d'essai est porté par la case dédiée, et
+  // leur durée de non-installation est fixée par la loi, indiquée sous le rayon. Il n'y avait donc
+  // rien à mettre dans ce groupe — il ne devait simplement pas exister.
+  //
+  // Défaut introduit par le lot 4 lui-même, et trouvé en vérifiant le déploiement : les deux
+  // écrans que j'avais contrôlés, CDI et collaboration infirmier, étaient justement les deux où
+  // le groupe avait du contenu.
+  const groupeDureeUtile = !!info.isSalariat || estInfirmier;
+  const groupeNonConcurrenceUtile = !!info.isSalariat;
+  const groupeMentionsUtile = !!info.isSalariat || estInfirmier;
+  const montreGroupesLot4 = groupeDureeUtile || groupeNonConcurrenceUtile || groupeMentionsUtile;
+
   const resumeNonConcurrence =
     `${ncDureeMois} mois · contrepartie ${ncIndemnitePct} % du salaire, versée ${ncPeriodicite === "TRIMESTRIELLE" ? "trimestriellement" : "mensuellement"}`;
 
@@ -1323,8 +1342,10 @@ export default function ContratPage() {
           Repliés par défaut : ce sont des clauses standard, moins souvent négociées que la
           période ou l'argent. Mais leurs valeurs restent LISIBLES sans ouvrir — sinon le
           préavis redeviendrait invisible, ce que ce lot corrige précisément. */}
+      {montreGroupesLot4 && (
       <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-1 ${locked ? "opacity-60 pointer-events-none" : ""}`}>
 
+        {groupeDureeUtile && (
         <Groupe titre="Durée et préavis" resume={resumeDuree}>
           {info.isSalariat && (
             <>
@@ -1383,6 +1404,7 @@ export default function ContratPage() {
               note="Laissé vide, le contrat portera « [à compléter] »." />
           )}
         </Groupe>
+        )}
 
         {/* Non-concurrence — propre au CDI, seul modèle dont la clause se négocie. Les modèles
             libéraux ont une durée fixée par la loi, déjà indiquée sous le rayon. */}
@@ -1481,6 +1503,7 @@ export default function ContratPage() {
           </Groupe>
         )}
       </div>
+      )}
 
       {/* Mention légale */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-700">

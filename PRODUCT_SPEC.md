@@ -5678,6 +5678,24 @@ Cinq documents générés par la route réelle sur un couple de test (créé, pu
 ouverture au clic, et la mention légale disant enfin **« l'Ordre des infirmiers »** côté CNOI
 (section 240 vérifiée de visu au passage).
 
+#### UN DÉFAUT INTRODUIT PAR CE LOT, trouvé en vérifiant le déploiement
+
+Les trois groupes ne concernent que le CDI et les modèles infirmier. Sur un contrat **kiné
+libéral**, aucune de leurs conditions internes n'est vraie : le groupe « Durée et préavis »
+s'affichait **vide** — pas de résumé, et un lien « Modifier » qui n'ouvrait rien.
+
+C'est le cas **le plus courant** : quatre des six mises en relation réelles. Et c'est précisément
+celui que je n'avais pas vérifié à l'écran — les deux que j'avais contrôlés, CDI et collaboration
+infirmier, étaient justement les deux où le groupe avait du contenu.
+
+Rien n'était perdu pour les gabarits kiné : leur préavis d'essai est porté par la case dédiée, leur
+durée de non-installation est fixée par la loi et indiquée sous le rayon. Il n'y avait rien à
+mettre dans ce groupe — il ne devait simplement pas exister. Chaque groupe, et la carte qui les
+porte, ne sont désormais rendus que s'ils ont quelque chose à dire.
+
+**Leçon, la quatrième de la journée sur le même thème** : vérifier deux écrans sur trois familles
+de gabarits ne vérifie pas la troisième, surtout quand c'est la plus fréquente.
+
 #### La série est close
 
 Les quatre lots sont livrés. La règle tient dans les deux sens :
