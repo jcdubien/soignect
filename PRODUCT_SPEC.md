@@ -5216,6 +5216,69 @@ reduction frequence d'appels non critiques) a ce moment-la.
 
 ---
 
+#### RANGÉ — Affichage liste trié par affinité, en complément du swipe (08/09)
+
+Investigation menée, conception discutée, **décision de ranger le sujet** avant toute ligne de
+code. Rien n'a été écrit. Les mesures ci-dessous évitent de refaire le travail le jour où la
+question revient.
+
+##### Ce qui a été mesuré
+
+Le score d'affinité (`computeAffinityScore`, `lib/deepseek.ts:166`) n'est calculé **qu'au moment du
+swipe, et seulement sur un swipe DROITE** (`api/swipe/route.ts:144`). Il est stocké sur la ligne
+`Swipe` et c'est lui que `/api/tray` trie pour « Vos choix ». **Il n'existe donc pour aucune annonce
+non swipée** — c'est-à-dire pour tout le contenu du feed.
+
+Le feed, lui, renvoie les missions avec leur profil expurgé et **est déjà trié — par désirabilité**
+(classement commercial effectif, bonus saisonnier, priorité territoriale déclarée), jamais par
+affinité. La désirabilité avait été délibérément sortie du score de compatibilité : « le statut
+d'abonnement de l'annonceur n'est pas une propriété de l'accord entre deux personnes. »
+
+##### Pourquoi ça s'est refermé
+
+Trois décisions successives de Jean-Charles ont borné le sujet : écran séparé, score **sans
+DeepSeek** (le drapeau `skipDeepSeek` existe déjà, coût nul, zéro appel API), et **désirabilité
+maintenue en tri principal** — l'affinité n'étant qu'affichée.
+
+Or, une fois ces bornes posées, il ne restait presque rien :
+
+| Mention affichée | Ce que la ligne montre déjà |
+|---|---|
+| « Même secteur » / « Secteurs éloignés » | la commune |
+| « Dates compatibles » | les dates |
+| « Profils compatibles » | **rien — la mention est fausse** |
+
+`scoreBio` sans DeepSeek renvoie `15/30` constant, ratio 0,5, tranche « moyen ». **Vérifié par
+exécution** : un remplacement à 22/100, dates disjointes et secteurs éloignés, affiche quand même
+« Profils compatibles ». Aucun profil n'est comparé. En liste, ce repli deviendrait l'état
+permanent.
+
+Second cas : les **11 annonces long terme n'ont aucune date** (le formulaire les masque et exige une
+durée minimale). `scoreDates` rend son neutre 17/35 → « Dates partiellement compatibles », qui
+annonce un recouvrement jamais calculé.
+
+##### L'argument de volume
+
+**32 annonces actives** — 21 remplacements, 9 assistanats, 2 collaborations. Un fil de swipe les
+absorbe sans difficulté ; l'intérêt d'une liste croît avec le catalogue. Le problème mesuré sur ce
+produit est ailleurs : **14 candidats sur 19 n'ont jamais publié**, et cette population totalise
+zéro mise en relation. Une liste n'y change rien.
+
+##### Si le sujet revient
+
+Deux versions restent défendables, et la conception est faite :
+
+- **liste sans affinité du tout** — vue de balayage, même ordre que le swipe, aucune mention. Livre
+  le seul gain qui tienne : voir plusieurs annonces d'un coup ;
+- **liste avec affinité réelle**, ce qui suppose de résoudre d'où vient le score bio — précalcul en
+  tâche de fond, ou acceptation du coût DeepSeek.
+
+Ce qu'il ne faut PAS refaire : une liste qui affiche des mentions d'affinité issues d'un score
+neutre. Elle promettrait plus qu'elle ne tient, et affirmerait à chaque ligne une compatibilité de
+profils que personne n'a évaluée.
+
+---
+
 #### CLARIFICATION — Robustesse du match automatique en cas d'interet simultane (29/07)
 
 ##### Question posée
