@@ -53,6 +53,47 @@ export function libelleNumeroOrdre(p?: string | null): string {
   return LIBELLE_NUMERO_ORDRE[p as Profession] ?? "N° Ordre";
 }
 
+// Nom de l'ORDRE PROFESSIONNEL, tel qu'on l'écrit à un praticien (section 240).
+//
+// L'écran de contrat renvoyait tout le monde vers « l'Ordre des masseurs-kinésithérapeutes »,
+// texte codé en dur. Sur un contrat infirmier, cela nommait le mauvais ordre — un énoncé faux
+// sur un écran juridique, dans la même famille que tout ce que la section 237 a fermé.
+//
+// Les gabarits PDF, eux, étaient corrects : chacun porte les références de son propre ordre.
+// Seule la coquille de l'écran était restée kiné.
+export const LIBELLE_ORDRE: Record<Profession, string> = {
+  KINESITHERAPEUTE: "l'Ordre des masseurs-kinésithérapeutes",
+  INFIRMIER:        "l'Ordre des infirmiers",
+  ORTHOPHONISTE:    "votre ordre professionnel",  // pas de gabarit à ce jour
+  SAGE_FEMME:       "l'Ordre des sages-femmes",
+  MEDECIN:          "l'Ordre des médecins",
+};
+
+export function libelleOrdre(p?: string | null): string {
+  return LIBELLE_ORDRE[p as Profession] ?? "votre ordre professionnel";
+}
+
+// Article du code de la santé publique fondant la clause de NON-INSTALLATION après remplacement.
+//
+// La durée de deux ans est la même d'une profession à l'autre, mais PAS le numéro d'article :
+// R.4321-130 pour les masseurs-kinésithérapeutes, R.4312-87 pour les infirmiers. L'écran citait
+// le premier à tout le monde.
+//
+// `null` PLUTÔT QU'UNE SUPPOSITION. Pour les professions dont aucun gabarit n'est transcrit, je
+// n'ai pas de référence vérifiée. Inventer un numéro d'article serait exactement le défaut qu'on
+// corrige ici : l'écran omet alors la citation et se contente de la durée, qui, elle, est sûre.
+export const ARTICLE_NON_INSTALLATION: Record<Profession, string | null> = {
+  KINESITHERAPEUTE: "R.4321-130",   // relevé sur le modèle CNOMK transcrit
+  INFIRMIER:        "R.4312-87",    // relevé sur le modèle CNOI transcrit
+  ORTHOPHONISTE:    null,
+  SAGE_FEMME:       null,
+  MEDECIN:          null,
+};
+
+export function articleNonInstallation(p?: string | null): string | null {
+  return ARTICLE_NON_INSTALLATION[p as Profession] ?? null;
+}
+
 // La valeur vient de la base : elle est typée Profession côté Prisma, mais transite en string
 // dans les routes. Le repli conserve la valeur brute plutôt que de masquer une incohérence.
 export function professionLabel(p: string, registre: "usuel" | "contrat" = "usuel"): string {

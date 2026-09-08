@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { fmtDateUTC } from "@/lib/contrats/date";
+import { libelleOrdre, articleNonInstallation } from "@/lib/professions";
 import type { PeriodeContrat, SourcePeriode } from "@/lib/contrats/periode";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,8 @@ interface MatchInfo {
   /** Période par défaut du contrat et sa provenance (section 237). */
   periode?: PeriodeContrat;
   jeSuisTitulaire?: boolean;
+  /** Profession du contrat — nomme l'ordre et l'article de code exacts (section 240). */
+  profession?: string;
   /** Valeurs pré-remplies du contrat de travail, calculées serveur (section 237, lot 2). */
   defautsSalarie?: {
     lieuTravail: string;
@@ -397,6 +400,12 @@ export default function ContratPage() {
   // comme par `buildUrl`. Tant que la condition d'affichage vivait uniquement dans le JSX, rien
   // n'empêchait l'envoi d'un paramètre masqué — ce qui est précisément arrivé.
   const estInfirmier = (gabaritId ?? "").startsWith("INFIRMIER_");
+
+  // Vocabulaire de l'ordre concerné (section 240). Ces deux textes étaient codés en dur pour les
+  // kinésithérapeutes : un infirmier lisait le mauvais nom d'ordre et le mauvais article de code,
+  // sur l'écran même qui produit son contrat.
+  const ordre = libelleOrdre(info.profession);
+  const articleNonInstall = articleNonInstallation(info.profession);
 
   // `retrocessionPct` n'est lu par AUCUN gabarit infirmier : il n'y figure que dans des
   // commentaires mettant en garde contre cette confusion. Le remplacement infirmier a ses propres
@@ -949,7 +958,11 @@ export default function ContratPage() {
             </span>
           </div>
           {isRemplacement && (
-            <p className="text-xs text-gray-400 mt-1">La durée est fixée à 2 ans par l'art. R.4321-130 (non modifiable).</p>
+            <p className="text-xs text-gray-400 mt-1">
+              La durée est fixée à 2 ans
+              {articleNonInstall ? ` par l'art. ${articleNonInstall}` : " par le code de la santé publique"}
+              {" "}(non modifiable).
+            </p>
           )}
         </div>
 
@@ -1094,7 +1107,7 @@ export default function ContratPage() {
 
       {/* Mention légale */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-700">
-        ⚠️ <strong>Document indicatif</strong> — Document pré-rempli à titre indicatif. À faire valider par un avocat ou l'Ordre des masseurs-kinésithérapeutes avant signature.
+        ⚠️ <strong>Document indicatif</strong> — Document pré-rempli à titre indicatif. À faire valider par un avocat ou {ordre} avant signature.
       </div>
 
       {/* Signature par photo (section 61) */}

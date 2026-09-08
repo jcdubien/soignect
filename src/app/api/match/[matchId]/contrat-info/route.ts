@@ -150,5 +150,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
     jeSuisTitulaire: profilTitulaire.id === profileId,
     defautsSalarie,   // valeurs pré-remplies du contrat de travail (aucune n'atteint le PDF sans être vue)
     defautsInfirmier, // idem pour les honoraires et reversements des modèles CNOI
+    // Profession du contrat — celle du TITULAIRE, comme le gabarit (section 240). L'écran en a
+    // besoin pour nommer le bon ordre professionnel et le bon article de code : il les codait
+    // en dur pour les kinés, et les affichait donc faux à un infirmier.
+    profession: profilTitulaire.profession,
   });
 }

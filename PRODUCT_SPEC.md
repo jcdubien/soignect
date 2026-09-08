@@ -5611,6 +5611,44 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 240 — L'ÉCRAN NOMMAIT LE MAUVAIS ORDRE ET LE MAUVAIS ARTICLE (08/09)
+
+#### Deux énoncés faux sur un écran juridique
+
+Trouvés en vérifiant le lot 3 sur un contrat infirmier. L'écran de génération affichait, quelle
+que soit la profession :
+
+- « La durée est fixée à 2 ans par l'**art. R.4321-130** » — article du code de la santé publique
+  propre aux **masseurs-kinésithérapeutes**. L'équivalent infirmier est **R.4312-87**, et il était
+  déjà correctement transcrit dans le gabarit CNOI. Seule la coquille de l'écran restait kiné.
+- « À faire valider par un avocat ou **l'Ordre des masseurs-kinésithérapeutes** » — sur un contrat
+  relevant du Conseil national de l'ordre des infirmiers.
+
+Ce ne sont pas des leviers dormants : ce sont des **affirmations fausses**, de la même famille que
+tout ce que la section 237 a fermé.
+
+#### Les PDF, eux, étaient justes
+
+Le défaut est resté confiné à **un seul fichier** : `contrat/page.tsx`, une occurrence de chaque.
+Chaque gabarit porte les références de son propre ordre — c'est en comparant les deux clauses de
+non-installation que la bonne référence infirmier a été trouvée, déjà écrite depuis le 28/08.
+
+#### `null` plutôt qu'une supposition
+
+`ARTICLE_NON_INSTALLATION` et `LIBELLE_ORDRE` rejoignent `LIBELLE_NUMERO_ORDRE` dans
+`lib/professions.ts`, typés `Record<Profession, …>` : ajouter une profession à l'enum casse la
+compilation tant que son vocabulaire n'est pas écrit.
+
+Pour les professions dont aucun gabarit n'est transcrit, l'article vaut **`null`** — je n'ai pas de
+référence vérifiée, et **inventer un numéro d'article serait exactement le défaut qu'on corrige**.
+L'écran omet alors la citation et n'énonce que la durée, qui, elle, est sûre : « La durée est fixée
+à 2 ans par le code de la santé publique ».
+
+La durée de deux ans, elle, est identique d'une profession à l'autre — vérifié sur les deux modèles
+transcrits. Seul le numéro d'article change.
+
+---
+
 ### SECTION 239 — UNE REDEVANCE DE 40 % PARTAIT SANS AVOIR ÉTÉ VUE (08/09) — lot 3 sur 4
 
 #### Le défaut, et une erreur de ma part à corriger d'abord
