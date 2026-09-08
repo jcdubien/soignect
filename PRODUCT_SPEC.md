@@ -5611,6 +5611,91 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 237 — LES DATES DU CONTRAT SE NÉGOCIENT (08/09) — lot 1 sur 4
+
+#### Le contrat tranchait un désaccord sans le dire
+
+Chaque partie publie son annonce avec ses propres dates. Elles ne coïncident presque jamais : sur
+les **six mises en relation existantes au 08/09, les six** portaient des périodes différentes.
+
+La route de génération retenait celle du titulaire, par un `??` recopié à l'identique dans les sept
+gabarits. Le PDF sortait donc avec une période qu'une des deux parties n'avait **jamais vue ni
+acceptée** — et l'écran de génération ne mentionnait pas les dates du tout : le mot « date »
+n'apparaissait nulle part dans `contrat/page.tsx`.
+
+Cas réel, mise en relation `cmto8a96` : l'annonce du cabinet dit 01/10 → 31/12, celle du remplaçant
+30/11 → 20/12. Le contrat imprimait `1er octobre 2026 → 31 décembre 2026`, sans un mot.
+
+#### Sept copies d'une même règle
+
+```ts
+missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null
+```
+
+Écrite **sept fois**, une par branche de gabarit. C'est le motif exact qui avait fait perdre `name`
+au `select` de la route de signature (section 236) : une liste recopiée est une liste qui divergera.
+
+La règle vit désormais dans `lib/contrats/periode.ts`, et les **deux** routes la lisent —
+génération et `contrat-info`. L'écran ne peut donc plus afficher une date que le PDF ne reprendrait
+pas : c'est la même fonction qui les calcule.
+
+#### Ce que l'écran montre
+
+Un bloc « Période du contrat » en tête de formulaire, **toujours déplié** — c'est la clause que les
+deux parties regardent en premier, et la seule que le document reprenait sans l'avoir montrée.
+
+La date de fin n'apparaît que pour les gabarits qui la **consomment** : remplacement kiné et les
+deux remplacements infirmier. L'assistanat, les collaborations et le CDI décrivent leur terme
+autrement (durée en mois, durée indéterminée) — y proposer une date de fin offrirait un levier sans
+effet sur le document, l'anti-motif du levier dormant.
+
+Quand les deux annonces divergent, l'écran les affiche **toutes les deux** et indique sous chaque
+champ d'où vient la valeur reprise (`d'après votre annonce` / `d'après l'annonce de X`). Il ne
+choisit pas en silence.
+
+#### L'annonce n'est jamais réécrite
+
+Décision de Jean-Charles, tenue : ce qui est saisi vaut **pour ce contrat**. Une annonce dit ce que
+son auteur cherche, un contrat ce qui a été convenu. Écrire l'un dans l'autre modifierait le feed et
+les correspondances d'un tiers depuis un écran de génération de PDF.
+
+#### Trois refus explicites
+
+| Saisie | Comportement |
+|---|---|
+| Fin antérieure au début | **422** — pas d'inversion silencieuse des bornes |
+| Date inexistante (31 février) | rejetée — `new Date` la décalerait au 3 mars sans rien dire |
+| Champ vidé | « pas de date » assumé → `[date à compléter]` au PDF |
+
+Ce dernier point impose une distinction que l'écran respecte : **paramètre absent ≠ paramètre
+vide**. Absent, le repli d'annonce s'applique ; vide, l'utilisateur dit explicitement qu'il n'y a
+pas de date. Les confondre rendrait impossible d'effacer une date héritée d'une annonce. L'écran
+transmet donc toujours les deux paramètres, même vides.
+
+#### Vérifié par génération réelle de PDF
+
+Routes exécutées contre la base de production, texte extrait des documents produits (`pdftotext`) —
+pas seulement l'écran de saisie :
+
+| Cas | Phrase imprimée dans le PDF |
+|---|---|
+| Sans paramètre (remplacement kiné) | `débutera le 1er octobre 2026 et prendra fin le 31 décembre 2026` |
+| Dates saisies | `débutera le 1er mars 2027 et prendra fin le 30 juin 2027` |
+| Dates effacées | `débutera le [date à compléter] et prendra fin le [date à compléter]` |
+| 31 février | `[date à compléter]` — pas de décalage au 3 mars |
+| Fin avant début | HTTP 422 |
+
+Même vérification sur la **branche salariée**, qui avait sa propre dérivation : `Il prend effet le
+31 août 2026` sans paramètre, `le 1er mars 2027` avec. Non-régression confirmée des deux côtés.
+
+#### Reste des lots
+
+Lot 2 (rémunération, lieu, heures) livré à la suite. **Lots 3 et 4 en attente** — taux de
+reversement infirmier et préavis/non-concurrence — sur décision de Jean-Charles : sans urgence tant
+que la phase 2 infirmier n'est pas ouverte au public.
+
+---
+
 ### SECTION 236 — LE CONTRAT RÉCLAMAIT UN CHAMP QU'IL N'AVAIT PAS CHARGÉ (06/09)
 
 #### Le champ existait, et il était rempli

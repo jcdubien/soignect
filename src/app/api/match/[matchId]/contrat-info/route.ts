@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
+import { periodeParDefaut } from "@/lib/contrats/periode";
 
 // `type` en plus des champs d'identité : il sert au choix du gabarit, pas à la vérification.
 // Le reste vient de la source unique (section 236) — c'est la copie manuscrite de cette liste,
@@ -28,8 +29,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
     include: {
       profileA: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, profession: true, ...IDENTITY_SELECT } },
       profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, profession: true, ...IDENTITY_SELECT } },
-      missionA: { select: { missionType: true, retrocessionRate: true } },
-      missionB: { select: { missionType: true, retrocessionRate: true } },
+      // `startDate`/`endDate` : l'écran doit pré-remplir la période ET pouvoir dire d'où elle
+      // vient quand les deux annonces divergent (section 237).
+      missionA: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true } },
+      missionB: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true } },
     },
   });
 
@@ -72,6 +75,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
     match.profileB.type === "TITULAIRE" ? match.profileB : null;
   const isSalariat = titulaireParty?.titulaireKind === "STRUCTURE";
 
+  // Période par défaut du contrat (section 237) — MÊME fonction que la route de génération, pour
+  // que l'écran ne puisse pas annoncer une date que le PDF ne reprendrait pas. Le repli
+  // « annonce du titulaire d'abord » est identifié des deux côtés au même endroit.
+  const periode = periodeParDefaut(
+    match.profileA.type === "TITULAIRE" ? match.missionA : match.missionB,
+    match.profileA.type === "TITULAIRE" ? match.missionB : match.missionA,
+  );
+
   // Modèles de contrat applicables (section 216). Le formulaire en a besoin AVANT de générer :
   // quand la paire (profession, type de mission) en compte plusieurs — le remplacement infirmier
   // en a deux —, c'est aux parties de choisir, pas au produit. Une liste vide dit qu'aucun modèle
@@ -105,5 +116,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     missingOther,     // champs manquants de l'autre partie → message informatif
     enforce,          // true = blocage dur ; false = avertissement non bloquant
     isSalariat,       // recruteur = structure employeuse → pas de PDF libéral (section 161)
+    periode,          // dates par défaut + provenance, pour pré-remplir et signaler la divergence
+    jeSuisTitulaire: titulaireParty?.id === profileId,
   });
 }

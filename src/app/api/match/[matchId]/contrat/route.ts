@@ -17,6 +17,7 @@ import type { ContractParty } from "@/lib/contrats/types";
 import { sendContratEmail } from "@/lib/email";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractFields } from "@/lib/contractProfile";
+import { periodeParDefaut, periodeDemandee } from "@/lib/contrats/periode";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
@@ -192,6 +193,27 @@ export async function GET(req: NextRequest, { params }: Params) {
   const delaiPaiementJours = Number.isFinite(delaiParsed) ? Math.min(60, Math.max(1, delaiParsed)) : 5;
   const modalitesLocaux = (sp.get("modalitesLocaux") ?? "").slice(0, 600); // borne anti-débordement PDF
 
+  // ── Période du contrat (section 237) ──────────────────────────────────────────────────────
+  //
+  // Résolue UNE FOIS ici, pour les sept gabarits. Chacun la dérivait auparavant pour son propre
+  // compte, en recopiant la même expression : sept copies qu'aucun compilateur n'aurait pu garder
+  // d'accord entre elles. Les dates saisies à l'écran priment ; à défaut, le repli d'annonce
+  // d'origine s'applique, inchangé.
+  //
+  // Les missions ne sont pas modifiées. Une annonce dit ce que son auteur cherche, un contrat ce
+  // qui a été convenu : écrire l'un dans l'autre changerait le feed d'un tiers depuis ici.
+  const periodeDefaut = periodeParDefaut(missionTitulaire, missionAutre);
+  const periode = periodeDemandee(sp, periodeDefaut);
+
+  // Un contrat qui finit avant de commencer est un document faux. On refuse, plutôt que d'inverser
+  // les bornes en silence : l'utilisateur saurait alors qu'il s'est trompé, pas le lecteur du PDF.
+  if (periode.debut && periode.fin && periode.fin < periode.debut) {
+    return NextResponse.json(
+      { error: "La date de fin du contrat précède sa date de début." },
+      { status: 422 },
+    );
+  }
+
   const generatedAt = new Date().toISOString();
 
   // Signatures photo (section 61) — apposées dans le PDF si présentes
@@ -283,13 +305,12 @@ export async function GET(req: NextRequest, { params }: Params) {
       .map(([jour, debut, fin]) => ({ jour: jour.trim(), debut: debut.trim(), fin: fin.trim() }));
 
     const essaiBrut = sp.get("periodeEssaiMois");
-    const debut = missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null;
 
     if (gabaritSalarie.id === "KINE_SALARIAT_CDI") {
       element = buildKineSalariatCdiPdf({
         employeur: titulaireParty,
         salarie: autreParty,
-        nature: { type: "CDI", debut },
+        nature: { type: "CDI", debut: periode.debut },
         temps: estPartiel
           ? {
               type: "PARTIEL",
@@ -382,8 +403,8 @@ export async function GET(req: NextRequest, { params }: Params) {
         autorisationDate:   texte("autorisationDate", 40) || null,
         cpamRattachement:   texte("cpamRattachement", 120) || null,
       },
-      startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
-      endDate:   missionTitulaire?.endDate?.toISOString()   ?? missionAutre?.endDate?.toISOString()   ?? null,
+      startDate: periode.debut,
+      endDate:   periode.fin,
       reversementDirectPct:          entier("reversementDirectPct", 70, 0, 100),
       reversementDirectDelaiMois:    entier("reversementDirectDelaiMois", 1, 0, 12),
       reversementTiersPayantPct:     entier("reversementTiersPayantPct", 70, 0, 100),
@@ -398,8 +419,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   } else if (gabarit.id === "INFIRMIER_REMPLACEMENT_CONFRERE") {
     element = buildRemplacementInfirmierConfrerePdf({
       remplace: titulaireParty, remplacant: autreParty,
-      startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
-      endDate:   missionTitulaire?.endDate?.toISOString()   ?? missionAutre?.endDate?.toISOString()   ?? null,
+      startDate: periode.debut,
+      endDate:   periode.fin,
       // L'Ordre constate un usage de 5 à 10 % et rappelle qu'un taux trop élevé s'apparenterait
       // à un partage d'honoraires (R.4312-30). Défaut au bas de cette fourchette.
       redevancePct: entier("redevancePct", 5, 0, 100),
@@ -417,7 +438,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       partageBrut === "PARTS_EGALES" || partageBrut === "CHARGE_TRAVAIL" ? partageBrut : "TOUR_DE_ROLE";
     element = buildCollaborationInfirmierPdf({
       titulaire: titulaireParty, collaborateur: autreParty,
-      startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
+      startDate: periode.debut,
       dureeMois:          entier("dureeMois", missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? 12, 1, 240),
       renouvellementsMax: entier("renouvellementsMax", 1, 0, 20),
       dureeMaxMois:       entier("dureeMaxMois", 24, 1, 480),
@@ -437,8 +458,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   } else if (missionType === MissionType.REMPLACEMENT) {
     element = buildRemplacementPdf({
       remplace: titulaireParty, remplacant: autreParty,
-      startDate:  missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
-      endDate:    missionTitulaire?.endDate?.toISOString()   ?? missionAutre?.endDate?.toISOString()   ?? null,
+      startDate:  periode.debut,
+      endDate:    periode.fin,
       retrocessionPct, rayonKm, periodeEssai, generatedAt,
       modePaiement, delaiPaiementJours, modalitesLocaux,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
@@ -447,7 +468,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   } else if (missionType === MissionType.ASSISTANAT) {
     element = buildAssisanatPdf({
       titulaire: titulaireParty, assistant: autreParty,
-      startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
+      startDate: periode.debut,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
       modePaiement, delaiPaiementJours, modalitesLocaux,
@@ -457,7 +478,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   } else {
     element = buildCollaborationPdf({
       titulaire: titulaireParty, collaborateur: autreParty,
-      startDate: missionTitulaire?.startDate?.toISOString() ?? missionAutre?.startDate?.toISOString() ?? null,
+      startDate: periode.debut,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
       modePaiement, delaiPaiementJours, modalitesLocaux,
