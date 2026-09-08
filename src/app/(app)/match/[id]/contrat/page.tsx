@@ -28,6 +28,15 @@ interface MatchInfo {
     heuresHebdomadaires: number;
     heuresComplementairesMax: number;
   };
+  /** Honoraires et reversements des modèles infirmier (section 237, lot 3). */
+  defautsInfirmier?: {
+    reversementPct: number;
+    reversementDelaiMois: number;
+    redevanceCabinetPct: number;
+    redevanceCabinetSeuilAlerte: number;
+    jourVersementRedevance: number;
+    forfaitDelaiReversementJours: number;
+  };
 }
 
 interface SigStatus {
@@ -95,6 +104,20 @@ export default function ContratPage() {
   const [repartition,    setRepartition]    =
     useState<{ jour: string; debut: string; fin: string }[]>([]);
 
+  // Honoraires et reversements des modèles INFIRMIER (section 237, lot 3).
+  //
+  // `redevanceCabinetPct` est SÉPARÉ de `redevancePct`, et ce n'est pas de la coquetterie : dans le
+  // remplacement entre confrères, la redevance est versée PAR le remplaçant installé, alors que le
+  // reversement du modèle avec autorisation va DANS L'AUTRE SENS. Les confondre retourne le flux
+  // financier du document — ce qui se produisait, le curseur kiné masqué envoyant 40 %.
+  const [reversementDirectPct,       setReversementDirectPct]       = useState(70);
+  const [reversementDirectDelai,     setReversementDirectDelai]     = useState(1);
+  const [reversementTiersPayantPct,  setReversementTiersPayantPct]  = useState(70);
+  const [reversementTiersPayantDelai, setReversementTiersPayantDelai] = useState(1);
+  const [redevanceCabinetPct,        setRedevanceCabinetPct]        = useState(5);
+  const [jourVersementRedevance,     setJourVersementRedevance]     = useState(10);
+  const [forfaitDelaiReversement,    setForfaitDelaiReversement]    = useState(30);
+
   // Champs du formulaire
   const [rayonKm,      setRayonKm]      = useState(20);
   const [dureeAns,     setDureeAns]     = useState(2);
@@ -145,6 +168,16 @@ export default function ContratPage() {
           setHeures(d.defautsSalarie.heuresHebdomadaires ?? 35);
           setHeuresComplMax(d.defautsSalarie.heuresComplementairesMax ?? 4);
         }
+        if (d.defautsInfirmier) {
+          const i = d.defautsInfirmier;
+          setReversementDirectPct(i.reversementPct);
+          setReversementTiersPayantPct(i.reversementPct);
+          setReversementDirectDelai(i.reversementDelaiMois);
+          setReversementTiersPayantDelai(i.reversementDelaiMois);
+          setRedevanceCabinetPct(i.redevanceCabinetPct);
+          setJourVersementRedevance(i.jourVersementRedevance);
+          setForfaitDelaiReversement(i.forfaitDelaiReversementJours);
+        }
         // Un seul modèle : rien à demander, on le retient d'office.
         if (Array.isArray(d.gabarits) && d.gabarits.length === 1) setGabaritId(d.gabarits[0].id);
       })
@@ -184,12 +217,23 @@ export default function ContratPage() {
       rayonKm:      String(rayonKm),
       dureeAns:     String(dureeAns),
       periodeEssai: String(periodeEssai),
-      retrocessionPct: String(retrocessionPct),
-      redevancePct:    String(redevancePct),
       modePaiement,
       delaiPaiementJours: String(delaiPaiementJours),
       modalitesLocaux,
     });
+
+    // RIEN NE PART QUI N'AIT ÉTÉ MONTRÉ (section 237, lot 3).
+    //
+    // `retrocessionPct` et `redevancePct` étaient transmis systématiquement, y compris quand leur
+    // curseur était masqué. Sur un remplacement, l'écran affiche la rétrocession et cache la
+    // redevance — mais envoyait quand même sa valeur par défaut, 40 %. Le modèle infirmier entre
+    // confrères la lisait et imprimait « Une redevance de 40 % », un taux jamais vu, jamais
+    // choisi, et que l'Ordre situe entre 5 et 10 %.
+    //
+    // La règle est désormais symétrique de celle des défauts : un paramètre n'est transmis que si
+    // le contrôle qui le règle est à l'écran.
+    if (montreRetrocession) params.set("retrocessionPct", String(retrocessionPct));
+    if (montreRedevance)    params.set("redevancePct",    String(redevancePct));
     if (gabaritId) params.set("gabaritId", gabaritId);
     if (gabaritId === "INFIRMIER_COLLABORATION") params.set("forfaitPartage", forfaitPartage);
 
@@ -210,6 +254,20 @@ export default function ContratPage() {
             .join(";"),
         );
       }
+    }
+
+    if (gabaritId === "INFIRMIER_REMPLACEMENT_AUTORISATION") {
+      params.set("reversementDirectPct", String(reversementDirectPct));
+      params.set("reversementDirectDelaiMois", String(reversementDirectDelai));
+      params.set("reversementTiersPayantPct", String(reversementTiersPayantPct));
+      params.set("reversementTiersPayantDelaiMois", String(reversementTiersPayantDelai));
+    }
+    if (gabaritId === "INFIRMIER_REMPLACEMENT_CONFRERE") {
+      params.set("redevanceCabinetPct", String(redevanceCabinetPct));
+    }
+    if (gabaritId === "INFIRMIER_COLLABORATION") {
+      params.set("jourVersementRedevance", String(jourVersementRedevance));
+      params.set("forfaitDelaiReversementJours", String(forfaitDelaiReversement));
     }
 
     if (draft) params.set("draft", "true");
@@ -334,6 +392,20 @@ export default function ContratPage() {
   // terme autrement (durée en mois, contrat à durée indéterminée) : y proposer une date de fin
   // offrirait un levier sans effet sur le document, le défaut qu'on s'interdit ici.
   const periodeAvecFin = isRemplacement && !info.isSalariat;
+
+  // Conditions d'affichage des deux taux libéraux, nommées UNE FOIS et réutilisées par le JSX
+  // comme par `buildUrl`. Tant que la condition d'affichage vivait uniquement dans le JSX, rien
+  // n'empêchait l'envoi d'un paramètre masqué — ce qui est précisément arrivé.
+  const estInfirmier = (gabaritId ?? "").startsWith("INFIRMIER_");
+
+  // `retrocessionPct` n'est lu par AUCUN gabarit infirmier : il n'y figure que dans des
+  // commentaires mettant en garde contre cette confusion. Le remplacement infirmier a ses propres
+  // taux, réglés ci-dessous. Afficher en plus un curseur de rétrocession sans effet serait le même
+  // levier dormant que les six retirés du CDI au lot 2.
+  const montreRetrocession = isRemplacement  && !info.isSalariat && !estInfirmier;
+  // La redevance, elle, EST lue par la collaboration infirmier — on la garde donc là.
+  const montreRedevance    = !isRemplacement && !info.isSalariat;
+  const seuilRedevance = info.defautsInfirmier?.redevanceCabinetSeuilAlerte ?? 10;
   const periode = info.periode;
 
   // Provenance d'une date, en phrase entière. Chaque cas est écrit en toutes lettres plutôt
@@ -633,6 +705,158 @@ export default function ContratPage() {
           </div>
         )}
 
+        {/* ── Honoraires et reversements — modèles INFIRMIER (section 237, lot 3) ─────────
+            Le contenu dépend du modèle retenu, parce que l'argent n'y circule pas dans le
+            même sens : avec autorisation, le remplacé REVERSE au remplaçant ; entre
+            confrères, le remplaçant installé VERSE une redevance de frais de cabinet. */}
+        {estInfirmier && (
+          <div className="border-t border-gray-100 pt-4">
+            <h2 className="text-sm font-bold text-gray-900 mb-1">Honoraires et reversements</h2>
+            <p className="text-xs text-gray-500 mb-3">
+              Clause économique centrale du contrat. Les valeurs ci-dessous figureront telles
+              quelles dans le document.
+            </p>
+
+            {gabaritId === "INFIRMIER_REMPLACEMENT_AUTORISATION" && (
+              <div className="flex flex-col gap-4">
+                <p className="text-xs text-gray-500">
+                  Le remplacé encaisse les honoraires et vous en reverse une part : le remplaçant
+                  n&apos;étant pas installé, il ne facture pas lui-même.
+                </p>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Part reversée au remplaçant — honoraires perçus directement (%)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range" min={0} max={100} step={5}
+                      value={reversementDirectPct}
+                      onChange={e => setReversementDirectPct(Number(e.target.value))}
+                      className="flex-1 accent-kine-600"
+                    />
+                    <span className="w-16 text-center text-sm font-bold text-kine-700 bg-kine-50 rounded-xl px-2 py-1">
+                      {reversementDirectPct}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-gray-600">reversés dans un délai de</span>
+                    <input
+                      type="number" min={0} max={12} step={1}
+                      value={reversementDirectDelai}
+                      onChange={e => setReversementDirectDelai(Math.min(12, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-800"
+                    />
+                    <span className="text-xs text-gray-600">mois après la fin du remplacement</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Part reversée au remplaçant — actes en tiers payant (%)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range" min={0} max={100} step={5}
+                      value={reversementTiersPayantPct}
+                      onChange={e => setReversementTiersPayantPct(Number(e.target.value))}
+                      className="flex-1 accent-kine-600"
+                    />
+                    <span className="w-16 text-center text-sm font-bold text-kine-700 bg-kine-50 rounded-xl px-2 py-1">
+                      {reversementTiersPayantPct}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-gray-600">reversés dans un délai de</span>
+                    <input
+                      type="number" min={0} max={12} step={1}
+                      value={reversementTiersPayantDelai}
+                      onChange={e => setReversementTiersPayantDelai(Math.min(12, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-800"
+                    />
+                    <span className="text-xs text-gray-600">mois après la fin du remplacement</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Les caisses continuent de verser au remplacé : ce taux règle ce qu&apos;il
+                    reverse ensuite.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {gabaritId === "INFIRMIER_REMPLACEMENT_CONFRERE" && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">
+                  Sens inverse du modèle précédent : le remplaçant, lui-même installé, encaisse ses
+                  honoraires et verse au remplacé une redevance couvrant les frais du cabinet.
+                </p>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Redevance de frais de cabinet versée au remplacé (%)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range" min={0} max={30} step={1}
+                    value={redevanceCabinetPct}
+                    onChange={e => setRedevanceCabinetPct(Number(e.target.value))}
+                    className="flex-1 accent-kine-600"
+                  />
+                  <span className="w-16 text-center text-sm font-bold text-kine-700 bg-kine-50 rounded-xl px-2 py-1">
+                    {redevanceCabinetPct}%
+                  </span>
+                </div>
+                {redevanceCabinetPct > seuilRedevance ? (
+                  <p className="text-xs text-amber-700 mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 leading-relaxed">
+                    <strong>Au-delà de {seuilRedevance} %</strong>, l&apos;Ordre considère qu&apos;une
+                    redevance peut s&apos;apparenter à un partage d&apos;honoraires, interdit par
+                    l&apos;article R.4312-30. La redevance doit correspondre aux frais réellement
+                    engagés.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Usage constaté par l&apos;Ordre : 5 à 10 %.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {gabaritId === "INFIRMIER_COLLABORATION" && (
+              <div className="flex flex-col gap-4">
+                <p className="text-xs text-gray-500">
+                  Le collaborateur encaisse ses honoraires et verse au titulaire la redevance réglée
+                  ci-dessous, au titre des frais professionnels mis à disposition.
+                </p>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Jour du mois où la redevance est versée
+                  </label>
+                  <input
+                    type="number" min={1} max={31} step={1}
+                    value={jourVersementRedevance}
+                    onChange={e => setJourVersementRedevance(Math.min(31, Math.max(1, Number(e.target.value) || 1)))}
+                    className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">Du mois suivant la période facturée.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Délai de reversement des forfaits de prise en charge (jours)
+                  </label>
+                  <input
+                    type="number" min={0} max={365} step={1}
+                    value={forfaitDelaiReversement}
+                    onChange={e => setForfaitDelaiReversement(Math.min(365, Math.max(0, Number(e.target.value) || 0)))}
+                    className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    À compter de la perception du forfait — complète le mode de partage choisi
+                    plus haut.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Rayon non-concurrence */}
         <div className="border-t border-gray-100 pt-4">
           <label className="block text-sm font-semibold text-gray-800 mb-1">
@@ -751,7 +975,7 @@ export default function ContratPage() {
         )}
 
         {/* Taux de rétrocession (REMPLACEMENT libéral) */}
-        {isRemplacement && !info.isSalariat && (
+        {montreRetrocession && (
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">
               Taux de rétrocession pour le remplaçant (%)
@@ -771,7 +995,7 @@ export default function ContratPage() {
         )}
 
         {/* Taux de redevance (ASSISTANAT / COLLABORATION libéraux) */}
-        {!isRemplacement && !info.isSalariat && (
+        {montreRedevance && (
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">
               Redevance versée au titulaire (%)
@@ -794,7 +1018,7 @@ export default function ContratPage() {
             « rétrocession » pour un remplacement, « redevance » sinon.
             Absentes d'un contrat de travail : un salarié est payé par bulletin de paie, et le
             gabarit CDI ne lit aucun de ces trois paramètres. */}
-        {!info.isSalariat && (
+        {!info.isSalariat && !estInfirmier && (
         <div className="border-t border-gray-100 pt-4 flex flex-col gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">

@@ -29,3 +29,39 @@ export const HEURES_HEBDOMADAIRES_DEFAUT = 35;
 
 /** Plafond d'heures complémentaires proposé pour un temps partiel, modifiable. */
 export const HEURES_COMPLEMENTAIRES_DEFAUT = 4;
+
+// ── Honoraires et reversements des contrats INFIRMIER (section 237, lot 3) ──────────────────
+//
+// DEUX SENS OPPOSÉS, À NE JAMAIS CONFONDRE. Les modèles du CNOI font circuler l'argent dans des
+// directions inverses selon la variante, et les deux se nomment « pourcentage » :
+//
+//   • REMPLACEMENT AVEC AUTORISATION — le Remplacé encaisse les honoraires et en REVERSE une part
+//     au Remplaçant, qui n'est pas installé. C'est une rétrocession : les taux usuels sont élevés.
+//
+//   • REMPLACEMENT ENTRE CONFRÈRES — le Remplaçant, lui-même installé, encaisse ses honoraires et
+//     VERSE au Remplacé une redevance pour les frais du cabinet. L'Ordre constate un usage de 5 à
+//     10 % et rappelle qu'un taux trop élevé s'apparenterait à un partage d'honoraires, interdit
+//     par l'article R.4312-30.
+//
+// Appliquer le défaut de l'un à l'autre ne se trompe pas de quelques points : cela retourne le
+// sens du flux financier sur un document destiné à la signature. Les deux constantes portent donc
+// des noms distincts, et les deux gabarits lisent des PARAMÈTRES distincts.
+
+/** Part des honoraires que le Remplacé reverse au Remplaçant (modèle avec autorisation). */
+export const REVERSEMENT_PCT_DEFAUT = 70;
+
+/** Délai de ce reversement, en mois suivant la fin du remplacement. */
+export const REVERSEMENT_DELAI_MOIS_DEFAUT = 1;
+
+/** Redevance de frais de cabinet versée PAR le Remplaçant installé (modèle entre confrères).
+ *  Bas de la fourchette constatée par l'Ordre — au-delà de 10 %, l'écran avertit. */
+export const REDEVANCE_CABINET_PCT_DEFAUT = 5;
+
+/** Seuil au-delà duquel l'écran rappelle le risque de requalification (R.4312-30). */
+export const REDEVANCE_CABINET_SEUIL_ALERTE = 10;
+
+/** Jour du mois où la redevance de collaboration est versée au titulaire. */
+export const JOUR_VERSEMENT_REDEVANCE_DEFAUT = 10;
+
+/** Délai de reversement des forfaits de prise en charge, en jours. */
+export const FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT = 30;

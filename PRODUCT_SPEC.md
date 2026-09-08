@@ -5611,6 +5611,96 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 239 — UNE REDEVANCE DE 40 % PARTAIT SANS AVOIR ÉTÉ VUE (08/09) — lot 3 sur 4
+
+#### Le défaut, et une erreur de ma part à corriger d'abord
+
+À l'étape de conception, j'avais annoncé que le défaut de `reversementDirectPct` à 70 %
+« inversait le sens de l'argent ». **C'était faux.** Dans le modèle de remplacement avec
+autorisation, c'est le REMPLACÉ qui reverse au REMPLAÇANT — celui-ci n'étant pas installé, il ne
+facture pas lui-même. 70 % y est une rétrocession parfaitement plausible. Je confondais deux
+champs de sens opposés.
+
+L'inversion existe bel et bien, mais ailleurs, et elle était pire que ce que j'annonçais.
+
+#### `redevancePct` : un nom pour deux flux contraires
+
+L'écran transmettait **systématiquement** `redevancePct`, y compris quand son curseur était
+masqué. Sur un remplacement, l'écran affiche la rétrocession et cache la redevance — mais envoyait
+quand même sa valeur par défaut, **40 %**.
+
+Or le modèle de remplacement infirmier entre confrères lit ce même nom de paramètre. Le document
+imprimait donc :
+
+> Une redevance de **40 %** correspondant aux frais engagés pour le cabinet par le Remplacé est
+> reversée par le Remplaçant au Remplacé.
+
+Un taux jamais vu, jamais choisi, sur une clause où **l'Ordre constate un usage de 5 à 10 %** et
+rappelle qu'au-delà une redevance s'apparente à un **partage d'honoraires, interdit par l'article
+R.4312-30**.
+
+| Modèle | Qui paie qui | Usage |
+|---|---|---|
+| Remplacement AVEC AUTORISATION | le remplacé **reverse au** remplaçant | taux élevés (rétrocession) |
+| Remplacement ENTRE CONFRÈRES | le remplaçant installé **verse au** remplacé | 5 à 10 % (frais de cabinet) |
+
+Deux sens opposés ne peuvent pas partager un nom de paramètre. Le gabarit entre confrères lit
+désormais `redevanceCabinetPct`, distinct. Un client qui ne l'envoie pas retombe sur 5 % — le
+comportement sûr.
+
+#### La règle symétrique : rien ne part qui n'ait été montré
+
+Le lot 2 avait posé qu'aucune valeur par défaut n'atteint le PDF sans avoir été affichée. Ce lot
+pose la réciproque : **un paramètre n'est transmis que si le contrôle qui le règle est à l'écran.**
+
+Les conditions d'affichage sont désormais des variables nommées une fois (`montreRetrocession`,
+`montreRedevance`), lues par le JSX **et** par `buildUrl`. Tant que la condition ne vivait que dans
+le JSX, rien n'empêchait l'envoi d'un paramètre masqué — ce qui est exactement arrivé.
+
+#### Ce que l'écran montre désormais
+
+Un bloc « Honoraires et reversements », dont le contenu dépend du modèle retenu :
+
+- **avec autorisation** : part reversée sur les honoraires directs et sur le tiers payant, chacune
+  avec son délai en mois ;
+- **entre confrères** : la redevance de frais de cabinet, curseur borné à 30 %, avec un
+  avertissement explicite sur R.4312-30 **au-delà de 10 %** ;
+- **collaboration** : jour de versement de la redevance et délai de reversement des forfaits.
+
+Chaque variante est introduite par une phrase disant **dans quel sens circule l'argent**.
+
+#### Leviers dormants retirés
+
+`retrocessionPct` n'est lu par **aucun** gabarit infirmier — il n'y figure que dans des
+commentaires mettant en garde contre cette confusion. Le curseur de rétrocession disparaît donc
+côté infirmier, comme les modalités de paiement (`modePaiement`, `delaiPaiementJours`,
+`modalitesLocaux`), qu'aucun modèle CNOI ne lit non plus.
+
+**Restent dormants, et assumés comme tels jusqu'au lot 4** : `rayonKm` sur le remplacement entre
+confrères et la collaboration infirmier, et `dureeAns` sur la collaboration infirmier. Ce sont des
+clauses de non-concurrence, sujet du lot 4 — les écrire ici les aurait mêlées à un lot sur
+l'argent.
+
+#### Vérifié par rendu réel des documents
+
+Les gabarits ont été appelés directement et les PDF produits relus au texte extrait :
+
+| Document | Phrase imprimée |
+|---|---|
+| Avec autorisation | `le Remplacé lui en reversera 85 %, et ce dans un délai de 2 mois` |
+| Avec autorisation, tiers payant | `le Remplacé lui en reversera 80 %, et ce dans un délai de 3 mois` |
+| Entre confrères, défaut | `Une redevance de 5 %` |
+| Entre confrères, saisie | `Une redevance de 8 %` |
+
+#### Limite de cette vérification
+
+**Aucun contrat infirmier n'a été généré par la route elle-même, ni vu à l'écran.** Il n'existe
+aucune mise en relation infirmier en base : les six existantes sont toutes kiné. Ce qui est prouvé,
+c'est que les gabarits impriment les valeurs qu'on leur passe. Le câblage route ↔ écran, lui, ne
+l'est que par relecture et par le compilateur.
+
+---
+
 ### SECTION 238 — L'ÉCRAN ET LE PDF NE DÉSIGNAIENT PAS LE MÊME CONTRAT (08/09)
 
 #### Quatre mises en relation sur six se contredisaient

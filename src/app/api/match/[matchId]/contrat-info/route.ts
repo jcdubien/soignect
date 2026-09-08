@@ -9,6 +9,9 @@ import { periodeParDefaut } from "@/lib/contrats/periode";
 import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
 import {
   lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
+  REVERSEMENT_PCT_DEFAUT, REVERSEMENT_DELAI_MOIS_DEFAUT, REDEVANCE_CABINET_PCT_DEFAUT,
+  REDEVANCE_CABINET_SEUIL_ALERTE, JOUR_VERSEMENT_REDEVANCE_DEFAUT,
+  FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT,
 } from "@/lib/contrats/defauts";
 
 // `type` en plus des champs d'identité : il sert au choix du gabarit, pas à la vérification.
@@ -97,6 +100,19 @@ export async function GET(_req: NextRequest, { params }: Params) {
     heuresComplementairesMax: HEURES_COMPLEMENTAIRES_DEFAUT,
   };
 
+  // Honoraires et reversements des modèles INFIRMIER (section 237, lot 3). Mêmes constantes que
+  // la route de génération : l'écran ne peut donc pas annoncer un taux que le PDF ne reprendrait
+  // pas. `redevanceCabinetPct` porte un nom DISTINCT de `redevancePct` parce que les deux
+  // décrivent des flux de sens opposés — voir le commentaire de `defauts.ts`.
+  const defautsInfirmier = {
+    reversementPct: REVERSEMENT_PCT_DEFAUT,
+    reversementDelaiMois: REVERSEMENT_DELAI_MOIS_DEFAUT,
+    redevanceCabinetPct: REDEVANCE_CABINET_PCT_DEFAUT,
+    redevanceCabinetSeuilAlerte: REDEVANCE_CABINET_SEUIL_ALERTE,
+    jourVersementRedevance: JOUR_VERSEMENT_REDEVANCE_DEFAUT,
+    forfaitDelaiReversementJours: FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT,
+  };
+
   // Modèles de contrat applicables (section 216). Le formulaire en a besoin AVANT de générer :
   // quand la paire (profession, type de mission) en compte plusieurs — le remplacement infirmier
   // en a deux —, c'est aux parties de choisir, pas au produit. Une liste vide dit qu'aucun modèle
@@ -133,5 +149,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
     periode,          // dates par défaut + provenance, pour pré-remplir et signaler la divergence
     jeSuisTitulaire: profilTitulaire.id === profileId,
     defautsSalarie,   // valeurs pré-remplies du contrat de travail (aucune n'atteint le PDF sans être vue)
+    defautsInfirmier, // idem pour les honoraires et reversements des modèles CNOI
   });
 }

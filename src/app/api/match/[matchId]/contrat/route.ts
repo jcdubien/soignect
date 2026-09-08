@@ -21,6 +21,8 @@ import { periodeParDefaut, periodeDemandee } from "@/lib/contrats/periode";
 import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
 import {
   lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
+  REVERSEMENT_PCT_DEFAUT, REVERSEMENT_DELAI_MOIS_DEFAUT, REDEVANCE_CABINET_PCT_DEFAUT,
+  JOUR_VERSEMENT_REDEVANCE_DEFAUT, FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT,
 } from "@/lib/contrats/defauts";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -446,10 +448,10 @@ export async function GET(req: NextRequest, { params }: Params) {
       },
       startDate: periode.debut,
       endDate:   periode.fin,
-      reversementDirectPct:          entier("reversementDirectPct", 70, 0, 100),
-      reversementDirectDelaiMois:    entier("reversementDirectDelaiMois", 1, 0, 12),
-      reversementTiersPayantPct:     entier("reversementTiersPayantPct", 70, 0, 100),
-      reversementTiersPayantDelaiMois: entier("reversementTiersPayantDelaiMois", 1, 0, 12),
+      reversementDirectPct:          entier("reversementDirectPct", REVERSEMENT_PCT_DEFAUT, 0, 100),
+      reversementDirectDelaiMois:    entier("reversementDirectDelaiMois", REVERSEMENT_DELAI_MOIS_DEFAUT, 0, 12),
+      reversementTiersPayantPct:     entier("reversementTiersPayantPct", REVERSEMENT_PCT_DEFAUT, 0, 100),
+      reversementTiersPayantDelaiMois: entier("reversementTiersPayantDelaiMois", REVERSEMENT_DELAI_MOIS_DEFAUT, 0, 12),
       rayonKm,
       preavisCommunAccordJours: entier("preavisCommunAccordJours", 8, 0, 180),
       preavisUnilateralJours:   entier("preavisUnilateralJours", 8, 0, 180),
@@ -462,9 +464,18 @@ export async function GET(req: NextRequest, { params }: Params) {
       remplace: titulaireParty, remplacant: autreParty,
       startDate: periode.debut,
       endDate:   periode.fin,
-      // L'Ordre constate un usage de 5 à 10 % et rappelle qu'un taux trop élevé s'apparenterait
-      // à un partage d'honoraires (R.4312-30). Défaut au bas de cette fourchette.
-      redevancePct: entier("redevancePct", 5, 0, 100),
+      // PARAMÈTRE PROPRE, ET NON LE `redevancePct` GÉNÉRIQUE (section 237, lot 3).
+      //
+      // Ce gabarit lisait `redevancePct`, le même nom que le curseur de redevance des contrats
+      // kiné. Or ce curseur est MASQUÉ sur un remplacement — l'écran affiche celui de rétrocession
+      // — mais sa valeur partait quand même : 40 %, jamais vue, jamais choisie. Le document
+      // imprimait « Une redevance de 40 % » là où l'Ordre en constate 5 à 10, et où un taux élevé
+      // s'apparenterait à un partage d'honoraires interdit (R.4312-30).
+      //
+      // Ici la redevance est versée PAR le remplaçant installé AU remplacé, à l'inverse du modèle
+      // avec autorisation. Deux sens opposés ne peuvent pas partager un nom de paramètre : le
+      // repli sur cette valeur par défaut est le comportement sûr quand rien n'est transmis.
+      redevancePct: entier("redevanceCabinetPct", REDEVANCE_CABINET_PCT_DEFAUT, 0, 100),
       moyensMisADisposition: texte("moyensMisADisposition"),
       cabinetRemplacant:     texte("cabinetRemplacant", 200),
       preavisCommunAccordJours: entier("preavisCommunAccordJours", 8, 0, 180),
@@ -484,12 +495,12 @@ export async function GET(req: NextRequest, { params }: Params) {
       renouvellementsMax: entier("renouvellementsMax", 1, 0, 20),
       dureeMaxMois:       entier("dureeMaxMois", 24, 1, 480),
       redevancePct,
-      jourVersementRedevance: entier("jourVersementRedevance", 10, 1, 31),
+      jourVersementRedevance: entier("jourVersementRedevance", JOUR_VERSEMENT_REDEVANCE_DEFAUT, 1, 31),
       moyensMisADisposition:   texte("moyensMisADisposition"),
       recensementDispositions: texte("recensementDispositions"),
       forfaitPartage,
       forfaitRepartition:           texte("forfaitRepartition", 300),
-      forfaitDelaiReversementJours: entier("forfaitDelaiReversementJours", 30, 0, 365),
+      forfaitDelaiReversementJours: entier("forfaitDelaiReversementJours", FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT, 0, 365),
       periodeEssaiMois:  entier("periodeEssaiMois", 3, 0, 24),
       preavisEssaiJours: entier("preavisEssaiJours", 15, 0, 180),
       dureeInformationSollicitation: texte("dureeInformationSollicitation", 60),
