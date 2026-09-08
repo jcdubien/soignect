@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
 import { periodeParDefaut } from "@/lib/contrats/periode";
+import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
 import {
   lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
 } from "@/lib/contrats/defauts";
@@ -48,6 +49,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const myProfile = isA ? match.profileA : match.profileB;
   const theirProfile = isA ? match.profileB : match.profileA;
 
+  // Côtés du match — MÊME fonction que la route de génération (section 238). Ce fichier les
+  // déduisait auparavant par ses propres moyens, et n'en tirait pas les mêmes conclusions.
+  const { profilTitulaire, missionTitulaire, missionCandidat } = cotesDuMatch(match);
+
   // Même logique que la route de génération PDF (fce5be5) : partenaire institutionnel OU
   // accès premium effectif (hasPremiumAccess prend en compte freeAccessMode, fondateur,
   // abonnement payant et grâce de bascule individuelle). Le check brut plan===PREMIUM/BOOST
@@ -60,38 +65,34 @@ export async function GET(_req: NextRequest, { params }: Params) {
       isFounding: myProfile.isFounding,
     }));
 
-  const missionType =
-    match.missionA?.missionType ?? match.missionB?.missionType ?? null;
+  // Type de contrat : l'annonce du TITULAIRE d'abord, comme la génération (section 238). Ce
+  // calcul partait de `missionA`, dont l'ordre A/B ne dit rien du rôle : sur `cmsvtatr` l'écran
+  // annonçait « Assistanat libéral » et « aucun modèle », quand la route produisait un CDI.
+  const missionType = typeDeMissionDuContrat(missionTitulaire, missionCandidat);
   const retrocessionPct =
-    match.missionA?.retrocessionRate ?? match.missionB?.retrocessionRate ?? 70;
+    missionTitulaire?.retrocessionRate ?? missionCandidat?.retrocessionRate ?? 70;
 
   // Complétude de l'identité contractuelle (section 150) des deux parties.
   const missingSelf  = missingContractLabels(myProfile);
   const missingOther = missingContractLabels(theirProfile);
   const enforce = await isContractProfileEnforced();
 
-  // Salariat (section 161) : le recruteur est une STRUCTURE (employeur) → CDD/CDI/Stage/Vacation.
-  // Soignect ne génère PAS de contrat de travail (les 3 templates sont libéraux) → on bloque
-  // le PDF et on affiche un message dédié.
-  const titulaireParty =
-    match.profileA.type === "TITULAIRE" ? match.profileA :
-    match.profileB.type === "TITULAIRE" ? match.profileB : null;
-  const isSalariat = titulaireParty?.titulaireKind === "STRUCTURE";
+  // Salariat (section 161/217) : le recruteur est une STRUCTURE (employeur) → contrat de travail,
+  // registre de gabarits salariés. Le titulaire vient du partage partagé, et non plus d'un test
+  // local qui renvoyait `null` — donc « pas un salariat » — quand aucun profil n'était TITULAIRE,
+  // là où la génération partait quand même dans la branche salariée.
+  const isSalariat = profilTitulaire.titulaireKind === "STRUCTURE";
 
   // Période par défaut du contrat (section 237) — MÊME fonction que la route de génération, pour
   // que l'écran ne puisse pas annoncer une date que le PDF ne reprendrait pas. Le repli
   // « annonce du titulaire d'abord » est identifié des deux côtés au même endroit.
-  const missionTitulaire = match.profileA.type === "TITULAIRE" ? match.missionA : match.missionB;
-  const periode = periodeParDefaut(
-    missionTitulaire,
-    match.profileA.type === "TITULAIRE" ? match.missionB : match.missionA,
-  );
+  const periode = periodeParDefaut(missionTitulaire, missionCandidat);
 
   // Valeurs par défaut du contrat de travail (section 237, lot 2). Renvoyées pour que l'écran les
   // AFFICHE avant génération : aucune valeur ne doit atteindre le PDF sans avoir été montrée.
   // Même fonction que la route de génération — l'écran ne peut donc pas annoncer autre chose.
   const defautsSalarie = {
-    lieuTravail: lieuTravailParDefaut(missionTitulaire, titulaireParty),
+    lieuTravail: lieuTravailParDefaut(missionTitulaire, profilTitulaire),
     heuresHebdomadaires: HEURES_HEBDOMADAIRES_DEFAUT,
     heuresComplementairesMax: HEURES_COMPLEMENTAIRES_DEFAUT,
   };
@@ -110,11 +111,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
     !missionType || !memeProfession
       ? []
       : isSalariat
-        ? gabaritsSalariePour(match.profileA.profession, NATURE_PAR_MISSION[missionType]).map((g) => ({
+        ? gabaritsSalariePour(profilTitulaire.profession, NATURE_PAR_MISSION[missionType]).map((g) => ({
             id: g.id, libelle: g.libelle, quandLUtiliser: null,
             source: g.source, composeSansModele: g.composeSansModele ?? false,
           }))
-        : gabaritsPour(match.profileA.profession, missionType).map((g) => ({
+        : gabaritsPour(profilTitulaire.profession, missionType).map((g) => ({
             id: g.id, libelle: g.libelle, quandLUtiliser: g.quandLUtiliser ?? null,
             source: g.source, composeSansModele: false,
           }));
@@ -130,7 +131,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     enforce,          // true = blocage dur ; false = avertissement non bloquant
     isSalariat,       // recruteur = structure employeuse → pas de PDF libéral (section 161)
     periode,          // dates par défaut + provenance, pour pré-remplir et signaler la divergence
-    jeSuisTitulaire: titulaireParty?.id === profileId,
+    jeSuisTitulaire: profilTitulaire.id === profileId,
     defautsSalarie,   // valeurs pré-remplies du contrat de travail (aucune n'atteint le PDF sans être vue)
   });
 }

@@ -53,6 +53,17 @@ const TYPE_LABELS: Record<string, string> = {
   COLLABORATION: "Collaboration libérale",
 };
 
+// La MÊME valeur d'enum désigne deux engagements opposés selon le camp du recruteur : chez un
+// cabinet, `COLLABORATION` est une collaboration libérale ; chez une structure employeuse, c'est
+// un CDI (voir NATURE_PAR_MISSION). Titrer « Collaboration libérale » au-dessus d'un formulaire
+// qui produit un contrat de travail contredirait le document lui-même — le défaut de la
+// section 238, dans sa version visible.
+const TYPE_LABELS_SALARIE: Record<string, string> = {
+  REMPLACEMENT:  "Vacation salariée",
+  ASSISTANAT:    "Contrat à durée déterminée",
+  COLLABORATION: "Contrat à durée indéterminée",
+};
+
 export default function ContratPage() {
   const { id } = useParams<{ id: string }>();
 
@@ -312,7 +323,7 @@ export default function ContratPage() {
 
   const missionType   = info.missionType ?? "REMPLACEMENT";
   const isRemplacement = missionType === "REMPLACEMENT";
-  const typeLabel     = TYPE_LABELS[missionType] ?? missionType;
+  const typeLabel     = (info.isSalariat ? TYPE_LABELS_SALARIE : TYPE_LABELS)[missionType] ?? missionType;
 
   // États de signature (section signature intermédiaire) :
   //  - bothSigned : contrat officiel → figé (formulaire non modifiable) + PDF téléchargeable

@@ -5611,6 +5611,90 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 238 — L'ÉCRAN ET LE PDF NE DÉSIGNAIENT PAS LE MÊME CONTRAT (08/09)
+
+#### Quatre mises en relation sur six se contredisaient
+
+`contrat-info` et la route de génération répartissaient chacune le match en « titulaire » et
+« candidat », puis en déduisaient le type de contrat — avec des opérandes différents :
+
+```ts
+contrat-info : match.missionA?.missionType ?? match.missionB?.missionType
+génération   : missionTitulaire?.missionType ?? missionAutre?.missionType
+```
+
+L'ordre A/B vient de qui a été enregistré en premier. Il ne dit **rien** du rôle : sur les six
+mises en relation existantes, `profileA` est le candidat dans quatre cas. L'écran lisait donc
+l'annonce du candidat, la génération celle du recruteur, et les deux répondaient des types
+différents dès que les annonces divergeaient.
+
+**Mesuré après correction, sur la base réelle : 4 des 6 mises en relation étaient concernées.**
+
+| Mise en relation | L'écran disait | Le PDF produisait |
+|---|---|---|
+| `cmtooqrd` | Remplacement | Assistanat |
+| `cmt7cw8y` | Remplacement | Assistanat |
+| `cmsvtawu` | Remplacement | Collaboration → **CDI** |
+| `cmsvtatr` | Assistanat | Collaboration → **CDI** |
+
+#### Ce que ça donnait à l'écran
+
+Sur `cmsvtatr`, l'écran annonçait « Assistanat libéral » puis **« aucun modèle de contrat n'existe
+pour ce type de mission »** — un refus. La route, elle, générait sans difficulté un contrat de
+travail à durée indéterminée. **Le produit refusait à l'écran ce qu'il savait faire.**
+
+#### Troisième occurrence du même motif
+
+Une règle recopiée dans deux fichiers finit par diverger. C'est le troisième cas en deux semaines,
+tous sur le même chemin contractuel :
+
+| Section | Ce qui était recopié | Ce que ça a coûté |
+|---|---|---|
+| 236 | le `select` d'identité | `name` manquant → « Nom complet » réclamé sans écran pour le satisfaire |
+| 237 | la dérivation des dates, **7 fois** | période choisie en silence, jamais montrée |
+| **238** | le partage titulaire/candidat, **2 fois** | l'écran et le PDF désignaient deux contrats différents |
+
+`lib/contrats/cotes.ts` porte désormais `cotesDuMatch()` et `typeDeMissionDuContrat()`. Les deux
+routes les appellent. La période, le lieu de travail par défaut, le registre de gabarits et
+`isSalariat` en découlent — tous alignés d'un coup, puisqu'ils partaient tous du même partage.
+
+#### La règle retenue est celle du PDF
+
+L'annonce du **titulaire** d'abord : c'est elle qui décrit le poste à pourvoir, donc le contrat à
+établir. Celle du candidat dit ce qu'il cherche — utile au rapprochement, pas à qualifier
+l'engagement. Aligner l'écran sur le PDF, et non l'inverse, était le seul sens possible : **c'est
+le PDF qui est signé.**
+
+Deux effets de bord alignés au passage, qui divergeaient pour la même raison :
+
+- `isSalariat` valait `false` dans `contrat-info` quand aucun profil n'était `TITULAIRE`, alors que
+  la génération partait quand même dans la branche salariée ;
+- le registre de gabarits était interrogé avec `profileA.profession` au lieu de celle du titulaire.
+
+#### Le titre de l'écran mentait aussi
+
+`MissionType.COLLABORATION` désigne **deux engagements opposés** selon le camp du recruteur : une
+collaboration libérale chez un cabinet, un **CDI** chez une structure employeuse — c'est ce que
+déclare déjà `NATURE_PAR_MISSION`. L'écran titrait « Collaboration libérale » au-dessus d'un
+formulaire produisant un contrat de travail dont la première ligne dit « CONTRAT DE TRAVAIL À DURÉE
+INDÉTERMINÉE ». Un second jeu de libellés s'applique désormais en salariat.
+
+#### Vérifié sur les six mises en relation réelles
+
+Les deux routes exécutées côte à côte contre la base de production, pour chaque match :
+
+```
+cmsvtatr  annonce titulaire COLLABORATION | écran : COLLABORATION [KINE_SALARIAT_CDI]
+          → PDF produit : contrat-travail-cdi-brouillon.pdf
+          → première ligne du document : CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE
+```
+
+**Les six concordent désormais.** Les trois `422` restants sont le garde d'identité contractuelle
+(section 150), vérifié sans rapport avec ce correctif. Non-régression du remplacement kiné
+confirmée : `cmto8a96` produit le même `contrat-remplacement-brouillon.pdf` qu'avant.
+
+---
+
 ### SECTION 237 — LES DATES DU CONTRAT SE NÉGOCIENT (08/09) — lot 1 sur 4
 
 #### Le contrat tranchait un désaccord sans le dire

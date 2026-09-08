@@ -18,6 +18,7 @@ import { sendContratEmail } from "@/lib/email";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractFields } from "@/lib/contractProfile";
 import { periodeParDefaut, periodeDemandee } from "@/lib/contrats/periode";
+import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
 import {
   lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
 } from "@/lib/contrats/defauts";
@@ -129,9 +130,11 @@ export async function GET(req: NextRequest, { params }: Params) {
     );
   }
 
-  // Identifier TITULAIRE et l'autre partie
-  const profileTitulaire = match.profileA.type === "TITULAIRE" ? match.profileA : match.profileB;
-  const profileAutre      = match.profileA.type === "TITULAIRE" ? match.profileB : match.profileA;
+  // Identifier TITULAIRE et l'autre partie — source unique (section 238), partagée avec
+  // `contrat-info`. Les deux routes refaisaient ce partage chacune de leur côté, et n'en tiraient
+  // pas le même type de contrat.
+  const { profilTitulaire: profileTitulaire, profilCandidat: profileAutre,
+          missionTitulaire, missionCandidat: missionAutre } = cotesDuMatch(match);
 
   // Identité contractuelle (section 150) — blocage dur si activé et une des 2 parties
   // incomplète (RPPS/N° Ordre/adresse praticiens, SIRET/adresse structures). En phase
@@ -146,9 +149,6 @@ export async function GET(req: NextRequest, { params }: Params) {
       );
     }
   }
-  const missionTitulaire  = match.profileA.type === "TITULAIRE" ? match.missionA : match.missionB;
-  const missionAutre      = match.profileA.type === "TITULAIRE" ? match.missionB : match.missionA;
-
   // Type de contrat : mission du titulaire, sinon mission de l'autre partie.
   //
   // AUCUN REPLI (section 210). Ce calcul retombait sur REMPLACEMENT quand aucune des deux
@@ -161,7 +161,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   //
   // On refuse. Un contrat absent se remarque et se corrige ; un contrat faux se découvre trop
   // tard. C'est la règle d'écriture opposable appliquée au document lui-même.
-  const missionType = (missionTitulaire?.missionType ?? missionAutre?.missionType) as MissionType | undefined;
+  const missionType = typeDeMissionDuContrat(missionTitulaire, missionAutre) as MissionType | null;
   if (!missionType) {
     return NextResponse.json(
       {
@@ -174,7 +174,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     );
   }
 
-  const locationTitulaire = missionTitulaire?.location ?? profileTitulaire.name ?? "cabinet";
+  const locationTitulaire = lieuTravailParDefaut(missionTitulaire, profileTitulaire);
   const locationAutre     = missionAutre?.location ?? profileAutre.name ?? "domicile";
 
   const titulaireParty = partyFromProfile(profileTitulaire, locationTitulaire);
@@ -362,7 +362,7 @@ export async function GET(req: NextRequest, { params }: Params) {
           : { type: "COMPLET", heuresHebdomadaires: heures },
         urssafVille: texteS("urssafVille", 80),
         numeroSecuriteSociale: texteS("numeroSecuriteSociale", 25),
-        lieuTravail: texteS("lieuTravail") || lieuTravailParDefaut(missionTitulaire, profileTitulaire),
+        lieuTravail: texteS("lieuTravail") || locationTitulaire,
         periodeEssaiMois: essaiBrut === null || essaiBrut === "" ? null : entierS("periodeEssaiMois", 2, 0, 8),
         remunerationBrutMensuelle: remuneration,
         caisseRetraite:   texteS("caisseRetraite", 120),
