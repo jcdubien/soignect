@@ -5688,11 +5688,71 @@ pas seulement l'écran de saisie :
 Même vérification sur la **branche salariée**, qui avait sa propre dérivation : `Il prend effet le
 31 août 2026` sans paramètre, `le 1er mars 2027` avec. Non-régression confirmée des deux côtés.
 
+---
+
+### SECTION 237bis — LE CONTRAT DE TRAVAIL N'INVENTE PLUS SON SALAIRE (08/09) — lot 2 sur 4
+
+#### « Une rémunération mensuelle brute de 0 euros »
+
+Le défaut de `remunerationBrutMensuelle` valait `0`. Le gabarit ne le traitait pas comme un vide —
+son composant `Val` ne remplace que la chaîne vide — et imprimait donc, mot pour mot :
+
+> En contrepartie de son travail, le salarié percevra une rémunération mensuelle brute de 0 euros.
+
+Une phrase grammaticalement correcte, juridiquement fausse, sur un document destiné à la signature.
+**Constaté au PDF avant correction, pas déduit du code.**
+
+`0` n'est pas une valeur plausible pour un salaire : c'est une valeur absente. Une valeur absente ne
+se devine pas. Le champ n'a donc plus de défaut, et la route **refuse la génération** — y compris
+celle du **brouillon** : son objet est la relecture avant signature, et laisser relire un salaire
+inventé serait pire que de ne rien produire.
+
+#### Le temps partiel imprimait une liste vide
+
+`repartitionHoraire` était facultatif. Un temps partiel sans répartition produisait
+« réparties comme suit : » suivi de **rien**. L'article L.3123-6 en fait une mention obligatoire :
+la route refuse désormais ce cas, et l'écran l'annonce avant le clic plutôt que de laisser
+découvrir un 422.
+
+#### Ce que l'écran montre désormais
+
+Bloc « Rémunération et temps de travail », affiché **pour le salariat seulement** : rémunération
+brute (obligatoire, vide au départ), lieu de travail (repris de l'annonce), durée hebdomadaire
+(35 h, art. L.3121-27), temps partiel avec son éditeur de répartition jour/début/fin et son plafond
+d'heures complémentaires.
+
+Les valeurs pré-remplies viennent de `lib/contrats/defauts.ts`, lu par **les deux routes** — même
+dispositif que `periode.ts`. C'est ce qui rend vraie la règle posée par Jean-Charles : aucune valeur
+par défaut n'atteint le PDF sans avoir été montrée à l'écran au moins une fois.
+
+#### Les leviers dormants du CDI ont disparu
+
+Un contrat de travail affichait jusqu'ici « Taux de rétrocession pour le remplaçant », « Redevance
+versée au titulaire », le mode et le délai de paiement, les modalités de locaux et une case
+« période d'essai de 3 mois ». **Le gabarit CDI ne lit aucun de ces paramètres.** Six réglages
+visibles, manipulables, sans le moindre effet sur le document produit.
+
+Ils ne sont plus rendus en salariat. La case d'essai libérale est booléenne quand le CDI attend un
+nombre de mois (`periodeEssaiMois`) — c'est le lot 4 qui apportera la vraie.
+
+#### Vérifié par génération réelle de PDF
+
+| Cas | Résultat |
+|---|---|
+| Sans rémunération | HTTP 422 |
+| `remunerationBrutMensuelle=0` | HTTP 422 |
+| 2600 €, lieu saisi, 35 h | `rémunération mensuelle brute de 2600 euros`, `au cabinet situé Cabinet de Baie-Mahault`, `durée de travail hebdomadaire du salarié est de 35 heures` |
+| Temps partiel sans répartition | HTTP 422 (art. L.3123-6) |
+| Temps partiel 24 h, lundi 08:00-16:00 et mardi 09:00-17:00, 3 h complémentaires | les deux lignes imprimées, `dans la limite de 3 heures` |
+
+Non-régression libérale confirmée : le remplacement kiné produit un PDF identique au lot 1, même
+taille, mêmes phrases de dates et de paiement.
+
 #### Reste des lots
 
-Lot 2 (rémunération, lieu, heures) livré à la suite. **Lots 3 et 4 en attente** — taux de
-reversement infirmier et préavis/non-concurrence — sur décision de Jean-Charles : sans urgence tant
-que la phase 2 infirmier n'est pas ouverte au public.
+**Lots 3 et 4 en attente** — taux de reversement infirmier, préavis et non-concurrence — sur
+décision de Jean-Charles le 08/09 : sans urgence tant que la phase 2 infirmier n'est pas ouverte au
+public.
 
 ---
 

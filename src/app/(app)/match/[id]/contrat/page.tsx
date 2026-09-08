@@ -22,6 +22,12 @@ interface MatchInfo {
   /** Période par défaut du contrat et sa provenance (section 237). */
   periode?: PeriodeContrat;
   jeSuisTitulaire?: boolean;
+  /** Valeurs pré-remplies du contrat de travail, calculées serveur (section 237, lot 2). */
+  defautsSalarie?: {
+    lieuTravail: string;
+    heuresHebdomadaires: number;
+    heuresComplementairesMax: number;
+  };
 }
 
 interface SigStatus {
@@ -38,6 +44,8 @@ const SIGNATURE_LEGAL =
   "Ce document a été signé électroniquement par apposition d'une image de signature manuscrite. " +
   "Il ne constitue pas une signature électronique qualifiée au sens du règlement eIDAS. Les parties " +
   "reconnaissent la validité de ce mode de signature pour les besoins de ce contrat.";
+
+const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
 const TYPE_LABELS: Record<string, string> = {
   REMPLACEMENT:  "Remplacement",
@@ -61,6 +69,20 @@ export default function ContratPage() {
   // sur six au 08/09 — et le document retenait jusqu'ici celle du titulaire sans le dire.
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin,   setDateFin]   = useState("");
+
+  // Rémunération et temps de travail du contrat SALARIÉ (section 237, lot 2).
+  //
+  // `remuneration` démarre VIDE, et c'est délibéré. Son défaut valait `0` côté route, que le
+  // gabarit imprimait tel quel : « une rémunération mensuelle brute de 0 euros ». Un salaire nul
+  // n'est pas une valeur plausible, c'est une valeur absente — et une valeur absente ne se devine
+  // pas. Le champ est donc obligatoire, ici comme dans la route.
+  const [remuneration,   setRemuneration]   = useState("");
+  const [lieuTravail,    setLieuTravail]    = useState("");
+  const [heures,         setHeures]         = useState(35);
+  const [tempsPartiel,   setTempsPartiel]   = useState(false);
+  const [heuresComplMax, setHeuresComplMax] = useState(4);
+  const [repartition,    setRepartition]    =
+    useState<{ jour: string; debut: string; fin: string }[]>([]);
 
   // Champs du formulaire
   const [rayonKm,      setRayonKm]      = useState(20);
@@ -104,6 +126,14 @@ export default function ContratPage() {
         // PDF ne reprendrait pas.
         if (d.periode?.debut) setDateDebut(d.periode.debut);
         if (d.periode?.fin)   setDateFin(d.periode.fin);
+        // Défauts du contrat de travail, calculés côté serveur par la MÊME fonction que la
+        // génération. Les pré-remplir ici est ce qui satisfait la règle « aucune valeur par
+        // défaut n'atteint le PDF sans avoir été montrée » : elles sont à l'écran, modifiables.
+        if (d.defautsSalarie) {
+          setLieuTravail(d.defautsSalarie.lieuTravail ?? "");
+          setHeures(d.defautsSalarie.heuresHebdomadaires ?? 35);
+          setHeuresComplMax(d.defautsSalarie.heuresComplementairesMax ?? 4);
+        }
         // Un seul modèle : rien à demander, on le retient d'office.
         if (Array.isArray(d.gabarits) && d.gabarits.length === 1) setGabaritId(d.gabarits[0].id);
       })
@@ -151,6 +181,26 @@ export default function ContratPage() {
     });
     if (gabaritId) params.set("gabaritId", gabaritId);
     if (gabaritId === "INFIRMIER_COLLABORATION") params.set("forfaitPartage", forfaitPartage);
+
+    // Contrat de travail (section 237, lot 2) — envoyés seulement si le contrat EST un salariat.
+    // Les transmettre partout ferait voyager des paramètres qu'aucun gabarit libéral ne lit.
+    if (info?.isSalariat) {
+      params.set("remunerationBrutMensuelle", remuneration);
+      params.set("lieuTravail", lieuTravail);
+      params.set("heuresHebdomadaires", String(heures));
+      params.set("tempsPartiel", String(tempsPartiel));
+      if (tempsPartiel) {
+        params.set("heuresComplementairesMax", String(heuresComplMax));
+        params.set(
+          "repartitionHoraire",
+          repartition
+            .filter((r) => r.jour && r.debut && r.fin)
+            .map((r) => `${r.jour}|${r.debut}|${r.fin}`)
+            .join(";"),
+        );
+      }
+    }
+
     if (draft) params.set("draft", "true");
     return `/api/match/${id}/contrat?${params.toString()}`;
   }
@@ -292,6 +342,14 @@ export default function ContratPage() {
     return "aucune date indiquée";
   };
 
+  // Ce qui manque pour un contrat de travail (section 237, lot 2). L'écran le dit AVANT de laisser
+  // cliquer : la route refuse ces deux cas en 422, et découvrir le refus après coup serait
+  // exactement le défaut qu'on ferme depuis deux semaines.
+  const repartitionIncomplete =
+    tempsPartiel && repartition.filter(r => r.jour && r.debut && r.fin).length === 0;
+  const salariatIncomplet =
+    !!info.isSalariat && (!remuneration || Number(remuneration) <= 0 || repartitionIncomplete);
+
   const theirSigned = sig ? (sig.mySide === "titulaire" ? sig.remplacantSigned : sig.titulaireSigned) : false;
   const bothSigned  = !!sig?.bothSigned;
   const locked      = bothSigned; // formulaire verrouillé une fois le contrat officiel
@@ -404,6 +462,151 @@ export default function ContratPage() {
           )}
         </div>
 
+        {/* ── Rémunération et temps de travail (section 237, lot 2) ───────────────────────
+            Contrat de TRAVAIL uniquement. Ces clauses n'existent pas dans les gabarits
+            libéraux, et le CDI ne lit ni rétrocession ni redevance : chaque monde ne voit
+            que ce que son modèle consomme. */}
+        {info.isSalariat && (
+          <div className="border-t border-gray-100 pt-4">
+            <h2 className="text-sm font-bold text-gray-900 mb-1">Rémunération et temps de travail</h2>
+            <p className="text-xs text-gray-500 mb-3">
+              Mentions obligatoires du contrat de travail. Elles figureront telles quelles dans le
+              document.
+            </p>
+
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Rémunération mensuelle brute (€) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number" min={1} max={1000000} step={10}
+                  value={remuneration}
+                  onChange={e => setRemuneration(e.target.value)}
+                  placeholder="Ex. : 2600"
+                  className="w-40 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-kine-200"
+                />
+                {!remuneration && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Obligatoire — un salaire ne peut pas être proposé par défaut. Sans cette valeur,
+                    le contrat n&apos;est pas généré.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Lieu de travail
+                </label>
+                <input
+                  type="text"
+                  value={lieuTravail}
+                  onChange={e => setLieuTravail(e.target.value.slice(0, 200))}
+                  placeholder="Adresse d'exécution du contrat"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-kine-200"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">Repris de l&apos;annonce, modifiable.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Durée hebdomadaire (heures)
+                </label>
+                <input
+                  type="number" min={1} max={48} step={1}
+                  value={heures}
+                  onChange={e => setHeures(Math.min(48, Math.max(1, Number(e.target.value) || 1)))}
+                  className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-kine-200"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  35 h par défaut — durée légale (art. L.3121-27).
+                </p>
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={tempsPartiel}
+                  onChange={e => {
+                    setTempsPartiel(e.target.checked);
+                    // Une première ligne à remplir, plutôt qu'un tableau vide : le Code du travail
+                    // impose la répartition, et la route refuse un temps partiel sans elle.
+                    if (e.target.checked && repartition.length === 0) {
+                      setRepartition([{ jour: "Lundi", debut: "", fin: "" }]);
+                    }
+                  }}
+                  className="mt-0.5 w-4 h-4 accent-kine-600"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Temps partiel</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    La répartition des horaires devient obligatoire (art. L.3123-6).
+                  </p>
+                </div>
+              </label>
+
+              {tempsPartiel && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-gray-700">Répartition des horaires</p>
+                  {repartition.map((r, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <select
+                        value={r.jour}
+                        onChange={e => setRepartition(repartition.map((x, k) => k === i ? { ...x, jour: e.target.value } : x))}
+                        className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-800 bg-white"
+                      >
+                        {JOURS.map(j => <option key={j} value={j}>{j}</option>)}
+                      </select>
+                      <input
+                        type="time" value={r.debut}
+                        onChange={e => setRepartition(repartition.map((x, k) => k === i ? { ...x, debut: e.target.value } : x))}
+                        className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-800 bg-white"
+                      />
+                      <input
+                        type="time" value={r.fin}
+                        onChange={e => setRepartition(repartition.map((x, k) => k === i ? { ...x, fin: e.target.value } : x))}
+                        className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-800 bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setRepartition(repartition.filter((_, k) => k !== i))}
+                        className="text-gray-400 hover:text-red-500 text-sm px-1"
+                        aria-label="Retirer cette ligne"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setRepartition([...repartition, { jour: "Lundi", debut: "", fin: "" }])}
+                    className="self-start text-xs font-semibold text-kine-700 hover:underline"
+                  >
+                    + Ajouter un jour
+                  </button>
+                  {repartitionIncomplete && (
+                    <p className="text-xs text-amber-700">
+                      Indiquez au moins un jour avec ses heures de début et de fin.
+                    </p>
+                  )}
+
+                  <div className="border-t border-gray-200 pt-2 mt-1">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Heures complémentaires maximum
+                    </label>
+                    <input
+                      type="number" min={0} max={20} step={1}
+                      value={heuresComplMax}
+                      onChange={e => setHeuresComplMax(Math.min(20, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-gray-800 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Rayon non-concurrence */}
         <div className="border-t border-gray-100 pt-4">
           <label className="block text-sm font-semibold text-gray-800 mb-1">
@@ -500,8 +703,9 @@ export default function ContratPage() {
           )}
         </div>
 
-        {/* Durée non-concurrence (uniquement hors remplacement) */}
-        {!isRemplacement && (
+        {/* Durée non-concurrence (uniquement hors remplacement, et hors contrat de travail :
+            le CDI porte sa propre durée de non-concurrence, en mois, réglée au lot 4). */}
+        {!isRemplacement && !info.isSalariat && (
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">
               Durée de non-concurrence (années)
@@ -520,8 +724,8 @@ export default function ContratPage() {
           </div>
         )}
 
-        {/* Taux de rétrocession (REMPLACEMENT) */}
-        {isRemplacement && (
+        {/* Taux de rétrocession (REMPLACEMENT libéral) */}
+        {isRemplacement && !info.isSalariat && (
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">
               Taux de rétrocession pour le remplaçant (%)
@@ -540,8 +744,8 @@ export default function ContratPage() {
           </div>
         )}
 
-        {/* Taux de redevance (ASSISTANAT / COLLABORATION) */}
-        {!isRemplacement && (
+        {/* Taux de redevance (ASSISTANAT / COLLABORATION libéraux) */}
+        {!isRemplacement && !info.isSalariat && (
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">
               Redevance versée au titulaire (%)
@@ -561,7 +765,10 @@ export default function ContratPage() {
         )}
 
         {/* Modalités de paiement (section 164) — remplacent les placeholders [mode]/[délai] du PDF.
-            « rétrocession » pour un remplacement, « redevance » sinon. */}
+            « rétrocession » pour un remplacement, « redevance » sinon.
+            Absentes d'un contrat de travail : un salarié est payé par bulletin de paie, et le
+            gabarit CDI ne lit aucun de ces trois paramètres. */}
+        {!info.isSalariat && (
         <div className="border-t border-gray-100 pt-4 flex flex-col gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">
@@ -610,8 +817,12 @@ export default function ContratPage() {
             </p>
           </div>
         </div>
+        )}
 
-        {/* Période d'essai */}
+        {/* Période d'essai — variante LIBÉRALE (booléenne). Le contrat de travail a la sienne, en
+            mois (`periodeEssaiMois`), que ce formulaire n'envoie pas encore : la case ci-dessous
+            n'aurait donc aucun effet sur un CDI. */}
+        {!info.isSalariat && (
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -628,6 +839,7 @@ export default function ContratPage() {
             </p>
           </div>
         </label>
+        )}
       </div>
 
       {/* Mention légale */}
@@ -712,7 +924,7 @@ export default function ContratPage() {
       {bothSigned ? (
         <button
           onClick={() => handleGenerate(false)}
-          disabled={generating}
+          disabled={generating || salariatIncomplet}
           className="w-full py-4 bg-kine-600 text-white rounded-2xl font-bold text-base shadow hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-60"
         >
           {generating ? "Génération en cours…" : "Télécharger le PDF officiel →"}
@@ -721,11 +933,20 @@ export default function ContratPage() {
         <div className="flex flex-col items-center gap-2">
           <button
             onClick={() => handleGenerate(true)}
-            disabled={generating}
+            disabled={generating || salariatIncomplet}
             className="w-full py-4 bg-white border-2 border-kine-300 text-kine-700 rounded-2xl font-bold text-base shadow-sm hover:bg-kine-50 active:scale-[0.98] transition disabled:opacity-60"
           >
             {generating ? "Génération en cours…" : "Télécharger l'aperçu (brouillon) →"}
           </button>
+          {/* Le brouillon est bloqué lui aussi, et non le seul PDF officiel : son objet est la
+              relecture avant signature, et laisser relire un salaire inventé serait pire que de
+              ne rien produire. */}
+          {salariatIncomplet && (
+            <p className="text-xs text-amber-700 text-center">
+              Complétez la rémunération{repartitionIncomplete ? " et la répartition des horaires" : ""} pour
+              générer le contrat.
+            </p>
+          )}
           <p className="text-xs text-gray-400 text-center">
             Document filigrané « non officiel », pour relecture avant signature. Le PDF officiel
             (sans filigrane, avec les signatures) sera disponible une fois les deux parties signées.

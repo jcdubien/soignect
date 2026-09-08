@@ -18,6 +18,9 @@ import { sendContratEmail } from "@/lib/email";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractFields } from "@/lib/contractProfile";
 import { periodeParDefaut, periodeDemandee } from "@/lib/contrats/periode";
+import {
+  lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
+} from "@/lib/contrats/defauts";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
@@ -296,13 +299,51 @@ export async function GET(req: NextRequest, { params }: Params) {
       return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : defaut;
     };
     const texteS = (cle: string, max = 200) => (sp.get(cle) ?? "").slice(0, max);
-    const heures = entierS("heuresHebdomadaires", 35, 1, 48);
+    const heures = entierS("heuresHebdomadaires", HEURES_HEBDOMADAIRES_DEFAUT, 1, 48);
     const estPartiel = sp.get("tempsPartiel") === "true";
     const repartition = texteS("repartitionHoraire", 600)
       .split(";")
       .map((seg) => seg.split("|"))
       .filter((x) => x.length === 3 && x[0].trim())
       .map(([jour, debut, fin]) => ({ jour: jour.trim(), debut: debut.trim(), fin: fin.trim() }));
+
+    // ── Rémunération : AUCUNE VALEUR PAR DÉFAUT (section 237, lot 2) ──────────────────────
+    //
+    // Le défaut valait `0`, et `0` n'est pas une valeur plausible : c'est l'absence de valeur.
+    // Le gabarit ne le traitait pas comme un vide — il imprimait « une rémunération mensuelle
+    // brute de 0 euros », phrase grammaticalement correcte et juridiquement fausse, sur un
+    // document destiné à la signature. Vérifié au PDF avant correction.
+    //
+    // On refuse la génération plutôt que d'imprimer un repère. Y compris le BROUILLON : son objet
+    // est la relecture avant signature, et laisser relire un salaire inventé serait pire que ne
+    // rien produire. Un contrat absent se remarque, un contrat faux se découvre trop tard.
+    const remBrut = sp.get("remunerationBrutMensuelle");
+    const remuneration = remBrut === null || remBrut.trim() === ""
+      ? null
+      : entierS("remunerationBrutMensuelle", 0, 0, 1000000);
+    if (remuneration === null || remuneration <= 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Impossible de générer le contrat de travail : la rémunération mensuelle brute n'est " +
+            "pas renseignée. Elle ne peut pas être devinée et constitue une mention obligatoire.",
+        },
+        { status: 422 },
+      );
+    }
+
+    // Un temps partiel SANS répartition horaire est refusé : l'article L.3123-6 en fait une
+    // mention obligatoire, et le gabarit imprimait « réparties comme suit : » suivi de rien.
+    if (estPartiel && repartition.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Impossible de générer le contrat à temps partiel : la répartition des horaires entre " +
+            "les jours de la semaine est une mention obligatoire (art. L.3123-6 du code du travail).",
+        },
+        { status: 422 },
+      );
+    }
 
     const essaiBrut = sp.get("periodeEssaiMois");
 
@@ -316,14 +357,14 @@ export async function GET(req: NextRequest, { params }: Params) {
               type: "PARTIEL",
               heuresHebdomadaires: heures,
               repartition,
-              heuresComplementairesMax: entierS("heuresComplementairesMax", 4, 0, 20),
+              heuresComplementairesMax: entierS("heuresComplementairesMax", HEURES_COMPLEMENTAIRES_DEFAUT, 0, 20),
             }
           : { type: "COMPLET", heuresHebdomadaires: heures },
         urssafVille: texteS("urssafVille", 80),
         numeroSecuriteSociale: texteS("numeroSecuriteSociale", 25),
-        lieuTravail: texteS("lieuTravail") || locationTitulaire,
+        lieuTravail: texteS("lieuTravail") || lieuTravailParDefaut(missionTitulaire, profileTitulaire),
         periodeEssaiMois: essaiBrut === null || essaiBrut === "" ? null : entierS("periodeEssaiMois", 2, 0, 8),
-        remunerationBrutMensuelle: entierS("remunerationBrutMensuelle", 0, 0, 100000),
+        remunerationBrutMensuelle: remuneration,
         caisseRetraite:   texteS("caisseRetraite", 120),
         regimeFraisSante: texteS("regimeFraisSante", 120),
         regimePrevoyance: texteS("regimePrevoyance", 120),

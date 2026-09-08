@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
 import { periodeParDefaut } from "@/lib/contrats/periode";
+import {
+  lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
+} from "@/lib/contrats/defauts";
 
 // `type` en plus des champs d'identité : il sert au choix du gabarit, pas à la vérification.
 // Le reste vient de la source unique (section 236) — c'est la copie manuscrite de cette liste,
@@ -31,8 +34,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, profession: true, ...IDENTITY_SELECT } },
       // `startDate`/`endDate` : l'écran doit pré-remplir la période ET pouvoir dire d'où elle
       // vient quand les deux annonces divergent (section 237).
-      missionA: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true } },
-      missionB: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true } },
+      missionA: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true, location: true } },
+      missionB: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true, location: true } },
     },
   });
 
@@ -78,10 +81,20 @@ export async function GET(_req: NextRequest, { params }: Params) {
   // Période par défaut du contrat (section 237) — MÊME fonction que la route de génération, pour
   // que l'écran ne puisse pas annoncer une date que le PDF ne reprendrait pas. Le repli
   // « annonce du titulaire d'abord » est identifié des deux côtés au même endroit.
+  const missionTitulaire = match.profileA.type === "TITULAIRE" ? match.missionA : match.missionB;
   const periode = periodeParDefaut(
-    match.profileA.type === "TITULAIRE" ? match.missionA : match.missionB,
+    missionTitulaire,
     match.profileA.type === "TITULAIRE" ? match.missionB : match.missionA,
   );
+
+  // Valeurs par défaut du contrat de travail (section 237, lot 2). Renvoyées pour que l'écran les
+  // AFFICHE avant génération : aucune valeur ne doit atteindre le PDF sans avoir été montrée.
+  // Même fonction que la route de génération — l'écran ne peut donc pas annoncer autre chose.
+  const defautsSalarie = {
+    lieuTravail: lieuTravailParDefaut(missionTitulaire, titulaireParty),
+    heuresHebdomadaires: HEURES_HEBDOMADAIRES_DEFAUT,
+    heuresComplementairesMax: HEURES_COMPLEMENTAIRES_DEFAUT,
+  };
 
   // Modèles de contrat applicables (section 216). Le formulaire en a besoin AVANT de générer :
   // quand la paire (profession, type de mission) en compte plusieurs — le remplacement infirmier
@@ -118,5 +131,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
     isSalariat,       // recruteur = structure employeuse → pas de PDF libéral (section 161)
     periode,          // dates par défaut + provenance, pour pré-remplir et signaler la divergence
     jeSuisTitulaire: titulaireParty?.id === profileId,
+    defautsSalarie,   // valeurs pré-remplies du contrat de travail (aucune n'atteint le PDF sans être vue)
   });
 }
