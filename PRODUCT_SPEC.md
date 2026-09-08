@@ -5832,6 +5832,46 @@ nombre de mois (`periodeEssaiMois`) — c'est le lot 4 qui apportera la vraie.
 Non-régression libérale confirmée : le remplacement kiné produit un PDF identique au lot 1, même
 taille, mêmes phrases de dates et de paiement.
 
+#### Trouvé À L'ÉCRAN, pas dans le code (08/09, production)
+
+La vérification sur `soignect.fr` avec le compte de Jean-Charles a montré ce que ni la relecture ni
+la génération de PDF n'avaient révélé : **la mention de provenance ne disparaissait jamais.**
+
+Après avoir remplacé le début par une date saisie à la main, puis après l'avoir effacé, l'écran
+continuait d'afficher « d'après votre annonce » sous un champ qu'aucune annonce ne portait.
+
+La condition ne regardait que `divergent` — un état calculé au chargement, jamais la valeur courante
+du champ. Une mention d'origine qui survit à la modification de ce qu'elle explique est une
+affirmation fausse, et c'est précisément le défaut que cette section ferme.
+
+Corrigé : la mention n'est rendue que **tant que le champ porte encore la valeur reprise**. Elle
+s'efface dès la première frappe.
+
+**Ce cas justifie à lui seul la vérification à l'écran.** Le PDF était juste dans les cinq cas
+testés, le build passait, les types aussi — et l'écran affirmait quand même quelque chose de faux.
+
+#### Ce qui a été constaté de visu, et qui tient
+
+Sur la mise en relation `cmto8a96` en production, compte `jcdubien@gmail.com` :
+
+- bloc « Période du contrat » en tête de formulaire, déplié, `01/10/2026` et `31/12/2026`
+  pré-remplis ;
+- bandeau de divergence nommant les deux annonces : « Votre annonce : du 1er octobre 2026 au
+  31 décembre 2026 » / « Annonce de Pauline Bouyrie : du 30 novembre 2026 au 20 décembre 2026 » ;
+- champs modifiables, et avertissement « Aucune date de début n'est indiquée » dès que le champ
+  devient incomplet ;
+- clauses libérales bien présentes (rayon, rétrocession 75 %, mode de paiement, période d'essai) ;
+- déploiement confirmé AVANT lecture de l'écran, en vérifiant que `contrat-info` renvoie bien
+  `periode`, `jeSuisTitulaire` et `defautsSalarie` — pousser n'est pas déployer.
+
+#### Ce qui n'a PAS été vu
+
+**L'écran salarié (lot 2) n'a jamais été affiché.** Les deux seules mises en relation salariées
+appartiennent à des utilisateurs réels (`sgr38@hotmail.fr`, `julienmorisot66@gmail.com`) : se
+connecter avec leur compte n'était pas envisageable. Le bloc « Rémunération et temps de travail »,
+le retrait des six leviers dormants et le libellé « Contrat à durée indéterminée » ne sont donc
+prouvés que par la génération de PDF et le typage — pas par le rendu.
+
 #### Reste des lots
 
 **Lots 3 et 4 en attente** — taux de reversement infirmier, préavis et non-concurrence — sur

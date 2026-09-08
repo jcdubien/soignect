@@ -346,6 +346,21 @@ export default function ContratPage() {
     return `d'après l'annonce de ${info.theirName ?? "l'autre partie"}`;
   };
 
+  // La mention de provenance ne vaut que TANT QUE le champ porte encore la valeur reprise.
+  //
+  // Constaté à l'écran le 08/09, sur la production : après avoir remplacé le début par une date
+  // saisie à la main — puis après l'avoir effacé —, l'écran continuait d'afficher « d'après votre
+  // annonce » sous un champ qu'aucune annonce ne portait. La lecture du code ne le montrait pas :
+  // la condition ne regardait que `divergent`, un état figé au chargement, jamais la valeur
+  // courante. Une mention d'origine qui survit à la modification de ce qu'elle explique est une
+  // affirmation fausse — le défaut même que cette section ferme.
+  const mentionProvenance = (
+    valeurCourante: string,
+    valeurReprise: string | null | undefined,
+    source: SourcePeriode | undefined,
+  ): boolean =>
+    !!periode?.divergent && !!source && !!valeurReprise && valeurCourante === valeurReprise;
+
   const periodeAnnonce = (p: { debut: string | null; fin: string | null }): string => {
     if (p.debut && p.fin) return `du ${fmtDateUTC(p.debut)} au ${fmtDateUTC(p.fin)}`;
     if (p.debut) return `à partir du ${fmtDateUTC(p.debut)}`;
@@ -424,8 +439,8 @@ export default function ContratPage() {
                 onChange={e => setDateDebut(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-kine-200"
               />
-              {periode?.divergent && origine(periode.sourceDebut) && (
-                <p className="text-[11px] text-gray-400 mt-1">{origine(periode.sourceDebut)}</p>
+              {mentionProvenance(dateDebut, periode?.debut, periode?.sourceDebut) && (
+                <p className="text-[11px] text-gray-400 mt-1">{origine(periode!.sourceDebut)}</p>
               )}
             </div>
 
@@ -439,8 +454,8 @@ export default function ContratPage() {
                   onChange={e => setDateFin(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-kine-200"
                 />
-                {periode?.divergent && origine(periode.sourceFin) && (
-                  <p className="text-[11px] text-gray-400 mt-1">{origine(periode.sourceFin)}</p>
+                {mentionProvenance(dateFin, periode?.fin, periode?.sourceFin) && (
+                  <p className="text-[11px] text-gray-400 mt-1">{origine(periode!.sourceFin)}</p>
                 )}
               </div>
             )}
