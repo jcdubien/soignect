@@ -11,6 +11,9 @@ import { attachAssistantPostForMatch } from "@/lib/assistantPost";
 import { createNotification } from "@/lib/notifications";
 import { isContractProfileEnforced } from "@/lib/platform";
 import { missingContractFields, missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
+import {
+  BUCKET_SIGNATURES, cheminSignatureProfil, copierSignatureVersMatch,
+} from "@/lib/signatureEnregistree";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -48,7 +51,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
   const titulaireSigned = !!match.signatureTitulaireUrl;
   const remplacantSigned = !!match.signatureRemplacantUrl;
 
+  // Signature conservée du LECTEUR (section 242) — l'écran doit pouvoir proposer de la réutiliser
+  // au lieu d'exiger une photo à chaque contrat. Booléen seulement : le chemin dans le bucket
+  // privé n'a aucune raison de sortir vers le navigateur.
+  const moi = await prisma.profile.findUnique({
+    where: { id: session.user.profileId as string },
+    select: { signatureUrl: true },
+  });
+
   return NextResponse.json({
+    signatureEnregistree: !!moi?.signatureUrl,
     mySide: side,
     titulaireSigned,
     remplacantSigned,
@@ -99,20 +111,75 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
-  if (!(file instanceof File)) return NextResponse.json({ error: "Aucun fichier reçu" }, { status: 400 });
-  if (file.size > MAX_BYTES) return NextResponse.json({ error: "Fichier trop lourd (max 5 Mo)" }, { status: 400 });
-  const contentType = file.type || "image/jpeg";
-  if (!ALLOWED.includes(contentType)) return NextResponse.json({ error: `Format non supporté : ${contentType}` }, { status: 400 });
-
-  const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
-  const path = `${matchId}/${side}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
+  // Deux façons de signer (section 242) : une photo, ou la signature déjà conservée. Le second
+  // chemin n'envoie aucun fichier — c'est ce qui évite de redemander une photo à chaque contrat.
+  const reutiliser = form?.get("reutiliser") === "true";
+  // Consentement de conservation. Booléen EXPLICITE, jamais déduit : sans case cochée, la
+  // signature ne sert qu'à ce contrat-ci et rien n'est gardé.
+  const enregistrer = form?.get("enregistrer") === "true";
 
   const supabase = getSupabaseAdmin();
-  const { error: upErr } = await supabase.storage
-    .from("signatures")
-    .upload(path, buffer, { contentType, upsert: true });
-  if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+  let path: string;
+
+  if (reutiliser) {
+    // ── Réutilisation de la signature conservée ──────────────────────────────────────────
+    // On COPIE le fichier à l'emplacement du match, on ne le référence pas : un contrat signé
+    // doit rester figé si la personne refait sa signature plus tard. Voir signatureEnregistree.ts.
+    const moi = await prisma.profile.findUnique({
+      where: { id: session.user.profileId as string },
+      select: { signatureUrl: true },
+    });
+    if (!moi?.signatureUrl) {
+      return NextResponse.json(
+        { error: "Aucune signature conservée — prenez-la en photo." },
+        { status: 422 },
+      );
+    }
+    const copie = await copierSignatureVersMatch(moi.signatureUrl, matchId, side);
+    if (!copie) {
+      // Refus explicite plutôt qu'une ligne pointant vers un fichier absent : le contrat
+      // paraîtrait signé et le PDF n'afficherait rien.
+      return NextResponse.json(
+        { error: "Signature conservée introuvable — prenez-la en photo à nouveau." },
+        { status: 422 },
+      );
+    }
+    path = copie;
+  } else {
+    // ── Signature prise en photo ─────────────────────────────────────────────────────────
+    if (!(file instanceof File)) return NextResponse.json({ error: "Aucun fichier reçu" }, { status: 400 });
+    if (file.size > MAX_BYTES) return NextResponse.json({ error: "Fichier trop lourd (max 5 Mo)" }, { status: 400 });
+    const contentType = file.type || "image/jpeg";
+    if (!ALLOWED.includes(contentType)) return NextResponse.json({ error: `Format non supporté : ${contentType}` }, { status: 400 });
+
+    const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+    path = `${matchId}/${side}.${ext}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const { error: upErr } = await supabase.storage
+      .from(BUCKET_SIGNATURES)
+      .upload(path, buffer, { contentType, upsert: true });
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+
+    // Conservation, si et seulement si la case a été cochée. Second fichier, à un emplacement
+    // propre au profil : le contrat garde le sien, indépendant de celui-ci.
+    if (enregistrer) {
+      const cheminProfil = cheminSignatureProfil(session.user.profileId as string, ext);
+      const { error: profErr } = await supabase.storage
+        .from(BUCKET_SIGNATURES)
+        .upload(cheminProfil, buffer, { contentType, upsert: true });
+      // Échec de conservation = la signature du contrat reste valable. On ne fait pas échouer un
+      // geste engageant pour une commodité : la case pourra être recochée au contrat suivant.
+      if (!profErr) {
+        await prisma.profile.update({
+          where: { id: session.user.profileId as string },
+          data: { signatureUrl: cheminProfil },
+        });
+      } else {
+        console.error("[signature] conservation impossible :", profErr.message);
+      }
+    }
+  }
 
   const now = new Date();
   const updated = await prisma.match.update({

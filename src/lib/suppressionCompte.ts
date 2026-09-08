@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { effacerSignatureProfil } from "@/lib/signatureEnregistree";
 import { Prisma } from "@prisma/client";
 
 // Suppression d'un compte et de tout ce qui s'y rattache (section 230).
@@ -123,6 +124,14 @@ export async function supprimerCompte(userId: string): Promise<ResultatSuppressi
   operations.push(prisma.user.delete({ where: { id: userId } }));
 
   const resultats = await prisma.$transaction(operations);
+
+  // Signature conservée (section 242) — effacée APRÈS la transaction, parce que le stockage n'y
+  // participe pas. Introduire une conservation durable oblige à en prévoir la fin : promettre de
+  // garder une signature sans promettre de la détruire ne serait pas un consentement.
+  //
+  // Best-effort, comme le reste du stockage : la suppression du compte ne doit pas échouer parce
+  // qu'un bucket répond mal. Le chemin disparaît avec le profil, le fichier devient inatteignable.
+  if (profileId) await effacerSignatureProfil(profileId);
 
   const compte: Record<string, number> = {};
   etiquettes.forEach((cle, i) => {

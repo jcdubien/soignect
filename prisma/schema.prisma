@@ -192,6 +192,15 @@ model Profile {
   // Photos secondaires optionnelles (section 3) — jusqu'à 2
   secondaryPhotoUrl1 String?
   secondaryPhotoUrl2 String?
+  // Signature manuscrite conservée pour les prochains contrats (section 242).
+  //
+  // CHEMIN DANS LE BUCKET PRIVÉ `signatures`, jamais une URL publique. `photoUrl` vit dans
+  // `avatars`, qui est public et sert le feed : une signature manuscrite n'y a rien à faire.
+  // Réutiliser ce champ aurait rendu la signature de chacun téléchargeable par son URL.
+  //
+  // Null tant que la personne n'a pas explicitement coché la case au moment de signer. Le
+  // consentement se retire (DELETE /api/profil/signature), sans quoi ce n'en serait pas un.
+  signatureUrl String?
   bio      String?     @db.VarChar(300)
   bioTinder String?    @db.VarChar(700)  // "Je suis / Je cherche / J'aspire à" (700 max côté cabinet, section 123)
 

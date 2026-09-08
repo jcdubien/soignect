@@ -57,6 +57,8 @@ interface SigStatus {
   remplacantAt: string | null;
   mineSigned: boolean;
   bothSigned: boolean;
+  /** Une signature manuscrite est conservée sur le profil du lecteur (section 242). */
+  signatureEnregistree?: boolean;
 }
 
 const SIGNATURE_LEGAL =
@@ -256,6 +258,11 @@ export default function ContratPage() {
   const [sig, setSig] = useState<SigStatus | null>(null);
   const [signing, setSigning] = useState(false);
   const sigInputRef = useRef<HTMLInputElement>(null);
+  // Conservation de la signature (section 242). DÉCOCHÉE PAR DÉFAUT : une signature manuscrite
+  // est une donnée personnelle, et un consentement pré-coché n'en est pas un. La demande était
+  // « propose explicitement », pas « réutilise en silence ».
+  const [enregistrerSignature, setEnregistrerSignature] = useState(false);
+  const [oubliEnCours, setOubliEnCours] = useState(false);
 
   function loadSig() {
     fetch(`/api/match/${id}/signature`).then(r => (r.ok ? r.json() : null)).then(setSig).catch(() => {});
@@ -322,6 +329,8 @@ export default function ContratPage() {
     try {
       const fd = new FormData();
       fd.append("file", file);
+      // N'est proposé — donc n'est transmis — que si aucune signature n'est déjà conservée.
+      if (enregistrerSignature && !sig?.signatureEnregistree) fd.append("enregistrer", "true");
       const res = await fetch(`/api/match/${id}/signature`, { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error ?? "Échec de l'envoi de la signature."); return; }
@@ -330,6 +339,39 @@ export default function ContratPage() {
       setError("Erreur réseau lors de l'envoi de la signature.");
     } finally {
       setSigning(false);
+    }
+  }
+
+  /** Apposer la signature conservée, sans reprendre de photo (section 242). */
+  async function handleSignEnregistree() {
+    setSigning(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("reutiliser", "true");
+      const res = await fetch(`/api/match/${id}/signature`, { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(data.error ?? "Échec de l'apposition de la signature."); return; }
+      loadSig();
+    } catch {
+      setError("Erreur réseau lors de l'apposition de la signature.");
+    } finally {
+      setSigning(false);
+    }
+  }
+
+  /** Retirer le consentement. Les contrats déjà signés gardent leur propre copie. */
+  async function handleOublierSignature() {
+    setOubliEnCours(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/profil/signature", { method: "DELETE" });
+      if (!res.ok) { setError("Impossible de retirer la signature conservée."); return; }
+      loadSig();
+    } catch {
+      setError("Erreur réseau.");
+    } finally {
+      setOubliEnCours(false);
     }
   }
 
@@ -1564,13 +1606,68 @@ export default function ContratPage() {
               className="hidden"
               onChange={handleSignFile}
             />
-            <button
-              onClick={() => sigInputRef.current?.click()}
-              disabled={signing}
-              className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-black active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {signing ? "Envoi…" : (sig?.mineSigned ? "✍️ Refaire ma signature" : "✍️ Signer avec ma signature")}
-            </button>
+            {/* ── Signature conservée (section 242) ────────────────────────────────────
+                Deux chemins, jamais un seul : la signature déjà conservée est proposée en
+                premier, mais reprendre une photo reste toujours accessible — une signature
+                change, une photo peut être ratée. */}
+            {sig?.signatureEnregistree ? (
+              <>
+                <button
+                  onClick={handleSignEnregistree}
+                  disabled={signing}
+                  className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-black active:scale-[0.98] transition disabled:opacity-50"
+                >
+                  {signing ? "Envoi…" : "✍️ Signer avec ma signature enregistrée"}
+                </button>
+                <button
+                  onClick={() => sigInputRef.current?.click()}
+                  disabled={signing}
+                  className="w-full py-2 text-sm font-semibold text-kine-700 hover:underline disabled:opacity-50"
+                >
+                  Reprendre ma signature en photo
+                </button>
+                <p className="text-[11px] text-gray-400 leading-snug">
+                  Votre signature est conservée pour vos prochains contrats.{" "}
+                  <button
+                    onClick={handleOublierSignature}
+                    disabled={oubliEnCours}
+                    className="underline hover:text-gray-600 disabled:opacity-50"
+                  >
+                    {oubliEnCours ? "Retrait…" : "Ne plus la conserver"}
+                  </button>
+                  {" "}— les contrats déjà signés ne sont pas modifiés.
+                </p>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => sigInputRef.current?.click()}
+                  disabled={signing}
+                  className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-black active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {signing ? "Envoi…" : (sig?.mineSigned ? "✍️ Refaire ma signature" : "✍️ Signer avec ma signature")}
+                </button>
+                {/* La case est posée AVANT le geste, pas après : on ne demande pas après coup
+                    l'autorisation de garder ce qu'on a déjà gardé. */}
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enregistrerSignature}
+                    onChange={e => setEnregistrerSignature(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-kine-600"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      Enregistrer cette signature pour mes prochains contrats
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Elle sera proposée automatiquement, sans nouvelle photo. Vous pourrez la
+                      reprendre ou cesser de la conserver à tout moment.
+                    </p>
+                  </div>
+                </label>
+              </>
+            )}
           </>
         )}
 

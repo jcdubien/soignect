@@ -5674,6 +5674,82 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 242 — LA SIGNATURE SE CONSERVE, SUR CONSENTEMENT (08/09)
+
+#### Ce qui se passait
+
+La signature manuscrite était reprise en photo **à chaque contrat**. Le fichier vivait à
+`{matchId}/{côté}.ext` dans le bucket privé `signatures`, et rien ne le rattachait à la personne :
+`Profile` n'avait aucun champ pour ça. Migration nécessaire.
+
+`photoUrl` existait, mais vit dans `avatars`, bucket **public** servant le feed. Y ranger une
+signature manuscrite l'aurait rendue téléchargeable par son URL. Nouveau champ `Profile.signatureUrl`,
+portant un **chemin dans le bucket privé**, jamais une URL publique.
+
+#### La décision qui structure tout : on COPIE, on ne référence pas
+
+Un contrat signé pointe vers **son propre fichier**, jamais vers celui du profil. Réutiliser
+signifie donc dupliquer le fichier conservé à l'emplacement du match.
+
+La différence n'est pas théorique. Si le match référençait le fichier de profil, refaire sa
+signature en 2027 **changerait rétroactivement l'image apposée sur un contrat signé en 2026** —
+en silence, sur un document engagé, et le PDF déjà téléchargé ne ressemblerait plus à celui
+régénéré. Un contrat signé est figé : ce qui a été apposé reste apposé.
+
+Coût : quelques dizaines de kilo-octets recopiés, une fois par signature.
+
+#### Le consentement, et son retrait
+
+La case « Enregistrer cette signature pour mes prochains contrats » est **décochée par défaut**.
+Une signature manuscrite est une donnée personnelle ; un consentement pré-coché n'en est pas un.
+Elle est posée **avant** le geste, pas après — on ne demande pas après coup l'autorisation de
+garder ce qu'on a déjà gardé.
+
+Elle se retire : `DELETE /api/profil/signature`, accessible depuis l'écran de contrat. **Route
+séparée** de celle du match, parce que « effacer ma signature de ce contrat » et « ne plus
+conserver ma signature » sont deux gestes de portée très différente et ne partagent pas un verbe.
+
+Le retrait **ne touche pas les contrats déjà signés** — chacun porte sa copie. L'écran le dit.
+
+La suppression de compte efface aussi le fichier conservé, après la transaction. Promettre de
+garder une signature sans promettre de la détruire ne serait pas un consentement. *(À noter : le
+stockage n'était jusqu'ici jamais nettoyé à la suppression — ni avatars, ni signatures de match.
+Ce point reste ouvert pour ces deux-là.)*
+
+#### Deux refus explicites
+
+| Cas | Comportement |
+|---|---|
+| « Réutiliser » sans signature conservée | 422 — « prenez-la en photo » |
+| Fichier conservé introuvable au moment de copier | 422 plutôt qu'une ligne pointant vers un fichier absent |
+
+Le second compte : un `Match.signature*Url` pointant vers rien produirait un contrat qui **paraît
+signé** et dont le PDF n'afficherait aucune signature.
+
+À l'inverse, un échec de **conservation** ne fait pas échouer la signature : le contrat est valable,
+la case pourra être recochée au contrat suivant. On ne casse pas un geste engageant pour une
+commodité.
+
+#### Vérifié à l'écran, sur le parcours complet
+
+Couple de test à deux contrats, créé puis supprimé.
+
+1. **Premier contrat** — case décochée par défaut sous le bouton de signature. Cochée, puis photo
+   envoyée : `mineSigned: true`, `signatureEnregistree: true`.
+2. **Second contrat** — l'écran propose « ✍️ Signer avec ma signature enregistrée », avec
+   « Reprendre ma signature en photo » toujours accessible en dessous. Un clic : **« Ma signature —
+   Signée ✓ »**, sans nouvelle photo.
+3. **Trois fichiers distincts** en stockage, vérifiés un par un :
+   ```
+   profil/{profileId}.png                → 90 octets
+   {contrat1}/titulaire.png              → 90 octets
+   {contrat2}/titulaire.png              → 90 octets
+   ```
+4. **Retrait du consentement** — `signatureUrl` repasse à `null`, le fichier de profil est effacé,
+   et **les deux contrats gardent leur signature intacte**.
+
+---
+
 ### SECTION 241 — PLUS AUCUNE VALEUR N'ATTEINT LE PDF SANS PASSER PAR L'ÉCRAN (08/09) — lot 4 sur 4
 
 #### L'inventaire, fait mécaniquement
