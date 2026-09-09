@@ -5674,6 +5674,62 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 244 — SUPPRIMER UN COMPTE EFFACE AUSSI SES FICHIERS (09/09)
+
+#### Ce qui survivait à un effacement
+
+La suppression de compte ne touchait **aucun fichier**. Elle effaçait les lignes — notes, messages,
+mises en relation, missions, traces — puis le compte, et laissait derrière elle :
+
+- la **photo de profil** et ses deux secondaires, dans le bucket `avatars`, qui est **public** ;
+- la **signature manuscrite** apposée sur chacun de ses contrats, dans le bucket privé.
+
+La photo restait donc accessible par son URL publique à qui l'avait vue une fois, indéfiniment
+après l'effacement du compte.
+
+C'est le raisonnement déjà écrit dans ce même fichier pour les `TraceEvent` — « elles survivraient
+en silence en gardant l'identifiant d'une personne effacée. C'est ce qu'un droit à l'effacement
+interdit » — appliqué à ce qu'il avait laissé de côté.
+
+Repéré en livrant la signature conservée (section 242), qui posait la question pour les trois à la
+fois. Le seul cas alors traité fut celui qu'introduisait cette section ; les deux autres sont
+fermés ici.
+
+#### Les chemins se relèvent AVANT la transaction
+
+Le nom d'une photo est déterministe — `{profileId}.jpg`, `-s1`, `-s2`, toujours en `.jpg` puisque
+la route d'upload fige l'extension. Il se reconstruit sans lire la base.
+
+Celui d'une signature de contrat, non : il vit dans `Match.signature*Url`. Il est donc relevé
+**avant** la transaction. Après, les matchs n'existent plus et les fichiers resteraient dans le
+bucket sans que rien ne puisse plus les désigner.
+
+**La signature de l'AUTRE partie part aussi.** Le contrat qu'elle signait disparaît ; une signature
+manuscrite sans le document qu'elle engageait n'est plus une pièce, seulement une image d'écriture
+personnelle conservée sans motif.
+
+#### Le stockage ne bloque jamais une suppression
+
+L'effacement des fichiers a lieu **après** la transaction et ne jette jamais. Un bucket
+indisponible ne doit pas empêcher quelqu'un de supprimer son compte : les lignes effacées font
+autorité, et un fichier orphelin dont plus aucun chemin ne mène à lui n'est plus atteignable par
+le produit.
+
+#### Vérifié par exécution réelle
+
+Compte de test portant les six fichiers, puis `supprimerCompte()` appelée pour de bon :
+
+```
+AVANT    avatars     {id}.jpg / -s1.jpg / -s2.jpg          PRÉSENT (×3)
+         signatures  profil/{id}.png                        PRÉSENT
+         signatures  {match}/titulaire.png                   PRÉSENT
+         signatures  {match}/remplacant.png                  PRÉSENT
+
+APRÈS    les six                                            absent
+```
+
+---
+
 ### SECTION 243 — REPRENDRE LE TEXTE D'UNE ANNONCE PRÉCÉDENTE (08/09)
 
 #### Ce qui existait

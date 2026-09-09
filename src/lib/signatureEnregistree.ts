@@ -84,3 +84,59 @@ export async function effacerSignatureProfil(profileId: string): Promise<void> {
     /* le stockage est secondaire : la colonne remise à null est ce qui fait autorité */
   }
 }
+
+/** Bucket PUBLIC des photos de profil. Public parce que le feed les affiche — raison pour
+ *  laquelle une signature n'y a jamais été rangée (section 242). */
+export const BUCKET_AVATARS = "avatars";
+
+/**
+ * Efface les fichiers d'un compte supprimé : photos de profil ET signatures apposées sur ses
+ * contrats (section 244).
+ *
+ * ── POURQUOI CE N'ÉTAIT PAS FAIT ─────────────────────────────────────────────────────────────
+ *
+ * La suppression de compte ne touchait AUCUN fichier. Elle effaçait les lignes — notes, messages,
+ * matchs, missions, traces — puis le compte, et laissait derrière elle la photo de la personne
+ * dans un bucket public et l'image de sa signature manuscrite dans le bucket privé.
+ *
+ * Les deux survivaient indéfiniment. La photo restait accessible par son URL publique à qui
+ * l'avait vue une fois, longtemps après l'effacement du compte. C'est très exactement ce qu'un
+ * droit à l'effacement interdit, et c'est le même raisonnement que celui déjà écrit ici pour les
+ * `TraceEvent` : « elles survivraient en silence en gardant l'identifiant d'une personne
+ * effacée ».
+ *
+ * Signalé en corrigeant la signature conservée, qui posait la question pour les trois à la fois.
+ *
+ * NE JETTE JAMAIS. Un stockage indisponible ne doit pas empêcher quelqu'un de supprimer son
+ * compte : les lignes effacées font autorité, un fichier orphelin sans chemin qui y mène n'est
+ * plus atteignable par le produit.
+ */
+export async function effacerFichiersDuCompte(opts: {
+  profileId: string | null;
+  /** Chemins relevés sur les matchs AVANT leur suppression — après, ils sont perdus. */
+  cheminsSignaturesMatchs: string[];
+}): Promise<void> {
+  const supabase = getSupabaseAdmin();
+
+  if (opts.profileId) {
+    // Photos : le nom de fichier est déterministe (`{id}.jpg`, `-s1`, `-s2`) et toujours en .jpg,
+    // quelle que soit l'image envoyée — la route d'upload fige l'extension. On peut donc les
+    // supprimer sans lire les colonnes, qui portent une URL publique et non un chemin.
+    try {
+      await supabase.storage
+        .from(BUCKET_AVATARS)
+        .remove([`${opts.profileId}.jpg`, `${opts.profileId}-s1.jpg`, `${opts.profileId}-s2.jpg`]);
+    } catch { /* voir plus haut : le stockage ne bloque pas une suppression de compte */ }
+
+    await effacerSignatureProfil(opts.profileId);
+  }
+
+  // Signatures apposées sur les contrats. Celle de l'AUTRE partie part aussi : le match auquel
+  // elle appartient disparaît, et une signature manuscrite sans le contrat qu'elle signait n'est
+  // plus une pièce, seulement une image d'écriture personnelle conservée sans motif.
+  if (opts.cheminsSignaturesMatchs.length > 0) {
+    try {
+      await supabase.storage.from(BUCKET_SIGNATURES).remove(opts.cheminsSignaturesMatchs);
+    } catch { /* idem */ }
+  }
+}

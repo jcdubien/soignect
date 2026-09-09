@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { effacerSignatureProfil } from "@/lib/signatureEnregistree";
+import { effacerFichiersDuCompte } from "@/lib/signatureEnregistree";
 import { Prisma } from "@prisma/client";
 
 // Suppression d'un compte et de tout ce qui s'y rattache (section 230).
@@ -72,6 +72,18 @@ export async function supprimerCompte(userId: string): Promise<ResultatSuppressi
     ? (await prisma.mission.findMany({ where: { profileId }, select: { id: true } })).map((m) => m.id)
     : [];
 
+  // Chemins des signatures apposées sur ses contrats — relevés MAINTENANT (section 244).
+  // Après la transaction, les matchs n'existent plus et ces chemins sont irrécupérables : les
+  // fichiers resteraient dans le bucket sans que rien ne puisse plus les désigner.
+  const cheminsSignaturesMatchs = profileId
+    ? (await prisma.match.findMany({
+        where: { OR: [{ profileAId: profileId }, { profileBId: profileId }] },
+        select: { signatureTitulaireUrl: true, signatureRemplacantUrl: true },
+      }))
+        .flatMap((m) => [m.signatureTitulaireUrl, m.signatureRemplacantUrl])
+        .filter((c): c is string => !!c)
+    : [];
+
   // FORME EN TABLEAU, PAS INTERACTIVE. `$transaction(async tx => …)` échoue en P2028 contre ce
   // pooler Supabase : le port 6543 est en mode « transaction », qui ne tient pas une transaction
   // interactive ouverte entre deux requêtes. Constaté à l'exécution le 05/09. Les six autres
@@ -125,13 +137,13 @@ export async function supprimerCompte(userId: string): Promise<ResultatSuppressi
 
   const resultats = await prisma.$transaction(operations);
 
-  // Signature conservée (section 242) — effacée APRÈS la transaction, parce que le stockage n'y
-  // participe pas. Introduire une conservation durable oblige à en prévoir la fin : promettre de
-  // garder une signature sans promettre de la détruire ne serait pas un consentement.
+  // FICHIERS — après la transaction, parce que le stockage n'y participe pas (section 244).
   //
-  // Best-effort, comme le reste du stockage : la suppression du compte ne doit pas échouer parce
-  // qu'un bucket répond mal. Le chemin disparaît avec le profil, le fichier devient inatteignable.
-  if (profileId) await effacerSignatureProfil(profileId);
+  // Photos de profil, signature conservée et signatures apposées sur les contrats. Aucun des trois
+  // n'était effacé : la suppression ne touchait que les lignes, et la photo d'une personne
+  // supprimée restait accessible par son URL publique. Même raisonnement que pour les
+  // `TraceEvent` plus haut — ce qui survit en silence à un effacement n'a pas été effacé.
+  await effacerFichiersDuCompte({ profileId, cheminsSignaturesMatchs });
 
   const compte: Record<string, number> = {};
   etiquettes.forEach((cle, i) => {
