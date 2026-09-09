@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 interface Message {
   id: string;
@@ -45,6 +46,31 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastTimestampRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── POURQUOI UN PORTAIL, ET PAS UN `sticky` SUR L'EN-TÊTE (section 245) ──────────────────
+  //
+  // Signalé le 08/09 : « l'en-tête et la barre Envoyer un contrat défilent avec le chat ». La
+  // structure les plaçait pourtant DÉJÀ hors de la zone défilante — conteneur `fixed inset-0` en
+  // colonne, seule la liste des messages en `overflow-y-auto`. Sur le papier, rien à corriger.
+  //
+  // La cause est ailleurs, et mesurée à l'écran : un ancêtre porte la classe `animate-fade-up`,
+  // donc un `transform` non nul. Or un ancêtre transformé devient le BLOC CONTENEUR de tout
+  // `position: fixed` descendant. La modale n'était donc pas fixée à la fenêtre : c'était une
+  // boîte de 896 × 328 px posée dans la page, qui défilait avec elle — en-tête et barre compris.
+  //
+  // Ajouter `sticky` à l'en-tête aurait masqué le symptôme dans un conteneur trop petit, sans
+  // rendre la conversation plein écran. On rétablit la cause : rendu dans `document.body`, hors
+  // de portée de toute transformation d'ancêtre — présente ou future, ici ou ailleurs dans l'arbre.
+  const [monte, setMonte] = useState(false);
+  useEffect(() => setMonte(true), []);
+
+  // Le fond ne défile plus tant que la conversation est ouverte : une surface plein écran par
+  // dessus une page qui bouge encore est ce qui donnait l'impression que « tout défile ».
+  useEffect(() => {
+    const avant = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = avant; };
+  }, []);
 
   const fetchMessages = useCallback(async (initial = false) => {
     const url = initial
@@ -118,7 +144,9 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
 
   const score = aiScore !== null ? Math.round(aiScore) : null;
 
-  return (
+  if (!monte) return null; // pas de `document` au rendu serveur
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-white animate-fade-up">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white shadow-sm">
@@ -162,7 +190,11 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 bg-gray-50">
+      {/* `min-h-0` est indispensable : sans lui, un enfant flex ne peut pas descendre sous la
+          taille de son contenu (`min-height: auto` par défaut), et la liste pousserait le
+          conteneur au lieu de défiler à l'intérieur. C'est le motif déjà employé quatre fois
+          dans `DisponibilitesBoard`, pour la même structure colonne + zone défilante. */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-2 bg-gray-50">
         {messages.length === 0 && (
           <div className="text-center py-16">
             <div className="text-4xl mb-3">💬</div>
@@ -218,6 +250,7 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
           </svg>
         </button>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

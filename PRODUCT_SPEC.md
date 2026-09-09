@@ -5674,6 +5674,64 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 245 — LA CONVERSATION N'ÉTAIT PAS PLEIN ÉCRAN (09/09)
+
+#### La demande, et ce que le code disait déjà
+
+Signalé le 08/09, capture à l'appui : « l'en-tête et la barre *Envoyer un contrat* défilent avec le
+chat ». Demande : les fixer.
+
+Or `ChatModal` les plaçait **déjà** hors de la zone défilante — conteneur `fixed inset-0` en
+colonne, en-tête et barre en frères, seule la liste des messages en `overflow-y-auto`. Sur le
+papier, il n'y avait rien à corriger. Ajouter un `sticky` aurait traité un symptôme dont la cause
+était ailleurs.
+
+#### La cause, mesurée à l'écran
+
+Un ancêtre porte `animate-fade-up`, donc un `transform` non nul :
+
+```
+<div class="max-w-4xl mx-auto w-full px-4 py-6 animate-fade-up">   transform: matrix(1,0,0,1,0,0)
+```
+
+**Un ancêtre transformé devient le bloc conteneur de tout `position: fixed` descendant.** La modale
+n'était donc pas fixée à la fenêtre : une boîte de **896 × 328 px** posée dans la page — mesurée —
+alors que la fenêtre en fait 1440 × 722. La page défilait autour, emportant en-tête et barre.
+
+C'est une règle CSS qu'aucune relecture du composant ne pouvait révéler : la cause vivait dans un
+**autre fichier**, sur une classe d'animation sans rapport apparent.
+
+#### Trois corrections, une par cause
+
+**Portail vers `document.body`.** Rétablit un vrai `position: fixed`, hors de portée de toute
+transformation d'ancêtre — présente ou future, ici ou ailleurs dans l'arbre. Retirer
+`animate-fade-up` du conteneur aurait marché aujourd'hui et cassé au prochain ancêtre animé.
+
+**`min-h-0` sur la zone des messages.** Sans lui, un enfant flex ne descend pas sous la taille de
+son contenu (`min-height: auto` par défaut) : la liste pousserait le conteneur au lieu de défiler
+dedans. C'est le motif déjà employé **quatre fois** dans `DisponibilitesBoard`, pour la même
+structure colonne + zone défilante ; `ChatModal` ne l'avait pas.
+
+**Verrou de défilement du fond.** Une surface plein écran par-dessus une page qui bouge encore est
+ce qui donnait, en partie, l'impression que « tout défile ».
+
+#### Vérifié à l'écran, conversation de 40 messages
+
+```
+parent de la modale         BODY                     (portail effectif)
+modale                      y=0, h=722               fenêtre h=722
+zone défilable              547 px pour 2832 px de contenu
+
+défilement 1004 → 2285 px
+en-tête                     y=0  avant  →  y=0  après     immobile
+barre « Envoyer un contrat » y=65 avant  →  y=65 après     immobile
+défilement du fond          hidden
+```
+
+L'en-tête et la barre ne bougent pas d'un pixel pendant que la liste parcourt 1 280 px.
+
+---
+
 ### SECTION 244 — SUPPRIMER UN COMPTE EFFACE AUSSI SES FICHIERS (09/09)
 
 #### Ce qui survivait à un effacement
