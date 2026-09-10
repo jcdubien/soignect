@@ -551,6 +551,23 @@ export async function GET(req: NextRequest, { params }: Params) {
   // pas de `Cache-Control: no-store` sur un document contractuel, et surtout AUCUN email
   // « contrat disponible » à l'autre partie. Dupliquer une fin de fonction, c'est accepter que
   // les deux copies divergent — ici elles l'avaient déjà fait avant le premier commit.
+  // ── LE NOM DU FICHIER PORTE LA PÉRIODE (section 246) ─────────────────────────────────────
+  //
+  // Il était identique à chaque génération : `contrat-remplacement-brouillon.pdf`. Deux brouillons
+  // de la MÊME mise en relation avec des dates différentes arrivaient donc dans le dossier de
+  // téléchargement sous le même nom, le second suffixé « (1) » par le navigateur — et rien, ni
+  // dans le nom ni dans le document, ne disait lequel portait quelle période. Le PDF n'affiche
+  // qu'une date de génération, sans heure : deux brouillons du même jour sont identiques à l'œil.
+  //
+  // Signalé le 09/09 comme « les dates corrigées n'apparaissent pas dans le PDF ». Ni l'écran ni
+  // la route n'étaient en cause — reproduits tous les deux, en local et en production, ils
+  // transmettent et honorent la date saisie. Ce qui manquait, c'était de pouvoir distinguer deux
+  // documents. Rouvrir le précédent donne exactement le symptôme décrit.
+  const periodeNom = [periode.debut, periode.fin]
+    .filter(Boolean)
+    .map((d) => (d as string).slice(0, 10))
+    .join("_");
+  if (periodeNom) filename = filename.replace(/\.pdf$/, `-${periodeNom}.pdf`);
   if (isDraft) filename = filename.replace(/\.pdf$/, "-brouillon.pdf");
 
   const buffer = await renderToBuffer(element);

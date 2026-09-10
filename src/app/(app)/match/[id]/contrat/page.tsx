@@ -500,8 +500,14 @@ export default function ContratPage() {
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      const base = `contrat-${info?.missionType?.toLowerCase() ?? "match"}`;
-      a.download = draft ? `${base}-brouillon.pdf` : `${base}.pdf`;
+      // NOM DU FICHIER : CELUI DE LA ROUTE (section 246). L'écran en reconstruisait un second,
+      // de forme différente et sans la période. Deux noms pour un même document, c'est la règle
+      // recopiée dont ce dépôt a déjà payé le prix trois fois. La route le compose une fois, avec
+      // les dates réellement portées au contrat ; on le lit dans l'en-tête.
+      const dispo = res.headers.get("Content-Disposition") ?? "";
+      const nomServeur = /filename="([^"]+)"/.exec(dispo)?.[1];
+      const repli = `contrat-${info?.missionType?.toLowerCase() ?? "match"}${draft ? "-brouillon" : ""}.pdf`;
+      a.download = nomServeur ?? repli;
       a.click();
       URL.revokeObjectURL(blobUrl);
     } catch {

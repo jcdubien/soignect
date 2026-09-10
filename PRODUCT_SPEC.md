@@ -5674,6 +5674,75 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 246 — DEUX BROUILLONS INDISTINGUABLES (10/09)
+
+#### Le signalement
+
+Le 09/09 : « dates modifiées à l'écran, mais le PDF reprend celles de l'annonce initiale
+(01/10/2026 → 31/12/2026) ». PDF joint. Traité comme une régression possible de la section 237,
+vérifiée en détail la veille.
+
+#### Ce n'était pas une régression
+
+Reproduit sur la mise en relation exacte (Pauline Bouyrie), des deux côtés et dans les deux
+environnements :
+
+| Contrôle | Résultat |
+|---|---|
+| Route, 4 cas du lot 1 rejoués | identiques au 08/09 — saisie, effacement, 31 février, bornes inversées |
+| Écran **en local** : frappe puis interception de la requête | `dateDebut=2026-11-15` transmis |
+| Écran **en production** : même geste | `dateDebut=2026-11-15` transmis |
+| Formulaire verrouillé ? | non — `bothSigned: false`, champ ni désactivé ni en lecture seule |
+| Autre chemin appelant la route sans paramètres ? | aucun — tous les liens mènent à l'écran |
+
+La chaîne écran → route → PDF honore la date saisie, partout.
+
+#### Le vrai défaut : on ne pouvait pas distinguer deux brouillons
+
+Le nom du fichier était **invariable** : `contrat-remplacement-brouillon.pdf`, à chaque génération,
+quelles que soient les dates. Deux brouillons de la même mise en relation arrivaient donc dans le
+dossier de téléchargement sous le même nom, le second suffixé « (1) » par le navigateur.
+
+Et rien ne permettait de les départager : le PDF n'affiche qu'une **date** de génération, sans
+heure. Deux brouillons produits le même jour sont identiques à l'œil.
+
+Rouvrir le précédent donne **exactement** le symptôme décrit — un document aux dates d'origine,
+alors que l'écran affichait bien la correction.
+
+Ce n'est pas une erreur d'utilisateur : c'est le produit qui rendait la confusion possible, sur un
+document destiné à la signature.
+
+#### Le correctif
+
+**Le nom du fichier porte la période.**
+
+```
+contrat-remplacement-2026-10-01_2026-12-31-brouillon.pdf
+contrat-remplacement-2027-03-01_2027-06-30-brouillon.pdf
+```
+
+Deux périodes différentes, deux fichiers différents, visibles sans ouvrir. Sans dates, le nom reste
+celui d'avant — il n'y a alors pas de période à annoncer.
+
+**L'écran cesse de composer son propre nom.** Il en fabriquait un second, de forme différente et
+sans les dates. Deux noms pour un même document, c'est la règle recopiée dont ce dépôt a déjà payé
+le prix trois fois (sections 236, 237, 238). La route le compose, l'écran le lit dans
+`Content-Disposition`.
+
+#### Une leçon sur mon instrument, la quatrième
+
+Au cours de cette enquête, j'ai cru un instant que la production refusait la saisie : ma frappe ne
+changeait rien. C'était **mon clic** qui manquait le champ — j'avais calculé les coordonnées depuis
+`getBoundingClientRect`, exprimé dans le repère de la fenêtre (1440 × 722), alors que l'outil de
+clic travaille dans celui de la capture (1564 × 784). Un facteur d'échelle de 1,086.
+
+C'est la même cause que les trois « faux négatifs » de la section 243. **Les coordonnées de clic se
+lisent sur une capture, jamais d'un `getBoundingClientRect`.**
+
+J'ai failli signaler un défaut de production inexistant.
+
+---
+
 ### SECTION 245 — LA CONVERSATION N'ÉTAIT PAS PLEIN ÉCRAN (09/09)
 
 #### La demande, et ce que le code disait déjà
