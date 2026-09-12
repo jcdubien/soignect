@@ -5674,6 +5674,79 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 247 — LA BANDE MUETTE DISAIT VRAI, MAIS NE LE DISAIT PAS (12/09)
+
+#### Le signalement, et ce qu'il recouvrait
+
+Le 09/09 : « la bande de Marion n'affiche aucun texte d'annonce, juste son nom en vert, et cliquer
+dessus ouvre une annonce non rattachée à un poste ». Soupçon d'un lien avec la correction manuelle
+de son profil le 21/08, ou avec le bug de suppression de compte cabinet.
+
+**Aucun des deux.** Le rattachement est intact : `linkedUserId` pointe bien vers son compte, et ses
+deux annonces portent le bon `cabinetPostId`.
+
+#### Pourquoi sa bande était muette — le comportement était juste
+
+Chaque poste porte une brique d'**occupation** (`CONFIRME`, titrée du prénom) et des annonces de
+**recrutement** (`RECHERCHE`). Toute la différence tenait à une date :
+
+| Poste | Occupation | Fin |
+|---|---|---|
+| **Marion** | « Marion » | **aucune** → brique jusqu'au bord droit |
+| Léa | « Léa » | 19/08/2026 |
+| JP | « jp » | 19/08/2026 |
+
+`departureDate ?? endDate ?? RANGE_END` : sans terme, la brique couvre toute la frise — voulu
+depuis la section 57 (mode C, durée indéterminée). Le poste de Marion est simplement **occupé sans
+terme connu**, quand ceux de Léa et JP se sont libérés et affichent donc leurs recrutements.
+
+L'écran disait vrai. Il ne disait simplement pas ce qu'il voulait dire : un prénom vert, muet, sur
+toute la largeur. La brique porte désormais « · sans date de fin » quand la place le permet, et
+l'infobulle le dit toujours.
+
+#### Ce que l'enquête a trouvé de plus grave
+
+L'annonce active du poste de Marion a été **créée le 10/09 avec des dates du 10/12/2025 au
+02/01/2026** — une période écoulée. Elle n'apparaît nulle part sur la frise, dont la fenêtre est à
+venir.
+
+Mais elle n'est pas seulement invisible : **le feed ne filtre pas sur les dates.**
+
+```
+5 annonces ACTIVES sur 38 ont une date de fin dépassée   (mesuré le 12/09)
+  fin 2026-09-06   Cabinet la Palmeraie              « Remplacement »
+  fin 2026-08-27   CABINET DE KINÉSITHÉRAPIE DE DAUBIN « Remplacement URGENT »
+  fin 2026-01-02   Jean-Charles DUBIEN
+  fin 2025-09-05   Jean-Charles DUBIEN
+  fin 2025-01-17   Jean-Charles DUBIEN
+```
+
+**13 % du catalogue propose aux candidats une période déjà passée**, dont un « Remplacement
+URGENT » terminé depuis trois semaines chez un cabinet réel.
+
+Le seul qui puisse y remédier est l'auteur de l'annonce — encore faut-il qu'il le sache. La brique
+porte un ⚠️ et la liste des annonces un encart nommant le problème et les deux issues : corriger
+les dates, ou dépublier.
+
+#### Le profil de Marion
+
+Créé le 20/08 **comme cabinet**, corrigé en `ASSISTANT` le 21/08. Le type a suivi, pas le contenu :
+le profil s'appelait encore « Cabinet Dubien », et son accroche est celle d'un recruteur — « Je
+propose… un remplacement, présence d'une secrétaire ».
+
+Nom corrigé en « Marion », le libellé que Jean-Charles avait lui-même donné au poste. **L'accroche
+n'a pas été touchée** : c'est du texte qui décrit une offre, sur un profil qui devrait décrire une
+personne. Le réécrire n'appartient qu'à elle. Sans annonce publiée, ce profil n'apparaît
+aujourd'hui dans aucun fil — le texte est inerte, mais il ne le restera pas si elle publie.
+
+#### Question ouverte, non tranchée
+
+Faut-il **retirer du feed** les annonces dont la période est écoulée, ou se contenter d'avertir
+leur auteur ? Avertir laisse une offre fausse en circulation ; filtrer fait disparaître l'annonce
+d'un cabinet sans qu'il ait rien demandé. Ce lot ne fait qu'avertir.
+
+---
+
 ### SECTION 246 — DEUX BROUILLONS INDISTINGUABLES (10/09)
 
 #### Le signalement

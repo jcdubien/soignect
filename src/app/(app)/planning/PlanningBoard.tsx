@@ -1122,6 +1122,25 @@ function MissionBrick({
   // Segment CONFIRMÉ/RECRUTEMENT : affiche le nom du successeur matché s'il existe (section 6)
   const brickLabel = mission.matchedName || mission.title;
 
+  // ── DEUX FAITS QUE LA BRIQUE TAISAIT (section 247) ────────────────────────────────────────
+  //
+  // SANS DATE DE FIN. `departureDate ?? endDate ?? RANGE_END` étend la brique jusqu'au bord
+  // droit — c'est voulu (durée indéterminée, section 57 mode C). Mais rien ne le DISAIT : le
+  // poste de Marion n'affichait que son prénom, en vert, sur toute la frise. Signalé le 09/09
+  // comme « la bande n'affiche aucun texte d'annonce », alors que le poste était simplement
+  // occupé sans terme connu. Le comportement était juste, l'écran muet.
+  const sansTerme = !mission.departureDate && !mission.endDate;
+
+  // DATES DÉPASSÉES. Une annonce ACTIVE dont la période est écoulée continue d'être proposée
+  // aux candidats — le feed ne filtre pas sur les dates. Mesuré le 12/09 : 5 des 38 annonces
+  // actives étaient dans ce cas, dont un « Remplacement URGENT » terminé depuis trois semaines.
+  const finPassee = (() => {
+    const f = toDate(mission.departureDate) ?? toDate(mission.endDate);
+    if (!f) return false;
+    const auj = new Date(); auj.setHours(0, 0, 0, 0);
+    return f < auj;
+  })();
+
   const left  = Math.max(dayOffset(start), 0) * dayWidth;
   const right = Math.min(dayOffset(end), TOTAL_DAYS) * dayWidth;
   const width = right - left;
@@ -1166,11 +1185,19 @@ function MissionBrick({
       style={{ left, width: Math.max(width, 24), position: "absolute", ...laneStyle(lane, laneCount, trackHeight) }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      title={`${mission.title} · ${fmtDate(mission.startDate)} → ${fmtDate(mission.endDate)} · ${st.label}${suivi ? ` · ${suivi.label}` : ""}`}
+      title={`${mission.title} · ${fmtDate(mission.startDate)} → ${sansTerme ? "sans date de fin" : fmtDate(mission.endDate)} · ${st.label}${finPassee ? " · période écoulée" : ""}${suivi ? ` · ${suivi.label}` : ""}`}
     >
       {/* Libellé masqué si brique trop petite (< 40px) — vue condensée (section 47) */}
       {Math.max(width, 24) >= 40 && (
-        <span className="text-[11px] font-medium truncate">{brickLabel}</span>
+        <span className="text-[11px] font-medium truncate">
+          {finPassee && <span aria-hidden className="mr-1">⚠️</span>}
+          {brickLabel}
+          {/* Le « sans date de fin » n'est écrit que s'il reste de la place : sur une brique
+              étroite il ferait disparaître le nom, qui compte davantage. */}
+          {sansTerme && Math.max(width, 24) >= 150 && (
+            <span className="font-normal opacity-70"> · sans date de fin</span>
+          )}
+        </span>
       )}
       {/* Pastille de suivi (section 200) : superposée en coin, en position absolue, pour ne
           RIEN ajouter au flux. Une brique de 47 px avait déjà disparu sous une autre faute de
@@ -2731,6 +2758,11 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
               <div className="space-y-2">
                 {unlinkedMissions.map((m) => {
                   const start = toDate(m.startDate), end = toDate(m.endDate);
+                  // Période écoulée (section 247) : l'annonce reste ACTIVE et continue d'être
+                  // proposée aux candidats, le feed ne filtrant pas sur les dates. Le seul qui
+                  // puisse y remédier est son auteur — encore faut-il qu'il le sache.
+                  const auj = new Date(); auj.setHours(0, 0, 0, 0);
+                  const perimee = !!end && end < auj;
                   return (
                     <div key={m.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                       <p className="text-sm font-semibold text-gray-800 truncate">{m.title}</p>
@@ -2740,6 +2772,13 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
                         </span>
                         {start && end ? `${fmtDate(start)} → ${fmtDate(end)}` : "Sans dates"}
                       </p>
+                      {perimee && (
+                        <p className="mt-1.5 text-[11px] leading-snug rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-800">
+                          ⚠️ <strong>Période écoulée.</strong> Cette annonce reste visible par les
+                          candidats et propose une période déjà passée. Modifiez ses dates ou
+                          dépubliez-la.
+                        </p>
+                      )}
                       <div className="mt-2.5 flex flex-wrap items-center gap-2">
                         <button
                           type="button"
