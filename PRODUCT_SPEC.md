@@ -5674,6 +5674,76 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 248 — ANNULER UN CONTRAT AVANT LA SECONDE SIGNATURE (13/09)
+
+#### L'impasse
+
+Signalé le 12/09, cas réel : contrat transmis à Pauline Bouyrie avec de mauvaises dates,
+Jean-Charles avait déjà signé sa part. En attente de l'autre signature, **aucune sortie** — ni
+annulation, ni renvoi d'une version corrigée. Le produit obligeait à sortir de lui-même.
+
+#### Les deux états n'ont rien en commun
+
+Vérifié sur le contrat bloqué lui-même :
+
+| | Signé d'UN côté | Signé des DEUX |
+|---|---|---|
+| `signature*Url` | un seul renseigné | les deux |
+| `briqueStatus` des missions | `RECHERCHE` | `CONFIRME` |
+| `matchedName` | `null` | rempli |
+| Mise en relation | inchangée | passée à `CONFIRME` |
+| **Facturation** | **rien** | `triggerBillingIfNeeded` + usage Stripe |
+
+À un côté, il ne reste qu'une ligne de signature et un fichier. L'annulation est donc propre.
+
+À deux, elle ne le serait pas : la seconde signature bascule le cabinet vers le payant et reporte
+l'usage à Stripe. Rendre la main à ce stade voudrait dire rembourser, ou faire comme si de rien
+n'était. **La route refuse en 409**, et renvoie vers l'avenant — la voie qui existe pour modifier un
+contrat signé.
+
+#### Ce que l'annulation ne touche pas
+
+**`Match.status`.** Ce champ décrit la MISE EN RELATION — deux personnes se sont trouvées — et non
+le contrat. Les confondre romprait la relation pour corriger une date. Vérifié après annulation :
+`CONFIRME` intact.
+
+**Les missions** non plus : à ce stade elles sont encore en `RECHERCHE`.
+
+#### Les DEUX signatures sont effacées, pas seulement la sienne
+
+Le contrat repart d'une page blanche. Laisser la signature d'en face sur un document dont les
+termes vont changer reviendrait à lui faire signer autre chose que ce qu'elle a signé.
+
+#### L'autre partie est prévenue, sans détour
+
+Notification in-app **et** email : « ne signez pas la version précédente ». Elle a peut-être déjà le
+PDF sous les yeux. Une annulation muette la laisserait signer un document qui n'engage plus
+personne — ou constater sans explication que la signature d'en face a disparu.
+
+Le motif est dit : la version précédente comportait une erreur, une version corrigée suivra.
+
+#### Vérifié à l'écran, parcours complet
+
+Couple de test reproduisant l'état bloqué, puis supprimé.
+
+| Étape | Résultat |
+|---|---|
+| État initial | « Ma signature : Signée ✓ », bouton « Annuler ce contrat pour le corriger » présent |
+| Après annulation | `titulaireSigned` passe à `false`, champs de dates modifiables, bouton disparu |
+| Fichier de signature | effacé du bucket |
+| Notification à l'autre partie | créée, au texte attendu |
+| `Match.status` | `CONFIRME` — inchangé |
+| Missions | `RECHERCHE`, `matchedName: null` — inchangées |
+| Contrat signé des deux côtés | route **409**, bouton absent, bandeau « les termes ne sont plus modifiables » |
+
+#### Un défaut de rendu attrapé au passage
+
+Le texte d'aide affichait `n\\'est` — barre oblique comprise. Une chaîne échappée pour Python
+recopiée telle quelle dans du JSX, où l'apostrophe n'a pas besoin d'échappement. Corrigé en
+`&apos;`, et constaté à l'écran avant et après.
+
+---
+
 ### SECTION 247 — LA BANDE MUETTE DISAIT VRAI, MAIS NE LE DISAIT PAS (12/09)
 
 #### Le signalement, et ce qu'il recouvrait

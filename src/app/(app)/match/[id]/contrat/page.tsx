@@ -263,6 +263,7 @@ export default function ContratPage() {
   // « propose explicitement », pas « réutilise en silence ».
   const [enregistrerSignature, setEnregistrerSignature] = useState(false);
   const [oubliEnCours, setOubliEnCours] = useState(false);
+  const [annulEnCours, setAnnulEnCours] = useState(false);
 
   function loadSig() {
     fetch(`/api/match/${id}/signature`).then(r => (r.ok ? r.json() : null)).then(setSig).catch(() => {});
@@ -357,6 +358,28 @@ export default function ContratPage() {
       setError("Erreur réseau lors de l'apposition de la signature.");
     } finally {
       setSigning(false);
+    }
+  }
+
+  /**
+   * Annuler le contrat en attente de la seconde signature (section 248).
+   *
+   * Le bouton n'existe que dans cet état : une fois les deux parties signées, le contrat est figé
+   * et la route refuse en 409. On ne remplace donc pas la garde serveur par l'absence de bouton —
+   * les deux tiennent, et c'est la route qui fait foi.
+   */
+  async function handleAnnulerContrat() {
+    setAnnulEnCours(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/match/${id}/signature`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(data.error ?? "Impossible d'annuler ce contrat."); return; }
+      loadSig();
+    } catch {
+      setError("Erreur réseau lors de l'annulation.");
+    } finally {
+      setAnnulEnCours(false);
     }
   }
 
@@ -1591,11 +1614,33 @@ export default function ContratPage() {
         )}
 
         {oneSigned && (
-          <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
-            {sig?.mineSigned
-              ? "⏳ En attente de la signature de l'autre partie"
-              : "✍️ L'autre partie a signé — à votre tour de signer"}
-          </p>
+          <>
+            <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
+              {sig?.mineSigned
+                ? "⏳ En attente de la signature de l'autre partie"
+                : "✍️ L'autre partie a signé — à votre tour de signer"}
+            </p>
+            {/* ── Annuler pour corriger (section 248) ──────────────────────────────────────
+                Visible UNIQUEMENT tant qu'une seule partie a signé. Dès que les deux l'ont
+                fait, ce bouton disparaît et la route refuse : un contrat signé est figé.
+                Sans lui, une erreur de dates laissait le contrat bloqué, sans autre issue
+                qu'une intervention hors du produit — le cas signalé le 12/09. */}
+            <div className="border-t border-gray-100 pt-3">
+              <button
+                onClick={handleAnnulerContrat}
+                disabled={annulEnCours}
+                className="w-full py-2.5 rounded-xl border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50 transition disabled:opacity-50"
+              >
+                {annulEnCours ? "Annulation…" : "Annuler ce contrat pour le corriger"}
+              </button>
+              <p className="text-[11px] text-gray-400 leading-snug mt-1.5">
+                Les signatures des deux côtés sont effacées et les termes redeviennent modifiables.
+                {sig?.mineSigned ? " L'autre partie" : " Elle"} est prévenue que la version
+                précédente n&apos;est plus valable. Possible tant que le contrat n&apos;est pas
+                signé des deux côtés.
+              </p>
+            </div>
+          </>
         )}
 
         {sig?.bothSigned ? (

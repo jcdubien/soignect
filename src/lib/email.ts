@@ -341,6 +341,35 @@ export async function sendSignatureAppliedEmail(
   await sendEmail(to, "Signature du contrat sur Soignect", html);
 }
 
+// ── c bis) Contrat annulé avant la seconde signature (section 248) ─────────────
+//
+// L'AUTRE PARTIE DOIT SAVOIR. Elle a reçu un contrat, l'a peut-être téléchargé, s'apprête à le
+// signer — et il vient d'être retiré. Sans ce message, elle signerait un document qui n'engage
+// plus personne, ou constaterait sans explication que la signature d'en face a disparu.
+//
+// Le motif est dit sans détour : la version précédente comportait une erreur. Une annulation
+// muette ferait douter de la bonne foi de celui qui l'a demandée.
+export async function sendContratAnnuleEmail(
+  to: string,
+  opts: { annuleParLabel: string; matchId: string; optIn: boolean }
+): Promise<void> {
+  if (!opts.optIn) return;
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       ${escapeHtml(opts.annuleParLabel)} a annulé le contrat qui vous avait été transmis, afin d'en
+       corriger le contenu. <strong>Ne signez pas la version que vous auriez déjà téléchargée</strong> :
+       elle n'est plus valable.
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0">
+       Une version corrigée vous sera proposée. Les signatures déjà apposées ont été effacées des
+       deux côtés.
+     </p>`,
+    { label: "Voir la mise en relation", path: `/match/${opts.matchId}/contrat` }
+  );
+  await sendEmail(to, "Contrat annulé — une version corrigée va suivre", html);
+}
+
 // ── d) Mise en relation annulée ────────────────────────────────────────────────
 export async function sendRelationCancelledEmail(
   to: string,

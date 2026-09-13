@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { BriqueStatus, MatchStatus } from "@prisma/client";
 import { logTraceEvent } from "@/lib/trace";
 import { triggerBillingIfNeeded } from "@/lib/billing";
-import { sendBillingTriggeredEmail, sendSignatureAppliedEmail } from "@/lib/email";
+import { sendBillingTriggeredEmail, sendSignatureAppliedEmail, sendContratAnnuleEmail } from "@/lib/email";
 import { reportStructureContractUsage } from "@/lib/stripe-usage";
 import { attachAssistantPostForMatch } from "@/lib/assistantPost";
 import { createNotification } from "@/lib/notifications";
@@ -69,6 +69,99 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     mineSigned: side === "titulaire" ? titulaireSigned : remplacantSigned,
     bothSigned: titulaireSigned && remplacantSigned,
   });
+}
+
+// DELETE — annule le contrat EN ATTENTE de la seconde signature (section 248).
+//
+// ── CE QUE CETTE ROUTE PEUT, ET CE QU'ELLE NE PEUT PAS ───────────────────────────────────────
+//
+// Elle efface les signatures apposées sur CE contrat pour qu'il puisse être corrigé et renvoyé.
+// Elle REFUSE dès que les deux parties ont signé : un contrat signé des deux côtés est figé —
+// c'est la règle posée le 08/09, et elle ne souffre pas d'exception depuis un bouton.
+//
+// Ce refus n'est pas qu'une question de principe. La seconde signature déclenche des effets
+// qu'aucune annulation ne saurait défaire proprement : missions passées en CONFIRME, mise en
+// relation confirmée, et surtout la BASCULE VERS LE PAYANT (`triggerBillingIfNeeded`, section 100)
+// avec report d'usage Stripe. Rendre la main à ce stade voudrait dire rembourser, ou faire comme
+// si de rien n'était.
+//
+// CE QU'ELLE NE TOUCHE PAS : `Match.status`. Ce champ décrit la MISE EN RELATION — les deux
+// personnes se sont trouvées — et non le contrat. Les confondre romprait la relation pour corriger
+// une date. Les missions ne bougent pas non plus : à ce stade elles sont encore en RECHERCHE,
+// vérifié sur le cas réel du 12/09.
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ matchId: string }> }) {
+  const { matchId } = await params;
+  const session = await auth();
+  if (!session?.user?.profileId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+
+  const match = await loadMatch(matchId, session.user.profileId as string);
+  if (!match) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
+
+  const titulaireSigne = !!match.signatureTitulaireUrl;
+  const remplacantSigne = !!match.signatureRemplacantUrl;
+
+  if (titulaireSigne && remplacantSigne) {
+    return NextResponse.json(
+      {
+        error:
+          "Ce contrat est signé par les deux parties : il ne peut plus être annulé. " +
+          "Pour convenir d'autres termes, établissez un avenant.",
+      },
+      { status: 409 },
+    );
+  }
+  if (!titulaireSigne && !remplacantSigne) {
+    return NextResponse.json(
+      { error: "Aucune signature à annuler sur ce contrat." },
+      { status: 422 },
+    );
+  }
+
+  // Les DEUX côtés sont effacés, pas seulement le sien. Le contrat repart d'une page blanche :
+  // laisser la signature d'en face sur un document dont les termes vont changer reviendrait à
+  // lui faire signer autre chose que ce qu'elle a signé.
+  const cheminsAEffacer = [match.signatureTitulaireUrl, match.signatureRemplacantUrl]
+    .filter((c): c is string => !!c);
+
+  await prisma.match.update({
+    where: { id: matchId },
+    data: {
+      signatureTitulaireUrl: null, signatureTitulaireAt: null,
+      signatureRemplacantUrl: null, signatureRemplacantAt: null,
+    },
+  });
+
+  // Fichiers ensuite, et sans jamais jeter : la base fait autorité, et un bucket indisponible ne
+  // doit pas empêcher de débloquer un contrat (même règle qu'à la suppression de compte).
+  if (cheminsAEffacer.length > 0) {
+    try {
+      await getSupabaseAdmin().storage.from("signatures").remove(cheminsAEffacer);
+    } catch { /* voir ci-dessus */ }
+  }
+
+  // L'autre partie doit l'apprendre. Elle a peut-être déjà le PDF sous les yeux.
+  const myProfile = match.profileAId === session.user.profileId ? match.profileA : match.profileB;
+  const autreProfileId = match.profileAId === session.user.profileId ? match.profileBId : match.profileAId;
+  const annuleParLabel = myProfile.type === "TITULAIRE" ? "Le cabinet" : "Le remplaçant";
+  const autre = await prisma.profile.findUnique({
+    where: { id: autreProfileId },
+    select: { user: { select: { id: true, email: true, emailOptIn: true } } },
+  });
+  if (autre?.user) {
+    await createNotification({
+      userId: autre.user.id,
+      type: "signature",
+      message: `${annuleParLabel} a annulé le contrat pour le corriger — ne signez pas la version précédente.`,
+      linkUrl: `/match/${matchId}/contrat`,
+    });
+    if (autre.user.email) {
+      await sendContratAnnuleEmail(autre.user.email, {
+        annuleParLabel, matchId, optIn: autre.user.emailOptIn,
+      });
+    }
+  }
+
+  return NextResponse.json({ annule: true });
 }
 
 // POST — upload de la photo de signature de l'utilisateur courant
