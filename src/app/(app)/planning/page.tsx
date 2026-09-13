@@ -56,7 +56,7 @@ export default async function PlanningPage() {
     where: { profileId, cabinetPostId: null, isActive: true, isSelfPresence: false },
     // briqueStatus : sert à repérer les annonces EN RECHERCHE qui couvrent une absence du
     // titulaire, pour l'afficher sur sa ligne (elles n'ont pas de cabinetPostId à quoi se lier).
-    select: { id: true, title: true, startDate: true, endDate: true, missionType: true, briqueStatus: true },
+    select: { id: true, title: true, startDate: true, endDate: true, missionType: true, briqueStatus: true, isActive: true },
   });
 
 

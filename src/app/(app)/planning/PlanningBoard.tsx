@@ -63,6 +63,10 @@ interface UnlinkedMission {
   endDate: Date | string | null;
   missionType: string;
   briqueStatus: string;
+  // Chargé plutôt que supposé : la requête serveur filtre déjà `isActive: true`, mais le
+  // prédicat de péremption le teste — une valeur déduite d'un `where` lointain est une
+  // supposition qui survit mal à un changement de requête.
+  isActive: boolean;
 }
 
 interface Props {
@@ -182,6 +186,48 @@ const SUIVI_ORDRE = ["A_RELANCER", "APPEL_FAIT", "REPONSE_ATTENDUE", "ECHANGE_HO
 //   FERME     → « je ne cherche personne »             → pas d'alerte (choix explicite)
 //   CONFIRME  → quelqu'un couvre                       → pas d'alerte
 // Même esprit que les postes ordinaires, où une brique quelconque supprime le trou.
+// ── Annonce dont la période est écoulée (section 247, étendu le 13/09) ──────────────────────
+//
+// UN SEUL ENDROIT POUR LA RÈGLE ET POUR LE TEXTE. La première version ne couvrait que les
+// annonces NON rattachées à un poste — or les trois annonces périmées de Jean-Charles sont
+// attachées : les briques portaient bien le ⚠️, mais l'explication et les deux issues ne
+// s'affichaient nulle part pour elles. Le signalement existait sans jamais dire quoi faire.
+//
+// Plutôt que de recopier l'encart dans le panneau « Gérer ce poste », il est extrait ici et
+// consommé aux deux endroits. Ce dépôt a déjà payé quatre fois le prix d'une règle recopiée
+// (sections 236, 237, 238, 246) — un texte d'avertissement dupliqué finirait par diverger, et
+// l'un des deux dirait quelque chose que l'autre contredit.
+// L'AVERTISSEMENT NE VAUT QUE POUR UNE ANNONCE EN RECRUTEMENT. Première version : la seule date
+// de fin suffisait. Constaté à l'écran le 13/09 — les briques « Léa » et « jp » portaient le ⚠️
+// alors que ce sont des OCCUPATIONS terminées le 19/08, pas des annonces. Rien n'y est visible
+// par les candidats (`isActive: false`), rien à corriger ni à dépublier : ces postes se sont
+// simplement libérés. L'avertissement y était faux, et un avertissement faux use les vrais.
+//
+// Le prédicat reprend celui qui existait déjà plus bas (`isAnnonceActive`) plutôt que d'en
+// réinventer un : active ET en recherche.
+export function estAnnoncePerimee(m: {
+  isActive: boolean; briqueStatus: string;
+  endDate: Date | string | null; departureDate?: Date | string | null;
+}): boolean {
+  if (!m.isActive || m.briqueStatus !== "RECHERCHE") return false;
+  const d = toDate(m.departureDate ?? m.endDate);
+  if (!d) return false;
+  const auj = new Date();
+  auj.setHours(0, 0, 0, 0);
+  return d < auj;
+}
+
+/** Nomme le problème ET les deux issues. Un avertissement qui ne dit pas quoi faire laisse son
+ *  lecteur exactement où il était — c'est ce que faisaient les briques marquées d'un ⚠️ seul. */
+export function EncartPeriodeEcoulee() {
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-snug text-amber-800">
+      ⚠️ <strong>Période écoulée.</strong> Cette annonce reste visible par les candidats et propose
+      une période déjà passée. Modifiez ses dates ou dépubliez-la.
+    </div>
+  );
+}
+
 function computeOwnerSeatGaps(missions: MissionData[]): { start: Date; end: Date }[] {
   const now = new Date();
   return missions
@@ -645,6 +691,11 @@ function PostMenu({
               "Poste vide — définissez son occupation"
             )}
           </p>
+          {/* L'annonce de ce poste recrute-t-elle encore pour une période passée ? C'est ici que
+              se trouvent les deux issues — « Modifier l'annonce » et « Annuler l'annonce ». */}
+          {mission && estAnnoncePerimee(mission) && (
+            <div className="mt-2"><EncartPeriodeEcoulee /></div>
+          )}
         </div>
 
         {/* ── Cas 1 (section 64) — aucune annonce active : menu inchangé ── */}
@@ -1134,12 +1185,7 @@ function MissionBrick({
   // DATES DÉPASSÉES. Une annonce ACTIVE dont la période est écoulée continue d'être proposée
   // aux candidats — le feed ne filtre pas sur les dates. Mesuré le 12/09 : 5 des 38 annonces
   // actives étaient dans ce cas, dont un « Remplacement URGENT » terminé depuis trois semaines.
-  const finPassee = (() => {
-    const f = toDate(mission.departureDate) ?? toDate(mission.endDate);
-    if (!f) return false;
-    const auj = new Date(); auj.setHours(0, 0, 0, 0);
-    return f < auj;
-  })();
+  const finPassee = estAnnoncePerimee(mission);
 
   const left  = Math.max(dayOffset(start), 0) * dayWidth;
   const right = Math.min(dayOffset(end), TOTAL_DAYS) * dayWidth;
@@ -2157,6 +2203,20 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
 
 export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinkedMissions }: Props) {
   const router = useRouter();
+
+  // Annonces périmées, POSTES ET NON RATTACHÉES CONFONDUS — une seule liste, un seul prédicat.
+  // Le poste est conservé pour que la ligne dise d'où vient l'annonce ; l'utilisateur qui la
+  // corrige a besoin de savoir laquelle de ses lignes il touche.
+  const annoncesPerimees = [
+    ...posts.flatMap((po) =>
+      po.missions.filter(estAnnoncePerimee).map((m) => ({
+        id: m.id, title: m.title, endDate: m.endDate, posteLabel: po.label as string | null,
+      })),
+    ),
+    ...unlinkedMissions.filter(estAnnoncePerimee).map((m) => ({
+      id: m.id, title: m.title, endDate: m.endDate, posteLabel: null as string | null,
+    })),
+  ];
   const [zoom, setZoom]         = useState<Zoom>("quarter");
   const [panel, setPanel]       = useState<Panel>(null);
   const [dropdown, setDropdown] = useState<DropdownState | null>(null);
@@ -2745,6 +2805,42 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
           </>
           )}
 
+          {/* ── Annonces dont la période est écoulée (section 247, complété le 13/09) ──────
+              POURQUOI UNE SECTION, ET PAS SEULEMENT LA BRIQUE. Vérifié à l'écran : sur les trois
+              annonces périmées du cabinet, UNE SEULE portait un avertissement lisible. Les deux
+              autres étaient hors d'atteinte — l'une rendue sur 33 px, sous le seuil de 40 px qui
+              masque le libellé ; l'autre pas rendue du tout, sa période tombant hors de la fenêtre
+              de la frise.
+              Une alerte posée sur la timeline ne peut donc pas couvrir ce cas : plus une annonce
+              est ancienne, moins sa brique est visible — alors que c'est exactement celle-là qui
+              traîne dans le fil des candidats. Le récapitulatif, lui, ne dépend d'aucune date. */}
+          {annoncesPerimees.length > 0 && (
+            <div className="flex-shrink-0 border-t border-amber-200 bg-amber-50/40 px-3 sm:px-4 py-3 max-h-56 overflow-y-auto">
+              <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wide mb-2">
+                {annoncesPerimees.length} annonce{annoncesPerimees.length > 1 ? "s" : ""} à mettre à jour
+              </p>
+              <div className="space-y-2">
+                {annoncesPerimees.map((m) => (
+                  <div key={m.id} className="rounded-xl border border-amber-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{m.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Terminée le {fmtDate(m.endDate)}
+                      {m.posteLabel ? ` · poste « ${m.posteLabel} »` : " · non rattachée à un poste"}
+                    </p>
+                    <div className="mt-1.5"><EncartPeriodeEcoulee /></div>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/missions/create?editId=${encodeURIComponent(m.id)}`)}
+                      className="mt-2 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-kine-600 text-white hover:bg-kine-700 transition"
+                    >
+                      Modifier cette annonce →
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ── Annonces non rattachées à un poste (section 187) — créées via « + Annonce »
               sans cible sur la timeline (cabinetPostId = null). Sans cette section, elles
               étaient chargées côté serveur (unlinkedMissions) mais JAMAIS rendues : invisibles
@@ -2758,11 +2854,8 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
               <div className="space-y-2">
                 {unlinkedMissions.map((m) => {
                   const start = toDate(m.startDate), end = toDate(m.endDate);
-                  // Période écoulée (section 247) : l'annonce reste ACTIVE et continue d'être
-                  // proposée aux candidats, le feed ne filtrant pas sur les dates. Le seul qui
-                  // puisse y remédier est son auteur — encore faut-il qu'il le sache.
-                  const auj = new Date(); auj.setHours(0, 0, 0, 0);
-                  const perimee = !!end && end < auj;
+                  // Période écoulée — même règle et même texte que dans « Gérer ce poste ».
+                  const perimee = estAnnoncePerimee(m);
                   return (
                     <div key={m.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                       <p className="text-sm font-semibold text-gray-800 truncate">{m.title}</p>
@@ -2772,13 +2865,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
                         </span>
                         {start && end ? `${fmtDate(start)} → ${fmtDate(end)}` : "Sans dates"}
                       </p>
-                      {perimee && (
-                        <p className="mt-1.5 text-[11px] leading-snug rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-800">
-                          ⚠️ <strong>Période écoulée.</strong> Cette annonce reste visible par les
-                          candidats et propose une période déjà passée. Modifiez ses dates ou
-                          dépubliez-la.
-                        </p>
-                      )}
+                      {perimee && <div className="mt-1.5"><EncartPeriodeEcoulee /></div>}
                       <div className="mt-2.5 flex flex-wrap items-center gap-2">
                         <button
                           type="button"

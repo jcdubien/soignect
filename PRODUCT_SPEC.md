@@ -5744,6 +5744,60 @@ recopiée telle quelle dans du JSX, où l'apostrophe n'a pas besoin d'échappeme
 
 ---
 
+### SECTION 247 bis — L'AVERTISSEMENT NE TOUCHAIT PAS CEUX QUI EN AVAIENT BESOIN (13/09)
+
+#### Trois défauts du correctif de la veille
+
+**L'encart ne couvrait que les annonces NON rattachées.** Or les trois annonces périmées du
+cabinet sont toutes attachées à un poste : l'encart n'en couvrait aucune. Les briques portaient le
+⚠️ sans jamais dire quoi faire.
+
+**Le ⚠️ s'affichait sur des OCCUPATIONS terminées.** Constaté à l'écran : les briques « Léa » et
+« jp » le portaient, alors qu'elles décrivent une occupation achevée le 19/08 — `isActive: false`,
+invisible des candidats, rien à corriger ni à dépublier. Un avertissement faux, et un avertissement
+faux use les vrais. Le prédicat exige désormais `isActive && briqueStatus === "RECHERCHE"` — celui
+qui existait déjà plus bas sous le nom `isAnnonceActive`.
+
+**Et surtout : deux annonces sur trois étaient hors d'atteinte.**
+
+| Annonce | Fin | Sur la frise |
+|---|---|---|
+| « Guadeloupe : remplaçant kiné… » | 02/01/2026 | brique de 150 px — ⚠️ visible |
+| « …Semaine du 31/08 au 05/09 » | 05/09/2025 | brique de **33 px** — sous le seuil de 40 px, libellé masqué |
+| « …3 semaines en équipe chaleureuse » | 17/01/2025 | **pas rendue** — hors fenêtre |
+
+Une alerte posée sur la timeline ne peut pas couvrir ce cas : **plus une annonce est ancienne,
+moins sa brique est visible** — alors que c'est précisément celle-là qui traîne dans le fil des
+candidats. Poser l'encart dans « Gérer ce poste » ne suffisait pas non plus : ce panneau s'ouvre en
+cliquant une brique, et deux d'entre elles n'étaient pas cliquables.
+
+#### Un récapitulatif qui ne dépend d'aucune date
+
+Une section « N annonces à mettre à jour » liste toutes les annonces périmées, postes et non
+rattachées confondus, chacune avec son poste d'origine, l'encart et un bouton « Modifier cette
+annonce ». Elle ne dépend ni de la largeur d'une brique ni de la fenêtre de la frise.
+
+L'encart lui-même est extrait en un composant unique consommé aux trois endroits. Ce dépôt a déjà
+payé quatre fois le prix d'une règle recopiée (236, 237, 238, 246) ; un texte d'avertissement
+dupliqué finirait par diverger, et l'un des deux dirait ce que l'autre contredit.
+
+`UnlinkedMission` charge désormais `isActive` au lieu de le déduire du `where` de la requête — une
+valeur supposée depuis un filtre lointain survit mal à un changement de requête.
+
+#### Vérifié à l'écran, sur les annonces réelles du cabinet
+
+```
+briques portant le ⚠️        1  (la seule annonce périmée réellement visible)
+briques « Léa » et « jp »    propres — ce sont des occupations
+section récapitulative       « 3 ANNONCES À METTRE À JOUR »
+encarts rendus               3
+boutons « Modifier »         3
+```
+
+Chaque ligne nomme son poste : « Jean-Charles DUBIEN », « Marion », « Léa ».
+
+---
+
 ### SECTION 247 — LA BANDE MUETTE DISAIT VRAI, MAIS NE LE DISAIT PAS (12/09)
 
 #### Le signalement, et ce qu'il recouvrait
