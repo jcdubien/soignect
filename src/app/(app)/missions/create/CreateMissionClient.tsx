@@ -384,6 +384,35 @@ export default function CreateMissionClient({ typesContractualisables }: { types
     (formType === "ASSISTANT") ||
     (formType === "TITULAIRE" && (needType === "assistant" || needType === "collaboration"));
 
+  // ── PÉRIODE DÉJÀ PASSÉE (section 250) ─────────────────────────────────────────────────────
+  //
+  // Deux annonces publiées en 2026 portaient des dates de 2025 : « Semaine du 31/08 au 05/09 »
+  // créée le 26/08/2026 pour août 2025, et une autre créée le 10/09/2026 pour décembre 2025.
+  // Le formulaire les a acceptées sans rien dire. Elles ont reçu 25 et 10 marques d'intérêt de
+  // candidats, pour des périodes révolues, avant d'être dépubliées le 14/09.
+  //
+  // La cause n'est pas l'étourderie : un sélecteur de date propose l'année courante, et « 31
+  // août » saisi fin août 2026 pour la rentrée suivante tombe naturellement sur la mauvaise.
+  //
+  // ON AVERTIT, ON NE BLOQUE PAS. Republier une annonce dont la période vient de s'achever est
+  // légitime — on corrige les dates ensuite. Interdire forcerait à contourner ; dire suffit.
+  const dateEstPassee = (v: string): boolean => {
+    // FORME COMPLÈTE EXIGÉE. Un `<input type="date">` rend des valeurs partielles pendant la
+    // frappe — « 2025 » quand l'année est à moitié tapée. `new Date("2025T00:00:00")` donne le
+    // 1er janvier, et l'avertissement aurait surgi au milieu d'une saisie encore valide, sur une
+    // date que l'utilisateur n'a pas fini d'écrire. Trouvé en exerçant les neuf cas.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+    const d = new Date(`${v}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return false;
+    const auj = new Date(); auj.setHours(0, 0, 0, 0);
+    return d < auj;
+  };
+  // La date de FIN prime : une période achevée est le cas qui compte. Un début passé dont la fin
+  // est à venir décrit une annonce déjà en cours, ce qui est normal et ne mérite rien.
+  const periodePassee = showEndDate
+    ? dateEstPassee(form.endDate)
+    : dateEstPassee(form.startDate);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -946,6 +975,14 @@ export default function CreateMissionClient({ typesContractualisables }: { types
             {!showEndDate && (
               <p className="text-xs text-gray-400 mt-1">
                 Sans cette date, l&apos;annonce n&apos;apparaîtra pas sur la ligne du poste dans votre planning.
+              </p>
+            )}
+            {/* Vérifiez l'année — le piège est là, pas dans le jour (section 250). */}
+            {periodePassee && (
+              <p className="mt-2 text-xs leading-snug rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                ⚠️ <strong>Cette période est déjà passée.</strong> Vérifiez l&apos;année : une
+                annonce dont la période est révolue reste visible par les candidats, qui peuvent
+                s&apos;y intéresser pour rien. Si c&apos;est voulu, vous pouvez publier quand même.
               </p>
             )}
           </div>

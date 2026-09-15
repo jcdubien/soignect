@@ -5674,6 +5674,71 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 250 — LE FORMULAIRE ACCEPTAIT DES PÉRIODES DÉJÀ PASSÉES (15/09)
+
+#### La cause en amont, trouvée en nettoyant ses effets
+
+Les deux dernières annonces périmées du cabinet ont été dépubliées le 14/09. En les examinant, un
+fait s'est imposé : **leurs dates étaient fausses dès la saisie**, pas simplement devenues
+obsolètes.
+
+| Annonce | Créée le | Période saisie | Écart |
+|---|---|---|---|
+| « Semaine du 31/08 au 05/09 » | 26/08/**2026** | 31/08 → 05/09/**2025** | un an dans le passé |
+| « ambiance chaleureuse et conviviale » | 10/09/**2026** | 10/12/**2025** → 02/01/2026 | neuf mois |
+
+Le formulaire les a acceptées sans rien dire. Elles ont recueilli **25 et 10 marques d'intérêt** de
+candidats, pour des périodes révolues, sans jamais produire de mise en relation.
+
+La cause n'est pas l'étourderie : un sélecteur de date propose l'année courante, et « 31 août »
+saisi fin août 2026 pour la rentrée suivante tombe naturellement sur la mauvaise. Le titre de la
+première le confirme — « Semaine du 31/08 au 05/09 », sans année.
+
+#### On avertit, on ne bloque pas
+
+Republier une annonce dont la période vient de s'achever est légitime : on corrige les dates
+ensuite. Interdire forcerait à contourner ; dire suffit. Le texte nomme le piège — « **Vérifiez
+l'année** » — parce que c'est là qu'il se trouve, pas dans le jour.
+
+La date de **fin** prime quand elle existe : une période achevée est le cas qui compte. Un début
+passé dont la fin est à venir décrit une annonce déjà en cours, ce qui est normal et ne mérite
+aucun avertissement.
+
+#### Un cas trouvé en exerçant la logique, pas en la relisant
+
+Première version : toute valeur non vide était évaluée. Or `<input type="date">` rend des valeurs
+**partielles pendant la frappe** — « 2025 » quand l'année est à moitié tapée. `new Date("2025T…")`
+donne le 1er janvier, et l'avertissement surgissait au milieu d'une saisie encore valide.
+
+Le prédicat exige désormais la forme complète `AAAA-MM-JJ`. Les dix cas passent :
+
+```
+✓ fin août 2025 (cas réel)          → avertit
+✓ fin janvier 2026 (cas réel)       → avertit
+✓ période à venir                   → silencieux
+✓ début passé, fin à venir          → silencieux
+✓ aujourd'hui même                  → silencieux
+✓ champs vides                      → silencieux
+✓ sans fin — début passé            → avertit
+✓ sans fin — début à venir          → silencieux
+✓ année seule, en cours de frappe   → silencieux
+✓ jour + mois sans année            → silencieux
+```
+
+#### Vérifié à l'écran
+
+Sur le formulaire réel : `31/08/2025` fait apparaître l'encart sous le champ, `01/03/2027` le fait
+disparaître, une nouvelle date passée le ramène, un champ vidé le retire.
+
+#### Une limite de mon instrument, la cinquième
+
+Trois tentatives de frappe n'ont rien écrit dans le champ `type="date"`, alors que le clic le
+focalisait bien — vérifié, `activeElement` était le bon élément. La saisie a dû passer par le
+chemin que React écoute. **Le clic portait, la frappe non** : c'est une limite distincte de celle
+du 10/09, où c'étaient les coordonnées qui étaient fausses.
+
+---
+
 ### SECTION 249 — L'APERÇU DE PARTAGE MONTRAIT UNE DATE QUE LE SERVEUR NE SERVAIT PLUS (14/09)
 
 #### Le diagnostic : ce n'était pas un bug Soignect
