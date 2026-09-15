@@ -38,6 +38,7 @@ export default async function DisponibilitesPage() {
       bioTinder: true, // accroche éditable (vue assistant, section 179)
       briqueStatus: true,
       missionType: true,
+      updatedAt: true, // version du lien de partage (section 249)
       // Candidatures reçues (section 162) — mises en relation confirmées sur cette dispo.
       _count: { select: { matchesA: true, matchesB: true } },
     },
@@ -121,6 +122,7 @@ export default async function DisponibilitesPage() {
           bioTinder: m.bioTinder,
           briqueStatus: m.briqueStatus,
           missionType: m.missionType,
+          updatedAt: m.updatedAt,
           matchId: matchByMission.get(m.id)?.matchId ?? null,
           matchOtherName: matchByMission.get(m.id)?.otherName ?? null,
           confirmedCount: confirmed,

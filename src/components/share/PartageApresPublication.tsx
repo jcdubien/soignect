@@ -1,6 +1,7 @@
 "use client";
 
 import BottomSheet from "@/components/ui/md3/BottomSheet";
+import { cheminPartageAnnonce } from "@/lib/partageAnnonce";
 import ShareActions from "@/components/share/ShareActions";
 
 // Modale de partage à la publication (section 231).
@@ -21,6 +22,10 @@ export default function PartageApresPublication({
   missionId,
   titre,
   motPublie,
+  // L'annonce vient d'être publiée ou modifiée : sa version est donc l'instant présent, figé à
+  // l'ouverture de la modale. Sans lui, le tout premier partage d'une annonce modifiée porterait
+  // l'ancienne version — celui qui compte le plus (section 249).
+  publieeLe = new Date(),
 }: {
   ouvert: boolean;
   onClose: () => void;
@@ -28,6 +33,7 @@ export default function PartageApresPublication({
   titre: string;
   /** « annonce » pour un cabinet, « recherche » pour un candidat — le vocabulaire suit l'auteur. */
   motPublie: string;
+  publieeLe?: Date | string;
 }) {
   if (!ouvert) return null;
 
@@ -48,7 +54,7 @@ export default function PartageApresPublication({
         )}
 
         <div className="mt-4">
-          <ShareActions path={`/annonce/${missionId}`} title={titre || "Soignect"} plateformes />
+          <ShareActions path={cheminPartageAnnonce({ id: missionId, updatedAt: publieeLe })} title={titre || "Soignect"} plateformes />
         </div>
 
         <button

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { cheminPartageAnnonce } from "@/lib/partageAnnonce";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ShareActions from "@/components/share/ShareActions";
@@ -9,6 +10,8 @@ import ShareActions from "@/components/share/ShareActions";
 
 interface MissionSlot {
   id: string;
+  /** Version du lien de partage (section 249) — change à chaque modification. */
+  updatedAt: Date | string;
   title: string;
   startDate: string | null;
   endDate: string | null;
@@ -427,7 +430,7 @@ function SlotEditModal({ slot, onClose, onSaved }: {
               Le lien mène à la page publique, qui demande auth/inscription au visiteur. */}
           <div className="pt-1">
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Partager ma disponibilité</p>
-            <ShareActions path={`/annonce/${slot.id}`} title={slot.title} />
+            <ShareActions path={cheminPartageAnnonce(slot)} title={slot.title} />
           </div>
 
           {error && (
@@ -752,7 +755,7 @@ function AssistantDispoView({ profileName, missions, linkedPost }: {
                   <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-4">
                     <button onClick={() => setEditSlot(m)} className="text-xs font-semibold text-gray-600 hover:text-kine-700 transition">Modifier</button>
                     <button onClick={() => { setConfirmingId(m.id); setErrorId(null); }} className="text-xs font-semibold text-gray-400 hover:text-red-600 transition">Supprimer</button>
-                    <div className="ml-auto"><ShareActions path={`/annonce/${m.id}`} title={m.title} /></div>
+                    <div className="ml-auto"><ShareActions path={cheminPartageAnnonce(m)} title={m.title} /></div>
                   </div>
                 </div>
               );

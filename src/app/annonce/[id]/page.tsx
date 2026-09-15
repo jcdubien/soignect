@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { cheminPartageAnnonce } from "@/lib/partageAnnonce";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
@@ -222,7 +223,7 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
 
           <div className="mt-5">
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2 text-center">Partager cette annonce</p>
-            <ShareActions path={`/annonce/${m.id}`} title={`${m.title} · ${m.location}`} />
+            <ShareActions path={cheminPartageAnnonce(m)} title={`${m.title} · ${m.location}`} />
           </div>
         </div>
       </div>

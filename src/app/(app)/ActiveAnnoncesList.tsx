@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { cheminPartageAnnonce } from "@/lib/partageAnnonce";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ShareActions from "@/components/share/ShareActions";
@@ -8,6 +9,8 @@ import InteressesAnnonce from "@/components/swipe/InteressesAnnonce";
 
 export interface ActiveMission {
   id: string;
+  /** Version du lien de partage (section 249) — change à chaque modification. */
+  updatedAt: Date | string;
   title: string;
   location: string;
   missionType: string;
@@ -190,7 +193,7 @@ export default function ActiveAnnoncesList({
           )}
           {sharingId === m.id && (
             <div className="px-4 pb-3 pt-1 bg-gray-50 border-b border-gray-100">
-              <ShareActions path={`/annonce/${m.id}`} title={m.title} />
+              <ShareActions path={cheminPartageAnnonce(m)} title={m.title} />
             </div>
           )}
           </div>

@@ -40,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         orderBy: { startDate: "asc" },
         select: {
           id: true, title: true, startDate: true, endDate: true, location: true, missionType: true,
+          updatedAt: true, // version du lien de partage (section 249)
           // Compteur de candidatures/mises en relation par annonce (section 157).
           _count: { select: { matchesA: true, matchesB: true } },
         },
@@ -118,6 +119,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             title: m.title,
             location: m.location,
             missionType: m.missionType as string,
+            updatedAt: m.updatedAt,
             confirmedCount: confirmed,
             pendingCount: Math.max(0, likes - confirmed), // likes reçus non encore matchés
           };

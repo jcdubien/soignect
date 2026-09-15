@@ -5674,6 +5674,77 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 249 — L'APERÇU DE PARTAGE MONTRAIT UNE DATE QUE LE SERVEUR NE SERVAIT PLUS (14/09)
+
+#### Le diagnostic : ce n'était pas un bug Soignect
+
+Signalé le 13/09, capture à l'appui : annonce modifiée pour démarrer le 5 octobre, aperçu WhatsApp
+affichant encore « 1 octobre 2026 → 13 novembre 2026 ».
+
+Vérifié à la source, à l'instant, en production :
+
+```
+og:description = « Remplacement · Pointe-Noire · 5 octobre 2026 → 13 novembre 2026 — sur Soignect »
+Cache-Control (page)  private, no-cache, no-store, must-revalidate
+X-Vercel-Cache        MISS
+```
+
+**Le serveur sert la bonne date.** L'image OG aussi — régénérée et relue : nouveau titre,
+« oct. - nov. 2026 ». Ni cache applicatif, ni cache CDN.
+
+C'est WhatsApp qui conserve l'aperçu scrapé au premier partage. Les plateformes indexent un lien
+une fois et ne le revisitent pas ; rien, côté produit, ne les en empêche.
+
+#### La parade : changer d'URL quand l'annonce change
+
+Le lien de partage porte désormais `?maj=<updatedAt en secondes>`. Tant que l'annonce ne bouge pas,
+le lien est stable et les partages s'accumulent sur la même entrée. Dès qu'elle est modifiée, c'est
+une URL que la plateforme n'a jamais vue : elle la scrape, et l'aperçu est juste.
+
+| Cas | Lien produit |
+|---|---|
+| Annonce inchangée | `/annonce/x?maj=1789297200` — stable |
+| Après modification | `/annonce/x?maj=1789305501` — nouveau |
+| `updatedAt` invalide | `/annonce/x` — repli nu, jamais `?maj=NaN` |
+
+#### Les liens déjà partagés continuent de fonctionner
+
+Vérifié en production sur trois formes — sans paramètre, avec un `maj` ancien, avec un `maj`
+fantaisiste : **HTTP 200 et le même `og:title` pour les trois**. Le paramètre n'est lu nulle part,
+ni par la page ni par la route d'image. Un ancien lien ouvre la même annonce ; il montre simplement
+l'aperçu figé au moment où il a été scrapé — ce qui est déjà le cas aujourd'hui.
+
+#### Une règle recopiée à huit endroits
+
+`/annonce/${id}` était construit à la main dans huit fichiers. Tout passe désormais par
+`cheminPartageAnnonce()`.
+
+`updatedAt` y est **requis et non optionnel** : rendu facultatif, il aurait été omis au premier
+appel pressé et le lien serait retombé en silence sur un aperçu périmé — le défaut même qu'on
+corrige. Le compilateur a d'ailleurs listé les cinq types et les quatre requêtes auxquels le champ
+manquait ; aucun n'aurait été trouvé à la relecture.
+
+#### Ce que ça ne résout pas, et pourquoi on n'y touche pas
+
+Facebook, contrairement à WhatsApp, suit `og:url` : il rattachera `/annonce/x?maj=…` à l'URL
+canonique et pourra resservir son cache. Mettre le paramètre dans `og:url` le forcerait à rescanner
+— mais déferait la décision de la section 158 : sans og:url canonique, Facebook comptait
+« /annonce/x », « /annonce/x?fbclid=… » et le lien copié comme trois pages distinctes, sur la page
+la plus partagée du produit. **On ne casse pas l'agrégation des partages pour rafraîchir un
+aperçu** ; le rescan Facebook se demande par son propre outil de débogage.
+
+#### Vérifié à l'écran
+
+Bouton « copier le lien » sur une annonce réelle → presse-papier :
+`…/annonce/cmu1arlqw0005leyskf63wmy1?maj=1789393630`, exactement l'horodatage de sa dernière
+modification.
+
+*(Note : l'annonce du signalement initial est devenue introuvable en cours de vérification — passée
+en `CONFIRME` ce matin, donc retirée du public. Comportement voulu, sans rapport avec ce
+correctif ; la vérification a été reprise sur une annonce encore en recherche.)*
+
+---
+
 ### SECTION 248 — ANNULER UN CONTRAT AVANT LA SECONDE SIGNATURE (13/09)
 
 #### L'impasse

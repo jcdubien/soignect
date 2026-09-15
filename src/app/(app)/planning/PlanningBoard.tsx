@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { cheminPartageAnnonce } from "@/lib/partageAnnonce";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/md3/Button";
@@ -22,6 +23,8 @@ interface MatchInfo {
 
 interface MissionData {
   id: string;
+  /** Version du lien de partage (section 249) — change à chaque modification. */
+  updatedAt: Date | string;
   title: string;
   startDate: Date | string | null;
   endDate: Date | string | null;
@@ -58,6 +61,8 @@ interface PostData {
 
 interface UnlinkedMission {
   id: string;
+  /** Version du lien de partage (section 249) — change à chaque modification. */
+  updatedAt: Date | string;
   title: string;
   startDate: Date | string | null;
   endDate: Date | string | null;
@@ -792,7 +797,7 @@ function PostMenu({
             {mission && (
               <div className="pt-1">
                 <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Partager cette annonce</p>
-                <ShareActions path={`/annonce/${mission.id}`} title={mission.title} />
+                <ShareActions path={cheminPartageAnnonce(mission)} title={mission.title} />
               </div>
             )}
             {/* Actions du POSTE, séparées visuellement */}
@@ -2899,7 +2904,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
                       </div>
                       <div className="mt-2.5 pt-2.5 border-t border-gray-100">
                         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Partager cette annonce</p>
-                        <ShareActions path={`/annonce/${m.id}`} title={m.title} />
+                        <ShareActions path={cheminPartageAnnonce(m)} title={m.title} />
                       </div>
                     </div>
                   );
