@@ -5819,7 +5819,17 @@ TraceEvent               2026-09-16T21:20:42.680Z   (le précédent datait du 09
 Notification             2026-09-16T21:20:43.119Z
   → « Un cabinet VOUS RELANCE au sujet de votre disponibilité … »   (et non « s'intéresse à »)
 délai désormais actif    fil et route concordent : trop_tot, prochaineLe 2026-09-23T21:20:42Z
+logs Vercel              POST /api/missions/<id>/relance → 200, puis 409 sur la seconde tentative
+                         0 Warning · 0 Error sur la fenêtre → aucun « [email] refus Resend »
+tableau de bord Resend   calista.camacaris@gmail.com · statut DELIVERED
+  → objet : « Un cabinet vous relance au sujet de votre disponibilité »
 ```
+
+**Les trois sources disent des choses différentes, et il faut les distinguer.** Les logs Vercel
+prouvent que Resend n'a pas *refusé* ; seul le tableau de bord Resend porte la *remise*. Conclure
+de l'absence d'erreur applicative qu'un email est arrivé serait le même raccourci que celui du
+10/09 sur le déploiement — `sendEmail` ne lève pas, et un bounce survient après la réponse de
+l'API, sans laisser la moindre trace côté produit.
 
 **Déploiement sondé par le comportement, pas par une empreinte de build** : `POST` non authentifié
 sur `/api/missions/<id>/relance` → 401 (route servie), contre 404 sur une route absente. L'erreur
