@@ -5806,11 +5806,30 @@ POST annonce jamais swipée → 403 « Aucun intérêt signalé sur cette annonc
 POST annonce inexistante   → 404
 ```
 
-⚠️ **L'envoi lui-même n'est pas vérifié à l'écran.** Le développement local pointe sur la base de
-production : cliquer « Relancer » aurait créé une notification chez une vraie candidate. Les cinq
-fiches `ok` appartiennent à des personnes réelles ; le compte de test, lui, n'a aucun choix en
-attente. Reste donc à exercer le chemin d'envoi sur un couple de test, ou sur un destinataire
-choisi par JC.
+##### L'envoi, exercé en production le 16/09
+
+L'envoi ne pouvait pas être vérifié en local : `RESEND_API_KEY` y est absent, et `sendEmail` ne
+lève pas — l'email serait silencieusement resté à quai. Il a donc été fait sur `soignect.fr`, après
+déploiement, vers une destinataire **choisie par JC** (Calista Camacaris, score 81) : une relance
+est un geste produit qui touche une vraie personne, pas une donnée de test.
+
+```
+écran                    « ✓ Relance envoyée. Vous pourrez relancer à nouveau dans une semaine. »
+TraceEvent               2026-09-16T21:20:42.680Z   (le précédent datait du 09/09)
+Notification             2026-09-16T21:20:43.119Z
+  → « Un cabinet VOUS RELANCE au sujet de votre disponibilité … »   (et non « s'intéresse à »)
+délai désormais actif    fil et route concordent : trop_tot, prochaineLe 2026-09-23T21:20:42Z
+```
+
+**Déploiement sondé par le comportement, pas par une empreinte de build** : `POST` non authentifié
+sur `/api/missions/<id>/relance` → 401 (route servie), contre 404 sur une route absente. L'erreur
+du 10/09 — annoncer non déployé un commit en ligne depuis 23 minutes — venait d'avoir comparé des
+hachages de chunks, que Vercel ne reproduit pas à l'identique.
+
+⚠️ **Une lecture prématurée à noter comme méthode.** La première vérification en base, lancée
+quelques secondes après le clic, n'a PAS vu la notification et m'a fait conclure trop vite à un
+défaut : le pooler servait un instantané antérieur. La relecture l'a trouvée, horodatée 400 ms
+après la trace. Sur une base derrière un pooler, une absence lue à chaud n'est pas une absence.
 
 #### Vérifié par exécution réelle des deux routes
 
