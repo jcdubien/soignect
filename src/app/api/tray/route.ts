@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { swipeExploitable } from "@/lib/camp";
+import { etatRelance } from "@/lib/interetSignale";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,32 @@ export async function GET(req: Request) {
     },
   });
 
+  // ── État de relance (section 253) ──────────────────────────────────────────────────────────
+  //
+  // Calculé ICI, en deux requêtes pour toute la liste, plutôt que par l'écran élément par
+  // élément : cinquante fiches auraient produit cinquante allers-retours pour afficher un bouton.
+  // La DÉCISION, elle, n'est pas dupliquée — `etatRelance` est la même fonction que celle de la
+  // route de relance, qui relira ces faits pour son propre compte.
+  const [maRecherche, signaux] = await Promise.all([
+    prisma.mission.findFirst({ where: { profileId: swiperId, isActive: true }, select: { id: true } }),
+    prisma.traceEvent.findMany({
+      where: {
+        eventType: "INTERET_SIGNALE",
+        profileId: swiperId,
+        missionId: { in: swipes.map((s) => s.swipedMissionId) },
+      },
+      orderBy: { occurredAt: "desc" },
+      select: { missionId: true, occurredAt: true },
+    }),
+  ]);
+  // Tri décroissant + premier gagnant = le signal le plus récent par annonce.
+  const dernierSignalParMission = new Map<string, Date>();
+  for (const s of signaux) {
+    if (s.missionId && !dernierSignalParMission.has(s.missionId)) {
+      dernierSignalParMission.set(s.missionId, s.occurredAt);
+    }
+  }
+
   // Mission propre du remplaçant dans un match donné (= sa disponibilité)
   const ownMissionId = (m: { profileAId: string; missionAId: string | null; missionBId: string | null }) =>
     m.profileAId === swiperId ? m.missionAId : m.missionBId;
@@ -78,6 +105,12 @@ export async function GET(req: Request) {
       matchCreatedAt:   match?.createdAt ?? null,
       matchStatus:      match?.status ?? null,
       contratConfirmed: contratConfirmed ?? false,
+      relance: etatRelance({
+        aPublieUneRecherche: !!maRecherche,
+        enRelation: !!match,
+        annonceActive: s.swipedMission.isActive,
+        dernierSignalLe: dernierSignalParMission.get(mId) ?? null,
+      }),
     };
   });
 

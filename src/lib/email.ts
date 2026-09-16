@@ -257,6 +257,9 @@ export async function sendInteretEmail(
     cta?: { label: string; path: string };
     /** Le visiteur a-t-il une publication active ? Décide du paragraphe d'invitation. */
     visiteurJoignable: boolean;
+    /** Second signal du MÊME visiteur (section 253) — se dit, plutôt que de se répéter à
+     *  l'identique et de passer pour une deuxième personne intéressée. */
+    relance?: boolean;
   }
 ): Promise<void> {
   if (!opts.optIn) return;
@@ -285,10 +288,13 @@ export async function sendInteretEmail(
          contacter ni de se positionner pour l'instant. Elle apparaîtra parmi les profils à
          consulter dès qu'elle en publiera une — son intérêt est enregistré en attendant.
        </p>`;
+  const phrase = opts.relance
+    ? `${escapeHtml(opts.viewerLabel)} vous relance au sujet de votre ${listingWord}${about} — cette personne s'était déjà signalée.`
+    : `${escapeHtml(opts.viewerLabel)} s'intéresse à votre ${listingWord}${about}.`;
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0">
-       ${escapeHtml(opts.viewerLabel)} s'intéresse à votre ${listingWord}${about}.
+       ${phrase}
      </p>${invite}`,
     // AUCUN DÉFAUT (section 224). Ce repli imposait « Voir mes annonces → /planning » quand
     // l'appelant ne fournissait pas de CTA : il rendait donc impossible de ne PAS afficher de
@@ -296,7 +302,13 @@ export async function sendInteretEmail(
     // rapport avec l'intérêt signalé. `layout` sait déjà n'en rendre aucun.
     opts.cta
   );
-  await sendEmail(to, `${opts.viewerLabel} s'intéresse à votre ${listingWord}`, html);
+  await sendEmail(
+    to,
+    opts.relance
+      ? `${opts.viewerLabel} vous relance au sujet de votre ${listingWord}`
+      : `${opts.viewerLabel} s'intéresse à votre ${listingWord}`,
+    html,
+  );
 }
 
 // ── h) Nouveau message dans une conversation (notif immédiate) ──────────────────
