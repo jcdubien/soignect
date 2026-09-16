@@ -12,7 +12,7 @@ import { libelleAuteur } from "@/lib/libellesPoste";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import Button from "@/components/ui/md3/Button";
 import { lectureQualitative, PROFILE_LABEL } from "@/lib/compatibilite";
-import type { EtatRelance } from "@/lib/interetSignale";
+import type { EtatNouveauSignal } from "@/lib/interetSignale";
 
 const ChatModal = dynamic(() => import("@/components/chat/ChatModal"), { ssr: false });
 
@@ -28,8 +28,8 @@ interface TrayItem {
   matchCreatedAt:   string | null;
   matchStatus:      string | null;
   contratConfirmed: boolean;
-  /** Relance possible ? Décidé par le serveur (section 253) — voir lib/interetSignale. */
-  relance?: EtatRelance;
+  /** Peut-on signaler à nouveau son intérêt ? Décidé par le serveur (section 253). */
+  nouveauSignal?: EtatNouveauSignal;
 }
 
 interface MatchTrayProps {
@@ -73,40 +73,43 @@ function MissionSheet({
   const [error, setError]           = useState<string | null>(null);
   const [reassigning, setReassigning] = useState(false);
   const [chatOpen, setChatOpen]     = useState(false);
-  const [relancing, setRelancing]   = useState(false);
-  const [relanceFaite, setRelanceFaite] = useState(false);
+  const [signalEnCours, setSignalEnCours] = useState(false);
+  const [signalFait, setSignalFait]       = useState(false);
 
-  // ── Relancer (section 253) ────────────────────────────────────────────────────────────────
+  // ── Signaler à nouveau son intérêt (section 253) ──────────────────────────────────────────
   //
   // Signalé le 13/09 : une fois le choix fait, cette fiche n'offrait que « Retirer ce choix ».
   // Le contact direct reste impossible — `Message.matchId` est requis et lié à `Match`, il n'y a
   // littéralement aucune ligne où écrire tant que la réciprocité n'existe pas. On réémet donc le
   // seul signal non réciproque du produit, celui qui part déjà au swipe.
-  const relance = item.relance;
-  async function handleRelance() {
-    if (relancing || !relance?.possible) return;
-    setRelancing(true);
+  //
+  // Le vocabulaire du recouvrement est proscrit ici (16/09) : on ne « relance » personne, on
+  // signale à nouveau son intérêt — voir l'en-tête de lib/interetSignale.ts.
+  const nouveauSignal = item.nouveauSignal;
+  async function handleNouveauSignal() {
+    if (signalEnCours || !nouveauSignal?.possible) return;
+    setSignalEnCours(true);
     setError(null);
     try {
-      const res = await fetch(`/api/missions/${encodeURIComponent(mission.id)}/relance`, { method: "POST" });
+      const res = await fetch(`/api/missions/${encodeURIComponent(mission.id)}/interet`, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.envoye) {
         // Le serveur revérifie tout : s'il refuse, c'est que l'état a bougé depuis le chargement
         // du fil. On dit ce qu'il répond, on ne réinterprète pas.
         setError(
           data?.raison === "sans_recherche"
-            ? "Publiez votre recherche pour que votre relance soit transmise."
+            ? "Publiez votre recherche pour que votre intérêt soit transmis."
             : data?.raison === "deja_en_relation"
               ? "Vous êtes déjà en relation : passez par le chat."
-              : "Relance impossible pour le moment. Réessayez plus tard.",
+              : "Impossible pour le moment. Réessayez plus tard.",
         );
-        setRelancing(false);
+        setSignalEnCours(false);
         return;
       }
-      setRelanceFaite(true);
+      setSignalFait(true);
     } catch {
       setError("Erreur réseau. Réessayez.");
-      setRelancing(false);
+      setSignalEnCours(false);
     }
   }
 
@@ -379,25 +382,25 @@ function MissionSheet({
               <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
             )}
 
-            {/* ── Relancer (section 253) ──────────────────────────────────────────────────
-                Le bouton n'est JAMAIS grisé en silence : quand la relance est impossible, la
-                fiche dit laquelle des quatre raisons s'applique, et mène au geste qui la lève
-                quand il y en a un. Un levier inerte sans explication est le défaut de fond que
-                ce dépôt corrige depuis des semaines. ── */}
-            {relanceFaite ? (
+            {/* ── Signaler à nouveau son intérêt (section 253) ────────────────────────────
+                Le bouton n'est JAMAIS grisé en silence : quand le geste est impossible, la fiche
+                dit laquelle des quatre raisons s'applique, et mène au geste qui la lève quand il
+                y en a un. Un levier inerte sans explication est le défaut de fond que ce dépôt
+                corrige depuis des semaines. ── */}
+            {signalFait ? (
               <p className="text-xs text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 text-center">
-                ✓ Relance envoyée. Vous pourrez relancer à nouveau dans une semaine.
+                ✓ Votre intérêt a été signalé à nouveau. Vous pourrez le refaire dans une semaine.
               </p>
-            ) : relance?.possible ? (
+            ) : nouveauSignal?.possible ? (
               <Button
                 variant="filled"
-                onClick={handleRelance}
-                disabled={relancing}
+                onClick={handleNouveauSignal}
+                disabled={signalEnCours}
                 className="w-full !py-2.5 !text-sm"
               >
-                {relancing ? "Envoi…" : "Relancer mon intérêt"}
+                {signalEnCours ? "Envoi…" : "Signaler à nouveau mon intérêt"}
               </Button>
-            ) : relance?.raison === "sans_recherche" ? (
+            ) : nouveauSignal?.raison === "sans_recherche" ? (
               <div className="rounded-lg bg-amber-50 px-3 py-2">
                 <p className="text-[11px] leading-snug text-amber-800">
                   Votre intérêt est enregistré, mais il n&apos;est transmis à personne tant que vous
@@ -411,14 +414,14 @@ function MissionSheet({
                   Publier ma recherche →
                 </button>
               </div>
-            ) : relance?.raison === "trop_tot" ? (
+            ) : nouveauSignal?.raison === "trop_tot" ? (
               <p className="text-[11px] leading-snug text-gray-500 text-center px-2">
-                Intérêt déjà signalé. Vous pourrez relancer à partir du{" "}
-                <strong>{fmtDayYear(relance.prochaineLe)}</strong>.
+                Intérêt déjà signalé. Vous pourrez le signaler à nouveau à partir du{" "}
+                <strong>{fmtDayYear(nouveauSignal.prochaineLe)}</strong>.
               </p>
-            ) : relance?.raison === "annonce_inactive" ? (
+            ) : nouveauSignal?.raison === "annonce_inactive" ? (
               <p className="text-[11px] leading-snug text-gray-500 text-center px-2">
-                Cette annonce ne recrute plus — une relance n&apos;arriverait nulle part.
+                Cette annonce ne recrute plus — un nouveau signal n&apos;arriverait nulle part.
               </p>
             ) : null}
 

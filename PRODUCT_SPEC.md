@@ -1177,7 +1177,7 @@ action » : l'alerte dit ce que le CALENDRIER réclame (postes non couverts), ce
 le SUIVI réclame.
 
 **Repliée par défaut** — elle informe sans repousser la timeline, qui reste l'objet de l'écran.
-Le titre replié porte déjà l'essentiel : un compteur « N à relancer » en corail, et le total
+Le titre replié porte déjà l'essentiel : un compteur « N à recontacter » en corail, et le total
 suivi tous postes confondus. **Elle ne s'affiche pas du tout s'il n'y a rien à montrer** : un
 bandeau permanent à zéro apprend à être ignoré.
 
@@ -1192,7 +1192,7 @@ appel réseau, aucune logique de feed ou de tray dupliquée.
 
 | Groupe | Contenu | Traitement |
 |---|---|---|
-| **À relancer** | `A_RELANCER` | en tête, bordure et fond corail — même accent que la pastille sur la timeline |
+| **À recontacter** | `A_RELANCER` (clé inchangée) | en tête, bordure et fond corail — même accent que la pastille sur la timeline |
 | **Autres suivis** | les 4 autres statuts | second, neutre |
 | **Notes de poste** | `CabinetPost.suiviNote` | troisième — ces notes n'ont pas de statut, elles couvrent les zones non couvertes |
 
@@ -5738,68 +5738,96 @@ La règle vit dans `lib/interetSignale.ts`, appelée par la route de swipe **et*
 publication. Une règle écrite deux fois finit par diverger — ce dépôt l'a payé quatre fois cette
 quinzaine.
 
-#### Relancer depuis une fiche déjà choisie (16/09)
+#### Signaler à nouveau son intérêt depuis une fiche déjà choisie (16/09)
 
 Signalé le 13/09 : sur la fiche détaillée d'un profil déjà retenu (« Vos choix »), le seul geste
 proposé était **« Retirer ce choix »**. Une fois l'intérêt signalé, il ne restait qu'à se dédire.
 
-##### Ce que la relance n'ouvre pas
+##### Le mot : « relance » est proscrit du produit
+
+La fonctionnalité a d'abord été livrée sous le nom de **relance**, et JC l'a écarté le 16/09 :
+*« c'est agressif »*. Il a raison, et la raison se nomme — en français, « relance » appartient au
+registre du **recouvrement** (relance de paiement, relance commerciale). Le mot fait du
+destinataire quelqu'un qu'on poursuit. Soignect met en relation des confrères qui vont travailler
+ensemble ; le vocabulaire doit être celui d'un intérêt qui dure, pas d'une créance.
+
+| Proscrit | Retenu |
+|---|---|
+| « X vous relance au sujet de … » | « X **s'intéresse toujours** à … » |
+| « Relancer mon intérêt » | « **Signaler à nouveau** mon intérêt » |
+| « Relance envoyée » | « Votre intérêt a été **signalé à nouveau** » |
+| « À relancer » *(suivi Planning)* | « **À recontacter** » |
+
+**La règle va jusqu'aux identifiants.** `DELAI_NOUVEAU_SIGNAL_MS`, `etatNouveauSignal`,
+`nouveauSignal`, et la route `POST /api/missions/[id]/interet` — pas `/relance`. Un mot laissé dans
+le code revient dans l'interface à la première relecture distraite, et une URL se lit, se copie
+dans un ticket, apparaît dans les logs. La seule occurrence conservée est celle des commentaires
+qui **expliquent** l'interdiction, dans `lib/interetSignale.ts`.
+
+Deux endroits gardent le mot, sciemment : les sections de cette spec qui **racontent** des épisodes
+passés (les rappels de publication du 07/09, par exemple) — les réécrire falsifierait le compte
+rendu de ce qui s'appelait alors ainsi — et la clé `A_RELANCER` stockée en base sur les suivis
+existants, dont seul le libellé affiché a changé : la renommer demanderait une migration pour un
+mot que personne ne lit.
+
+##### Ce que ce geste n'ouvre pas
 
 **Le contact direct reste impossible, et ce n'est pas un réglage d'écran.** `Message.matchId` est
 requis et lié à `Match` : tant que la réciprocité n'existe pas, il n'y a littéralement aucune ligne
 où écrire un message. La règle est dans le schéma, pas dans l'interface — l'y contourner aurait
 demandé un modèle de données différent, pas un bouton.
 
-La relance **réémet donc le seul signal non réciproque du produit** — celui qui part déjà au swipe
+Le geste **réémet donc le seul signal non réciproque du produit** — celui qui part déjà au swipe
 — et laisse au destinataire exactement la même décision qu'avant. Écarté pour la même raison qu'en
 section 224 : ouvrir une action de contact depuis la liste entame le principe « pas de profils
 navigables ».
 
-##### Une relance par semaine et par annonce
+##### Un signal par semaine et par annonce
 
 Le signal est un email plus une notification chez quelqu'un qui n'a rien demandé. Sans borne,
-« relancer » devient un bouton à cliquer deux fois par jour, et le côté payant — celui qui
+le bouton se cliquerait deux fois par jour, et le côté payant — celui qui
 absorbait 59 % de signaux sans issue avant le report du 15/09 — le paierait le premier.
-`DELAI_RELANCE_MS` = 7 jours. Hors relance, la déduplication reste **permanente** : un couple
+`DELAI_NOUVEAU_SIGNAL_MS` = 7 jours. Sans ce geste, la déduplication reste **permanente** : un couple
 (annonce, visiteur) ne produit qu'un signal, pour toujours.
 
-**La relance se nomme comme telle**, dans la notification comme dans l'objet de l'email : « vous
-relance au sujet de votre annonce », et non la répétition mot pour mot de « s'intéresse à votre
-annonce ». Répéter à l'identique aurait laissé croire à un **second** visiteur là où c'est le même
-qui insiste — le destinataire aurait décidé sur une fausse idée du nombre de personnes intéressées.
+**Le second signal se distingue du premier**, dans la notification comme dans l'objet de l'email :
+« s'intéresse **toujours** à votre annonce », et non la répétition mot pour mot de « s'intéresse à
+votre annonce ». Répéter à l'identique aurait laissé croire à un **second** visiteur là où c'est le
+même qui revient — le destinataire aurait décidé sur une fausse idée du nombre de personnes
+intéressées.
 
 ##### Quatre refus, tous nommés à l'écran
 
-`etatRelance()` est une fonction **pure**, sans requête, appelée par deux endroits : le fil « Vos
-choix », qui connaît ces faits en masse pour cinquante fiches, et la route de relance, qui les
+`etatNouveauSignal()` est une fonction **pure**, sans requête, appelée par deux endroits : le fil
+« Vos choix », qui connaît ces faits en masse pour cinquante fiches, et la route d'intérêt, qui les
 relit pour une seule. Leur imposer une forme de requête commune aurait produit cinquante requêtes
 unitaires ; leur laisser chacun sa règle aurait produit la divergence habituelle.
 
 | Raison | Ce que la fiche affiche |
 |---|---|
 | `deja_en_relation` | rien — le pied de fiche est celui du match, avec le chat |
-| `annonce_inactive` | « Cette annonce ne recrute plus — une relance n'arriverait nulle part. » |
+| `annonce_inactive` | « Cette annonce ne recrute plus — un nouveau signal n'arriverait nulle part. » |
 | `sans_recherche` | l'intérêt est enregistré mais transmis à personne, avec un lien « Publier ma recherche → » |
-| `trop_tot` | « Vous pourrez relancer à partir du <date> » |
+| `trop_tot` | « Vous pourrez le signaler à nouveau à partir du <date> » |
 
 Le bouton n'est **jamais grisé en silence** : chaque impossibilité dit laquelle des quatre raisons
 s'applique, et mène au geste qui la lève quand il y en a un.
 
 ##### La route ne croit rien de l'écran
 
-`POST /api/missions/[id]/relance` relit les quatre faits et rappelle `etatRelance` — un état
+`POST /api/missions/[id]/interet` relit les quatre faits et rappelle `etatNouveauSignal` — un état
 d'écran n'est pas une autorisation. Elle exige en outre un **swipe RIGHT existant** : sans lui,
 une URL forgée aurait permis de notifier n'importe quelle annonce sans jamais passer par le fil.
-Et elle **attend** l'envoi au lieu du fire-and-forget du swipe : l'écran annonce « relance
-envoyée », il ne doit pas l'annoncer avant de le savoir.
+Et elle **attend** l'envoi au lieu du fire-and-forget du swipe : l'écran annonce « intérêt signalé
+à nouveau », il ne doit pas l'annoncer avant de le savoir.
 
 ##### Vérifié à l'écran le 16/09
 
 Sur un compte réel portant 8 choix (5 `ok`, 2 `deja_en_relation`, 1 `trop_tot`) :
 
 ```
-fiche « trop tôt »      « Intérêt déjà signalé. Vous pourrez relancer à partir du 19 sept. 2026. »
-fiche « ok »            bouton « Relancer mon intérêt » affiché
+fiche « trop tôt »      « Intérêt déjà signalé. Vous pourrez le signaler à nouveau à partir du … »
+fiche « ok »            bouton « Signaler à nouveau mon intérêt » affiché
 POST trop_tot        →  409 {raison:"trop_tot", prochaineLe:"2026-09-19T10:09:07.912Z"}
 POST deja_en_relation → 409 {raison:"deja_en_relation"}
 POST annonce jamais swipée → 403 « Aucun intérêt signalé sur cette annonce »
@@ -5810,19 +5838,20 @@ POST annonce inexistante   → 404
 
 L'envoi ne pouvait pas être vérifié en local : `RESEND_API_KEY` y est absent, et `sendEmail` ne
 lève pas — l'email serait silencieusement resté à quai. Il a donc été fait sur `soignect.fr`, après
-déploiement, vers une destinataire **choisie par JC** (Calista Camacaris, score 81) : une relance
+déploiement, vers une destinataire **choisie par JC** (Calista Camacaris, score 81) : ce geste
 est un geste produit qui touche une vraie personne, pas une donnée de test.
 
 ```
-écran                    « ✓ Relance envoyée. Vous pourrez relancer à nouveau dans une semaine. »
+écran                    « ✓ Votre intérêt a été signalé à nouveau. … dans une semaine. »
 TraceEvent               2026-09-16T21:20:42.680Z   (le précédent datait du 09/09)
 Notification             2026-09-16T21:20:43.119Z
   → « Un cabinet VOUS RELANCE au sujet de votre disponibilité … »   (et non « s'intéresse à »)
 délai désormais actif    fil et route concordent : trop_tot, prochaineLe 2026-09-23T21:20:42Z
-logs Vercel              POST /api/missions/<id>/relance → 200, puis 409 sur la seconde tentative
+logs Vercel              POST /api/missions/<id>/… → 200, puis 409 sur la seconde tentative
                          0 Warning · 0 Error sur la fenêtre → aucun « [email] refus Resend »
 tableau de bord Resend   calista.camacaris@gmail.com · statut DELIVERED
-  → objet : « Un cabinet vous relance au sujet de votre disponibilité »
+  → objet effectivement parti ce jour-là, dans l'ancienne formulation, corrigée depuis (voir
+    « Le mot » ci-dessus). Un seul email est concerné.
 ```
 
 **Les trois sources disent des choses différentes, et il faut les distinguer.** Les logs Vercel
@@ -5832,7 +5861,7 @@ de l'absence d'erreur applicative qu'un email est arrivé serait le même raccou
 l'API, sans laisser la moindre trace côté produit.
 
 **Déploiement sondé par le comportement, pas par une empreinte de build** : `POST` non authentifié
-sur `/api/missions/<id>/relance` → 401 (route servie), contre 404 sur une route absente. L'erreur
+sur la route → 401 (route servie), contre 404 sur une route absente. L'erreur
 du 10/09 — annoncer non déployé un commit en ligne depuis 23 minutes — venait d'avoir comparé des
 hachages de chunks, que Vercel ne reproduit pas à l'identique.
 

@@ -171,7 +171,10 @@ const BRIQUE_STATUS: Record<string, { bg: string; text: string; label: string }>
 // LA COULEUR DE LA BRIQUE NE CHANGE PAS. Elle appartient déjà à briqueStatus ; y superposer
 // un second code chromatique rendrait les deux illisibles. Le suivi s'affiche en pastille.
 const SUIVI: Record<string, { label: string; court: string; dot: string }> = {
-  A_RELANCER:              { label: "À relancer",            court: "À relancer",  dot: "bg-[var(--corail-signal)]" },
+  // Libellé seul, clé inchangée : `A_RELANCER` est stocké en base sur les suivis existants, et le
+  // renommer demanderait une migration pour un mot que personne ne lit. Ce qui s'affiche, en
+  // revanche, ne dit plus « relancer » (16/09) — voir lib/interetSignale.ts pour la règle.
+  A_RELANCER:              { label: "À recontacter",         court: "À recontacter", dot: "bg-[var(--corail-signal)]" },
   APPEL_FAIT:              { label: "Appel passé",           court: "Appelé",      dot: "bg-white/90" },
   REPONSE_ATTENDUE:        { label: "En attente de réponse",  court: "En attente",  dot: "bg-white/90" },
   ECHANGE_HORS_PLATEFORME: { label: "Échangé par mail / SMS", court: "Hors produit", dot: "bg-white/90" },
@@ -2514,7 +2517,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
           {relancesOuvertes && (
             <div className="px-4 pb-3 space-y-3">
               {[
-                { titre: "À relancer", items: aRelancer, accent: true },
+                { titre: "À recontacter", items: aRelancer, accent: true },
                 { titre: "Autres suivis", items: autresSuivis, accent: false },
               ].filter((g) => g.items.length > 0).map((g) => (
                 <div key={g.titre}>

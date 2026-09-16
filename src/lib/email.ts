@@ -257,9 +257,9 @@ export async function sendInteretEmail(
     cta?: { label: string; path: string };
     /** Le visiteur a-t-il une publication active ? Décide du paragraphe d'invitation. */
     visiteurJoignable: boolean;
-    /** Second signal du MÊME visiteur (section 253) — se dit, plutôt que de se répéter à
-     *  l'identique et de passer pour une deuxième personne intéressée. */
-    relance?: boolean;
+    /** Second signal du MÊME visiteur (section 253) — se distingue du premier, plutôt que de se
+     *  répéter à l'identique et de passer pour une deuxième personne intéressée. */
+    nouveauSignal?: boolean;
   }
 ): Promise<void> {
   if (!opts.optIn) return;
@@ -288,8 +288,11 @@ export async function sendInteretEmail(
          contacter ni de se positionner pour l'instant. Elle apparaîtra parmi les profils à
          consulter dès qu'elle en publiera une — son intérêt est enregistré en attendant.
        </p>`;
-  const phrase = opts.relance
-    ? `${escapeHtml(opts.viewerLabel)} vous relance au sujet de votre ${listingWord}${about} — cette personne s'était déjà signalée.`
+  // « TOUJOURS » dit le fait — c'est le même visiteur qui revient — sans emprunter au registre
+  // du recouvrement. Le destinataire doit comprendre qu'il ne s'agit pas d'une deuxième personne,
+  // pas se sentir poursuivi.
+  const phrase = opts.nouveauSignal
+    ? `${escapeHtml(opts.viewerLabel)} s'intéresse toujours à votre ${listingWord}${about} — cette personne s'était déjà signalée.`
     : `${escapeHtml(opts.viewerLabel)} s'intéresse à votre ${listingWord}${about}.`;
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
@@ -304,8 +307,8 @@ export async function sendInteretEmail(
   );
   await sendEmail(
     to,
-    opts.relance
-      ? `${opts.viewerLabel} vous relance au sujet de votre ${listingWord}`
+    opts.nouveauSignal
+      ? `${opts.viewerLabel} s'intéresse toujours à votre ${listingWord}`
       : `${opts.viewerLabel} s'intéresse à votre ${listingWord}`,
     html,
   );

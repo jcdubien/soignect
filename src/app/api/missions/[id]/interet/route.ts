@@ -2,24 +2,27 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
-import { signalerInteret, etatRelance } from "@/lib/interetSignale";
+import { signalerInteret, etatNouveauSignal } from "@/lib/interetSignale";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/missions/[id]/relance — réémet le signal d'intérêt sur une annonce déjà choisie.
+// POST /api/missions/[id]/interet — réémet le signal d'intérêt sur une annonce déjà choisie.
+//
+// Le chemin ne porte pas le mot écarté le 16/09 : une URL se lit, se copie dans un ticket et se
+// retrouve dans les logs — elle aurait réintroduit le vocabulaire par la porte de service.
 //
 // ── CE QUE CETTE ROUTE N'OUVRE PAS ────────────────────────────────────────────────────────────
 //
 // Aucun canal de contact. `Message.matchId` est requis et lié à `Match` : sans réciprocité il
-// n'existe aucune ligne où écrire. La relance réémet le seul signal non réciproque du produit —
-// celui qui part déjà au swipe — et laisse au destinataire exactement la même décision.
+// n'existe aucune ligne où écrire. On réémet le seul signal non réciproque du produit — celui qui
+// part déjà au swipe — et on laisse au destinataire exactement la même décision.
 //
 // ── TOUT EST REVÉRIFIÉ ICI ───────────────────────────────────────────────────────────────────
 //
-// Le fil « Vos choix » calcule le même état pour griser son bouton, mais un état d'écran n'est
+// Le fil « Vos choix » calcule le même état pour décider de son bouton, mais un état d'écran n'est
 // pas une autorisation : la route ne croit rien du client, pas même l'identifiant d'annonce. Elle
-// relit les quatre faits et rappelle `etatRelance`, la même fonction, pour que les deux réponses
-// ne puissent pas diverger.
+// relit les quatre faits et rappelle `etatNouveauSignal`, la même fonction, pour que les deux
+// réponses ne puissent pas diverger.
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: missionId } = await params;
   const session = await auth();
@@ -56,7 +59,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     }),
   ]);
 
-  const etat = etatRelance({
+  const etat = etatNouveauSignal({
     aPublieUneRecherche: !!annonceVisiteur,
     enRelation: !!match,
     annonceActive: mission.isActive,
@@ -67,17 +70,17 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   }
 
   // ATTENDU, pas en fire-and-forget : c'est ici la seule différence avec le swipe. L'écran
-  // annonce « relance envoyée » — il ne doit pas l'annoncer avant de le savoir.
+  // annonce « intérêt signalé à nouveau » — il ne doit pas l'annoncer avant de le savoir.
   const resultat = await signalerInteret({
     swiperId,
     swiperType: (session?.user as { profileType?: string } | undefined)?.profileType,
     mission: { id: mission.id, title: mission.title, profileId: mission.profileId },
-    relance: true,
+    nouveauSignal: true,
   });
 
   if (resultat !== "envoye") {
-    // `differe` et `deja_signale` sont improbables après `etatRelance`, mais possibles si l'état
-    // a bougé entre les deux lectures. On refuse alors plutôt que d'annoncer un envoi.
+    // `differe` et `deja_signale` sont improbables après `etatNouveauSignal`, mais possibles si
+    // l'état a bougé entre les deux lectures. On refuse alors plutôt que d'annoncer un envoi.
     return NextResponse.json(
       { envoye: false, raison: resultat === "differe" ? "sans_recherche" : "trop_tot" },
       { status: 409 },

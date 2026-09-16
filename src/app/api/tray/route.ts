@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { swipeExploitable } from "@/lib/camp";
-import { etatRelance } from "@/lib/interetSignale";
+import { etatNouveauSignal } from "@/lib/interetSignale";
 
 export const dynamic = "force-dynamic";
 
@@ -59,12 +59,12 @@ export async function GET(req: Request) {
     },
   });
 
-  // ── État de relance (section 253) ──────────────────────────────────────────────────────────
+  // ── Un nouveau signal d'intérêt est-il possible ? (section 253) ────────────────────────────
   //
   // Calculé ICI, en deux requêtes pour toute la liste, plutôt que par l'écran élément par
   // élément : cinquante fiches auraient produit cinquante allers-retours pour afficher un bouton.
-  // La DÉCISION, elle, n'est pas dupliquée — `etatRelance` est la même fonction que celle de la
-  // route de relance, qui relira ces faits pour son propre compte.
+  // La DÉCISION, elle, n'est pas dupliquée — `etatNouveauSignal` est la même fonction que celle
+  // de la route d'intérêt, qui relira ces faits pour son propre compte.
   const [maRecherche, signaux] = await Promise.all([
     prisma.mission.findFirst({ where: { profileId: swiperId, isActive: true }, select: { id: true } }),
     prisma.traceEvent.findMany({
@@ -105,7 +105,7 @@ export async function GET(req: Request) {
       matchCreatedAt:   match?.createdAt ?? null,
       matchStatus:      match?.status ?? null,
       contratConfirmed: contratConfirmed ?? false,
-      relance: etatRelance({
+      nouveauSignal: etatNouveauSignal({
         aPublieUneRecherche: !!maRecherche,
         enRelation: !!match,
         annonceActive: s.swipedMission.isActive,
