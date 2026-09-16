@@ -7709,6 +7709,62 @@ sur 8 n'ont jamais publié non plus, mais ils convertissent à **50 % contre 25 
 d'ampleur différente, et le périmètre demandé portait sur le parcours candidat. À trancher
 séparément.
 
+#### Mesure de suivi (16/09) : la redirection a doublé la publication candidat
+
+Relevé douze jours après, en séparant les inscrits de part et d'autre du 03/09 :
+
+| Camp | Avant 03/09 | Depuis 03/09 |
+|---|---|---|
+| Candidat | 5/18 = **28 %** | 10/16 = **63 %** |
+| Cabinet | 10/14 = 71 % | 4/4 = 100 % *(n=4, non concluant)* |
+
+**8 des 10 publient dans les 30 minutes** suivant l'inscription : le geste se fait sur l'écran de
+redirection, pas au retour. L'écart entre camps n'est donc plus 45 % contre 76 % — ce cumul mélange
+deux régimes ; depuis le 03/09 il est de 63 % contre 78 %.
+
+##### Ce que la friction N'EST PAS
+
+Trois hypothèses tombent à la mesure :
+
+- **La longueur du formulaire.** 22 contrôles côté candidat contre 19 côté cabinet, mais **6 champs
+  obligatoires contre 7** — c'est le cabinet qui en demande le plus, et c'est lui qui convertit.
+- **La garde photo.** Les 52 profils en base ont une `photoUrl` : le blocage `needsPhoto` n'arrête
+  personne, et le détour « ajoutez une photo » n'existe plus pour aucun compte.
+- **Un abandon du produit.** Sur les 19 candidats sans annonce, **16 ont swipé** (5 à 19 annonces
+  chacun), 3 n'ont rien fait. Ceux qui ne publient pas restent et reviennent.
+
+##### La seule asymétrie réelle : la saisie perdue
+
+Le candidat était le seul à **perdre sa saisie** en sortant. Le formulaire cabinet garde un
+brouillon (`missionDraft`) — mais écrit à un seul moment, avant le détour photo, qui ne se
+déclenche plus. Recopier cette politique n'aurait donc rien produit.
+
+Le brouillon candidat (`brouillonDisponibilite`) s'écrit **à chaque frappe**, ce qui couvre la
+sortie mesurée — « Plus tard », par où passent les 6 abandons — mais aussi l'onglet fermé et le
+retour arrière, que ce bouton ne voit pas. Mécanisme dans `lib/brouillonLocal.ts`, politique dans
+l'écran. Quatre règles, toutes vérifiées à l'écran le 16/09 :
+
+| Règle | Pourquoi |
+|---|---|
+| Rien n'est écrit tant que la personne n'a rien tapé | l'accroche et « ouvert au salariat » sont pré-remplis depuis le profil ; les compter annoncerait une reprise à qui n'a rien saisi |
+| Ni en édition, ni en mode blocage | éditer charge les vraies valeurs du serveur ; un brouillon les écraserait |
+| L'URL gagne sur le brouillon | `?startDate` vient du menu rapide de la timeline : intention plus récente |
+| Péremption à 7 jours | un brouillon porte des dates ; restauré trois semaines après, il repropose une période écoulée |
+
+La reprise est **annoncée** (« Votre saisie précédente a été reprise — elle n'est pas encore
+publiée ») et **réversible d'un clic**, même parti pris que « Reprendre un texte précédent » : on
+agit, puis on offre le retour en arrière, plutôt que de poser une question. Le bouton de sortie dit
+« Plus tard (saisie conservée) » — au moment de partir, pas seulement au retour.
+
+##### Ce qui reste non mesurable, et doit être dit
+
+Aucun `TraceEvent` ne marque l'arrivée sur un écran de publication : les seuls types écrits sont
+`SIGNUP`, `LANDING_VIEW` (page publique), `SWIPE_RIGHT`, `MISSION_PUBLISHED`, `MATCH_*`,
+`CONTRACT_SIGNED`, `INTERET_SIGNALE`, `FEED_*`, `PLANNING_ACTIVE`, `FACEBOOK_GROUP_CLICK`. Le taux
+d'abandon **n'est pas mesurable en général**. Il ne l'est ici que par déduction, et seulement pour
+les inscrits depuis le 03/09, chez qui la redirection garantit l'arrivée. Toute lecture du même
+indicateur côté cabinet serait une estimation, pas une mesure.
+
 #### Un défaut de composition, encore
 
 Le rendu réel de l'email a montré « **c'est la annonce** qui vous rend visible ». La phrase était

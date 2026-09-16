@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
 import ZoneSelector from "@/components/ui/ZoneSelector";
+import { lireBrouillon, ecrireBrouillon, effacerBrouillon } from "@/lib/brouillonLocal";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,11 @@ export default function CreateDisponibilitePage() {
   const [hasPhoto, setHasPhoto] = useState<boolean | null>(null);
   const [bioPrefilled, setBioPrefilled] = useState(false); // accroche reprise du profil
   const [bioFromText, setBioFromText] = useState(false);   // accroche extraite du texte libre
+  // Un brouillon a-t-il été repris ? Lu par le pré-remplissage ci-dessous, qui doit alors
+  // s'effacer : le brouillon porte des choix FAITS, le profil de simples valeurs par défaut.
+  // La lecture du brouillon est synchrone (localStorage) et ce fetch ne l'est pas — le drapeau
+  // est donc toujours posé quand la réponse arrive.
+  const brouillonRepris = useRef(false);
   useEffect(() => {
     if (!profileId) return;
     fetch(`/api/profiles/${profileId}`)
@@ -45,7 +51,9 @@ export default function CreateDisponibilitePage() {
           setBioPrefilled(true);
         }
         // Pré-cocher « ouvert au salariat » selon la préférence déjà enregistrée (section 154).
-        if (typeof p?.ouvertSalariat === "boolean") {
+        // Sauf reprise de brouillon : cette écriture-ci est inconditionnelle, et décocher la case
+        // puis revenir aurait silencieusement recoché ce qu'on venait de décocher.
+        if (typeof p?.ouvertSalariat === "boolean" && !brouillonRepris.current) {
           setForm((prev) => ({ ...prev, ouvertSalariat: p.ouvertSalariat }));
         }
       })
@@ -126,6 +134,77 @@ export default function CreateDisponibilitePage() {
   // formulaire (au lieu d'un POST direct). Variante compacte Du/Au → mission INDISPONIBLE.
   const isBlockMode = searchParams.get("mode") === "block";
   const blockValid = !!form.startDate && !!form.endDate && form.endDate >= form.startDate;
+
+  // ── BROUILLON LOCAL (section 252) ─────────────────────────────────────────────────────────
+  //
+  // LA MESURE QUI L'A DÉCIDÉ. Depuis le 03/09, un candidat qui s'inscrit arrive DIRECTEMENT ici
+  // (register/page.tsx) — le cabinet, lui, part sur le fil et ne publie que plus tard. Sur les
+  // 16 candidats inscrits depuis, 10 ont publié et 6 ont cliqué « Plus tard ». Ces 6 n'ont pas
+  // quitté le produit : ils sont allés swiper, 5 à 19 annonces chacun. Ils reviendront donc, et
+  // jusqu'ici ils retrouvaient un formulaire vide.
+  //
+  // POURQUOI PAS LA MÊME POLITIQUE QUE LE CABINET. Le brouillon cabinet n'est écrit qu'au départ
+  // vers « ajoutez une photo ». Recopié tel quel ici, il ne se déclencherait JAMAIS : les 52
+  // profils en base ont déjà une photo, ce détour n'existe plus pour personne. On enregistre donc
+  // à chaque frappe, ce qui couvre la sortie réellement observée — « Plus tard » — mais aussi
+  // l'onglet fermé et le retour arrière, que ce bouton-là ne voit pas passer.
+  const CLE_BROUILLON = "brouillonDisponibilite";
+  // NI EN ÉDITION, NI EN BLOCAGE. Éditer une disponibilité publiée charge ses vraies valeurs
+  // depuis le serveur : un brouillon les écraserait par une saisie abandonnée. Le mode blocage,
+  // lui, n'est pas une annonce — deux dates, pas une recherche.
+  const brouillonActif = !isEdit && !isBlockMode;
+  const [brouillonRestaure, setBrouillonRestaure] = useState(false);
+
+  // Une saisie vaut-elle d'être conservée ? On ne regarde QUE les champs écrits par la personne.
+  // `bioTinder` et `ouvertSalariat` sont pré-remplis depuis le profil : les compter ferait
+  // enregistrer un brouillon — et annoncer une reprise — à quelqu'un qui n'a rien tapé.
+  const saisieNonVide =
+    form.title.trim() !== "" || form.rawText.trim() !== "" || form.description.trim() !== "" ||
+    form.zones.length > 0 || form.specialties.length > 0 ||
+    form.startDate !== "" || form.endDate !== "" || form.minMonths !== "";
+
+  useEffect(() => {
+    if (!brouillonActif) return;
+    const b = lireBrouillon<{ form: typeof form; postKind: typeof postKind }>(CLE_BROUILLON);
+    if (!b?.form) return;
+    brouillonRepris.current = true;
+    setForm((prev) => ({
+      ...prev,
+      ...b.form,
+      // L'URL GAGNE SUR LE BROUILLON. On arrive ici depuis le menu rapide de la timeline avec des
+      // dates déjà choisies (?startDate/?endDate) : c'est une intention formulée à l'instant, plus
+      // récente que le brouillon, et la lui faire écraser rouvrirait le créneau qu'on vient de
+      // désigner à l'écran.
+      startDate: searchParams.get("startDate") ?? b.form.startDate,
+      endDate: searchParams.get("endDate") ?? b.form.endDate,
+    }));
+    if (!typeInitial && b.postKind) setPostKind(b.postKind);
+    setBrouillonRestaure(true);
+    // Le brouillon RESTE en mémoire : l'effacer ici perdrait la saisie de quelqu'un qui rouvre
+    // l'écran puis ressort sans rien toucher. Il ne part qu'à la publication ou sur demande.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- une seule reprise, à l'ouverture
+
+  useEffect(() => {
+    if (!brouillonActif) return;
+    if (!saisieNonVide) return;
+    ecrireBrouillon(CLE_BROUILLON, { form, postKind });
+  }, [form, postKind, brouillonActif, saisieNonVide]);
+
+  /** Repart d'un formulaire vierge. Appelé depuis le bandeau de reprise — la personne qui revient
+   *  publier autre chose ne doit pas avoir à vider quinze champs à la main. */
+  function oublierBrouillon() {
+    effacerBrouillon(CLE_BROUILLON);
+    brouillonRepris.current = false;
+    setBrouillonRestaure(false);
+    setForm((prev) => ({
+      ...prev,
+      title: "", description: "", bioTinder: "", rawText: "",
+      zones: [], specialties: [], minMonths: "",
+      startDate: searchParams.get("startDate") ?? "",
+      endDate: searchParams.get("endDate") ?? "",
+    }));
+  }
+
   // Un profil ASSISTANT couvre assistant ET collaborateur (même statut, seule diff = patientèle
   // propre au niveau du contrat). On le laisse donc choisir son type de poste recherché.
 
@@ -271,6 +350,10 @@ export default function CreateDisponibilitePage() {
     // à chaud. Le candidat repartait jusqu'ici vers le feed sans un mot — sa recherche est
     // pourtant publique et partageable exactement de la même façon.
     const created = await res.json().catch(() => null);
+    // Publié : le brouillon a fait son office. Le garder reproposerait la saisie d'une annonce
+    // déjà en ligne à la prochaine publication, et on en créerait le doublon sans s'en rendre
+    // compte. Effacé APRÈS la réponse favorable, jamais avant : un échec doit laisser la reprise.
+    effacerBrouillon(CLE_BROUILLON);
     const publishedId = created?.id ? String(created.id) : "";
     router.push(`/annonces?published=1&pid=${encodeURIComponent(publishedId)}&pt=${encodeURIComponent(form.title)}`);
   }
@@ -502,6 +585,28 @@ export default function CreateDisponibilitePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+
+        {/* ── Reprise d'un brouillon (section 252) ────────────────────────────────────────
+            La reprise est ANNONCÉE, jamais silencieuse : retrouver un formulaire déjà rempli
+            sans explication laisse croire à une annonce déjà publiée. Et elle est réversible
+            d'un clic — quelqu'un qui revient pour chercher autre chose ne doit pas vider quinze
+            champs à la main. Même parti pris que « Reprendre un texte précédent » (section 243) :
+            on agit, puis on offre le retour en arrière, plutôt que de poser une question. ── */}
+        {brouillonRestaure && (
+          <div className="flex items-start gap-3 rounded-xl border border-kine-200 bg-kine-50 px-4 py-3">
+            <span aria-hidden="true" className="text-base leading-5">✓</span>
+            <p className="flex-1 text-sm text-kine-900">
+              Votre saisie précédente a été reprise — elle n’est pas encore publiée.{" "}
+              <button
+                type="button"
+                onClick={oublierBrouillon}
+                className="underline underline-offset-2 font-medium hover:text-kine-700"
+              >
+                Repartir d’un formulaire vide
+              </button>
+            </p>
+          </div>
+        )}
 
         {/* ── Ce qui change quand on cherche un poste long terme ──────────────────────────
             Le bandeau de suggestion (section 191) amène ici des remplaçants qui n'ont jamais
@@ -1050,7 +1155,11 @@ export default function CreateDisponibilitePage() {
             href="/annonces"
             className="flex-1 py-3 border border-gray-200 rounded-xl text-gray-500 text-center text-sm hover:bg-gray-50 transition"
           >
-            Plus tard
+            {/* Le dit AU MOMENT DE PARTIR, pas seulement au retour : c'est en cliquant qu'on se
+                demande si on perd sa saisie, et six des seize inscrits depuis le 03/09 sont
+                sortis par ici. Affiché seulement quand il y a effectivement quelque chose à
+                conserver — sinon l'écran promettrait de garder un formulaire vide. */}
+            Plus tard{brouillonActif && saisieNonVide ? " (saisie conservée)" : ""}
           </Link>
           <button
             type={canSubmit ? "submit" : "button"}
