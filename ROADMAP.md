@@ -667,9 +667,11 @@ ci-dessus, plus une référence de file d'attente.
   28/06 sans saisie humaine — "conservées, pas maintenues").
   **4ᵉ occurrence du défaut de barre de tête corrigée** :
   `CompteForm.tsx:169` (`handleDeleteAccount`), même correctif que
-  les autres occurrences (rechargement dur). Prompt envoyé le 20/08,
-  demande aussi une recherche systématique d'autres occurrences du
-  même motif plutôt qu'un correctif isolé. Rapport pas encore reçu.
+  les autres occurrences (rechargement dur). Prompt initial du
+  20/08, demandait aussi une recherche systématique d'autres
+  occurrences du même motif plutôt qu'un correctif isolé. **Statut
+  d'envoi incertain, renvoyé le 09/09 par précaution.** Rapport pas
+  encore reçu.
 
 - **Pages persona filtrées par audience : livré et vérifié en
   production (`f8d75fc..320cbec`).** Discriminant réel :
@@ -851,15 +853,901 @@ ci-dessus, plus une référence de file d'attente.
   ne peut pas basculer quelqu'un d'autre par cette route — geste
   d'administration explicite ailleurs, cohérent avec la discipline
   posée pour Marion le 21/08.
-  **Réserve assumée, décision de Jean-Charles (01/09) : pas de
-  vérification écran pour l'instant** — build/typage jugés
-  suffisants. Opus avait noté lui-même que ses deux vérifications
-  écran de la semaine avaient chacune trouvé quelque chose (CDI kiné,
-  image de partage) — argument tenu, mais décision de Jean-Charles
-  de ne pas vérifier cette fois.
+  **Réserve levée finalement — vérification écran faite (01/09,
+  `5c14475`), et le pattern se confirme une 3ᵉ fois.** Deux défauts
+  trouvés, dont un sérieux.
+  **Défaut sérieux, réapparition du bug que le fix de la veille
+  devait empêcher, pour une raison différente** : base passée en
+  TITULAIRE, session restée ASSISTANT — `/planning` renvoyait vers
+  `/annonces`, ancien badge affiché. Cause : `update()` sans
+  argument côté `next-auth/react` ne fait qu'un GET ; seul
+  `update({})` avec données envoie le POST qui déclenche
+  `trigger: "update"`. L'appel d'Opus retombait silencieusement sur
+  la fenêtre de 5 minutes et relisait un jeton périmé. Corrigé en
+  `update({})`.
+  **Leçon retenue, la plus importante de ce fix** : route serveur
+  correcte (prouvée par POST manuel), typage client correct, build
+  vert — le bug "n'existait qu'entre les deux", dans la colle
+  d'intégration, invisible à toute vérification qui teste les pièces
+  séparément.
+  **Défaut mineur** : message de blocage légèrement redondant,
+  corrigé.
+  **Ce qui marchait déjà, confirmé à l'écran** : blocage correct
+  (409 affiché, bouton désactivé), chemin nominal correct (labels
+  qui s'inversent par camp, avertissement sous-catégorie ASSISTANT
+  "que je n'avais jamais vu ailleurs qu'en théorie").
+  **Nettoyage transparent** : tentative d'appel depuis la console
+  navigateur bloquée par une protection de sécurité — restauré via
+  Prisma comme d'habitude, avec mention explicite que ça pourrait
+  apparaître dans les journaux plutôt que caché.
+  **Pattern confirmé 3 fois cette semaine** (CDI kiné, image de
+  partage, ce fix) : toute vérification écran a trouvé quelque
+  chose. Vaut la peine d'en faire une règle — toute fonctionnalité
+  touchant session/authentification mérite une vérification écran
+  avant d'être considérée close.
 
 ## 🔴 Prêts, en file, pas encore envoyées
 
+🚨. **Lien de partage figé sur WhatsApp — livré (13/09, `00da776`).**
+   Build vert.
+   **Diagnostic confirmé, pas un bug Soignect** : vérifié à trois
+   niveaux (donnée servie, en-têtes de cache serveur/CDN, image OG
+   elle-même) — tout à jour côté Soignect. WhatsApp garde l'aperçu
+   scrapé au premier partage et ne revisite jamais le lien.
+   **Solution** : lien porte désormais `?maj=<updatedAt>` — stable
+   tant que l'annonce ne change pas (les partages s'accumulent sous
+   un même aperçu), nouveau après modification (URL neuve, donc
+   rescannée). Repli sur lien nu si `updatedAt` invalide, jamais
+   `?maj=NaN`. Liens déjà partagés confirmés fonctionnels (testé sans
+   paramètre, avec ancien maj, avec maj fantaisiste — HTTP 200,
+   même og:title pour les trois).
+   **`updatedAt` rendu obligatoire dans le type, pas optionnel** —
+   le compilateur a immédiatement signalé 5 types et 4 requêtes où
+   le champ manquait, des trous qu'une relecture n'aurait jamais
+   trouvés. Même discipline que `periode.ts`/`IDENTITY_SELECT` cette
+   semaine : la garantie vit dans le typage, pas dans la vigilance
+   humaine.
+   **Bonne retenue sur `og:url`** : délibérément non touché —
+   Facebook suit cette URL canonique pour son propre cache ; la
+   rendre variable casserait le travail déjà fait (section 158,
+   URL stable) en comptant trois variantes du même lien comme trois
+   pages distinctes. Pour Facebook spécifiquement, passer par le
+   Sharing Debugger de Meta plutôt que de re-designer l'URL.
+   `/annonce/${id}` consolidé depuis 8 constructions manuelles vers
+   un helper unique au passage.
+   **Détail écarté correctement** : l'annonce du signalement initial
+   était devenue introuvable pendant la vérification — Jean-Charles
+   l'avait lui-même passée en CONFIRME le matin même (comportement
+   voulu, sans rapport), vérification reprise sur une autre annonce.
+   **Décision de Jean-Charles (13/09)** : vérifier le déploiement des
+   trois commits en attente (`537906f` annonces périmées, `00da776`
+   ce correctif, `587ed42` déjà en ligne à reconfirmer). Rapport pas
+   encore reçu.
+
+🚨. **Annuler un contrat en attente de signature, pour le corriger
+   et le renvoyer — livré (12/09, `587ed42`), déployé et vérifié.**
+   Cas réel débloqué (contrat Pauline Bouyrie, mauvaises dates, déjà
+   signé d'un côté).
+   **Distinction bien pensée entre signé d'un côté et signé des deux**
+   : la seconde signature déclenche la facturation réelle (bascule
+   payant, usage Stripe) — annulation refusée à ce stade (409),
+   renvoie vers un avenant plutôt que de prétendre tout défaire
+   pareil.
+   **Match.status jamais touché** : la relation reste intacte, seul
+   le contrat repart à zéro — confondre les deux aurait cassé une
+   vraie mise en relation pour corriger une date.
+   **Les deux signatures effacées, pas seulement celle de Jean-
+   Charles** : laisser celle de Pauline sur des termes qui vont
+   changer reviendrait à lui faire signer autre chose sans le savoir.
+   Notification + email explicites : "ne signez pas la version
+   précédente."
+   **Bon détail ajouté** : le PDF régénéré porte désormais la période
+   dans son nom de fichier — évite la confusion avec un ancien
+   brouillon.
+   **Défaut attrapé en passant** : texte d'aide affichait `n\'est`
+   (échappement Python recopié tel quel dans du JSX) — corrigé,
+   revérifié à l'écran.
+   **Déploiement vérifié avec prudence** : sondé sans session
+   (401 confirme la route déployée et la garde active, sans risquer
+   de déclencher l'annulation réelle) ; écran vérifié ensuite sans
+   cliquer sur le bouton — "c'est ta décision, pas la mienne."
+   **Deux suites** : texte d'envoi aux deux cabinets aux annonces
+   périmées (Cabinet la Palmeraie, CABINET DE KINÉSITHÉRAPIE DE
+   DAUBIN) préparé et transmis pour envoi, rapport pas encore reçu.
+   Et l'encart "Période écoulée" ne couvrait pas les annonces de
+   Jean-Charles lui-même (attachées à un poste, cas différent de
+   celui prévu) — défaut assumé du correctif de la veille, décision
+   du 12/09 de le corriger maintenant, envoyé.
+
+🚨. **La bande de Marion sur le Planning ouvre une annonce non
+   rattachée à un poste** — signalé le 09/09, précisé deux fois.
+   Reproduction exacte : sur le Planning de Jean-Charles, la bande
+   "Marion" n'affiche aucun texte d'annonce (contrairement à Léa/JP
+   qui affichent bien le contenu de la leur — capture à l'appui) ;
+   cliquer sur cette bande ouvre une annonce qui n'est pas rattachée
+   à un poste. Historique connu (correction manuelle du type de
+   profil le 21/08, filtrage swipe par camp depuis section 226).
+   Prompt d'investigation prêt, lecture seule d'abord. Pas encore
+   envoyé.
+
+🚨. **Régression possible : dates corrigées à l'écran non reprises
+   dans le PDF** — signalé le 09/09 par Jean-Charles, PDF joint
+   comme preuve (dates 01/10→31/12, celles de l'annonce initiale,
+   pas la correction saisie). Potentielle régression sur le lot 1
+   (section 237) vérifié en détail le 08/09 — à prendre au sérieux.
+   Envoyé le 09/09. Rapport pas encore reçu.
+
+⚠️. **En-tête et barre "Envoyer un contrat" fixes pendant le
+   défilement du chat** — demande du 08/09, capture à l'appui.
+   L'identité de l'interlocuteur et l'accès au contrat disparaissent
+   actuellement en scrollant dans une longue conversation. Prompt
+   prêt, pas encore envoyé.
+
+🚨. **Signature enregistrée réutilisable — livrée (08/09, `bf991f2`).**
+   Build vert, migration appliquée, parcours vérifié de bout en bout.
+   Déploiement en cours de vérification.
+   **Décision d'architecture centrale : copier, jamais référencer.**
+   Un contrat signé pointe vers SON PROPRE fichier, jamais vers celui
+   du profil — sinon refaire sa signature plus tard changerait
+   rétroactivement l'image apposée sur un contrat déjà signé, en
+   silence. "Un contrat signé est figé." Vérifié concrètement : 3
+   fichiers distincts en stockage (profil + un par contrat), retrait
+   de la signature de profil laisse les contrats déjà signés
+   intacts.
+   **Stockage privé nécessaire** : `photoUrl` existant vit dans le
+   bucket public "avatars" (sert le feed) — y ranger une signature
+   l'aurait rendue téléchargeable par URL. Nouveau champ
+   `Profile.signatureUrl`, bucket privé dédié.
+   **Consentement bien pensé** : case décochée par défaut, demandée
+   AVANT le geste ("on ne demande pas après coup l'autorisation de
+   garder ce qu'on a déjà gardé"). Route de retrait séparée de celle
+   du contrat (deux gestes de portées différentes). Suppression de
+   compte efface aussi le fichier — "promettre de garder sans
+   promettre de détruire ne serait pas un consentement."
+   **🐛 Deux failles préexistantes trouvées et corrigées dans la
+   foulée (décision de Jean-Charles, 08/09)** : ni les avatars ni
+   les signatures de match n'étaient nettoyés à la suppression d'un
+   compte, avant ce chantier. Traité initialement seulement pour le
+   cas introduit (signature de profil), les deux autres notés
+   ouverts — puis Jean-Charles a demandé de les corriger aussi.
+   Rapport pas encore reçu.
+
+🚨. **Affichage liste trié par affinité, en plus du swipe — conception
+   reçue (08/09), décision prise directement avec Opus.**
+   **Prémisse corrigée avant conception** : le score d'affinité
+   n'existe QUE pour les annonces déjà swipées à droite
+   (`computeAffinityScore` appelé uniquement dans
+   `api/swipe/route.ts`, sur `direction === RIGHT`). "Vos choix"
+   trie des gestes déjà posés, pas un classement pré-décision — un
+   score pour du contenu jamais vu n'existe nulle part aujourd'hui.
+   **Deux obstacles non cosmétiques trouvés** :
+   - Coût DeepSeek : composante "bio" jusqu'à 55/100 pts, quota
+     200 appels/jour/utilisateur. 20 lignes affichées = 20 appels
+     pour un seul chargement — quota épuisable en 10
+     rafraîchissements, après quoi **le score retombe à un neutre
+     silencieux sans aucun signal à l'écran**. Même famille de
+     risque que tout ce qui a été fermé sur les contrats cette
+     semaine.
+   - Ambiguïté de comparaison : le score dépend de QUELLE annonce de
+     l'utilisateur sert de référence — un incident déjà documenté
+     dans le code montre un repli arbitraire ayant comparé "un
+     couple qui n'existait pas" (25/25 vs 6/25 selon le sens).
+   **Décision architecturale préexistante trouvée et respectée, pas
+   écrasée** : la désirabilité (abonnement, priorité territoriale)
+   est délibérément exclue du score de compatibilité — documenté en
+   toutes lettres dans le code ("le statut d'abonnement n'est pas
+   une propriété de l'accord entre deux personnes"). Un tri par
+   affinité entrerait en conflit direct avec le classement
+   commercial actuel du feed. Signalé comme arbitrage produit,
+   Opus a refusé de trancher à la place de Jean-Charles.
+   **Recommandation de ne pas afficher le score brut**, appuyée sur
+   une justification déjà écrite dans `lib/compatibilite.ts`
+   ("un barème exposé invite à l'arbitrage et à la contestation") —
+   pas inventée sur le moment. Fonction de traduction en mentions
+   qualitatives déjà existante, à réutiliser.
+   **Trois options de coexistence présentées avec vrais compromis**
+   (A. sélecteur sur le même écran, B. écran séparé, C. liste comme
+   point d'entrée principal) — recommandation B pour la v1,
+   précisément parce que la question remplacement/coexistence n'est
+   pas encore tranchée : un écran séparé permet de mesurer l'usage
+   réel avant de s'engager davantage.
+   **Décision de Jean-Charles (08/09, directement avec Opus)** :
+   **B** (écran séparé `/annonces/liste`), **score sans DeepSeek**
+   pour la liste (dates+géo seulement, bio neutre — accepte que
+   l'ordre diffère de "Vos choix" après swipe).
+   **Mesure avant conception, pas supposition** : compté les
+   annonces réelles — sur 11 annonces long terme (assistanat/
+   collaboration), **aucune n'a de dates** (formulaire les masque au
+   profit d'une durée minimale), donc 75% du barème devient constant
+   pour tout le monde sur ce type, seule la géographie discrimine
+   encore (4 valeurs). Sur les 21 remplacements (deux tiers du
+   stock), le classement reste fin. Conséquence explicitement
+   signalée avant tout codage : "un utilisateur cherchant un
+   assistanat verra une liste ordonnée presque uniquement par
+   distance."
+   **Ambiguïté de "désirabilité conservée" résolue, puis corrigée**
+   : Opus avait proposé par défaut affinité=tri principal/
+   désirabilité=départage des ex æquo (raison : préserve
+   l'engagement du 20/08 envers la CPTS Nord Basse-Terre). **Jean-
+   Charles a tranché pour l'autre lecture (08/09)** : désirabilité
+   reste le tri principal comme aujourd'hui, l'affinité est
+   affichée (mentions qualitatives par ligne) mais ne pilote pas
+   l'ordre. Correction transmise à Opus.
+   **Plan d'implémentation** : `GET /api/feed?vue=liste` (pas de
+   nouvelle route — mêmes filtres/exclusions/en-têtes, source unique
+   de vérité sur ce qu'est le feed) ; écran `/annonces/liste` avec
+   lien depuis le fil de swipe (sinon la liste n'existe pour
+   personne) ; ligne sans score chiffré (mentions qualitatives via
+   la fonction de traduction déjà existante, cohérent avec la
+   décision déjà actée "un barème exposé invite à l'arbitrage") ;
+   aucune action rapide en ligne, clic → fiche complète.
+   **Trois honnêtetés à écrire explicitement à l'écran** (sinon
+   reproduction directe des défauts fermés cette semaine) : la liste
+   exclut les annonces déjà swipées ; le classement ignore le profil,
+   ne repose que sur dates/géo/matériel ; l'absence de dates sur un
+   poste long terme doit être dite, pas dissimulée derrière une
+   apparence de finesse. Rapport d'implémentation pas encore reçu.
+
+⚪. **Reporté volontairement (06/09) : taux de rétrocession
+   infirmier (70% par défaut, usage réel 5-10% à quasi-total selon
+   l'Ordre — risque d'inverser le sens de l'argent) et préavis/
+   non-concurrence (valeurs plausibles jamais validées).** Faisait
+   partie de l'investigation "champs de contrat non exposés" du
+   06/09, retiré du périmètre immédiat parce que les gabarits
+   infirmier ne sont pas encore ouverts au public. À reprendre avant
+   l'ouverture Phase 2 infirmier, pas avant.
+
+🚨. **Contrat bloqué sur "Nom complet" — livré (06/09, `a8ac24b`).**
+   Build vert, arbre propre.
+   **La donnée existait, le champ pointé était juste mal chargé** :
+   le contrat vérifie `Profile.name` (le champ "Nom du cabinet"),
+   rempli chez les 36 profils. Cause réelle : la route de signature
+   avait sa propre requête `select` écrite à la main, qui avait
+   oublié `name` — jamais chargé, donc `undefined`, donc déclaré
+   manquant. Touchait TOUS les profils, pas certains, et le blocage
+   était sans issue (le message nommait un champ qui n'existait même
+   pas sous ce nom, déjà rempli de toute façon). Invisible jusqu'ici
+   parce que `enforceContractProfile` venait tout juste de passer à
+   `true`.
+   **Même famille de cause que `fmtDateUTC` dupliqué 7 fois** :
+   une liste de champs (`IDENTITY_SELECT`) existait déjà dans
+   `contrat-info`, mais la route de signature en avait une deuxième
+   copie manuscrite qui avait divergé. Consolidée en un seul endroit
+   (`lib/contractProfile.ts`), les deux routes la dérivent désormais.
+   Vérifié qu'aucune autre copie ne traîne.
+   **Correction proactive du libellé aussi** : "Nom complet" → "Nom"
+   — même avec la requête corrigée, un profil réellement sans nom
+   serait tombé dans le même piège de libellé trompeur.
+   **Vérification par démonstration, pas supposition** : le code
+   bogué a été temporairement rétabli pour observer l'échec exact
+   (422, "Nom" manquant), puis le correctif réappliqué pour observer
+   un échec différent au bon endroit (400, "aucun fichier reçu" — la
+   vérification d'identité passe). Lien de cause démontré, pas
+   déduit.
+   **Réserve honnête** : le contrôle d'identité est prouvé, pas la
+   suite (envoi de fichier, dépôt Supabase, passage en CONFIRME) —
+   seul Jean-Charles peut l'exercer en conditions réelles. Décision
+   du 06/09 : il va tenter une vraie signature avec Pauline Bouyrie,
+   et vérifier le déploiement Vercel. Rapports pas encore reçus.
+
+🚨. **Champs de contrat non exposés — investigation majeure du
+   06/09, périmètre élargi à tout traiter d'un coup.** Une simple
+   demande "rendre les dates modifiables" a révélé un problème
+   systémique bien plus grave.
+   **Fait 1, déjà un bug actif** : les dates divergent entre les
+   deux annonces sur **6 mises en relation sur 6**, résolues
+   silencieusement par un repli en cascade
+   (`missionTitulaire?.startDate ?? missionAutre?.startDate ?? null`),
+   invisible avant génération — le mot "date" n'apparaît nulle part
+   dans l'écran (619 lignes). Exemple concret : Jean-Charles ↔ Bisot,
+   deux ans d'écart entre les deux jeux de dates retenus.
+   **Fait 2, plus grave** : 19 valeurs chiffrées et 15 champs texte
+   partent dans le contrat sans jamais avoir été vus par personne.
+   Les 3 gabarits infirmier et le CDI kiné se génèrent avec
+   **rémunération à 0€, lieu de travail vide** — "un CDI à 0€ est un
+   document faux, pas juste incomplet."
+   **Fait 3, risque de conformité** : taux de rétrocession infirmier
+   par défaut à 70%, alors que l'usage réel observé par l'Ordre va de
+   5-10% à quasi-totalité selon le cas — un mauvais défaut pourrait
+   inverser le sens de l'argent.
+   **Fait 4** : préavis et non-concurrence, vrais objets de
+   négociation avec des valeurs plausibles mais jamais validées.
+   **Bonne recommandation d'architecture** : dates modifiables pour
+   le CONTRAT SEUL, pas la mission d'origine — écrire dans l'annonce
+   de l'autre partie reviendrait à modifier son annonce publique
+   depuis un autre écran ; les dates de mission pilotent aussi le
+   score de compatibilité et les bandes du Planning, les toucher
+   aurait des effets de bord réels. La divergence annonce/contrat
+   existe déjà 6 fois sur 6 — la rendre visible sur cet écran
+   l'atténue, la propager aux annonces créerait un second problème.
+   **Décision revue à la baisse (06/09)** : périmètre initial "tout
+   d'un coup" reconsidéré après question directe de Jean-Charles —
+   ramené à dates + rémunération/lieu de travail seulement. Taux de
+   rétrocession infirmier et préavis/non-concurrence reportés
+   explicitement : les gabarits infirmier ne sont pas encore ouverts
+   au public (Phase 2 pas lancée), pas d'urgence pratique tant que
+   personne ne les utilise — pendant que la fenêtre CPTS d'octobre se
+   resserre.
+   **Conception reçue et validée** : 5 groupes dépliables plutôt
+   qu'un formulaire plat de 34 lignes — reformulation clé : les
+   champs ne coexistent jamais (8 à 16 selon le gabarit), donc le
+   problème n'est pas "ranger 34 champs" mais "afficher le bon
+   sous-ensemble". Groupe qui s'ouvre automatiquement si valeur
+   douteuse (rémunération à 0/lieu vide), en-tête replié qui résume
+   ses valeurs (rien ne part sans avoir été montré, même replié).
+   Défauts supprimés : `remunerationBrutMensuelle` (0€ n'est pas une
+   valeur plausible, champ rendu obligatoire) et les taux de
+   rétrocession infirmier (70% pouvait inverser le sens de l'argent,
+   mieux vaut exiger que deviner).
+   **Lots 1 et 2 livrés (06/09, `7101f61` puis `ca8d024`).**
+   **Lot 1 — dates** : règle de repli consolidée dans
+   `src/lib/contrats/periode.ts` (était dupliquée 7 fois). Vérifié
+   par extraction de texte sur de vrais PDF, cas par cas : sans
+   paramètre (défaut correct), dates saisies (correct), dates
+   effacées ("[date à compléter]"), **31 février testé explicitement
+   → pas de décalage silencieux au 3 mars** (bon réflexe de cas
+   limite), fin avant début → 422. Même vérification faite sur la
+   branche salariée qui avait sa propre dérivation séparée.
+   **Lot 2 — rémunération** : le défaut à 0 imprimait littéralement
+   "une rémunération mensuelle brute de 0 euros" dans le PDF réel —
+   constaté avant correction, pas supposé. Deux bugs liés trouvés et
+   corrigés dans le même lot : un temps partiel sans répartition
+   horaire imprimait une clause vide (refusé, citant l'art.
+   L.3123-6) ; un CDI affichait 6 réglages que son gabarit ne lit
+   jamais (rétrocession, redevance, paiement, locaux, case essai) —
+   manipulables sans aucun effet, retirés. Non-régression libérale
+   confirmée (PDF identique).
+   **🐛 3ᵉ occurrence de la même famille de défaut, livrée (06/09,
+   `a9d0ba4`) — bien plus large que le cas signalé.** En cherchant
+   la source unique, le vrai problème n'était pas le calcul du type
+   mais l'attribution titulaire/candidat elle-même : l'ordre
+   profileA/profileB vient de qui a été enregistré en premier, ne dit
+   rien du rôle. **4 mises en relation sur 6 avaient un écran qui ne
+   correspondait pas au PDF généré**, pas seulement le cas initial.
+   Une seule correction (`lib/contrats/cotes.ts`,
+   `cotesDuMatch()`/`typeDeMissionDuContrat()`) a aligné d'un coup la
+   période, le lieu par défaut, le registre de gabarits, et le statut
+   salarié — tous dérivaient du même partage. Règle retenue :
+   l'annonce du titulaire prime, "aligner l'écran sur le document,
+   pas l'inverse". Effet de bord corrigé au passage : un écran
+   titrait "Collaboration libérale" au-dessus d'un vrai CDI salarié
+   (COLLABORATION désigne deux engagements opposés selon le camp).
+   Vérifié sur le cas réel (cmsvtatr) : les six concordent
+   maintenant, non-régression confirmée sur le remplacement libéral.
+   **Motif désormais tracé et numéroté** : "3ᵉ fois en deux semaines
+   qu'une règle recopiée diverge sur ce chemin" — `IDENTITY_SELECT`
+   (section 236), `fmtDateUTC` ×7 (section 237), ce partage (section
+   238). Les trois sont maintenant à source unique.
+   **Bonne limite tenue** : refus explicite de se connecter avec les
+   comptes de vrais tiers (Clinique l'Esperance, Julien Morisot) pour
+   vérifier l'écran salarié — la limite tient à la donnée, pas à
+   l'hébergement, n'a pas bougé même proposé depuis la production.
+   **Bon réflexe post-incident** : avant de commenter quoi que ce
+   soit sur soignect.fr, vérification préalable que le déploiement a
+   bien pris (lecture de la forme de réponse `contrat-info`) —
+   directement motivé par le piège déjà rencontré cette semaine
+   (poussé ≠ déployé, cron infra qui bloque les builds Hobby en
+   silence).
+   **Décision de Jean-Charles (06/09)** : autorise la création d'un
+   couple de test en production pour vérifier visuellement l'écran
+   salarié (CDI) — consentement explicite donné, nettoyage attendu
+   après vérification.
+
+   **🎯 VÉRIFICATION À L'ÉCRAN CONCLUANTE (08/09)** — le catch le plus
+   important de tout ce chantier, trouvé uniquement par inspection
+   visuelle, ni par le typage, ni par le build, ni par la génération
+   PDF (5 cas testés, tous corrects).
+   **Le bug** : après avoir saisi une date à la main puis effacé le
+   champ, la mention "d'après votre annonce" ne disparaissait
+   jamais — elle continuait d'affirmer une provenance sous une
+   valeur qu'aucune annonce ne portait. Cause : la condition ne
+   regardait que `divergent` (état figé au chargement), jamais la
+   valeur courante du champ. Dans les mots d'Opus : *"Le PDF était
+   juste dans les cinq cas testés, le build passait, les types
+   aussi — et l'écran affirmait quand même quelque chose de faux."*
+   Exactement le défaut que cette section visait à fermer, reformé
+   dans le correctif lui-même. Corrigé et poussé (`05d48a8`) : la
+   mention ne s'affiche plus que tant que le champ porte encore la
+   valeur reprise, s'efface à la première frappe.
+   **Discipline de déploiement stricte, prod vs local distingués** :
+   confirmé AVANT tout commentaire que `contrat-info` répondait avec
+   le code du jour sur soignect.fr (periode/jeSuisTitulaire/
+   defautsSalarie présents). Puis, après le nouveau correctif
+   05d48a8, explicitement noté que CE correctif-là n'était pas
+   encore déployé — ce qui venait d'être vérifié tournait en local,
+   pas en production. Pas de confusion entre les deux.
+   **Vérifié en production (lot 1, cmto8a96, compte de Jean-
+   Charles)** : bloc période pré-rempli, bandeau de divergence
+   nommant les deux annonces, champs modifiables, avertissement
+   correct, clauses libérales intactes, aucune signature donc aucun
+   email déclenché pendant le test.
+   **Vérifié en local via couple de test (lot 2, écran salarié)**,
+   avec une discipline de création exemplaire :
+   - Créé **directement en base, jamais via les routes** —
+     spécifiquement pour n'déclencher ni email ni publication
+     Facebook automatique (lien direct avec les fonctionnalités
+     livrées plus tôt cette semaine).
+   - Annonces `isActive: false` — ne pouvaient jamais apparaître
+     dans le fil d'un vrai utilisateur.
+   - **Hash de mot de passe volontairement invalide**, même sur un
+     compte jetable — aucun mot de passe réel créé ni manipulé,
+     règle tenue jusqu'au bout.
+   - Titre "Contrat à durée indéterminée" confirmé (le correctif 238
+     tient — avant, ce cas précis affichait "Assistanat libéral" puis
+     "aucun modèle n'existe"), bloc rémunération complet, les 6
+     leviers dormants bien absents, bouton grisé avec motif exact.
+   - **Suppression avec garde-fou qui a réellement fonctionné** : un
+     premier essai a échoué sur son propre contrôle préalable — donc
+     rien n'a été effacé — corrigé puis retenté avec succès,
+     compteurs vérifiés avant/après (retour exact à zéro).
+   **Reste** : confirmation du déploiement de `05d48a8` en
+   production — Opus surveille et préviendra Jean-Charles.
+
+   **⚠️ Déviation du plan de report (08/09)** : Jean-Charles a
+   relancé les lots 3 et 4 directement avec Opus, malgré la décision
+   antérieure de les reporter jusqu'à l'ouverture Phase 2 infirmier.
+   Décision changée, notée pour que le suivi reste fidèle.
+
+   **Lot 3 — taux infirmier, livré (08/09, `64e448c`).**
+   **Auto-correction honnête d'Opus** : à la conception, avait
+   affirmé que le défaut 70% sur `reversementDirectPct` "inversait
+   le sens de l'argent" — faux, corrigé explicitement. Dans le
+   modèle "avec autorisation", c'est le remplacé qui reverse au
+   remplaçant, 70% y est plausible. Confusion entre deux champs de
+   sens opposés, admise clairement.
+   **La vraie fuite, plus grave que prévu** : l'écran transmettait
+   `redevancePct` systématiquement, **même quand son curseur était
+   masqué**. Un remplacement libéral cache la redevance mais
+   envoyait quand même sa valeur par défaut (40%) — le gabarit
+   infirmier "entre confrères" lit ce même paramètre, produisant une
+   redevance de 40% jamais vue ni choisie, là où l'Ordre observe
+   5-10% et qualifie tout excès de partage d'honoraires interdit
+   (R.4312-30). Risque de conformité réel sur un document destiné à
+   signature.
+   **Règle architecturale réciproque établie** : le lot 2 posait
+   "aucun défaut n'atteint le PDF sans avoir été montré" ; ce lot
+   pose l'inverse — "un paramètre n'est transmis que si son contrôle
+   est à l'écran". Conditions d'affichage devenues des variables
+   nommées, lues à la fois par le JSX et par `buildUrl` — ferme toute
+   une classe de fuites, pas seulement ce cas précis.
+   **Test décisif** : rejoué l'ancien envoi bogué (redevancePct=40
+   sans redevanceCabinetPct) contre le nouveau code → PDF imprime
+   désormais 5% (valeur sûre), pas 40%. Fuite fermée des deux côtés.
+   **Vérifié par couple de test infirmier dédié** (créé en base
+   directe, `isActive: false`, `passwordHash` invalide — même
+   discipline que le couple salarié), les trois gabarits ouverts à
+   l'écran, avertissement R.4312-30 confirmé apparaître à 14%.
+   Supprimé après vérification, compteurs revenus à zéro.
+   **🐛 Deux nouvelles affirmations fausses trouvées, hors périmètre
+   du lot** : l'écran de contrat infirmier affiche du texte codé en
+   dur pour les KINÉSITHÉRAPEUTES — l'article R.4321-130 (durée de
+   non-concurrence) et "l'Ordre des masseurs-kinésithérapeutes" en
+   mention légale — sur un document qui relève du CNOI. Pas des
+   leviers dormants, des énoncés faux. Dans les mots d'Opus :
+   "exactement la famille de défauts que cette section ferme depuis
+   ce matin." Décision de Jean-Charles (08/09) : corriger maintenant,
+   puis lancer le lot 4. Rapport pas encore reçu.
+
+⚠️. **Clause CGU/confidentialité sur la diffusion Facebook** —
+   décidé le 06/09, suite à la publication automatique sur la Page
+   Facebook Soignect (section 234). Opus avait signalé l'absence de
+   toute mention avant de livrer la fonctionnalité — la case à
+   cocher protège dans l'immédiat, la clause reste "le vrai
+   correctif de fond" selon ses propres mots. Prompt prêt, pas
+   encore envoyé.
+
+🚨. **Accès URPS Kiné Guadeloupe — livré en deux temps (05/09,
+   `48d1229` puis `d005d54`), le second corrigeant le premier.**
+   Build vert, arbre propre aux deux étapes.
+   **Version 1 (`48d1229`, retirée ensuite)** : rôle
+   `PARTENAIRE_TERRITORIAL` avec droit d'écriture sur la priorité
+   territoriale. Recensement préalable : ADMIN ouvre 13 écrans/20
+   routes (liste comptes, suppression, changement de rôle, envoi de
+   masse, barème brut des scores) — bien trop pour un partenaire
+   externe, intuition de Jean-Charles confirmée. Architecture : segment
+   `/territoire` séparé plutôt que d'assouplir la garde globale
+   `/admin` (qui aurait exposé tout futur écran admin par défaut) ;
+   écran réexporté depuis `/admin/priorites`, pas dupliqué, pour que
+   les deux formulaires ne divergent jamais. **Exposition signalée
+   avant l'ouverture de l'accès** : le partenaire aurait vu le nom de
+   la relation institutionnelle CPTS et ses dates de revue.
+   **Pivot demandé par Jean-Charles (05/09)** : "l'impression d'un
+   admin, sans aucun pouvoir de réglage, plus une remontée de
+   critères au vrai admin." Opus a reconnu explicitement que ça
+   changeait la conception livrée et a **retiré le droit d'écriture
+   avant de reconstruire**, plutôt que de rafistoler.
+   **Version 2 (`d005d54`), livrée** :
+   - Écran 100% lecture seule, 4 indicateurs agrégés (postes ouverts,
+     praticiens disponibles, mises en relation sur 90 jours, communes
+     priorisées) + répartition par zone + liste des communes déjà
+     priorisées.
+   - **Confidentialité posée dans la couche de données, pas
+     l'écran** : `statsTerritoire.ts` ne renvoie QUE des agrégats —
+     "pas une précaution d'affichage qu'un futur écran pourrait
+     contourner." Regroupement par ZONE et non par commune,
+     explicitement pour éviter qu'une commune à une seule annonce ne
+     redevienne nominative pour qui connaît le terrain — vraie
+     compréhension du risque de ré-identification par petite
+     cellule, pas une agrégation de façade.
+   - **Exposition CPTS refermée structurellement** : `/api/admin/
+     priorites` reclos sur ADMIN seul y compris en lecture — le
+     partenaire ne choisit plus de client, donc plus rien à exposer.
+   - **Canal de remontée** : nouvelle table `DemandePriorite` (RLS
+     activée, convention du dépôt respectée), motif obligatoire,
+     **sans aucun effet sur le feed**. "Retenir" une demande
+     n'applique rien automatiquement — la vraie priorité reste un
+     geste séparé avec sa propre relation institutionnelle, pour ne
+     pas créer un levier sans client rattaché (cohérent avec la
+     règle de gating déjà posée le 19/08 dans STRATEGIE).
+   - **Désaccord poli sur l'"illusion" demandée** : l'écran a
+     l'allure d'un tableau de bord, mais dit explicitement ce qu'il
+     ne fait pas ("les réglages restent du ressort de l'équipe
+     Soignect", "cette demande ne modifie rien par elle-même") —
+     raison donnée : laisser croire à un réglage qui n'existe pas se
+     retournerait contre Jean-Charles le jour où le partenaire
+     chercherait le bouton. Wording ajustable si Jean-Charles préfère
+     un ton qui en dit moins.
+   **Vérifié aux deux niveaux, refus autant qu'accès** : routes
+   (priorités/arbitrage → 403 partenaire et USER ; ses propres
+   demandes → 200/201 partenaire, 403 USER) et écran (`/territoire` →
+   200, tout `/admin/*` → 307 ; HTML rendu : zéro occurrence du nom
+   CPTS, d'email, ou de nav admin).
+   **Reste à faire côté Jean-Charles** : créer le compte
+   `urps971@gmail.com`, lui attribuer le rôle depuis `/admin/users`
+   (sélecteur passé de deux à trois états), transmettre l'accès par
+   son propre canal — Opus ne touche pas aux mots de passe, règle
+   non contournée.
+   **Chantier distinct, largement répondu par cet écran mais pas
+   formellement clos** : le "compte rendu statistique trimestriel/
+   annuel" évoqué initialement par Jean-Charles — l'écran temps réel
+   couvre une bonne partie du besoin, reste à trancher si un envoi
+   automatique périodique (email) est encore souhaité en plus.
+
+🚨. **Publication automatique sur la Page Facebook Soignect —
+   livrée (06/09, `89a8077`), section 234.** Build vert, arbre
+   propre.
+   **Objection de fond soulevée avant de livrer, pas après** : Opus a
+   vérifié les CGU et la politique de confidentialité avant de coder
+   — rien n'y annonce de diffusion Facebook. A signalé explicitement
+   que publier automatiquement le nom/dates/secteur d'un candidat sur
+   une Page publique est un acte différent de publier sur une
+   plateforme entre professionnels connectés. Livré quand même, avec
+   un mécanisme de consentement plutôt qu'un choix unilatéral.
+   **Décision par camp** : cabinets → automatique (une offre publiée
+   est faite pour circuler, n'expose aucune disponibilité
+   personnelle) ; candidats → case à cocher explicite, cochée par
+   défaut mais visible et décochable. Raison de la case visible :
+   "le jour où quelqu'un découvrirait son nom sur Facebook sans
+   l'avoir voulu, tu ne pourrais rien lui répondre" — protège
+   directement la responsabilité de Jean-Charles, pas qu'un principe
+   abstrait. Décision de Jean-Charles (06/09) : ajouter la clause
+   CGU en plus, prompt en file ci-dessous.
+   **Bonne architecture** : aucune image envoyée, un simple lien —
+   Facebook récupère sa propre prévisualisation depuis l'annonce
+   (bloc openGraph déjà en place, section 158). Raison : joindre une
+   image créerait une deuxième source de vérité qui pourrait diverger
+   du vrai gabarit. Conséquence tracée jusqu'au bout : l'image
+   n'existe que pour isActive+RECHERCHE, donc seuls ces cas sont
+   postés (pas de "Congés" sans aperçu).
+   **Aucun chemin d'échec ne peut casser la publication Soignect
+   elle-même** : jeton absent, expiré (Graph 190), ou réseau
+   injoignable — tous gérés sans exception, fire-and-forget borné à
+   6s. Testés en simulant les 4 chemins (fetch intercepté).
+   **Bon réflexe de méthode** : tentative de vérifier la case via
+   curl a échoué (formulaire rendu côté client) — reconnu comme
+   limite de méthode, pas comme défaut produit, puis vérifié via
+   navigateur réel (case affichée, cochée par défaut, mention
+   explicite présente).
+   **Non vérifié** : aucun post réel n'est encore parti (jeton
+   n'existe qu'en environnement Vercel, tout testé en local par
+   simulation). Premier vrai test à la prochaine publication en
+   production — si la carte sort sans image, passer par le Sharing
+   Debugger de Meta pour forcer le scraper Facebook à revisiter la
+   page.
+   **Rappel** : jeton valable jusqu'en novembre — à renouveler avant
+   cette date, sinon arrêt silencieux des publications.
+
+🚨. **Modale de partage après publication (façon Linktree) — livrée
+   et déployée (05/09, `e34ba72`).** Réutilise le mécanisme "Partager
+   cette annonce" existant. Note Instagram gérée honnêtement : pas
+   d'URL de partage direct côté Instagram, deux branches selon le
+   navigateur ("Passez par Partager…" si partage natif disponible,
+   "Copiez le lien" sinon).
+   **Bon réflexe d'auto-diagnostic, 2ᵉ occurrence de la semaine** :
+   Opus a d'abord soupçonné son propre outillage de test ("l'instrument
+   trop lent") avant de conclure à un défaut produit — même discipline
+   que mardi (fire-and-forget/process.exit), maintenant confirmée
+   comme réflexe récurrent, pas un coup de chance isolé.
+   **Réserves honnêtement posées** : tout vérifié sur Chrome bureau
+   uniquement — jamais sur mobile, où se joue l'essentiel (Instagram
+   dans le sélecteur natif réel, WhatsApp ouvert dans l'app,
+   tenue de la modale en bottom sheet sur petit écran). La branche
+   "Copiez le lien" de la note Instagram jamais vue non plus (le
+   navigateur d'Opus supporte le partage natif, toujours vu l'autre
+   branche). Jean-Charles va tester depuis son téléphone
+   prochainement — rapport attendu.
+   **Note architecturale honnête, à garder pour plus tard** : le
+   correctif de suppression de compte cabinet (livré le même jour,
+   `227c2ad`) contourne le symptôme sans le régler à la source —
+   presque aucune relation vers `Profile` n'a de règle de suppression
+   déclarée dans le schéma, `CabinetPost` n'était que le cas visible.
+   Une révision du schéma fermerait le sujet pour de bon. Pas urgent.
+   Le propre compte de Jean-Charles reste non supprimable (deux
+   déclarations territoriales CPTS, `saisiParId` non nullable) —
+   connu, nommé, migration requise, pas traité.
+   **Suivi de la relance en cours** : 0 publication sur les 18
+   relancés, 20h après envoi — trop tôt pour conclure. Première
+   exécution réelle du cron `publication-reminders` ce matin (9h15) —
+   investigation lancée sur ce qu'il a fait, rapport pas encore reçu.
+
+⚠️. **Modale de confirmation avant de retirer un poste du Planning**
+   — demande du 04/09. Action destructrice sans garde-fou aujourd'hui.
+   Prompt prêt, lecture seule d'abord (vérifier ce que "retirer"
+   entraîne réellement en base, pour que le texte de la modale dise
+   la vérité). Pas encore envoyé.
+
+⚠️. **Repenser le bouton "Remplir les champs" en "Vérifier mes
+   entrées avant envoi"** — demande du 04/09 sur l'écran de
+   publication (façon Facebook, boutons Remplir/Corriger/Suggérer).
+   Le formulaire structuré ne devrait apparaître qu'au clic sur ce
+   bouton, montrant ce qui est rempli et ce qui manque, avec l'envoi
+   conditionné à la complétude. Prompt d'investigation prêt (lecture
+   seule d'abord, le fonctionnement exact actuel n'est pas documenté
+   ici) — implémentation à affiner une fois le rapport reçu. Pas
+   encore envoyé.
+
+🚨. **Suppression de compte cabinet impossible avec des postes de
+   planning** — trouvé le 04/09 en nettoyant après la campagne de
+   relance. `DELETE /api/profiles/[id]` échoue en 500 (P2003,
+   aucune cascade `CabinetPost`→`Profile`). Touche 5 comptes réels,
+   dont celui de Jean-Charles et le compte institutionnel CPTS Nord
+   Basse-Terre — sujet de conformité (droit à la suppression), pas
+   seulement d'ergonomie. Décision de Jean-Charles (04/09) : corriger
+   maintenant. Prompt prêt, distingue explicitement ce cas (le
+   propriétaire supprime SES données, un droit) du principe
+   "désactiver, ne rien supprimer" posé pour un cas voisin mais
+   différent (swipes visibles par d'autres). Pas encore envoyé.
+
+🚨. **Relance des inscrits sans publication — livrée en partie
+   (04/09, `0b9f040`), campagne ponctuelle exécutée avec succès.**
+   Build vert, arbre propre.
+   **Mécanisme à deux voies, un seul marqueur partagé** : cron
+   quotidien `publication-reminders` (9h15, inscrits >2 jours) pour
+   les futurs inscrits ; route admin `relance-publication` (tous
+   âges, simulation par défaut, envoi explicite via `?envoyer=1`)
+   pour le rattrapage. Le marqueur (TraceEvent) est partagé entre les
+   deux chemins — quelqu'un touché par l'un ne peut plus l'être par
+   l'autre, rendant la campagne rejouable sans risque de doublon.
+   Marqueur écrit même si l'email ne part pas (opt-out, adresse
+   invalide) — même règle que le cron existant, pour éviter de
+   retenter une adresse cassée indéfiniment.
+   **Diligence sur la définition de "sans publication"** : reprend
+   exactement la définition du feed plutôt que d'en recréer une
+   parallèle — vérifié sur deux cas limites (absence cabinet active
+   par défaut compte comme publication, à raison ; dates bloquées
+   candidat inactives, aucun écart possible).
+   **4ᵉ occurrence cette semaine du défaut de composition de
+   phrase** : "vous n'avez pas encore publié la recherche" —
+   fragment conçu pour un autre emplacement syntaxique, réutilisé à
+   tort. Corrigé par un possessif qui marche dans les deux cas. La
+   recherche systématique demandée le 03/09 n'a toujours pas produit
+   de liste — le sujet devient plus pressant avec 4 occurrences
+   trouvées au hasard.
+   **🚨 Piège évité de justesse, le catch le plus important de la
+   semaine** : lancer la campagne en local (sans `RESEND_API_KEY`)
+   aurait quand même écrit les 18 marqueurs de déduplication —
+   excluant silencieusement 18 personnes réelles de toute relance,
+   pour toujours, sans qu'aucun signal ne le révèle. Vu et évité
+   AVANT d'agir, pas découvert après coup. La campagne a tourné sur
+   la vraie route en production, depuis la session admin réelle.
+   **Exécution finale vérifiée** : 18/18 envoyés en 10,4s, 0 échec,
+   0 doublon ; campagne rejouée ensuite → 0 examinée, 0 envoyée,
+   confirmant que le cron de demain ne peut plus toucher personne de
+   cette liste.
+   **Nettoyage du compte cassé (`marmushfares`, 69 jours, adresse
+   sans @)** a révélé le bug de suppression de compte cabinet
+   documenté séparément ci-dessus. Compte supprimé proprement après
+   contournement manuel : 33→32, aucun résidu.
+   **Reste à observer** : le cron `publication-reminders` n'a jamais
+   tourné réellement — première exécution prévue demain 9h15,
+   simulée avec succès mais jamais exécutée en conditions réelles.
+   `vercel.json` porte maintenant 2 crons (limite du plan Hobby),
+   confirmé déployé sans blocage de build.
+
+🚨. **Boutons de période (Mois/Trimestre/Année/2 ans) inactifs sur
+   le Planning** — signalé le 04/09, capture à l'appui (mobile).
+   Cliquer ne change plus la fenêtre affichée — Jean-Charles ne peut
+   plus retrouver un remplacement prévu en décembre. Prompt prêt,
+   lecture seule d'abord (régression ou défaut ancien ?), puis fix
+   avec vérification écran sur mobile. Pas encore envoyé.
+
+⚠️. **Ligne de débogage visible sur l'écran "Mise en relation
+   confirmée"** — capture d'écran du 04/09. Sous les étiquettes
+   polies (Dates compatibles/Même secteur/Profils proches), une
+   ligne brute s'affiche : "Remplacement · dates 34 · géo 30 · bio
+   24 · log 0 · véh 0 · sec 0 · coord 0 · socle/100" — ressemble à un
+   dump de débogage des composantes du score. Prompt prêt, pas
+   encore envoyé.
+
+🚨. **Aucune vignette d'image lors du partage — WhatsApp Web ET
+   Facebook mobile, pas un cas isolé** — signalé le 04/09, confirmé
+   plus large par une seconde capture (composeur de partage Facebook
+   mobile, zone image totalement vide, groupe "Kinésithérapeutes de
+   Guadeloupe"). Touche directement au travail de la section 220
+   (image de partage). Le fait que ça touche deux plateformes
+   différentes (WhatsApp Web ET Facebook mobile) suggère un problème
+   plus général que le cache ou le comportement d'un client
+   particulier — probablement dans la génération ou la mise à
+   disposition de l'image elle-même. Prompt prêt, investigation
+   lecture seule d'abord — distinguer serveur vs cache client,
+   vérifier les exigences de poids/format, comparer les plateformes.
+   Priorité relevée vu l'ampleur confirmée. Pas encore envoyé.
+
+🚨. **Investigation majeure (03/09) : 74% des candidats ne publient
+   jamais de recherche, 0 mise en relation dans cette population —
+   Hippolyte JUE est le cas pur, pas une anomalie.** Lecture seule,
+   rien modifié pendant l'investigation elle-même. À garder comme
+   référence, pas juste comme item de file.
+   **Le chiffre central** : sur 19 candidats inscrits, 14 n'ont
+   jamais publié — ils ne sont jamais "partis", ils ne sont jamais
+   "entrés". Résultat : 0 mise en relation, jamais, pour cette
+   population.
+   **Chaîne causale mesurée** : (1) l'inscription atterrit sur le fil
+   de swipe, jamais sur "publiez votre recherche" ; (2) la pile de
+   cartes ne prévient de rien — `SwipeStack` ne connaît même pas
+   l'existence de `aPublieUneRecherche`, zéro occurrence ; (3)
+   l'avertissement honnête existe mais seulement dans la fiche
+   détaillée, qu'il faut penser à ouvrir ; (4) **le seul message qui
+   pourrait rattraper le coup dit l'inverse** — l'email de bienvenue
+   promet une visibilité ("Complétez votre profil pour être visible")
+   que le produit ne donne pas (le feed interroge les missions
+   actives, pas les profils) ; (5) aucune relance n'existe pour un
+   candidat qui n'a rien publié.
+   **Canal payant le plus touché** : direct 9 inscrits/4 publiés
+   (44%) contre gp-landing (Google Ads) 7 inscrits/**0 publié (0%)**.
+   Délai médian de publication : 10 minutes — ça se joue tout de
+   suite ou jamais. Échantillon trop petit pour trancher la cause
+   (intention plus faible vs parcours plus court), mais le signal est
+   déjà assez fort : de l'argent d'acquisition arrive sur la partie
+   du produit qui ne convertit jamais.
+   **Bug distinct trouvé en tirant le fil, lié à la section 222
+   livrée la veille** : Etienne Harzee (TITULAIRE) apparaît comme
+   "candidat intéressé" sur 5 annonces dont 3 de Jean-Charles — son
+   accroche affichée était en fait son offre de recrutement. Tracé
+   précisément : inscrit par erreur côté candidat via gp-landing,
+   5 swipes RIGHT dans la minute, correction de son type le 28/08.
+   **Ses swipes ont survécu au changement de camp** — le fix du
+   02/09 désactive les annonces au changement de type, ne touche pas
+   aux swipes. Sur 19 entrées dans les encarts "qui s'intéresse", 5
+   sont en réalité des cabinets, pas des candidats.
+   **Ce qu'Opus ne sait pas, dit explicitement** : pourquoi le direct
+   convertit mieux (échantillon trop petit) ; n'a pas vérifié à
+   l'écran ce que voit réellement un candidat fraîchement inscrit
+   (analyse par le code, pas par l'écran).
+   **Décision de Jean-Charles (03/09), scope élargi directement avec
+   Opus** : "corrige l'email de bienvenue et le parcours d'inscription
+   candidat" — au-delà du seul email initialement fixé, l'inscription
+   elle-même (atterrissage sur le fil plutôt que sur "publiez votre
+   recherche") est attaquée dans le même geste. Cohérent : l'email
+   seul n'aurait pas suffi à faire publier les 74% qui ne le font
+   jamais si le parcours d'inscription ne change pas aussi. Lancé,
+   rapport pas encore reçu.
+   **Restent à traiter, pas encore décidés** : la décision sur le
+   canal Google Ads (0% de conversion sur l'échantillon observé) ;
+   parcours d'inscription non vérifié à l'écran (Opus ne crée pas de
+   compte avec mot de passe de son propre chef) — Jean-Charles a
+   choisi de faire confiance au rapport par lecture plutôt que de
+   créer un compte test lui-même.
+
+🚨. **Swipes qui survivent au changement de camp — livré (03/09,
+   `dcef0e4`), section 226.** Build vert, arbre propre — déploiement
+   Vercel pas encore vérifié.
+   **Défaut double, pas simple — la moitié invisible trouvée en
+   corrigeant, pas signalée initialement** : côté cabinets, Etienne
+   listé "intéressé" avec son offre de recrutement en accroche (déjà
+   connu) ; côté Etienne lui-même, "Vos choix" lui montrait 5
+   annonces de cabinets indéfiniment "en attente", sans match
+   possible — invisible à quiconque sauf lui. Ampleur totale : 6
+   swipes sur 194 (3%), 2 profils (Etienne 5, Flora Milovanovic 1 —
+   nouveau cas trouvé au passage).
+   **Décision d'architecture centrale : filtre à la LECTURE, pas à
+   l'ÉCRITURE.** Supprimer au moment du basculement n'aurait réparé
+   que les bascules futures — Etienne a basculé le 28/08, avant que
+   la fonctionnalité existe, ses lignes seraient restées fausses.
+   Invariant `swipeExploitable(typeDuSwipeur, typeDuProprietaire)`
+   posé dans `lib/camp.ts`, appliqué à la lecture sur les deux
+   versants (`interesses` et `tray`) — vaut quelle que soit la façon
+   dont la donnée est arrivée, ne détruit rien, prolonge la décision
+   "désactiver, ne rien supprimer" du 02/09 plutôt que de la
+   contredire. Choix qui répare rétroactivement sans migration ni
+   purge.
+   **Vérifié sur données réelles et à l'écran** : "Vos choix"
+   d'Etienne 5→0 ; sur l'annonce réelle de Cabinet des ravines,
+   2 personnes (Hippolyte JUE, Etienne) → 1 personne (Hippolyte JUE
+   seul) — accord au singulier correct, bonne composition avec le
+   fix grammatical du même jour.
+   **Disclosure claire** : les 6 swipes restent en base, inertes à
+   l'affichage mais réactivables si la personne rebascule vers son
+   camp d'origine — effet voulu du choix de ne rien supprimer,
+   explicitement signalé plutôt que caché.
+
+🚨. **Email de bienvenue + parcours d'inscription candidat —
+   livrés (03/09, `812f915`).** Build vert, arbre propre.
+   **Mensonge symétrique corrigé des deux côtés**, au-delà de la
+   demande initiale (candidat seul) — laisser sciemment une moitié
+   fausse dans une fonction réécrite n'était pas défendable. Boutons
+   distincts par camp ("Publier ma recherche" / "Publier mon
+   annonce"), suivis du texte correct : "c'est la recherche qui vous
+   rend visible, pas le profil."
+   **Parcours candidat changé** : après inscription, atterrit sur
+   `/disponibilites/create` au lieu du fil de swipe — pas un passage
+   obligé (bouton "Annuler" présent), et `returnTo` garde la
+   priorité (quelqu'un venu depuis une annonce précise n'est pas
+   dérouté).
+   **Côté cabinet, délibérément pas touché** : même raisonnement
+   applicable (4/8 titulaires n'ont jamais publié non plus), mais
+   magnitude différente (50% de conversion contre 25%) et hors du
+   scope cadré initialement — laissé comme décision distincte.
+   **🐛 3ᵉ occurrence du même défaut cette semaine, trouvée
+   uniquement par le rendu réel** : "c'est la annonce qui vous rend
+   visible" — phrase composée par `la ${mot}`, correcte pour
+   "recherche", fausse pour "annonce". Corrigé par un champ dédié par
+   cas plutôt qu'un gabarit interpolé. Même défaut que "1 mise en
+   relation… finalisez-les" et "3 personnes s'est signalée" — jamais
+   vu par le typage ni le build, toujours seulement par le rendu.
+   **Décision de Jean-Charles (03/09) : lancer une recherche
+   systématique de ce motif dans tout le code** — prompt envoyé.
+   Lecture seule d'abord, liste complète avant toute correction en
+   masse.
+   **Parcours d'inscription finalement vérifié de bout en bout
+   (04/09)** — Jean-Charles a créé un vrai compte de test sur l'URL
+   exacte du tunnel Google Ads (`?profileType=REMPLACANT&src=gp-
+   landing`). Référence prise avant (33/31/194/24), un seul événement
+   après (SIGNUP). **Trois choses confirmées** : redirection vers
+   "Publier ma recherche" (le seul point jamais observé jusque-là) ;
+   `src=gp-landing` tracé de bout en bout, ce qui permettra de
+   mesurer si le correctif change le 0/7 observé ; aucun effet de
+   bord (zéro notification, zéro consultation) — confirme que le fix
+   du 02/09 (déclencheur swipe RIGHT) tient réellement en production,
+   plus de risque "Crevon John" pendant ce genre de test.
+   **Bon réflexe au nettoyage** : `TraceEvent.profileId` n'a aucune
+   relation en base — la trace aurait survécu à la suppression du
+   compte sans intervention explicite, faussant durablement la
+   mesure du tunnel Google Ads (0/7 → 0/8 fantôme). Supprimée aussi.
+   Compteurs revenus exactement à la référence après nettoyage.
+   **Coïncidence notée, pas ignorée** : l'adresse de test utilisée
+   était celle d'un compte à l'historique connu (session orpheline
+   trouvée mercredi) — Opus a attendu l'autorisation explicite de
+   Jean-Charles avant de le supprimer plutôt que d'agir seul.
+   **Email confirmé reçu par Jean-Charles** en plus du rendu réel
+   déjà vérifié par Opus (interception Resend, les deux camps) — la
+   chaîne complète est maintenant couverte par les deux angles.
+   **Limites honnêtement assumées, pas cachées** : la pile de cartes
+   (`SwipeStack`) ne prévient toujours pas si le propriétaire d'une
+   annonce n'a rien publié — l'avertissement honnête n'existe que
+   dans la fiche détaillée. Et **les 14 candidats déjà en base ne
+   sont pas rattrapés** par ce correctif, qui ne vaut que pour les
+   nouvelles inscriptions.
+   **Suite demandée (04/09) : ajouter l'avertissement sur la pile de
+   cartes elle-même** — lancé, investigation en cours, rapport pas
+   encore reçu.
+
+⚠️. **Texte de présentation de commune généré par DeepSeek, pas
+   Wikipedia** — prompt prêt le 02/09. Portée limitée volontairement
+   : communes premium/payantes OU défavorisées par l'indicateur APL
+   — pas toutes les communes. Réutilise le pattern d'appel DeepSeek
+   déjà en place (scoring d'affinité) plutôt qu'un deuxième
+   mécanisme. Pas encore envoyé.
+⚠️. **Suggestion de correction sur les adresses email mal
+   orthographiées** — prompt prêt le 02/09, né en creux de
+   l'investigation sur le problème de connexion de Jean-Charles.
+   **Bibliothèque identifiée (02/09)** : `@zootools/email-spell-checker`
+   — réécriture maintenue de mailcheck.js (abandonné depuis 7 ans),
+   1,8 Ko, zéro dépendance, TypeScript, même API que l'original.
+   Couvre déjà 39+ domaines/66+ extensions par défaut ; à
+   personnaliser avec orange.fr, wanadoo.fr, laposte.net, free.fr
+   pour le public guadeloupéen/français. Suggestion non-bloquante,
+   jamais de correction automatique silencieuse. Pas encore envoyé.
 🚨. **Planning : passage au vert sur simple mise en relation, pas
    sur poste confirmé** — prompt envoyé le 01/09. Capture d'écran
    confirmant qu'une bande passe en vert après un match ("Bisot"),
@@ -873,19 +1761,78 @@ ci-dessus, plus une référence de file d'attente.
    sans aucun contrat — un chemin crée donc un match pré-confirmé
    quelque part (piste : `cabinet-posts`). Recherche en cours de qui
    exactement. Rapport final pas encore reçu.
-⚠️. **Email "annonce consultée" — déclencheur à vérifier
-   (consultation passive ou intérêt exprimé ?)** — prompt prêt le
-   26/08, pas encore envoyé (Jean-Charles sans accès à Claude Code
-   au moment de la demande). Capture d'écran : email envoyé au
-   cabinet sur "un remplaçant vient de consulter votre annonce" —
-   à vérifier si le déclencheur est `CARD_CONSULTED` (simple vue) ou
-   un swipe "Intéressé" (geste actif). Principe clarifié en
-   discussion : le principe "pas de profils navigables" protège les
-   candidats non publiés d'être vus par les cabinets — il ne
-   s'applique pas dans l'autre sens (un candidat consultant une
-   annonce publiée par un cabinet est normal et prévu). La vraie
-   question reste le seuil de notification : consultation simple
-   vs intérêt actif.
+⚠️. **Email "annonce consultée" — investigation reçue (02/09),
+   confirmé : consultation passive, pas intérêt exprimé.** Décision
+   prise, correctif en cours.
+   **Point 1** : déclencheur confirmé = simple affichage de la carte
+   (garde `mission.profileId !== swiperId && !swipe`), décision
+   assumée et documentée (section 157, "Vue = consultation") — pas
+   une régression, mais contredit frontalement le principe posé
+   cette session (le consentement qui rend notifiable, c'est
+   "Intéressé").
+   **Chiffres qui tranchent le débat** : sur 235 événements, 86% des
+   emails concernaient quelqu'un non intéressé ou jamais prononcé
+   (182 suivis d'un geste quelconque, dont seulement 34 "Intéressé"
+   — 14% — et 53 jamais suivis d'aucun geste). Exemple concret :
+   André Machado a consulté 4 annonces en une minute, 4 emails
+   partis, 4 "Passer" ensuite.
+   **Point 3** : "Voir mon planning" est le REPLI, pas le cas
+   nominal — 6 consultations sur les 8 plus récentes tombent dans ce
+   repli (visiteur sans annonce active). Le libellé déjà corrigé
+   avant (section 205, phrase honnête sur l'annonce), mais le bouton
+   reste une impasse sur la consultation elle-même.
+   **Divulgation importante** : les vérifications d'écran d'Opus
+   cette semaine (`/annonces` ouvert pour vérifier autre chose) ont
+   généré 2 vraies notifications à un vrai utilisateur (Crevon John),
+   sans aucun geste délibéré — effet de bord réel de la discipline
+   de vérification écran construite cette session, à garder en tête
+   pour la suite.
+   **LIVRÉ ET VÉRIFIÉ (02/09).** Déclencheur déplacé dans la branche
+   RIGHT de `/api/swipe` — retiré de `GET /api/missions/[id]/card`
+   où il partait à la simple présentation de la carte. **Ne se
+   déclenche que si aucun match** : un swipe réciproque envoie déjà
+   "nouvelle mise en relation", qui dit strictement plus — éviter le
+   double envoi pour un seul geste. Email et notification mis à jour
+   ("vient de consulter" → "s'intéresse à"), avec le lien direct vers
+   l'annonce du visiteur s'il en a une, sinon message honnête plutôt
+   qu'un bouton sans issue (déjà établi section 205).
+   **Troisième endroit trouvé et corrigé, pas juste les deux
+   évidents** : le libellé du réglage dans `/compte` disait encore
+   "quand mon annonce est consultée" — mis à jour pour refléter le
+   nouveau sens ("quand quelqu'un s'intéresse à ma publication"), le
+   nom en base (`notifyConsultation`) inchangé mais son comportement
+   documenté comme ayant changé.
+   **Bon raisonnement structurel** : "le risque Crevon John disparaît
+   par construction — naviguer n'envoie plus rien." Testé quand même
+   avec une adresse invalide par prudence supplémentaire.
+   **Deux faux "c'est cassé" évités par autodiagnostic, avant de
+   conclure à un bug réel** : logs tronqués par son propre `tail -2`
+   (pas un échec réel) ; `process.exit()` de son propre script de
+   test coupant le travail fire-and-forget avant complétion (la
+   notification existait, pas eu le temps de s'écrire) — corrigé en
+   allongeant l'attente, confirmé à l'écran : "Un assistant
+   s'intéresse à votre annonce «\u00a0[TEST]...\u00a0»". Même discipline
+   que l'investigation CARPIMKO — vérifier que le défaut est réel
+   avant de le rapporter, y compris sur son propre outillage.
+   Build vert.
+   **Vérifié en production (03/09, `486915c`), tableau avant/pendant/
+   après** : ouverture de fiche → 0/0/0/aucun ; clic "Signaler mon
+   intérêt" → 1 INTERET_SIGNALE, 1 notification, swipe RIGHT.
+   L'ancien déclencheur confirmé mort en production. **Bonus
+   inattendu** : le bouton s'appelait "Signaler mon intérêt" plutôt
+   que "Intéressé" du fait d'une fonctionnalité distincte (section
+   206, visiteur sans recherche publiée) qui s'est appliquée sans
+   qu'Opus y touche — bon signe de composition entre les pièces du
+   produit. Nettoyage vérifié (0 ligne TEST restante), aucun email
+   réel possible (destinataire `.invalid`).
+   **Suite (03/09)** : le lien "Voir mon planning" (repli générique
+   sans rapport avec l'intérêt signalé, déjà noté par Jean-Charles
+   dès le signalement initial) toujours présent — Opus l'a revu sans
+   le corriger silencieusement, l'a reposé explicitement. Décision de
+   Jean-Charles : le corriger maintenant. Prompt envoyé — vérifier si
+   la liste "Qui s'intéresse à mon annonce" (12/08) peut servir de
+   meilleure destination, sinon retirer le CTA plutôt que pointer
+   vers un endroit sans rapport. Rapport pas encore reçu.
 ⚠️. **Annuler un "pass" sur une annonce, symétrique au retrait
    d'intérêt** — prompt envoyé le 26/08. Capture d'écran confirmant
    l'absence de ce bouton côté "passé" (seul "Fermer" proposé),
@@ -1529,17 +2476,23 @@ ci-dessus, plus une référence de file d'attente.
    match produit réellement tout ce qu'il doit (résidus visuels,
    mise à jour Planning, verrouillage des dates, disparition des
    annonces initiales — comportement voulu à clarifier avant tout
-   correctif). **Point précis ajouté** : confirmer qu'aucun cœur/
-   icône résiduel ne reste affiché sur l'écran vert de confirmation
-   de match. Pas urgent, audit de fond plutôt que correctif de démo.
+   correctif). **Point précis confirmé par capture le 04/09** : le
+   cœur vert entre les deux photos sur l'écran "Mise en relation
+   confirmée" — Jean-Charles veut qu'il soit retiré. Traité en
+   correctif ciblé séparément (prompt envoyé le 04/09), le reste de
+   l'audit (résidus ailleurs, mise à jour Planning, etc.) reste
+   ouvert et pas urgent.
 ⚠️. **CommuneAPL ne liste que l'outre-mer — choix délibéré ou
-   restriction accidentelle ?** — prompt envoyé le 20/08. À vérifier
-   avant tout élargissement : le script d'alimentation filtre-t-il
-   sur 971/972/973/974 en dur, ou a-t-il juste été lancé avec un
-   périmètre restreint sans le documenter. Touche directement la
-   séquence DOM-TOM → national. Rapport pas encore reçu.
+   restriction accidentelle ?** — prompt initial du 20/08,
+   **statut d'envoi incertain, renvoyé le 09/09 par précaution**. À
+   vérifier avant tout élargissement : le script d'alimentation
+   filtre-t-il sur 971/972/973/974 en dur, ou a-t-il juste été lancé
+   avec un périmètre restreint sans le documenter. Touche
+   directement la séquence DOM-TOM → national. Rapport pas encore
+   reçu.
 ⚠️. **Suivi accessible depuis la fiche de détail candidat + vérif
-   filtrage date/lieu** — prompt envoyé le 20/08. Étend le bloc-note
+   filtrage date/lieu** — prompt initial du 20/08, **statut d'envoi
+   incertain, renvoyé le 09/09 par précaution**. Étend le bloc-note
    de suivi (déjà construit pour le Planning) à un second point
    d'entrée, la modale de compatibilité vue depuis le swipe — sous
    réserve qu'un Match existe déjà à ce stade, à vérifier. Deuxième
@@ -1548,9 +2501,12 @@ ci-dessus, plus une référence de file d'attente.
    filtrés (comportement observé sur capture, à confirmer partout).
    Rapport pas encore reçu.
 ⚠️. **Image de partage manquante sur les 4 pages persona** — prompt
-   envoyé le 20/08. Les pages géographiques + annonces individuelles
-   ont déjà le mécanisme, les 4 pages persona (construites après)
-   ne l'ont pas hérité. Rapport pas encore reçu.
+   initial du 20/08, **statut d'envoi incertain, renvoyé le 09/09
+   par précaution**, avec ajout du lien possible vers le bug plus
+   large de vignette WhatsApp/Facebook fermé début septembre. Les
+   pages géographiques + annonces individuelles ont déjà le
+   mécanisme, les 4 pages persona (construites après) ne l'ont pas
+   hérité. Rapport pas encore reçu.
 ⚠️. **Email de réinitialisation compte CPTS — adresse corrigée,
    cause de fond restée ouverte.** L'adresse en base était fautive
    (faute de frappe à l'inscription), corrigée. **Problème de fond
@@ -1672,11 +2628,11 @@ ci-dessus, plus une référence de file d'attente.
 4. **Espace "Mes contrats" dans Mon compte** — persistance et
    récupération des contrats édités, dépend d'une investigation
    préalable (contrats persistés ou générés à la volée ?)
-5. **Bouton "Reprendre un texte précédent"** — 5ᵉ bouton du
-    formulaire d'édition d'annonce, reprend le texte libre d'une
-    annonce précédente du même cabinet (texte seul, pas les champs
-    structurés — évite de reporter des données obsolètes sans que
-    l'utilisateur s'en rende compte)
+5. **Bouton "Reprendre un texte précédent"** — demandé à nouveau le
+    08/09, prompt envoyé (voir file d'attente principale). Reprend
+    le texte libre d'une annonce précédente du même profil (texte
+    seul, jamais les champs structurés — évite de reporter des
+    dates obsolètes sans que l'utilisateur s'en rende compte).
 6. **Lien direct depuis le message anti-doublon vers l'annonce en
     conflit** — le message actuel décrit l'annonce qui bloque une
     publication mais n'offre aucun moyen de l'atteindre, surtout si
