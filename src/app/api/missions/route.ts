@@ -6,6 +6,7 @@ import { BriqueStatus, MissionType, ProfileType, ZoneGeographique } from "@prism
 import { getCommuneZonage } from "@/lib/communes";
 import { logTraceEvent } from "@/lib/trace";
 import { publierSurLaPage, messagePourAnnonce } from "@/lib/facebookPage";
+import { rattraperInteretsDifferes } from "@/lib/interetSignale";
 import { bioLimitFor } from "@/lib/bio";
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
@@ -367,6 +368,16 @@ export async function POST(req: NextRequest) {
       cheminAnnonce: `/annonce/${mission.id}`,
     });
   }
+
+  // ── Rattrapage des intérêts différés (section 251) ────────────────────────────────────────
+  //
+  // Cette personne vient de devenir visible. Les cabinets sur lesquels elle s'était signalée
+  // AVANT de publier n'avaient rien reçu — le signal ne pouvait mener à rien, elle n'apparaissait
+  // dans aucun fil et aucune mise en relation n'était possible. Maintenant elle y apparaît, et
+  // son intérêt est déjà acquis : c'est le bon moment pour le dire.
+  //
+  // Fire-and-forget : une publication ne doit jamais échouer parce qu'un email part mal.
+  void rattraperInteretsDifferes(ownerProfileId);
 
   return NextResponse.json(mission, { status: 201 });
 }

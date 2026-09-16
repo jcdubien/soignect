@@ -5,8 +5,9 @@ import { z } from "zod";
 import { Prisma, SwipeDirection } from "@prisma/client";
 import { computeAffinityScore } from "@/lib/deepseek";
 import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
-import { sendNewRelationEmail, sendInteretEmail } from "@/lib/email";
+import { sendNewRelationEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
+import { signalerInteret } from "@/lib/interetSignale";
 import { logTraceEvent } from "@/lib/trace";
 import { bonusSaisonnier } from "@/lib/desirability";
 import { pickBestPeriode } from "@/lib/periodes";
@@ -287,107 +288,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Intérêt signalé au propriétaire (section 223, 02/09) ────────────────────────────────
-    //
-    // Ce signal vivait dans GET /api/missions/[id]/card et partait dès qu'une carte était
-    // PRÉSENTÉE. Il part maintenant sur le geste : « Intéressé ». Le déclencheur change, le
-    // réglage `notifyConsultation` et la déduplication par TraceEvent ne changent pas.
+    // ── Intérêt signalé au propriétaire (sections 223-224, différé le 15/09) ────────────────
     //
     // SEULEMENT S'IL N'Y A PAS DE MISE EN RELATION. Quand le swipe est réciproque, le
     // propriétaire reçoit déjà « nouvelle mise en relation » ci-dessus — qui dit strictement
     // plus. Envoyer les deux ferait deux emails pour un seul geste.
+    //
+    // La règle elle-même vit dans `lib/interetSignale.ts`, parce qu'elle sert aussi au
+    // rattrapage lors d'une publication. Un swipeur qui n'a encore rien publié ne déclenche
+    // plus rien ici : son signal attend le jour où il publie — voir le fichier pour la mesure
+    // qui a décidé ce report.
     if (!match) {
-      (async () => {
-        // Déduplication inchangée : au plus un signal par couple (annonce, visiteur). Le
-        // type d'événement suit le sens — un « Intéressé » n'est pas une consultation.
-        const deja = await prisma.traceEvent.findFirst({
-          where: { eventType: "INTERET_SIGNALE", missionId: swipedMissionId, profileId: swiperId },
-          select: { id: true },
-        });
-        if (deja) return;
-        await prisma.traceEvent.create({
-          data: {
-            eventType: "INTERET_SIGNALE",
-            missionId: swipedMissionId,
-            profileId: swiperId,
-            missionType: swipedMission.missionType,
-          },
-        });
-
-        const [proprio, annonceVisiteur] = await Promise.all([
-          prisma.profile.findUnique({
-            where: { id: swipedMission.profileId },
-            select: { type: true, user: { select: { id: true, email: true, notifyConsultation: true } } },
-          }),
-          // Annonce du VISITEUR, pour un lien direct. Sans publication de sa part il n'y a
-          // littéralement rien à aller voir — l'email le dit alors, plutôt que de proposer
-          // un bouton sans issue.
-          prisma.mission.findFirst({
-            where: { profileId: swiperId, isActive: true },
-            orderBy: { createdAt: "desc" },
-            select: { id: true },
-          }),
-        ]);
-        if (!proprio?.user?.email) return;
-
-        const typeVisiteur = (session.user as { profileType?: string }).profileType;
-        const libelleVisiteur =
-          typeVisiteur === "TITULAIRE" ? "Un cabinet"
-          : typeVisiteur === "ASSISTANT" ? "Un assistant"
-          : "Un remplaçant";
-        const proprioEstCabinet = proprio.type === "TITULAIRE";
-        const motAnnonce = proprioEstCabinet ? "annonce" : "disponibilité";
-        // ── OÙ MÈNE LE BOUTON (section 224, 03/09) ──────────────────────────────────────────
-        //
-        // Cas nominal : le visiteur a publié, on pointe sa publication. Rien ne change.
-        //
-        // REPLI — le visiteur n'a rien publié. Le bouton menait à `/planning` (ou
-        // `/disponibilites`), c'est-à-dire nulle part en rapport avec l'intérêt signalé. Il pointe
-        // désormais l'annonce concernée, où vit la liste nominative des personnes signalées
-        // (section 206, `InteressesSansRecherche`).
-        //
-        // CETTE DESTINATION EST EXACTE, pas approximative : la liste se construit sur les swipes
-        // RIGHT, exclut les personnes déjà en relation, et calcule `aPublieUneRecherche` avec la
-        // MÊME condition que le repli ici — une mission active. Les trois se recoupent, donc la
-        // personne qui vient de se signaler y figure par construction.
-        //
-        // CÔTÉ CANDIDAT, PAS DE BOUTON DU TOUT. Cette liste n'est rendue que sur `/annonces` et
-        // seulement pour un TITULAIRE ; un candidat propriétaire d'une disponibilité n'a aucun
-        // écran équivalent. Plutôt que de le renvoyer vers `/disponibilites`, qui ne dit rien de
-        // cet intérêt, on n'affiche rien : un bouton qui ne mène nulle part d'utile est pire que
-        // pas de bouton. Le texte de l'email, lui, reste complet.
-        const cta = annonceVisiteur
-          ? {
-              label: typeVisiteur === "TITULAIRE" ? "Voir son annonce →" : "Voir sa recherche →",
-              path: `/annonce/${annonceVisiteur.id}`,
-            }
-          : proprioEstCabinet
-            ? { label: "Voir qui s'est signalé →", path: `/annonces?missionId=${swipedMissionId}` }
-            : undefined;
-
-        createNotification({
-          userId: proprio.user.id,
-          type: "interet",
-          message: `${libelleVisiteur} s'intéresse à votre ${motAnnonce} « ${swipedMission.title} »`,
-          // ASYMÉTRIE ASSUMÉE ENTRE LES DEUX CANAUX. L'email peut n'avoir AUCUN bouton — un
-          // bouton promet une action, et sans destination utile il vaut mieux n'en promettre
-          // aucune. La ligne de la cloche, elle, est cliquable par construction et `linkUrl` est
-          // non nullable en base : elle doit mener quelque part. Côté candidat, faute de liste
-          // nominative, on la renvoie vers son propre espace — le message, lui, nomme déjà la
-          // publication concernée.
-          linkUrl: annonceVisiteur
-            ? `/annonces?card=${annonceVisiteur.id}`
-            : cta?.path ?? "/disponibilites",
-        });
-        await sendInteretEmail(proprio.user.email, {
-          viewerLabel: libelleVisiteur,
-          listingWord: motAnnonce,
-          missionTitle: swipedMission.title,
-          optIn: proprio.user.notifyConsultation,
-          visiteurJoignable: Boolean(annonceVisiteur),
-          cta,
-        });
-      })().catch(() => {});
+      void signalerInteret({
+        swiperId,
+        swiperType: (session.user as { profileType?: string }).profileType,
+        mission: {
+          id: swipedMission.id,
+          title: swipedMission.title,
+          profileId: swipedMission.profileId,
+        },
+      });
     }
   }
 

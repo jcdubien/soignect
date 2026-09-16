@@ -5674,6 +5674,94 @@ Conséquence directe du JWT figé au sign-in. **Corrigé le 01/09 — voir secti
 
 ---
 
+### SECTION 251 — LE SIGNAL D'INTÉRÊT ATTEND QUE SON AUTEUR SOIT JOIGNABLE (15/09)
+
+#### Le retour, et la mesure qui l'a tranché
+
+Jean-Charles, en tant qu'utilisateur côté cabinet : « la majorité des notifications concernent des
+candidats qui n'ont posé aucune disponibilité — cliquer ne mène nulle part ». Mesuré sur les 53
+signaux du 3 au 15 septembre :
+
+| Destinataires | Reçus | Sans publication | Taux |
+|---|---|---|---|
+| **Cabinets** | 32 | 19 | **59 %** |
+| Candidats | 19 | 1 | **5 %** |
+| *Global* | *53* | *20* | *38 %* |
+
+Le global à 38 % aurait démenti le ressenti. **C'est l'asymétrie qui compte** : les 18 candidats
+sans annonce swipent forcément des annonces de cabinets, donc toutes leurs impasses atterrissent du
+côté payant. Jean-Charles était à 56 %, un autre cabinet à 88 %.
+
+Concentration notable : les 20 impasses viennent de **6 personnes**, une seule en produit la moitié.
+
+#### Le geste ne pouvait pas aboutir — structurellement
+
+Le swipe réciproque est cherché parmi les annonces actives du swipeur :
+
+```ts
+myMissions = missions actives du swipeur
+reciprocalMissionFilter = { swipedMissionId: { in: myMissions } }
+```
+
+Sans annonce, cette liste est vide et le filtre ne peut rien trouver. **Aucune mise en relation ne
+peut se former.** Le verrou joue des deux côtés : le cabinet ne peut pas swiper cette personne non
+plus, le fil étant construit sur des annonces.
+
+Et la porte de sortie prévue n'en était pas une : la liste « Intéressés sans recherche » (section
+206) n'affiche qu'un nom et une accroche — **aucun bouton, aucun contact**. Le cabinet apprenait
+qu'on s'intéressait à lui et ne pouvait rien en faire.
+
+#### La règle retenue : différer, pas supprimer
+
+Décision de Jean-Charles parmi trois options. Le geste est conservé — le `Swipe` est enregistré
+comme avant, rien n'est fermé au candidat. **Seule la notification attend** : elle part le jour où
+il publie, c'est-à-dire le jour où le cabinet peut enfin agir.
+
+Ce jour-là le message est plus fort qu'avant : la personne est désormais visible dans le fil, et
+son intérêt est déjà acquis.
+
+Les deux options écartées : exiger la publication avant de swiper (fidèle au principe fondateur,
+mais un frein à l'entrée sur un vivier de 33 personnes), et ouvrir une action de contact depuis la
+liste (entame le principe « pas de profils navigables »).
+
+#### Deux points de conception
+
+**Aucune trace n'est écrite quand on diffère.** `INTERET_SIGNALE` sert uniquement de déduplication
+— vérifié, il n'est lu nulle part ailleurs. L'écrire sans notifier condamnerait le rattrapage : la
+déduplication prendrait le signal pour déjà émis. Le geste reste horodaté dans `Swipe.createdAt`.
+
+**Le type du profil est lu, pas reçu.** En mode couverture (section 153), un ASSISTANT publie une
+annonce dont le propriétaire est le CABINET : un libellé passé par l'appelant aurait annoncé
+« Un assistant » là où c'est un cabinet.
+
+La règle vit dans `lib/interetSignale.ts`, appelée par la route de swipe **et** par celle de
+publication. Une règle écrite deux fois finit par diverger — ce dépôt l'a payé quatre fois cette
+quinzaine.
+
+#### Vérifié par exécution réelle des deux routes
+
+```
+ÉTAPE 1  le candidat swipe deux annonces, sans rien avoir publié
+         swipes enregistrés  2
+         traces              0
+         notifications       0
+
+ÉTAPE 2  le candidat publie enfin
+         publication         HTTP 201
+         traces              2
+         notifications       2   « Un remplaçant s'intéresse à votre annonce … »
+```
+
+#### Un faux négatif de mon instrument, le sixième
+
+Le rattrapage a d'abord paru ne rien produire : mon comptage lisait `traces=0` cinq secondes après
+la publication. Les traces existaient. `createNotification` et le rattrapage lui-même sont en
+fire-and-forget, et ma mesure tombait avant leur achèvement — le même piège que le 03/09, où un
+`process.exit` avait tué le travail différé. **Une mesure prise juste après un appel
+fire-and-forget ne mesure rien.**
+
+---
+
 ### SECTION 250 — LE FORMULAIRE ACCEPTAIT DES PÉRIODES DÉJÀ PASSÉES (15/09)
 
 #### La cause en amont, trouvée en nettoyant ses effets
