@@ -8,7 +8,43 @@ import { phraseIntentionPartage } from "@/lib/libellesPoste";
 // Tout est borné pour ne JAMAIS déborder du cadre : titre en police dynamique + 2 lignes max,
 // dates/commune chacune sur sa ligne (ellipsis si trop long).
 export const runtime = "nodejs"; // accès Prisma (DB) → runtime Node, pas edge
-export const size = { width: 1200, height: 630 };
+
+// ── DIMENSION DE SORTIE (section 254) ────────────────────────────────────────────────────────
+//
+// La carte était rendue en 1200×630 et pesait 1 066 Ko — trois fois et demie le seuil (~300 Ko)
+// au-delà duquel WhatsApp renonce à la vignette. Trois mesures ont désigné le vrai coupable :
+//
+//   PNG produit                 1200×630 · RVBA 8 bits · 1,41 octet/pixel
+//   même carte, source réduite  901 Ko à 256 px de source — 17 % de gain seulement
+//   même générateur sans photo  162 Ko (dégradé + texte, 1200×630)
+//
+// Ce n'est donc PAS la finesse de la photo : réduire la source ne gagne presque rien, parce que
+// l'agrandissement rend un dégradé que cet encodeur paye quand même ~1,2 octet par pixel. Ce qui
+// pèse, c'est le NOMBRE DE PIXELS à encoder — et lui se règle.
+//
+// 600×315 est le minimum documenté par Facebook pour une carte « grand format » : en dessous,
+// l'aperçu bascule en vignette carrée. On s'y pose exactement, pas plus bas.
+const ECHELLE = 0.5;
+export const size = { width: 1200 * ECHELLE, height: 630 * ECHELLE };
+
+/**
+ * Convertit une mesure du gabarit vers la dimension de sortie.
+ *
+ * LE GABARIT RESTE AUTORISÉ EN 1200×630, et cette fonction est le seul endroit qui connaît
+ * l'échelle. C'est ce qui permet de garder intacte la composition réglée au pixel près — colonne
+ * de sécurité de 600, césure du titre calculée sur une largeur de glyphe mesurée à 0,48 em — et de
+ * changer d'avis sur la dimension de sortie en modifiant une constante.
+ *
+ * ON NE PASSE PAS PAR `transform: scale`, essayé le 16/09 et FAUX : le moteur l'ignore, le gabarit
+ * 1200×630 est alors simplement recadré sur le quart supérieur gauche. C'est le troisième piège du
+ * même genre dans ce fichier, après `objectPosition` et `WebkitLineClamp` — ici la panne était
+ * visible à l'œil, les deux autres non.
+ *
+ * LA CÉSURE DU TITRE, ELLE, RESTE CALCULÉE EN 1200 : le rapport police/largeur ne change pas avec
+ * l'échelle, donc le découpage en lignes est identique. La convertir aussi introduirait deux
+ * arrondis là où il n'en faut aucun.
+ */
+const px = (n: number) => Math.round(n * ECHELLE);
 export const contentType = "image/png";
 export const alt = "Annonce Soignect";
 
@@ -53,6 +89,54 @@ function datesLabel(m: { startDate: Date | null; endDate: Date | null; minMonths
   return "Dates à convenir";
 }
 
+// ── POIDS DE L'IMAGE DE PARTAGE (section 254) ────────────────────────────────────────────────
+//
+// Signalé le 04/09 : « aucune vignette lors du partage, WhatsApp Web ET Facebook mobile ». Cause
+// trouvée le 15/09 et mesurée : le PNG produit pesait 1 066 Ko en 4,8 s, soit trois fois et demie
+// le seuil (~300 Ko) au-delà duquel WhatsApp renonce à la vignette.
+//
+// LE FORMAT N'EST PAS RÉGLABLE. `next/og` n'émet que du PNG — un JPEG, dix fois plus léger pour
+// une photographie, n'est pas une option offerte par ce générateur. Ce qu'on peut régler, c'est
+// la QUANTITÉ DE DÉTAIL à encoder : le PNG est sans perte, son poids suit l'entropie de l'image.
+// Une photo nette en plein cadre est le pire cas possible pour lui.
+//
+// D'où le levier retenu : demander au stockage une version RÉDUITE de la photo, que le moteur
+// ré-agrandit ensuite en 1200×630. L'agrandissement lisse le détail, le PNG n'a presque plus
+// d'entropie à encoder, et le poids s'effondre. Le fond est de toute façon décoratif — il porte
+// un voile à 38 % et un bandeau à 58 %, personne n'y lit un visage.
+//
+// Gain secondaire, sur le délai : 126 Ko téléchargés deviennent ~9 Ko.
+
+/** Largeur demandée au stockage. Le rendu final reste 1200×630 : cette valeur ne règle pas la
+ *  taille affichée mais la FINESSE du fond, donc le poids du PNG. Mesurée, pas choisie — voir la
+ *  section 254 de PRODUCT_SPEC pour le tableau des essais. */
+const LARGEUR_FOND = Number(process.env.OG_LARGEUR_FOND ?? "192");
+
+/**
+ * Réécrit une URL publique Supabase vers son point d'accès de transformation.
+ *
+ * Renvoie `null` si l'URL n'a pas cette forme — un stockage tiers, une URL déjà transformée, un
+ * chemin inattendu. L'appelant retombe alors sur l'URL d'origine : mieux vaut une image lourde
+ * qu'une image absente.
+ */
+function urlReduite(url: string, largeur: number): string | null {
+  if (!url.includes("/storage/v1/object/public/")) return null;
+  const [base, requete] = url.split("?");
+  const rendu = base.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/");
+  const params = new URLSearchParams(requete);
+  // `t` est le cache-buster posé à l'upload : conservé, sinon une photo remplacée continuerait
+  // d'être servie depuis le cache de transformation sous l'ancienne image.
+  const t = params.get("t");
+  const q = new URLSearchParams({
+    width: String(largeur),
+    height: String(Math.round((largeur * 630) / 1200)),
+    resize: "cover",
+    quality: "60",
+  });
+  if (t) q.set("t", t);
+  return `${rendu}?${q.toString()}`;
+}
+
 // Photo de fond : on la télécharge NOUS-MÊMES et on la passe en data URI, au lieu de laisser
 // le générateur d'image aller la chercher. Raison : si ce téléchargement échoue au moment du
 // rendu, c'est TOUTE l'image de partage qui échoue — or les caches sociaux retiennent
@@ -60,17 +144,24 @@ function datesLabel(m: { startDate: Date | null; endDate: Date | null; minMonths
 // Délai borné pour la même raison : un stockage lent ne doit pas faire expirer le rendu.
 async function fondPhoto(url: string | null | undefined): Promise<string | null> {
   if (!url) return null;
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
-    if (!res.ok) return null;
-    const type = res.headers.get("content-type") ?? "image/jpeg";
-    if (!type.startsWith("image/")) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.byteLength === 0 || buf.byteLength > 6_000_000) return null; // vide ou déraisonnable
-    return `data:${type};base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
+  // DEUX TENTATIVES, DANS CET ORDRE : la version réduite, puis l'originale. La transformation
+  // d'images est une fonctionnalité du stockage qui peut être indisponible ou désactivée ; si
+  // elle l'était, se contenter d'échouer nous ferait perdre le fond photo que nous avions déjà.
+  const candidates = [urlReduite(url, LARGEUR_FOND), url].filter((u): u is string => !!u);
+  for (const candidate of candidates) {
+    try {
+      const res = await fetch(candidate, { signal: AbortSignal.timeout(2500) });
+      if (!res.ok) continue;
+      const type = res.headers.get("content-type") ?? "image/jpeg";
+      if (!type.startsWith("image/")) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.byteLength === 0 || buf.byteLength > 6_000_000) continue; // vide ou déraisonnable
+      return `data:${type};base64,${buf.toString("base64")}`;
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 export default async function OgImage({ params }: { params: Promise<{ id: string }> }) {
@@ -125,7 +216,15 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   // On la reconstruit par le calcul. Largeur moyenne d'un glyphe MESURÉE sur des rendus réels :
   // 14,4 px à fontSize 30 sur trois lignes de longueurs différentes (14,47 / 14,36 / 14,22),
   // soit 0,48 em. Arrondi à 0,50 pour garder de la marge sur les titres riches en capitales.
-  const LARGEUR_GLYPHE_EM = 0.5;
+  //
+  // REMONTÉ À 0,55 LE 16/09, EN PASSANT LA SORTIE À 600×315. La simulation est menée dans les
+  // unités du gabarit (1200) et le rapport police/largeur ne change pas avec l'échelle — en
+  // théorie le découpage devait donc être identique. Il ne l'est pas : au rendu, un titre calculé
+  // pour 2 lignes en sortait sur 3, et le pied de page passait de 1 à 2 lignes. À taille réduite,
+  // les avances de glyphes sont arrondies au pixel entier et le texte occupe proportionnellement
+  // PLUS de largeur. La constante absorbe cet écart — vérifié à l'écran sur le titre le plus long
+  // en base (89 caractères) après correction.
+  const LARGEUR_GLYPHE_EM = 0.55;
   const TAILLES = [54, 44, 36, 30] as const;
 
   // On SIMULE la césure au lieu de l'approximer par un nombre de caractères. Un budget global
@@ -179,8 +278,8 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
     (
       <div
         style={{
-          width: 1200,
-          height: 630,
+          width: size.width,
+          height: size.height,
           display: "flex",
           position: "relative",
           backgroundColor: "#0B3D5C",
@@ -196,8 +295,8 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
         {photo && (
           <img
             src={photo}
-            width={1200}
-            height={630}
+            width={px(1200)}
+            height={px(630)}
             // PAS D'`objectPosition` ICI. Remonter le cadrage sur le visage aurait du sens — une
             // photo de profil est presque toujours un portrait vertical, recadré au centre dans un
             // 1200×630. Mais la propriété est SILENCIEUSEMENT IGNORÉE par ce moteur : vérifié le
@@ -206,7 +305,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
             // On n'écrit donc pas une propriété qui n'agit pas : le cadrage reste centré, et c'est
             // l'allègement du voile qui règle le problème signalé.
             style={{
-              position: "absolute", top: 0, left: 0, width: 1200, height: 630,
+              position: "absolute", top: 0, left: 0, width: px(1200), height: px(630),
               objectFit: "cover",
             }}
           />
@@ -228,7 +327,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
           <div
             style={{
               position: "absolute",
-              top: 0, left: 0, width: 1200, height: 630,
+              top: 0, left: 0, width: px(1200), height: px(630),
               display: "flex",
               backgroundColor: `rgba(42,45,48,${OPACITE_VOILE})`,
             }}
@@ -247,7 +346,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
           <div
             style={{
               position: "absolute",
-              top: 0, left: (1200 - 980) / 2, width: 980, height: 630,
+              top: 0, left: px((1200 - 980) / 2), width: px(980), height: px(630),
               display: "flex",
               // Gris NEUTRE, pas la couleur de marque : une teinte colorée virait la photo au
               // bleu, ce qui la dénature autant que le voile qu'on vient d'alléger.
@@ -264,35 +363,35 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
         <div
           style={{
             position: "relative",
-            width: 1200,
-            height: 630,
+            width: px(1200),
+            height: px(630),
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
             alignItems: "center",
             textAlign: "center",
-            padding: 48,
+            padding: px(48),
           }}
         >
         {/* En-tête marque */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38, fontWeight: 800, letterSpacing: -1, opacity: 0.95, ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: px(38), fontWeight: 800, letterSpacing: px(-1), opacity: 0.95, ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>
           Soignect
         </div>
 
         {/* Corps : type (badge) + titre + dates + commune */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: SAFE }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: px(SAFE) }}>
           <div
             style={{
               display: "flex",
               alignSelf: "center",
-              fontSize: badgeSize,
+              fontSize: px(badgeSize),
               fontWeight: 700,
-              padding: "8px 22px",
+              padding: `${px(8)}px ${px(22)}px`,
               borderRadius: 999,
               // Pastille assombrie plutôt qu'éclaircie : le voile de fond ayant baissé, un fond
               // blanc translucide sur une photo claire ne détachait plus la phrase.
               background: photo ? "rgba(11,61,92,0.72)" : "rgba(255,255,255,0.18)",
-              marginBottom: 26,
+              marginBottom: px(26),
               whiteSpace: "nowrap",
             }}
           >
@@ -305,10 +404,10 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
             style={{
               display: "flex",
               overflow: "hidden",
-              fontSize: titleSize,
+              fontSize: px(titleSize),
               fontWeight: 800,
               lineHeight: 1.08,
-              width: SAFE,
+              width: px(SAFE),
               textAlign: "center",
               ...(photo ? { textShadow: OMBRE_TEXTE } : {}),
             }}
@@ -318,25 +417,34 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
 
           {/* Les 2 essentiels restants — libellés texte (pas d'emoji : absent de la police Satori),
               chacun sur sa ligne, valeur en ellipsis si trop longue → jamais de débordement. */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 28, width: SAFE }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18, maxWidth: SAFE }}>
-              <div style={{ display: "flex", width: 118, fontSize: 24, fontWeight: 700, letterSpacing: 2, opacity: photo ? 0.9 : 0.65, ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>DATES</div>
-              <div style={{ display: "flex", fontSize: 34, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 460, ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>{dates}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: px(14), marginTop: px(28), width: px(SAFE) }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: px(18), maxWidth: px(SAFE) }}>
+              <div style={{ display: "flex", width: px(118), fontSize: px(24), fontWeight: 700, letterSpacing: px(2), opacity: photo ? 0.9 : 0.65, ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>DATES</div>
+              <div style={{ display: "flex", fontSize: px(34), fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: px(460), ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>{dates}</div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18, maxWidth: SAFE }}>
-              <div style={{ display: "flex", width: 118, fontSize: 24, fontWeight: 700, letterSpacing: 2, opacity: photo ? 0.9 : 0.65, ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>LIEU</div>
-              <div style={{ display: "flex", fontSize: 34, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 460, ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>{location}</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: px(18), maxWidth: px(SAFE) }}>
+              <div style={{ display: "flex", width: px(118), fontSize: px(24), fontWeight: 700, letterSpacing: px(2), opacity: photo ? 0.9 : 0.65, ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>LIEU</div>
+              <div style={{ display: "flex", fontSize: px(34), fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: px(460), ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>{location}</div>
             </div>
           </div>
         </div>
 
         {/* Pied */}
-        <div style={{ display: "flex", justifyContent: "center", fontSize: 22, opacity: photo ? 0.95 : 0.82, maxWidth: SAFE, textAlign: "center", ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>
+        <div style={{ display: "flex", justifyContent: "center", fontSize: px(22), opacity: photo ? 0.95 : 0.82, maxWidth: px(SAFE), textAlign: "center", ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>
           La mise en relation des professionnels de santé en Guadeloupe
         </div>
         </div>
       </div>
     ),
-    { ...size }
+    {
+      ...size,
+      // Chaque appel refaisait tout le travail : `X-Vercel-Cache` répondait systématiquement
+      // MISS, d'où les quatre secondes mesurées à chaque scrape. Une annonce modifiée change
+      // d'URL de partage (paramètre `maj`, section 249), donc un cache long ne fige rien : le
+      // lien qui circule après modification est une URL neuve, jamais vue du cache.
+      headers: {
+        "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+      },
+    }
   );
 }
