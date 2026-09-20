@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import { BriqueStatus } from "@prisma/client";
 import { phraseIntentionPartage } from "@/lib/libellesPoste";
@@ -22,10 +23,29 @@ export const runtime = "nodejs"; // accès Prisma (DB) → runtime Node, pas edg
 // l'agrandissement rend un dégradé que cet encodeur paye quand même ~1,2 octet par pixel. Ce qui
 // pèse, c'est le NOMBRE DE PIXELS à encoder — et lui se règle.
 //
-// 600×315 est le minimum documenté par Facebook pour une carte « grand format » : en dessous,
-// l'aperçu bascule en vignette carrée. On s'y pose exactement, pas plus bas.
-const ECHELLE = 0.5;
+// ── ET POURQUOI ON EST REVENU EN 1200×630 (section 254 bis, 19/09) ───────────────────────────
+//
+// La sortie a été réduite à 600×315 le 16/09 — minimum documenté par Facebook pour une carte
+// « grand format » — parce que c'était la SEULE prise qu'on avait sur le poids d'un PNG. Ce
+// n'était pas un choix de conception : c'était une concession.
+//
+// Le ré-encodage JPEG posé en fin de fichier lève la contrainte. On remet donc la dimension
+// recommandée : texte plus net sur écran dense, et plus aucun risque de basculer en vignette
+// carrée si une plateforme relève son seuil. `ECHELLE` reste en place, et le gabarit reste
+// exprimé en 1200×630 : c'est ce qui a permis de faire l'aller-retour en changeant une constante.
+const ECHELLE = 1;
 export const size = { width: 1200 * ECHELLE, height: 630 * ECHELLE };
+
+/** Qualité du ré-encodage, balayée sur les quatre annonces de référence (Ko) :
+ *
+ *      qualité   72     78     82     88
+ *      poids     34-58  40-67  45-75  59-94
+ *
+ *  Toutes les valeurs testées passent très largement sous le seuil — même 88 reste à un tiers des
+ *  300 Ko. Le poids n'est donc PLUS le critère de choix : 82 est retenu pour la qualité d'image,
+ *  avec quatre à six fois de marge. Je n'ai pas cherché le point où le voile commence à marbrer :
+ *  il est sous 72, et descendre si bas n'a aucun intérêt maintenant que la marge est acquise. */
+const QUALITE_JPEG = Number(process.env.OG_QUALITE_JPEG ?? "82");
 
 /**
  * Convertit une mesure du gabarit vers la dimension de sortie.
@@ -45,7 +65,7 @@ export const size = { width: 1200 * ECHELLE, height: 630 * ECHELLE };
  * arrondis là où il n'en faut aucun.
  */
 const px = (n: number) => Math.round(n * ECHELLE);
-export const contentType = "image/png";
+export const contentType = "image/jpeg";
 export const alt = "Annonce Soignect";
 
 /** Opacité du voile posé sur la photo de fond. Réglable ici seul — voir la mesure de contraste
@@ -89,28 +109,24 @@ function datesLabel(m: { startDate: Date | null; endDate: Date | null; minMonths
   return "Dates à convenir";
 }
 
-// ── POIDS DE L'IMAGE DE PARTAGE (section 254) ────────────────────────────────────────────────
+// ── LA PHOTO DE FOND, DEMANDÉE EN TAILLE UTILE (section 254) ─────────────────────────────────
 //
-// Signalé le 04/09 : « aucune vignette lors du partage, WhatsApp Web ET Facebook mobile ». Cause
-// trouvée le 15/09 et mesurée : le PNG produit pesait 1 066 Ko en 4,8 s, soit trois fois et demie
-// le seuil (~300 Ko) au-delà duquel WhatsApp renonce à la vignette.
+// Le stockage sait servir une version redimensionnée. On la demande pour deux raisons, dont une
+// seule a survécu à la mesure :
 //
-// LE FORMAT N'EST PAS RÉGLABLE. `next/og` n'émet que du PNG — un JPEG, dix fois plus léger pour
-// une photographie, n'est pas une option offerte par ce générateur. Ce qu'on peut régler, c'est
-// la QUANTITÉ DE DÉTAIL à encoder : le PNG est sans perte, son poids suit l'entropie de l'image.
-// Une photo nette en plein cadre est le pire cas possible pour lui.
+//   · LE DÉLAI — 126 Ko téléchargés au lieu de la photo pleine résolution. Gain réel, conservé.
+//   · LE POIDS — c'était l'hypothèse du 16/09, et elle était FAUSSE : réduire la source à 256 px
+//     ne faisait gagner que 17 % sur le PNG (901 Ko contre 1 066). Le poids venait du nombre de
+//     pixels et de l'absence de compression avec perte, pas de la finesse du fond. C'est le
+//     ré-encodage JPEG, en fin de fichier, qui l'a réglé.
 //
-// D'où le levier retenu : demander au stockage une version RÉDUITE de la photo, que le moteur
-// ré-agrandit ensuite en 1200×630. L'agrandissement lisse le détail, le PNG n'a presque plus
-// d'entropie à encoder, et le poids s'effondre. Le fond est de toute façon décoratif — il porte
-// un voile à 38 % et un bandeau à 58 %, personne n'y lit un visage.
-//
-// Gain secondaire, sur le délai : 126 Ko téléchargés deviennent ~9 Ko.
+// La largeur est donc remontée à 768 le 19/09 : elle n'a plus à étouffer le détail pour alléger
+// le PNG, et le fond redevient net. Il reste décoratif — voile à 38 %, bandeau à 58 % — mais il
+// n'y a plus de raison de le dégrader.
 
-/** Largeur demandée au stockage. Le rendu final reste 1200×630 : cette valeur ne règle pas la
- *  taille affichée mais la FINESSE du fond, donc le poids du PNG. Mesurée, pas choisie — voir la
- *  section 254 de PRODUCT_SPEC pour le tableau des essais. */
-const LARGEUR_FOND = Number(process.env.OG_LARGEUR_FOND ?? "192");
+/** Largeur demandée au stockage. Ne règle PAS la taille affichée (le rendu reste 1200×630), mais
+ *  la finesse du fond et le temps de téléchargement. Voir la section 254 de PRODUCT_SPEC. */
+const LARGEUR_FOND = Number(process.env.OG_LARGEUR_FOND ?? "768");
 
 /**
  * Réécrit une URL publique Supabase vers son point d'accès de transformation.
@@ -217,13 +233,12 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   // 14,4 px à fontSize 30 sur trois lignes de longueurs différentes (14,47 / 14,36 / 14,22),
   // soit 0,48 em. Arrondi à 0,50 pour garder de la marge sur les titres riches en capitales.
   //
-  // REMONTÉ À 0,55 LE 16/09, EN PASSANT LA SORTIE À 600×315. La simulation est menée dans les
-  // unités du gabarit (1200) et le rapport police/largeur ne change pas avec l'échelle — en
-  // théorie le découpage devait donc être identique. Il ne l'est pas : au rendu, un titre calculé
-  // pour 2 lignes en sortait sur 3, et le pied de page passait de 1 à 2 lignes. À taille réduite,
-  // les avances de glyphes sont arrondies au pixel entier et le texte occupe proportionnellement
-  // PLUS de largeur. La constante absorbe cet écart — vérifié à l'écran sur le titre le plus long
-  // en base (89 caractères) après correction.
+  // REMONTÉ À 0,55 LE 16/09, ET MAINTENU APRÈS LE RETOUR EN 1200×630. Je l'avais d'abord attribué
+  // à la réduction d'échelle ; la comparaison avec le rendu d'AVANT a montré l'inverse — le titre
+  // de `cmu1arlqw` sortait déjà sur 3 lignes en production, à pleine dimension. 0,48 em avait été
+  // mesuré sur trois lignes qui se trouvaient être pauvres en glyphes larges ; la garantie
+  // « 2 lignes max » ne tenait donc pas sur les titres riches en majuscules et en accents.
+  // Vérifié à l'écran après correction sur le titre le plus long en base (85 caractères).
   const LARGEUR_GLYPHE_EM = 0.55;
   const TAILLES = [54, 44, 36, 30] as const;
 
@@ -274,7 +289,7 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
 
   const photo = await fondPhoto(m.profile?.photoUrl);
 
-  return new ImageResponse(
+  const carte = new ImageResponse(
     (
       <div
         style={{
@@ -436,15 +451,33 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
         </div>
       </div>
     ),
-    {
-      ...size,
+    { ...size }
+  );
+
+  // ── Ré-encodage en JPEG (section 254 bis) ───────────────────────────────────────────────────
+  //
+  // `next/og` n'émet que du PNG, et le PNG est SANS PERTE : sur une photographie il paye ~1,4
+  // octet par pixel, là où le JPEG encode la même image pour une fraction. Le générateur ne sait
+  // pas faire autrement — on le laisse donc produire son PNG, et on ré-encode derrière.
+  //
+  // CE QUE ÇA REND POSSIBLE, ET QUI COMPTE PLUS QUE LES OCTETS : la sortie repasse en 1200×630.
+  // Le 600×315 du 16/09 n'était pas un choix de conception, c'était la seule prise qu'on avait
+  // sur le poids d'un PNG. La contrainte levée, on remet la dimension recommandée — texte plus
+  // net sur les écrans denses, et plus aucun risque de bascule en vignette carrée.
+  //
+  // `mozjpeg` pour un meilleur rapport qualité/poids à qualité égale ; `chromaSubsampling 4:2:0`
+  // est le défaut et convient : l'image est une photo voilée, pas du texte coloré sur aplat.
+  const png = Buffer.from(await carte.arrayBuffer());
+  const jpeg = await sharp(png).jpeg({ quality: QUALITE_JPEG, mozjpeg: true }).toBuffer();
+
+  return new Response(new Uint8Array(jpeg), {
+    headers: {
+      "Content-Type": "image/jpeg",
       // Chaque appel refaisait tout le travail : `X-Vercel-Cache` répondait systématiquement
       // MISS, d'où les quatre secondes mesurées à chaque scrape. Une annonce modifiée change
       // d'URL de partage (paramètre `maj`, section 249), donc un cache long ne fige rien : le
       // lien qui circule après modification est une URL neuve, jamais vue du cache.
-      headers: {
-        "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
-      },
-    }
-  );
+      "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+    },
+  });
 }
