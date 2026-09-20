@@ -7293,6 +7293,59 @@ pas confortable. Le seul levier restant serait de ré-encoder le PNG en JPEG apr
 qui demande une dépendance d'encodage (`sharp`) et se décide, plutôt que de se glisser dans un
 correctif de performance.
 
+#### SECTION 254 bis — le ré-encodage JPEG, et le retour à la pleine dimension (19/09)
+
+Arbitré par JC : « ajoute la conversion JPEG pour une marge plus confortable ». `sharp` est donc
+une dépendance directe, et la route laisse `next/og` produire son PNG puis le ré-encode
+(`mozjpeg`, qualité 82).
+
+##### Le gain qui compte n'est pas celui qu'on est allé chercher
+
+Le poids demandé était acquis dès la première mesure — 47 à 77 Ko contre 211–281. Mais la
+conséquence intéressante est ailleurs : **la sortie repasse en 1200×630**. Le 600×315 du 16/09
+n'était pas un choix de conception, c'était la seule prise qu'on avait sur le poids d'un PNG. La
+contrainte levée, garder la concession aurait été garder une cicatrice sans raison.
+
+L'aller-retour a coûté **une constante** : le gabarit étant resté écrit en 1200×630 derrière
+`px()`, il a suffi de remettre `ECHELLE` à 1. C'est précisément ce que cette indirection achetait.
+
+Même raisonnement pour `LARGEUR_FOND`, remontée de 192 à 768 : la photo avait été étouffée pour
+alléger un PNG, sur une hypothèse qui ne gagnait que 17 %. Elle ne sert plus qu'au délai de
+téléchargement, et le fond redevient net.
+
+##### Balayage de qualité, sur les quatre annonces de référence
+
+```
+qualité   72       78       82       88
+poids     34-58    40-67    45-75    59-94   (Ko)
+```
+
+Tout passe très largement — même 88 reste à un tiers du seuil. **Le poids n'est donc plus le
+critère de choix** : 82 est retenu pour la qualité d'image. Le commentaire que j'avais écrit
+(« au-dessus, le gain de poids s'arrête ») était faux et a été corrigé : le poids continue de
+monter, c'est la marge qui rend le choix indifférent.
+
+##### Avant / après, mêmes quatre annonces, mesuré en production
+
+| Annonce | PNG 1200×630 (04/09) | PNG 600×315 (16/09) | JPEG 1200×630 (19/09) |
+|---|---|---|---|
+| `cmu1arlqw` | 1 066 260 o | 280 789 o | **73 969 o** |
+| `cmtssvi4f` | — | 211 407 o | **50 546 o** |
+| `cmtu87g8q` | — | 246 090 o | **77 313 o** |
+| `cmsjyzntb` | — | 210 862 o | **46 563 o** |
+
+Délai : 4,8 s → 0,34 s. Dimension recommandée retrouvée, `og:image:type` passé à `image/jpeg`,
+`og:image:width/height` à 1200×630.
+
+##### Une vérification de déploiement qui n'en était pas une
+
+`@img/sharp-linux-x64` est bien dans `package-lock.json` — vérifié avant de pousser, parce qu'un
+binaire natif installé sur darwin-arm64 ne dit rien de ce que Vercel trouvera. C'est la seule
+façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
+
+**Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
+disposition ne le montre ; seul un partage depuis un téléphone tranche.
+
 ### SECTION 234 — PUBLICATION AUTOMATIQUE SUR LA PAGE FACEBOOK (06/09)
 
 #### Le jeton ne vit que dans l'environnement
