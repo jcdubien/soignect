@@ -7214,6 +7214,85 @@ une suppression déclenchée depuis le retrait de l'annonce reste à construire.
 
 ---
 
+### SECTION 254 — L'IMAGE DE PARTAGE ÉTAIT TROIS FOIS ET DEMIE TROP LOURDE (16/09)
+
+Signalé le 4 septembre : « aucune vignette lors du partage, WhatsApp Web **et** Facebook mobile ».
+Resté ouvert onze jours faute de cause identifiée, trouvé le 15, corrigé le 16. C'est le seul
+constat de l'audit qui touche l'**acquisition** : WhatsApp est le premier canal de diffusion du
+produit en Guadeloupe, et chaque annonce y arrivait sans vignette.
+
+#### Deux hypothèses fausses avant la bonne, toutes deux écartées par la mesure
+
+**1. « La photo est trop fine. »** Le stockage sait servir une version réduite — 126 Ko deviennent
+9 Ko. Gain sur le PNG produit : **17 %**. 901 Ko à 256 px de source, contre 1 066 Ko à pleine
+résolution. Le PNG est reconstruit en 1200×630 quoi qu'il arrive, et l'agrandissement rend un
+dégradé que cet encodeur paye de toute façon ~1,2 octet par pixel.
+
+**2. « On met le gabarit à l'échelle avec `transform: scale`. »** Faux : le moteur l'ignore et
+recadre simplement sur le quart supérieur gauche. **Troisième piège du même genre dans ce fichier**
+après `objectPosition` et `WebkitLineClamp` — celui-ci se voyait à l'œil, les deux autres non. La
+mesure de poids prise sur ce rendu cassé (94 Ko) était sans valeur : une image aux trois quarts
+blanche se comprime admirablement.
+
+#### Ce qui pèse, c'est le nombre de pixels
+
+```
+PNG produit                     1200×630 · RVBA 8 bits · 1,41 octet/pixel
+même carte, source à 256 px     901 Ko          (−17 % seulement)
+même générateur SANS photo      162 Ko          (dégradé + texte, 1200×630)
+```
+
+Le format n'est pas réglable : `next/og` n'émet **que** du PNG — vérifié dans `types.d.ts`, aucune
+option de format ni de qualité. Un JPEG pèserait dix fois moins pour une photographie, il n'est pas
+offert. Restait donc la dimension de sortie.
+
+**600×315, et pas plus bas** : c'est le minimum documenté par Facebook pour une carte « grand
+format ». En dessous, l'aperçu bascule en vignette carrée — on perdrait la vignette en voulant
+l'alléger.
+
+#### Le gabarit reste écrit en 1200×630
+
+`px()` est le seul endroit qui connaît l'échelle. Diviser à la main les quarante tailles de police,
+largeurs et espacements aurait fait dériver une composition réglée au pixel près — colonne de
+sécurité de 600, césure du titre calculée sur une largeur de glyphe mesurée à 0,48 em. La
+simulation de césure, elle, **reste en unités de gabarit** : le rapport police/largeur ne change
+pas avec l'échelle, et la convertir ajouterait deux arrondis inutiles.
+
+#### Un effet de bord, qui répare un défaut plus ancien
+
+À taille réduite, les avances de glyphes sont arrondies au pixel entier : le texte occupe
+proportionnellement **plus** de largeur, et un titre calculé pour deux lignes en sortait sur trois.
+`LARGEUR_GLYPHE_EM` passe de 0,50 à 0,55.
+
+En comparant au rendu d'avant pour vérifier qu'il s'agissait bien d'une régression, constat
+inverse : **le défaut préexistait**. Le titre de `cmu1arlqw` sortait déjà sur trois lignes en
+production, et le pied de page déjà sur deux. La garantie « titre sur 2 lignes max » était violée
+avant cette correction ; elle tient maintenant, vérifiée sur le titre le plus long en base
+(85 caractères).
+
+#### Mesures, avant et après
+
+```
+AVANT   1 066 260 octets   4,8 s   ·   X-Vercel-Cache: MISS systématique
+APRÈS     211 à 281 Ko     0,3 s   ·   X-Vercel-Cache: HIT dès le second appel
+
+en production, quatre annonces :  280 789 · 246 090 · 211 407 · 210 862 octets
+```
+
+Le `Cache-Control` est le second levier : chaque scrape refaisait tout le travail. Un cache long ne
+fige aucun aperçu périmé, puisqu'une annonce modifiée **change déjà d'URL de partage** (paramètre
+`maj`, section 249) — le lien qui circule ensuite est une URL que le cache n'a jamais vue.
+
+#### Ce qui n'a pas bougé, et pourquoi
+
+Les images de partage de la racine et des trois pages d'atterrissage restent en 1200×630 : mesurées
+à 162 Ko, elles sont déjà sous le seuil, et les toucher serait du risque sans gain.
+
+**Marge honnête** : 211–281 Ko contre un seuil WhatsApp de ~300 Ko. C'est sous la barre, ce n'est
+pas confortable. Le seul levier restant serait de ré-encoder le PNG en JPEG après génération, ce
+qui demande une dépendance d'encodage (`sharp`) et se décide, plutôt que de se glisser dans un
+correctif de performance.
+
 ### SECTION 234 — PUBLICATION AUTOMATIQUE SUR LA PAGE FACEBOOK (06/09)
 
 #### Le jeton ne vit que dans l'environnement
