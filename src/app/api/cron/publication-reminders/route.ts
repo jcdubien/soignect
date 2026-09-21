@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DELAI_RELANCE_MS, inscritsSansPublication, envoyerRelances } from "@/lib/relancePublication";
+import { surveillerJetonFacebook } from "@/lib/surveillanceJeton";
 
 export const dynamic = "force-dynamic";
 
@@ -29,5 +30,11 @@ export async function GET(req: Request) {
   const cibles = await inscritsSansPublication(new Date(Date.now() - DELAI_RELANCE_MS));
   const r = await envoyerRelances(cibles, { simulation });
 
-  return NextResponse.json({ ok: true, simulation, ...r });
+  // Surveillance de l'échéance du jeton Facebook (section 255), GREFFÉE ICI faute de pouvoir
+  // ajouter une tâche : le plan Hobby en autorise deux, et les deux sont prises. Ce n'est pas le
+  // sujet de ce job — d'où l'isolement du résultat sous sa propre clé, et une fonction qui ne
+  // jette jamais : une surveillance qui tombe ne doit pas emporter les rappels avec elle.
+  const jetonFacebook = await surveillerJetonFacebook({ simulation });
+
+  return NextResponse.json({ ok: true, simulation, ...r, jetonFacebook });
 }

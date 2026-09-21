@@ -5,6 +5,8 @@ import ShareActions from "@/components/share/ShareActions";
 import { KINESITHERAPEUTE, TERRITOIRES, PORTES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
 import { INSTANCES_EMBED, cheminEmbed, cleTraceEmbed } from "@/lib/embedTerritoire";
 import { ZONE_LABELS } from "@/lib/communes";
+import { etatJetonPage } from "@/lib/facebookPage";
+import { fmtDayYear } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,11 @@ export default async function AdminDiffusionPage() {
     where: { eventType: "LANDING_VIEW" },
     select: { metadata: true },
   });
+  // Interrogé à CHAQUE affichage, sans mise en cache : l'écran sert justement à savoir où en
+  // est le jeton à l'instant où on le regarde. Un appel Graph borné à 6 s, sur une page
+  // d'administration consultée quelques fois par mois.
+  const jeton = await etatJetonPage();
+
   const compteur = new Map<string, { humains: number; robots: number }>();
   for (const v of vues) {
     const m = v.metadata as { page?: string; robot?: boolean } | null;
@@ -73,6 +80,74 @@ export default async function AdminDiffusionPage() {
         <p className="text-gray-500 text-sm mt-1">
           Pages d&apos;entrée publiques · lien, partage et fréquentation
         </p>
+      </div>
+
+      {/* ── État du jeton Facebook (section 255) ──────────────────────────────────────────
+          L'alerte par email prévient AVANT la coupure ; cet encart répond à l'autre question,
+          celle qu'on se pose n'importe quand : « est-ce que ça marche encore, en ce moment ? ».
+          Sans lui, la seule façon de le savoir était de publier une annonce et de regarder la
+          Page — vérification qu'on ne fait pas, et c'est bien le problème d'origine. ── */}
+      <div
+        className={`mb-6 rounded-2xl border p-5 ${
+          !jeton.configure
+            ? "bg-gray-50 border-gray-200"
+            : jeton.valide === false
+              ? "bg-red-50 border-red-200"
+              : jeton.joursRestants !== null && jeton.joursRestants <= 30
+                ? "bg-amber-50 border-amber-200"
+                : "bg-white border-gray-100 shadow-sm"
+        }`}
+      >
+        <h2 className="font-bold text-gray-800 mb-1">Publication automatique sur la Page Facebook</h2>
+        {!jeton.configure ? (
+          <p className="text-sm text-gray-500">
+            Aucun jeton configuré — la diffusion automatique est inactive. C&apos;est l&apos;état
+            normal en développement.
+          </p>
+        ) : jeton.valide === false ? (
+          <p className="text-sm text-red-700">
+            <strong>Le jeton n&apos;est plus valide.</strong> La publication automatique est
+            arrêtée. Renouvelez-le dans le Graph API Explorer de Meta, puis remplacez{" "}
+            <code className="font-mono">FACEBOOK_PAGE_ACCESS_TOKEN</code> dans les variables
+            d&apos;environnement Vercel.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-gray-600">
+              {jeton.valide === null
+                ? "Facebook n'a pas répondu — état indéterminé, pas nécessairement une panne."
+                : "Jeton valide."}{" "}
+              {jeton.joursRestants === null ? (
+                // On NE PRÉTEND PAS connaître une échéance que Graph n'a pas donnée. Afficher
+                // « permanent » sur une absence de réponse serait exactement le genre de
+                // certitude fabriquée qui a laissé passer ce défaut pendant deux semaines.
+                <span className="text-gray-500">
+                  Aucune échéance communiquée par Facebook : soit le jeton est permanent, soit la
+                  date n&apos;a pas pu être lue (<code className="font-mono text-[11px]">{jeton.motif}</code>).
+                </span>
+              ) : (
+                <span className={jeton.joursRestants <= 30 ? "font-semibold text-amber-800" : ""}>
+                  Expire dans <strong>{jeton.joursRestants} jour{jeton.joursRestants > 1 ? "s" : ""}</strong>.
+                </span>
+              )}
+            </p>
+            <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
+              <div className="flex justify-between gap-2 border-b border-gray-200/60 py-1">
+                <dt className="text-gray-500">Échéance du jeton</dt>
+                <dd className="font-mono text-gray-700">{fmtDayYear(jeton.expireLe) ?? "permanent"}</dd>
+              </div>
+              <div className="flex justify-between gap-2 border-b border-gray-200/60 py-1">
+                <dt className="text-gray-500">Accès aux données</dt>
+                <dd className="font-mono text-gray-700">{fmtDayYear(jeton.accesDonneesExpireLe) ?? "—"}</dd>
+              </div>
+            </dl>
+            <p className="text-[11px] text-gray-400 mt-2 leading-snug">
+              Deux échéances distinctes : le jeton peut être permanent alors que l&apos;accès aux
+              données, lui, expire — et c&apos;est cette seconde date qui interrompt la publication.
+              Une alerte part par email à 30, 14, 7, 3 et 1 jour, une seule fois par seuil.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="space-y-4">

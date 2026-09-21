@@ -153,6 +153,45 @@ export async function sendRelancePublicationEmail(
   await sendEmail(to, `Il vous reste à publier votre ${opts.publication.mot}`, html);
 }
 
+// ── a bis) Jeton Facebook proche de l'échéance (section 255) ───────────────────
+//
+// SEUL EMAIL DU PRODUIT ADRESSÉ À L'EXPLOITANT, ET NON À UN UTILISATEUR. Pas d'`optIn` à
+// consulter, donc : ce n'est pas une communication, c'est une alarme d'exploitation. La rendre
+// désactivable rouvrirait le silence qu'elle est faite pour rompre.
+export async function sendJetonFacebookEmail(
+  to: string,
+  opts: { joursRestants: number; echeance: string; nature: "jeton" | "acces-donnees" }
+): Promise<void> {
+  const quoi =
+    opts.nature === "jeton"
+      ? "le jeton de publication de la Page Facebook"
+      : "l'accès aux données de la Page Facebook";
+  const consequence =
+    opts.nature === "jeton"
+      ? "La publication automatique des annonces s'arrêtera — sans erreur visible dans le produit."
+      : "Les appels à l'API cesseront de renvoyer des données, ce qui interrompt la publication automatique.";
+  const jours =
+    opts.joursRestants <= 0
+      ? "<strong>aujourd&rsquo;hui</strong>"
+      : opts.joursRestants === 1
+        ? "<strong>demain</strong>"
+        : `dans <strong>${opts.joursRestants} jours</strong>`;
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       ${quoi} expire ${jours} (${escapeHtml(opts.echeance)}).
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">${consequence}</p>
+     <p style="font-size:14px;line-height:1.5;margin:0;color:#4b5563">
+       Le renouvellement se fait dans l&rsquo;outil Graph API Explorer de Meta, puis en remplaçant
+       <code>FACEBOOK_PAGE_ACCESS_TOKEN</code> dans les variables d&rsquo;environnement Vercel.
+       L&rsquo;écran Diffusion affiche l&rsquo;état du jeton à tout moment.
+     </p>`,
+    { label: "Voir l'état du jeton", path: "/admin/diffusion" }
+  );
+  await sendEmail(to, `Facebook : ${quoi} expire ${opts.joursRestants <= 0 ? "aujourd'hui" : `dans ${opts.joursRestants} j`}`, html);
+}
+
 // ── b) Nouvelle mise en relation ───────────────────────────────────────────────
 export async function sendNewRelationEmail(
   to: string,
