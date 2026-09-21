@@ -7346,6 +7346,78 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 255 — L'EXPIRATION DU JETON FACEBOOK NE SERA PLUS SILENCIEUSE (21/09)
+
+Point n°2 de l'audit, ouvert depuis le 6 septembre. `publierSurLaPage` journalise un refus et rend
+la main — conduite correcte pour une publication en cours, puisqu'un Facebook en panne ne doit pas
+transformer une publication Soignect réussie en erreur à l'écran. Mais **personne ne lit les
+journaux d'une fonction qui n'échoue jamais bruyamment** : la diffusion se serait arrêtée un matin,
+et on l'aurait découvert en constatant l'absence de posts.
+
+#### L'échéance, vérifiée et non répétée
+
+L'audit annonçait « expire en novembre ». C'était à établir : un jeton de Page dérivé d'un jeton
+utilisateur longue durée peut être **permanent** — Graph renvoie alors `expires_at: 0`, et ce qui
+expire est `data_access_expires_at`, fenêtre de 90 jours qui coupe l'accès aux données sans
+invalider le jeton. Les deux échéances n'appellent pas le même geste.
+
+Mesuré en production le 21/09, via `debug_token` :
+
+```
+jeton valide
+échéance du jeton        5 novembre 2026     → 45 jours
+accès aux données        5 décembre 2026
+```
+
+L'audit avait donc raison, et pour la bonne raison : c'est bien le jeton lui-même qui tombe, le
+5 novembre. La première alerte partira au seuil de 30 jours, soit le **6 octobre**.
+
+#### Trois pièces, et ce que chacune répond
+
+| Pièce | Question à laquelle elle répond |
+|---|---|
+| `etatJetonPage()` | quand est-ce que ça casse ? |
+| Alerte email (30/14/7/3/1 j) | me prévenir avant, sans que j'aie à y penser |
+| Encart sur `/admin/diffusion` | est-ce que ça marche **en ce moment** ? |
+
+`debug_token` est le seul point d'accès qui donne une échéance. Un essai de publication dirait
+« ça marche aujourd'hui » — précisément l'information inutile ici. Repli prévu s'il refuse (il
+attend parfois un jeton d'application) : on vérifie que le jeton répond, et on l'affiche sans
+prétendre connaître la date. **Une échéance inventée serait pire qu'aucune échéance.**
+
+**Une alerte par seuil, pas une par jour.** Prévenir tous les matins pendant un mois produirait un
+message qu'on apprend à ignorer — c'est-à-dire le silence qu'on corrige, avec du bruit en plus.
+Déduplication par `TraceEvent`, sans migration, et **la trace est écrite APRÈS l'envoi** : écrite
+avant, un échec d'email marquerait un seuil comme prévenu alors que personne n'a rien reçu, et ce
+seuil-là ne reviendrait jamais.
+
+#### Greffé sur un cron existant, et c'est une contrainte d'hébergement
+
+Le plan Vercel est **Hobby** : deux tâches planifiées au maximum, et les deux sont prises. Pire, un
+cron surnuméraire ou infra-journalier dans `vercel.json` ne lève pas d'erreur mais **bloque
+silencieusement tous les builds** — la production a déjà gelé pour cette raison. La surveillance
+s'exécute donc à la fin de `publication-reminders`, sous sa propre clé de réponse, avec une
+fonction qui ne jette jamais : une surveillance qui tombe ne doit pas emporter les rappels.
+
+#### Le défaut trouvé en testant les bornes
+
+`seuilFranchi()` utilisait `find()` sur un tableau **décroissant** `[30, 14, 7, 3, 1]` : pour toute
+valeur ≤ 30, il renvoyait **toujours 30**. Une fois le seuil 30 signalé, la déduplication aurait
+éteint les alertes à 14, 7, 3 et 1 jour — **le dispositif se serait tu au moment précis où il
+devait crier**, reproduisant la panne silencieuse qu'il est fait pour supprimer.
+
+Trouvé en déroulant les bornes une à une, pas en relisant le code : à la lecture, la ligne paraît
+juste. Corrigé (plus petit seuil au-dessus des jours restants) et vérifié sur 18 cas — 120, 45, 31,
+30, 20, 15, 14, 10, 8, 7, 5, 4, 3, 2, 1, 0, −4, `null`.
+
+#### Une vérification de déploiement qui n'en était pas une
+
+J'ai sondé quatorze fois `/api/cron/publication-reminders?simulation=1` en cherchant la clé
+`jetonFacebook` dans la réponse, et conclu quatorze fois « pas encore déployé ». La route est
+protégée par `CRON_SECRET` : je lisais un `401 {"error":"Interdit"}` à chaque essai. Le déploiement
+était passé depuis longtemps. **Même erreur de méthode qu'au 10/09** — sonder un signal qui ne
+répond pas à la question posée. Le bon sondage était l'écran lui-même, qui portait la réponse.
+
 ### SECTION 234 — PUBLICATION AUTOMATIQUE SUR LA PAGE FACEBOOK (06/09)
 
 #### Le jeton ne vit que dans l'environnement
