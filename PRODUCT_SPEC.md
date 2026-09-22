@@ -7346,6 +7346,111 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 256 — LE FIL ÉCARTAIT LES CANDIDATS QUE SON PROPRE BARÈME AURAIT NOTÉS (21/09)
+
+Trouvé en mesurant l'entonnoir complet, à la demande de JC : 60 comptes, 47 annonces actives,
+8 mises en relation.
+
+#### La mesure d'abord, parce qu'elle a déplacé la question
+
+| Question | Réponse mesurée |
+|---|---|
+| Annonces actives jamais swipées | **3 sur 47** (6 %) — la visibilité n'est pas le goulot |
+| Décisions « Intéressé » | 70 RIGHT sur 425 — **16 %** |
+| Réciprocité des RIGHT | 13 sur 70 — **19 %** |
+| RIGHT émis par quelqu'un **sans annonce active** | **45 %** des non-réciproques |
+
+Décomposition des swipes RIGHT restés sans réponse :
+
+```
+swipeur sans annonce active        45 %   réciprocité IMPOSSIBLE
+dates incompatibles                12 %   invisible dès que le cabinet filtre
+cible sans dates (filtre inactif)  33 %   visible — vraie non-réponse
+dates compatibles, pas de réponse  10 %   visible — vraie non-réponse
+```
+
+**57 % de l'intérêt exprimé ne pouvait mécaniquement pas aboutir.** Le produit ne souffre pas d'un
+manque d'attention : il perd celle qu'il reçoit.
+
+#### Le défaut : une exclusion, là où le produit sait dégrader
+
+Quand un cabinet cible une de ses annonces, `/api/feed` appliquait un chevauchement strict :
+
+```ts
+startDate: { lte: besoin.endDate }   ET   endDate: { gte: besoin.startDate }
+```
+
+Un candidat décalé d'un jour **disparaissait** — pas classé plus bas, absent de la requête. Et
+parce qu'une comparaison SQL sur `NULL` est fausse, **tout candidat sans date de fin était écarté
+d'office** : précisément les disponibilités long terme, que cherchent 13 des 25 annonces cabinet
+(10 assistanat + 3 collaboration) face à 6 disponibilités qui en offrent.
+
+```
+sur les 11 annonces cabinet à deux bornes
+3,7 candidats visibles sur 22 en moyenne · 18,3 écartés
+dont 6 écartés dans TOUS les cas, faute de date de fin
+une annonce n'en voyait aucun
+```
+
+**L'erreur de conception se nomme.** `scoreDates` sait déjà dégrader : il applique la souplesse
+déclarée des deux parties (`dateFlexibility`), retombe sur `minMonths` quand les dates manquent,
+rend un neutre quand on ne sait rien. Le filtre, placé **juste devant lui**, était plus grossier
+que lui. *On ne filtre pas plus dur qu'on ne note.*
+
+Au passage : `dateFlexibility` est renseigné chez 11 candidats sur 22 — le produit demandait une
+marge de souplesse, l'affichait, puis l'ignorait au moment de filtrer.
+
+#### L'invariant retenu
+
+Le filtre ne doit retirer **que** des candidats auxquels `scoreDates` donnerait 0. Avec deux
+périodes bornées, ce score est non nul si et seulement si :
+
+```
+candidat.fin >= besoin.début - tolérance   ET   candidat.début <= besoin.fin + tolérance
+```
+
+La tolérance est la plus généreuse déclarable (30 j) : une requête SQL ne peut pas lire la
+souplesse de chaque candidat, et prendre le maximum garantit qu'on n'écarte personne de notable.
+Les dates absentes ne sont plus une exclusion mais un cas que le barème sait traiter.
+
+L'échelle de souplesse déménage de `deepseek.ts` vers `compatibilite.ts`. Elle n'était écrite qu'à
+un seul endroit — et c'est exactement pour cela que le fil a pu filtrer plus dur que le score ne
+notait. Deux règles de dates dans un produit qui met en relation **sur des dates**, c'est la
+divergence la plus chère possible.
+
+#### Vérifié sur le même chemin de code
+
+La vraie route exécutée via le harnais (esbuild, `@/lib/auth` stubbée), la version d'avant
+rebundlée depuis `HEAD` — pas une réimplémentation du filtre :
+
+```
+cabinet                      avant  après   dont sans date de fin
+Cabinet la Palmeraie             1      6            0 → 4
+Hôpital Beauperthuy              2      6            0 → 4
+CABINET DE KINÉSITHÉRAPIE        0      6            0 → 4
+Atelier souffle et santé         1      7            0 → 4
+guillout henry                   1      8            0 → 4
+```
+
+Sur les 11 annonces à deux bornes : **4,5 → 13,3 candidats visibles**, et plus aucune annonce ne
+voit zéro candidat.
+
+Le compte de JC ne pouvait pas servir à cette vérification : il a déjà swipé les 8 candidats, son
+fil renvoie `[]` quoi qu'on filtre. C'est ce qui a imposé le harnais plutôt qu'un test à l'écran.
+
+#### Ce que cette section NE corrige pas
+
+Les deux autres pertes mesurées restent ouvertes, et elles sont plus grosses que celle-ci :
+
+- **45 % de l'intérêt vient de gens sans annonce publiée** — réciprocité impossible par
+  construction. Le report du signal (section 251) en traite la notification, pas la cause.
+- **Le vivier long terme manque** : 13 annonces cherchent de l'assistanat ou de la collaboration,
+  6 disponibilités en offrent, et 3 profils Assistant sur 7 seulement ont publié.
+
+Et un patron qui mérite d'être regardé plutôt que commenté : **les 4 mises en relation confirmées
+se sont toutes faites en moins de 24 h** après publication. Celles qui ont traîné (1,9 à 14,9
+jours) sont restées en attente ou ont été déclinées.
+
 ### SECTION 255 — L'EXPIRATION DU JETON FACEBOOK NE SERA PLUS SILENCIEUSE (21/09)
 
 Point n°2 de l'audit, ouvert depuis le 6 septembre. `publierSurLaPage` journalise un refus et rend
