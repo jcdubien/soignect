@@ -45,6 +45,33 @@ export const SOCLE_LONG_TERME: SocleProfile = { dates: 20, geo: 25, bio: 55 };
 // neutre silencieusement (rate-limit DeepSeek, section 165). On ne lui confie pas la majorité
 // absolue du score.
 
+// ── TOLÉRANCE DE DATES (section 256) ─────────────────────────────────────────────────────────
+//
+// `dateFlexibility` est un indice 0-4 déclaré de part et d'autre ; l'échelle ci-dessous le
+// convertit en jours. `scoreDates` retient la PLUS GRANDE des deux souplesses : si le cabinet
+// accepte de décaler de deux semaines, peu importe que le candidat soit rigide.
+//
+// ELLE VIT ICI, ET PLUS DANS `deepseek.ts`, parce qu'un second lecteur en a besoin : le filtre du
+// fil. Tant que la barre était écrite à un seul endroit, le fil a filtré plus sévèrement que le
+// score ne notait — il écartait des candidats que le barème aurait classés. Deux règles de dates
+// dans un produit qui met en relation sur des dates, c'est la divergence qui se paie le plus cher.
+export const FLEX_JOURS = [0, 3, 7, 14, 30] as const;
+
+/** Jours de tolérance correspondant à un indice `dateFlexibility` (borné à l'échelle). */
+export function joursDeSouplesse(indice: number | null | undefined): number {
+  return FLEX_JOURS[Math.min(Math.max(indice ?? 0, 0), FLEX_JOURS.length - 1)];
+}
+
+/**
+ * Tolérance MAXIMALE que deux parties peuvent déclarer.
+ *
+ * C'est la borne qu'utilise le filtre du fil. Il ne peut pas connaître la souplesse de chaque
+ * candidat dans une requête SQL, il prend donc la plus généreuse : au-delà, `scoreDates` rend 0
+ * quelle que soit la déclaration des intéressés. Le filtre ne retire ainsi personne que le
+ * barème aurait noté — c'est exactement l'invariant qu'on veut, et il se vérifie.
+ */
+export const TOLERANCE_DATES_MAX_JOURS = FLEX_JOURS[FLEX_JOURS.length - 1];
+
 // ── Bonus : critères CONDITIONNELS, qui n'entrent au barème que si le chercheur les demande ──
 export type BonusKey = "logement" | "vehicule" | "secretariat" | "coordination";
 

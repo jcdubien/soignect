@@ -1,7 +1,7 @@
 // ── Système de scoring affinité 0-100 (Sprint 3) ─────────────────────────────
 
 import { zoneOfCommune, type ZoneGeo } from "@/lib/communes";
-import { socleFor, BONUS, type BonusKey } from "@/lib/compatibilite";
+import { socleFor, BONUS, joursDeSouplesse, type BonusKey } from "@/lib/compatibilite";
 
 export interface AffinityInput {
   bioTinder?: string | null;
@@ -62,10 +62,12 @@ function toDate(v?: Date | string | null): Date | null {
 
 // Algo section 25 — dates=35pts avec flexibilité slider
 function scoreDates(mission: AffinityInput, profile: AffinityInput): number {
-  const FLEX_DAYS = [0, 3, 7, 14, 30];
-  const mFlex = FLEX_DAYS[Math.min(mission.dateFlexibility ?? 0, 4)];
-  const pFlex = FLEX_DAYS[Math.min(profile.dateFlexibility ?? 0, 4)];
-  const totalFlex = Math.max(mFlex, pFlex);
+  // Échelle partagée avec le filtre du fil (section 256) : elle vivait ici seule, et le fil
+  // filtrait donc plus dur que ce barème ne notait.
+  const totalFlex = Math.max(
+    joursDeSouplesse(mission.dateFlexibility),
+    joursDeSouplesse(profile.dateFlexibility),
+  );
   const toleranceMs = totalFlex * 24 * 60 * 60 * 1000;
 
   const mS = toDate(mission.startDate), mE = toDate(mission.endDate);

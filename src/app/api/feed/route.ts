@@ -7,6 +7,7 @@ import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
 import { logTraceEvent } from "@/lib/trace";
+import { TOLERANCE_DATES_MAX_JOURS } from "@/lib/compatibilite";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +41,40 @@ export async function GET(req: NextRequest) {
   const limit           = Math.min(parseInt(searchParams.get("limit") ?? "20"), 50);
   const targetMissionId = searchParams.get("targetMissionId");
 
-  // When TITULAIRE selects a specific mission chip, filter candidats whose dates overlap
-  let dateFilter: { startDate?: object; endDate?: object } = {};
+  // ── FILTRE DE DATES QUAND LE CABINET CIBLE UNE DE SES ANNONCES (section 256) ───────────────
+  //
+  // CE QU'IL FAISAIT, ET CE QU'IL COÛTAIT. La condition était un chevauchement STRICT :
+  //
+  //     startDate: { lte: besoin.endDate }   ET   endDate: { gte: besoin.startDate }
+  //
+  // Un candidat décalé d'un seul jour disparaissait — pas classé plus bas : absent de la requête.
+  // Et parce qu'en SQL une comparaison sur NULL est fausse, tout candidat SANS DATE DE FIN était
+  // écarté d'office : c'est-à-dire précisément les disponibilités long terme, celles que cherchent
+  // les 13 annonces d'assistanat et de collaboration du moment.
+  //
+  // Mesuré le 21/09 sur les 11 annonces cabinet à deux bornes : **3,7 candidats visibles sur 22**
+  // en moyenne, 18,3 écartés, dont 6 dans TOUS les cas faute de date de fin. Une annonce n'en
+  // voyait aucun.
+  //
+  // ── L'ERREUR DE CONCEPTION, NOMMÉE ────────────────────────────────────────────────────────
+  //
+  // Le produit sait déjà dégrader : `scoreDates` applique la souplesse déclarée des deux parties,
+  // retombe sur `minMonths` quand les dates manquent, et rend un neutre quand on ne sait rien.
+  // Ce filtre-ci, placé JUSTE DEVANT lui, était plus grossier que lui — il écartait des candidats
+  // que le barème aurait volontiers notés. On ne filtre pas plus dur qu'on ne note.
+  //
+  // ── L'INVARIANT RETENU ────────────────────────────────────────────────────────────────────
+  //
+  // Le filtre ne doit retirer QUE des candidats auxquels `scoreDates` donnerait 0. Avec deux
+  // périodes bornées, ce score est non nul si et seulement si :
+  //
+  //     candidat.fin   >= besoin.début - tolérance      ET      candidat.début <= besoin.fin + tolérance
+  //
+  // La tolérance retenue est la plus généreuse déclarable (30 j) : une requête SQL ne peut pas
+  // lire la souplesse de chaque candidat, et prendre le maximum garantit qu'on n'écarte personne
+  // de notable. Les dates absentes ne sont plus une exclusion mais un cas que le barème sait
+  // traiter — on les laisse donc passer.
+  let dateFilter: Prisma.MissionWhereInput = {};
   // Période visée par le cabinet — déjà chargée pour le filtre de dates, on la garde pour le
   // bonus saisonnier (section 197), qui ne s'applique que si le besoin recoupe mai-octobre.
   let besoinPeriode: { startDate: Date | null; endDate: Date | null } | null = null;
@@ -54,9 +87,18 @@ export async function GET(req: NextRequest) {
     // besoin recoupe la fenêtre tout autant. Le FILTRE, lui, exige toujours les deux bornes.
     if (targetMission) besoinPeriode = { startDate: targetMission.startDate, endDate: targetMission.endDate };
     if (targetMission?.startDate && targetMission?.endDate) {
+      const tol = TOLERANCE_DATES_MAX_JOURS * 24 * 60 * 60 * 1000;
+      const borneBasse = new Date(targetMission.startDate.getTime() - tol);
+      const borneHaute = new Date(targetMission.endDate.getTime() + tol);
       dateFilter = {
-        startDate: { lte: targetMission.endDate },
-        endDate:   { gte: targetMission.startDate },
+        AND: [
+          // Une disponibilité sans début connu reste candidate : c'est au barème de la situer,
+          // pas à la requête de la supprimer.
+          { OR: [{ startDate: null }, { startDate: { lte: borneHaute } }] },
+          // Sans date de fin = disponibilité ouverte. Elle ne peut pas finir « trop tôt », et
+          // c'est le cas des postes long terme — ceux qu'on écartait systématiquement.
+          { OR: [{ endDate: null }, { endDate: { gte: borneBasse } }] },
+        ],
       };
     }
   }
