@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { contratConfirme } from "@/lib/matchEtat";
 import Link from "next/link";
 import { SubscriptionPlan } from "@prisma/client";
 import { hasPremiumAccess } from "@/lib/platform";
@@ -150,6 +151,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
           partner={{ type: theirProfile.type, theirMissionTitle: theirMission?.title ?? null }}
           aiScore={affinityScore}
           myType={myProfile.type}
+          contratConfirmed={contratConfirme(match)}
           autoOpen={chat === "1"}
         />
 

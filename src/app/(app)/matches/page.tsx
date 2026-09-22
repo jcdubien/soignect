@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { contratConfirme } from "@/lib/matchEtat";
 import Image from "next/image";
 import Link from "next/link";
 import MatchChatButton from "@/components/chat/MatchChatButton";
@@ -252,6 +253,7 @@ export default async function MatchesPage() {
                     partner={{ type: m.otherProfile.type, theirMissionTitle: m.theirMission?.title ?? null }}
                     aiScore={m.affinityScore}
                     myType={viewerType}
+                    contratConfirmed={contratConfirme({ missionA: m.myMission, missionB: m.theirMission })}
                   />
                 </div>
 

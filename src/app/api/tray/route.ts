@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { swipeExploitable } from "@/lib/camp";
 import { etatNouveauSignal } from "@/lib/interetSignale";
+import { contratConfirme } from "@/lib/matchEtat";
 
 export const dynamic = "force-dynamic";
 
@@ -93,9 +94,7 @@ export async function GET(req: Request) {
     const mId  = s.swipedMissionId;
     const match = matches.find((m) => m.missionAId === mId || m.missionBId === mId);
     // "Contrat confirmé" dérivé du briqueStatus des missions associées (pas de champ dédié)
-    const contratConfirmed =
-      match?.missionA?.briqueStatus === "CONFIRME" ||
-      match?.missionB?.briqueStatus === "CONFIRME";
+    const contratConfirmed = contratConfirme(match);
     return {
       mission:          s.swipedMission,
       affinityScore:    s.affinityScore,

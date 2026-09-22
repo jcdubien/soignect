@@ -448,6 +448,10 @@ function MissionSheet({
           partner={{ type: p.type, theirMissionTitle: mission.title }}
           aiScore={item.affinityScore}
           myType={myProfileType}
+          contratConfirmed={item.contratConfirmed}
+          // Le match disparaît : on prévient le parent comme le fait déjà « Annuler le match »
+          // du pied de fiche, pour que la ligne quitte « Vos choix » sans rechargement.
+          onCancelled={(id) => { onCancelled(id); onClose(); }}
           onClose={() => setChatOpen(false)}
         />
       )}

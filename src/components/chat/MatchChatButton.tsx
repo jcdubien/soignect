@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
 const ChatModal = dynamic(() => import("./ChatModal"), { ssr: false });
@@ -12,9 +13,12 @@ interface Props {
   aiScore: number | null;
   myType?: string;
   autoOpen?: boolean; // ouvre directement le chat (deep-link notif ?chat=1, section 183)
+  /** Contrat signé des deux côtés — relayé tel quel à la modale (section 258). */
+  contratConfirmed?: boolean;
 }
 
-export default function MatchChatButton({ matchId, myProfileId, partner, aiScore, myType, autoOpen }: Props) {
+export default function MatchChatButton({ matchId, myProfileId, partner, aiScore, myType, autoOpen, contratConfirmed }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(!!autoOpen);
 
   return (
@@ -36,6 +40,11 @@ export default function MatchChatButton({ matchId, myProfileId, partner, aiScore
           partner={partner}
           aiScore={aiScore}
           myType={myType}
+          contratConfirmed={contratConfirmed}
+          // Le match vient d'être supprimé : rester sur une page qui le décrit afficherait un
+          // écran mort. On rafraîchit, la page se replie d'elle-même sur son état « introuvable »
+          // ou sur la liste.
+          onCancelled={() => router.refresh()}
           onClose={() => setOpen(false)}
         />
       )}

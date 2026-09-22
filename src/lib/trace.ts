@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { contratConfirme } from "@/lib/matchEtat";
 import type { Prisma } from "@prisma/client";
 
 // Back-office de traçabilité (section 86).
@@ -79,10 +80,10 @@ export function logMatchCancelled(
   // Le contrat est signé quand les DEUX parties l'ont signé ; le statut CONFIRME de la brique
   // en est le reflet côté planning. On retient l'un ou l'autre pour ne pas rater le cas d'une
   // brique confirmée dont les dates de signature manqueraient (reprises de données anciennes).
-  const contratSigne =
-    signatures === 2 ||
-    match.missionA?.briqueStatus === "CONFIRME" ||
-    match.missionB?.briqueStatus === "CONFIRME";
+  // Volontairement PLUS LARGE que `contratConfirme` seul : deux signatures suffisent, même si
+  // le briqueStatus n'a pas suivi (reprises de données anciennes). On réutilise l'aide pour les
+  // deux termes de statut, sans élargir ni rétrécir ce test-ci.
+  const contratSigne = signatures === 2 || contratConfirme(match);
 
   // missionA porte l'annonce du cabinet par convention (voir api/swipe) ; repli sur B.
   const cote = match.missionA ?? match.missionB ?? null;

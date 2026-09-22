@@ -24,6 +24,12 @@ interface ChatModalProps {
   onClose: () => void;
   /** Type du profil courant — le bouton contrat n'est visible que côté recruteur */
   myType?: string;
+  /** Contrat signé des deux côtés ? Dérivé par `contratConfirme` chez l'appelant, qui charge
+   *  déjà les deux missions. Décide du REFUS d'annuler — voir l'en-tête du bouton plus bas. */
+  contratConfirmed?: boolean;
+  /** Appelé après une annulation réussie, pour que l'écran appelant se rafraîchisse. La modale
+   *  se ferme d'elle-même : un chat dont le match n'existe plus n'a plus rien à afficher. */
+  onCancelled?: (matchId: string) => void;
 }
 
 const TYPE_EMOJI: Record<string, string> = {
@@ -38,8 +44,11 @@ const TYPE_LABEL: Record<string, string> = {
   TITULAIRE: "Cabinet / Titulaire",
 };
 
-export default function ChatModal({ matchId, myProfileId, partner, aiScore, onClose, myType }: ChatModalProps) {
+export default function ChatModal({ matchId, myProfileId, partner, aiScore, onClose, myType, contratConfirmed, onCancelled }: ChatModalProps) {
   const canSendContract = myType === "TITULAIRE" || myType === "ASSISTANT";
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -142,6 +151,40 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
     }
   }
 
+  // ── ANNULER LA MISE EN RELATION (section 258) ────────────────────────────────────────────
+  //
+  // Demandé le 21/09 : le chat n'offrait que « Envoyer un contrat » et l'envoi de message. Quand
+  // la discussion ne mène à rien, il fallait sortir de l'écran et retrouver la fiche dans « Vos
+  // choix » pour se désengager — c'est-à-dire connaître un chemin que rien n'indique.
+  //
+  // LE CONTRAT SIGNÉ REFUSE, ICI. Deux autres surfaces (Planning, Disponibilités) passent
+  // `?force=true` et annulent un match confirmé ; celle-ci non, sur arbitrage du 22/09. Annuler
+  // un contrat signé depuis une fenêtre de discussion est trop facile, et le Planning reste la
+  // porte pour ce geste-là. Le bouton reste VISIBLE et dit pourquoi il refuse : un levier qui
+  // disparaît sans explication laisse chercher une option qui existe ailleurs.
+  //
+  // La route revérifie de toute façon — elle répond 403 sans `force`. L'écran ne fait qu'éviter
+  // un aller-retour et une erreur sèche.
+  async function annulerLaMiseEnRelation() {
+    if (cancelling) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      const res = await fetch(`/api/match/${encodeURIComponent(matchId)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        setCancelError(typeof d?.error === "string" ? d.error : "L'annulation a échoué. Réessayez.");
+        setCancelling(false);
+        return;
+      }
+      onCancelled?.(matchId);
+      onClose();
+    } catch {
+      setCancelError("Erreur réseau. Réessayez.");
+      setCancelling(false);
+    }
+  }
+
   const score = aiScore !== null ? Math.round(aiScore) : null;
 
   if (!monte) return null; // pas de `document` au rendu serveur
@@ -177,7 +220,33 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
             <p className="text-[9px] text-gray-400 leading-none">affinité IA</p>
           </div>
         )}
+
+        {/* Dans l'en-tête, DISCRET, et loin de la zone de saisie : c'est une action
+            irréversible, elle ne doit pas voisiner le bouton d'envoi de message. */}
+        <button
+          type="button"
+          onClick={() => { setCancelError(null); setConfirmingCancel(true); }}
+          disabled={contratConfirmed}
+          title={contratConfirmed
+            ? "Contrat signé des deux côtés — l'annulation se fait depuis le Planning"
+            : "Annuler cette mise en relation"}
+          className="shrink-0 p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition disabled:opacity-30 disabled:hover:text-gray-400 disabled:hover:bg-transparent disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+          aria-label="Annuler cette mise en relation"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="9" /><line x1="8.5" y1="8.5" x2="15.5" y2="15.5" /><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" />
+          </svg>
+        </button>
       </div>
+
+      {/* Le motif du refus, ÉCRIT plutôt que laissé au survol : une infobulle n'existe pas au
+          doigt, et c'est sur mobile que se lisent la plupart des conversations. */}
+      {contratConfirmed && (
+        <p className="px-4 py-2 text-[11px] leading-snug text-gray-500 bg-gray-50 border-b border-gray-100">
+          Le contrat est signé des deux côtés. L&apos;annulation reste possible depuis le Planning,
+          où la conséquence sur le poste est visible.
+        </p>
+      )}
 
       {/* Bouton contrat permanent (section 61) — côté recruteur uniquement */}
       {canSendContract && (
@@ -250,6 +319,51 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
           </svg>
         </button>
       </form>
+
+      {/* Confirmation — MODALE, comme « Annuler le match » du fil « Vos choix », et non le
+          bouton à deux temps du Planning. Le chat occupe tout l'écran : un second bouton qui
+          remplace le premier s'y perdrait, là où une surface assombrie arrête le geste.
+          Le texte nomme les trois conséquences réelles, mesurées dans la route : conversation
+          supprimée, poste remis en recherche, et possibilité de se re-choisir plus tard. */}
+      {confirmingCancel && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/50"
+          onClick={() => { if (!cancelling) setConfirmingCancel(false); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900 text-base mb-2">Annuler cette mise en relation ?</h3>
+            <p className="text-sm text-gray-500 mb-3">
+              La conversation et son historique seront supprimés, et le poste repassera en
+              recherche des deux côtés.
+            </p>
+            <p className="text-sm text-gray-500 mb-5">
+              Vous pourrez vous retrouver dans le fil plus tard : les deux choix sont effacés, rien
+              n&apos;empêche une nouvelle mise en relation.
+            </p>
+            {cancelError && (
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">{cancelError}</p>
+            )}
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setConfirmingCancel(false)}
+                disabled={cancelling}
+                className="flex-1 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-40"
+              >
+                Revenir au chat
+              </button>
+              <button
+                type="button"
+                onClick={annulerLaMiseEnRelation}
+                disabled={cancelling}
+                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition disabled:opacity-40"
+              >
+                {cancelling ? "Annulation…" : "Confirmer l'annulation"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body,
   );

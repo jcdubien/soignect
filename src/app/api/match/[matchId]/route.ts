@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { contratConfirme } from "@/lib/matchEtat";
+import { createNotification } from "@/lib/notifications";
 import { sendRelationCancelledEmail } from "@/lib/email";
 import { detachAssistantPostForMatch } from "@/lib/assistantPost";
 import { logMatchCancelled } from "@/lib/trace";
@@ -40,9 +42,7 @@ export async function DELETE(
 
   // Impossible d'annuler un contrat déjà confirmé
   // (pas de champ contratStatus en base → dérivé du briqueStatus de la mission)
-  const confirmed =
-    match.missionA?.briqueStatus === "CONFIRME" ||
-    match.missionB?.briqueStatus === "CONFIRME";
+  const confirmed = contratConfirme(match);
   // Un match confirmé (contrat signé) n'est annulable qu'avec confirmation explicite (force).
   if (confirmed && !force) {
     return NextResponse.json(
@@ -88,12 +88,38 @@ export async function DELETE(
   const otherProfileId = match.profileAId === profileId ? match.profileBId : match.profileAId;
   const otherUser = await prisma.user.findFirst({
     where: { profile: { id: otherProfileId } },
-    select: { email: true, emailOptIn: true },
+    select: { id: true, email: true, emailOptIn: true },
   });
   if (otherUser) {
     // wasConfirmed → message adapté (contrat signé annulé), cohérent notifications section 137.
     await sendRelationCancelledEmail(otherUser.email, { optIn: otherUser.emailOptIn, wasConfirmed: confirmed });
   }
+
+  // ── NOTIFICATION IN-APP (section 258) ───────────────────────────────────────────────────────
+  //
+  // L'annulation ne partait qu'en EMAIL, quand la section 155 a posé des notifications in-app
+  // pour quatre autres déclencheurs. Conséquence concrète : quelqu'un qui revient dans
+  // l'application trouve une conversation disparue, sans un mot pour l'expliquer — et l'email,
+  // lui, dépend d'un opt-in qui peut être à faux.
+  //
+  // POSÉE DANS LA ROUTE, PAS DANS L'ÉCRAN. Les quatre surfaces qui annulent (chat, fil « Vos
+  // choix », Planning, Disponibilités) appellent toutes ici : l'écrire côté client aurait donné
+  // quatre comportements pour un seul geste.
+  //
+  // PAS DE LIEN VERS LE MATCH : il vient d'être supprimé, le lien serait mort au clic. On
+  // renvoie vers la liste des mises en relation, qui existe toujours.
+  // ATTENDUE, contrairement à l'usage habituel de cette fonction. Ailleurs elle est lancée sans
+  // await parce qu'un traitement la suit ; ici la route REND LA MAIN juste après, et une écriture
+  // flottante peut être coupée net quand la fonction serverless gèle. `createNotification`
+  // n'échoue jamais — l'attendre ne coûte qu'un aller-retour et supprime la course.
+  await createNotification({
+    userId: otherUser?.id,
+    type: "match",
+    message: confirmed
+      ? "Une mise en relation avec contrat signé a été annulée"
+      : "Une mise en relation a été annulée",
+    linkUrl: "/matches",
+  });
 
   return NextResponse.json({ ok: true });
 }
