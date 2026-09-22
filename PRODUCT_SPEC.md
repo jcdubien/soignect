@@ -7347,6 +7347,73 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 258 — ANNULER LA MISE EN RELATION DEPUIS LE CHAT (22/09)
+
+Demandé le 21/09, captures à l'appui : l'écran de chat n'offrait que « Envoyer un contrat » et
+l'envoi de message. Quand la discussion ne mène à rien, il fallait sortir de l'écran, retrouver la
+fiche dans « Vos choix » et s'y désengager — c'est-à-dire connaître un chemin que rien n'indique.
+
+#### Il manquait une porte, pas un moteur
+
+La lecture préalable a montré que `DELETE /api/match/[matchId]` traitait **déjà** toutes les
+conséquences :
+
+| Conséquence | Déjà implémentée |
+|---|---|
+| Swipes réciproques supprimés → les deux peuvent se re-choisir plus tard | oui, et commenté comme voulu |
+| Match supprimé, messages en cascade, notes → `null` | oui |
+| Missions remises en `RECHERCHE`, `matchedName` effacé | oui |
+| Poste assistant détaché | oui |
+| Trace `MATCH_CANCELLED` écrite **avant** la suppression | oui |
+| Email « mise en relation annulée » à l'autre partie | oui |
+
+**Sur « un contrat signé des deux côtés est figé »** : la route ne l'interdit pas, elle l'encadre —
+403 sans `?force=true`. La règle du document figé concerne le **PDF déjà signé** ; l'annulation met
+fin à la relation *pour la suite*. Les deux coexistent sans se contredire.
+
+#### Trois arbitrages
+
+| Question | Décision de JC |
+|---|---|
+| Contrat signé des deux côtés | **Refus ici**, avec le motif affiché. Le Planning et les Disponibilités gardent leur `?force=true` ; annuler un contrat signé depuis une fenêtre de discussion est trop facile. Le bouton reste **visible** et dit pourquoi — un levier qui disparaît sans explication laisse chercher une option qui existe ailleurs. |
+| Notification à l'autre partie | **In-app, pour toutes les annulations.** Posée dans la route partagée. |
+| Placement | **En-tête, discret**, loin de la zone de saisie : une action irréversible ne voisine pas le bouton d'envoi. |
+
+Le second point comble un manque antérieur à cette demande : l'annulation ne partait qu'en
+**email**, alors que la section 155 a posé des notifications in-app pour quatre autres
+déclencheurs. Quelqu'un qui revenait dans l'application trouvait une conversation disparue sans un
+mot — et l'email dépend d'un opt-in qui peut être à faux. La notification ne pointe pas vers le
+match, qui vient d'être supprimé : elle renvoie vers `/matches`, qui existe toujours.
+
+#### Une règle qui commandait un refus, écrite trois fois
+
+`missionA?.briqueStatus === "CONFIRME" || missionB?.briqueStatus === "CONFIRME"` existait à
+l'identique dans la route d'annulation, dans le fil « Vos choix » et dans la trace — et deux
+appelants de plus arrivaient avec ce bouton. Extraite dans `lib/matchEtat.ts`.
+
+Ce n'est pas une préférence de style : **cette expression décide si une annulation part ou non**.
+En cinq exemplaires, il aurait suffi qu'un seul oublie l'un des deux côtés pour qu'un écran
+autorise ce qu'un autre interdit, sur le même match. `trace.ts` la réutilise sans élargir sa
+portée — il garde son `signatures === 2 ||` en plus, parce que deux signatures suffisent même si
+le `briqueStatus` n'a pas suivi.
+
+Second point technique : `createNotification` est **attendue** dans cette route, contrairement à
+son usage habituel. Ailleurs un traitement la suit ; ici la route rend la main juste après, et une
+écriture flottante peut être coupée net quand la fonction serverless gèle. Elle n'échoue jamais —
+l'attendre ne coûte qu'un aller-retour et supprime la course.
+
+#### Vérifié à l'écran, les deux branches
+
+```
+match non confirmé   bouton actif · modale nommant les trois conséquences
+contrat signé        bouton grisé · « …reste possible depuis le Planning »
+DELETE sans force    403 « Contrat confirmé — annulation impossible »
+```
+
+⚠️ **L'annulation réelle n'est pas exercée.** Les trois matchs en base appartiennent à des
+personnes réelles, et confirmer détruirait leur conversation et leur enverrait une notification.
+Reste à exercer sur un couple de test, ou sur un match que JC désigne.
+
 ### SECTION 257 — LES ARBITRAGES DU CONTRAT SALARIÉ, TRANCHÉS (22/09)
 
 Bloquant depuis le 8 septembre : trois gabarits salariés sur quatre ne sont pas écrits — **CDD
