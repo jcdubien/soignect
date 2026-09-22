@@ -4512,7 +4512,8 @@ rendu conditionnellement, et les numéros d'article sont écrits en dur : sans p
 contrat signé passait de l'« Article 3 » à l'« Article 5 ». Une renumérotation dynamique était
 exclue — l'article 1er renvoie nommément à l'« article 8 ci-après ». L'article est donc toujours
 rendu, et énonce l'absence de période d'essai quand il n'y en a pas : un contrat muet sur ce point
-et un contrat qui l'écarte ne sont pas le même contrat. *Rédaction à confirmer par JC.*
+et un contrat qui l'écarte ne sont pas le même contrat. **Rédaction confirmée par JC le 22/09**
+(section 257, arbitrage n°4).
 
 **Constaté sur le PDF réel** (4 pages, 16 Ko), après correction : articles 1er → 20 contigus,
 qualité de « masseur-kinésithérapeute » tirée de `professionLabel(_, "contrat")`, avertissement
@@ -7345,6 +7346,64 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
+
+### SECTION 257 — LES ARBITRAGES DU CONTRAT SALARIÉ, TRANCHÉS (22/09)
+
+Bloquant depuis le 8 septembre : trois gabarits salariés sur quatre ne sont pas écrits — **CDD
+kiné, CDI et CDD infirmier** — et leur transcription attendait des décisions que je ne pouvais pas
+prendre. Relevées le 28/08 par marqueurs structurels sur les modèles du CNOI : six branches `ou`
+dans le CDI, six dans le CDD dont cinq identiques.
+
+#### Deux des six n'étaient déjà plus des questions
+
+Confronter la liste au code avant de la soumettre a supprimé un tiers du travail :
+
+| # | Article | Branche du modèle | État avant arbitrage |
+|---|---|---|---|
+| 1 | Préambule | employeur personne physique **ou** société | **tranché** — `ContractParty.isStructure` bascule SIRET au lieu de RPPS/Ordre |
+| 2 | Art. 4 | période d'essai incluse **ou** non | **tranché** — `periodeEssaiMois: number \| null` |
+| 3 | Art. 9 | véhicule personnel **ou** fourni par l'employeur | absent du type |
+| 4 | Art. 9 | si fourni : usage strictement professionnel **ou** aussi hors horaires | absent du type |
+| 5 | Art. 11 | interdiction de **s'installer** ou d'**exercer pour son compte ou celui d'autrui** | formulation non portée par le type |
+| 6 | Art. 11 | zone : **rayon en km** ou **liste de communes** | seul `rayonKm` modélisé — par défaut, jamais arbitré |
+
+Le septième choix, propre au CDD — *terme précis* ou *sans terme précis* — était déjà structurel
+(`NatureSalariat`). Côté CDD kiné, les branches propres (temps complet/partiel, répartition
+horaire) le sont aussi, `PARTIEL` **exigeant** la répartition sous peine de requalification.
+
+#### Ce que JC a tranché le 22/09
+
+| # | Décision |
+|---|---|
+| 3-4 | **Les deux branches, au choix à la saisie.** Le véhicule est une clause du modèle CNOI ; l'omettre priverait les deux gabarits infirmiers d'un article que leur ordre prévoit. |
+| 5 | **« exercer pour son compte ou pour le compte d'autrui »** — formulation large, qui couvre l'installation libérale *et* le salariat chez un concurrent. |
+| 6 | **Rayon en kilomètres**, comme les contrats libéraux. Un seul vocabulaire de zone dans tout le produit. |
+| 2 | **L'article 4 écarte expressément la période d'essai** quand il n'y en a pas. Lève la réserve « rédaction à confirmer » du 31/08. |
+
+#### Trois décisions sur quatre décrivaient déjà le gabarit livré
+
+Vérifié dans `template-kine-salariat-cdi.tsx` avant de rien changer :
+
+```
+art. 4   « Les parties ne conviennent d'aucune période d'essai. L'engagement est
+           définitif dès la prise d'effet du contrat. »                          → conforme
+art. 16  « …exercer sa profession pour son propre compte ou pour le compte
+           d'autrui… »                                                            → conforme
+art. 16  « …dans un rayon de {rayonKm} kilomètres autour du cabinet. »            → conforme
+```
+
+**Aucune ligne de code n'a changé.** Le seul arbitrage qui crée du travail est le véhicule (3-4),
+et il ne concerne que deux gabarits qui n'existent pas encore. Les décisions ne sont donc pas
+matérialisées dans le type tout de suite : ajouter des champs `vehicule` que rien ne rend
+produirait exactement le levier dormant que ce dépôt combat. Ils arriveront avec les gabarits.
+
+#### Ce qui reste, et son ordre
+
+Les trois transcriptions sont désormais **débloquées**. Ordre proposé, du plus utile au moins :
+CDD infirmier (deux établissements réels en base, Hôpital Beauperthuy et Clinique l'Espérance),
+CDI infirmier, puis CDD kiné. La mention « validation par un avocat indispensable avant signature »
+reste imprimée en tête de chaque document — ces arbitrages portent sur ce que le gabarit propose,
+pas sur la validité juridique de ce qu'il produit.
 
 ### SECTION 256 — LE FIL ÉCARTAIT LES CANDIDATS QUE SON PROPRE BARÈME AURAIT NOTÉS (21/09)
 
