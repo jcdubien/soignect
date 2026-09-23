@@ -229,6 +229,47 @@ export interface ContractDataSalarie extends SignatureImages {
   generatedAt: string;
 }
 
+// ── CDD SALARIÉ INFIRMIER (section 259) ──────────────────────────────────────────────────────
+//
+// Le modèle du CNOI demande, pour ses articles 9 et 11, des données que le CDI kiné ne rend pas.
+// Plutôt que d'ajouter ces champs à `ContractDataSalarie` — où ils auraient été du poids mort
+// pour le gabarit kiné, qui devrait alors les fournir sans les imprimer — ce contrat étend le
+// socle avec ce qui lui est propre. Le socle, lui, ne bouge pas.
+
+/** Véhicule, article 9. UNION et non champ facultatif : le modèle pose deux branches exclusives,
+ *  « si utilisation du véhicule personnel » et « si mise à disposition par l'employeur », dont
+ *  les clauses d'assurance et de responsabilité diffèrent. Un booléen plus des champs optionnels
+ *  aurait laissé produire un contrat mettant un véhicule à disposition sans le désigner. */
+export type VehiculeSalarie =
+  | { type: "PERSONNEL" }
+  | {
+      type: "EMPLOYEUR";
+      /** Désignation du véhicule — le modèle l'exige en toutes lettres (« le véhicule suivant »). */
+      designation: string;
+      /** Arbitrage du 22/09 : les deux usages restent proposés, comme dans le modèle. */
+      usage: "PROFESSIONNEL" | "AUSSI_HORS_HORAIRES";
+    };
+
+export interface ContractDataSalarieInfirmierCdd extends ContractDataSalarie {
+  vehicule: VehiculeSalarie;
+
+  /** Ce que l'article 11 du modèle CNOI exige EN PLUS de `nonConcurrence` du socle. Regroupé
+   *  plutôt que fondu dedans : le socle sert aussi au CDI kiné, qui n'imprime rien de tout ça. */
+  nonConcurrenceDetail: {
+    /** « …de la moyenne mensuelle du salaire brut perçu au cours des N derniers mois ». */
+    moisDeReference: number;
+    /** Dommages-intérêts forfaitaires en cas de non-respect, en euros. */
+    dommagesInteretsEuros: number;
+    /** Délai pendant lequel l'employeur peut renoncer à la clause, en jours. */
+    renonciationJours: number;
+  };
+
+  /** LE MODÈLE COMPTE EN MOIS, pas en jours — « un délai de préavis fixé à …… mois ». Le socle
+   *  porte `preavisJours` parce que le CDI kiné, composé, s'exprimait en jours. On ne convertit
+   *  pas : transcrire un modèle officiel en changeant son unité, c'est déjà le réécrire. */
+  preavisMois: number;
+}
+
 export interface ContractDataRemplacement extends SignatureImages, NegotiableClauses {
   remplace: ContractParty;
   remplacant: ContractParty;

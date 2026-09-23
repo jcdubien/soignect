@@ -80,9 +80,19 @@ export const GABARITS_SALARIE: GabaritSalarie[] = [
     source: "Composé — aucun modèle CNOMK pour ce cas",
     composeSansModele: true,
   },
-  // KINE_SALARIAT_CDD, INFIRMIER_SALARIAT_CDI et INFIRMIER_SALARIAT_CDD : gabarits non encore
-  // écrits. Leur absence est un fait constaté, pas un oubli — la route refuse explicitement
-  // plutôt que de retomber sur un autre gabarit.
+  {
+    id: "INFIRMIER_SALARIAT_CDD",
+    profession: Profession.INFIRMIER,
+    nature: "CDD",
+    libelle: "Contrat salarié entre infirmiers à durée déterminée",
+    // TRANSCRIPTION d'un modèle-type officiel, contrairement au CDI kiné : pas de
+    // `composeSansModele`, et l'écran n'affiche donc pas l'avertissement renforcé. Le mettre
+    // ici affaiblirait celui du CDI kiné, qui lui est mérité.
+    source: "Modèle-type CNOI du 3 juin 2025",
+  },
+  // KINE_SALARIAT_CDD et INFIRMIER_SALARIAT_CDI : gabarits non encore écrits. Leur absence est
+  // un fait constaté, pas un oubli — la route refuse explicitement plutôt que de retomber sur un
+  // autre gabarit.
 ];
 
 export function gabaritsSalariePour(

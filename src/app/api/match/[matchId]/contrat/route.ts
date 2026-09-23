@@ -11,6 +11,7 @@ import { buildRemplacementInfirmierAutorisePdf } from "@/lib/contrats/template-i
 import { buildRemplacementInfirmierConfrerePdf } from "@/lib/contrats/template-infirmier-remplacement-confrere";
 import { buildCollaborationInfirmierPdf } from "@/lib/contrats/template-infirmier-collaboration";
 import { gabaritsPour } from "@/lib/contrats/gabarits";
+import { buildInfirmierSalariatCddPdf } from "@/lib/contrats/template-infirmier-salariat-cdd";
 import { buildKineSalariatCdiPdf } from "@/lib/contrats/template-kine-salariat-cdi";
 import { NATURE_PAR_MISSION, gabaritsSalariePour } from "@/lib/contrats/gabaritsSalarie";
 import type { ContractParty } from "@/lib/contrats/types";
@@ -20,13 +21,30 @@ import { missingContractFields } from "@/lib/contractProfile";
 import { periodeParDefaut, periodeDemandee } from "@/lib/contrats/periode";
 import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
 import {
-  lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
-  REVERSEMENT_PCT_DEFAUT, REVERSEMENT_DELAI_MOIS_DEFAUT, REDEVANCE_CABINET_PCT_DEFAUT,
-  JOUR_VERSEMENT_REDEVANCE_DEFAUT, FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT,
-  PREAVIS_JOURS_DEFAUT, PREAVIS_COMMUN_ACCORD_JOURS_DEFAUT, PREAVIS_UNILATERAL_JOURS_DEFAUT,
-  PREAVIS_ESSAI_JOURS_DEFAUT, PERIODE_ESSAI_MOIS_INFIRMIER_DEFAUT, PERIODE_ESSAI_MOIS_CDI_DEFAUT,
-  RENOUVELLEMENTS_MAX_DEFAUT, DUREE_MAX_MOIS_DEFAUT, dureeMoisParDefaut,
-  NON_CONCURRENCE_DUREE_MOIS_DEFAUT, NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT,
+  lieuTravailParDefaut,
+  HEURES_HEBDOMADAIRES_DEFAUT,
+  HEURES_COMPLEMENTAIRES_DEFAUT,
+  REVERSEMENT_PCT_DEFAUT,
+  REVERSEMENT_DELAI_MOIS_DEFAUT,
+  REDEVANCE_CABINET_PCT_DEFAUT,
+  JOUR_VERSEMENT_REDEVANCE_DEFAUT,
+  FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT,
+  PREAVIS_JOURS_DEFAUT,
+  PREAVIS_COMMUN_ACCORD_JOURS_DEFAUT,
+  PREAVIS_UNILATERAL_JOURS_DEFAUT,
+  PREAVIS_ESSAI_JOURS_DEFAUT,
+  PERIODE_ESSAI_MOIS_INFIRMIER_DEFAUT,
+  PERIODE_ESSAI_MOIS_CDI_DEFAUT,
+  RENOUVELLEMENTS_MAX_DEFAUT,
+  DUREE_MAX_MOIS_DEFAUT,
+  dureeMoisParDefaut,
+  NON_CONCURRENCE_DUREE_MOIS_DEFAUT,
+  NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT,
+  INDEMNITE_PRECARITE_PCT_DEFAUT,
+  PREAVIS_MOIS_CDD_DEFAUT,
+  NON_CONCURRENCE_MOIS_REFERENCE_DEFAUT,
+  NON_CONCURRENCE_DOMMAGES_EUROS_DEFAUT,
+  NON_CONCURRENCE_RENONCIATION_JOURS_DEFAUT,
 } from "@/lib/contrats/defauts";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -385,6 +403,70 @@ export async function GET(req: NextRequest, { params }: Params) {
         generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
       });
       filename = "contrat-travail-cdi.pdf";
+    } else if (gabaritSalarie.id === "INFIRMIER_SALARIAT_CDD") {
+      // ── CDD salarié infirmier (section 259) ────────────────────────────────────────────────
+      //
+      // Transcription d'un modèle-type CNOI, contrairement au CDI kiné qui est composé. Deux
+      // écarts de données avec la branche ci-dessus, tous deux imposés par le modèle :
+      //   · le préavis se compte en MOIS, pas en jours — on ne convertit pas l'unité d'un
+      //     modèle officiel, ce serait déjà le réécrire ;
+      //   · l'article 9 porte une clause véhicule, absente du modèle kiné, en deux branches.
+      const vehiculeEmployeur = sp.get("vehicule") === "EMPLOYEUR";
+      element = buildInfirmierSalariatCddPdf({
+        employeur: titulaireParty,
+        salarie: autreParty,
+        // Le CDD n'a pas de forme CDI : sans date de fin, c'est un CDD SANS TERME PRÉCIS, qui
+        // porte alors une durée minimale et un motif. Le repli n'invente pas de date.
+        nature: periode.fin
+          ? { type: "CDD_TERME", debut: periode.debut, fin: periode.fin, renouvellementsMax: 2 }
+          : {
+              type: "CDD_SANS_TERME",
+              debut: periode.debut,
+              dureeMinimaleMois: entierS("dureeMinimaleMois", 1, 1, 18),
+              motif: texteS("motifCdd", 200),
+            },
+        temps: estPartiel
+          ? {
+              type: "PARTIEL",
+              heuresHebdomadaires: heures,
+              repartition,
+              heuresComplementairesMax: entierS("heuresComplementairesMax", HEURES_COMPLEMENTAIRES_DEFAUT, 0, 20),
+            }
+          : { type: "COMPLET", heuresHebdomadaires: heures },
+        urssafVille: texteS("urssafVille", 80),
+        numeroSecuriteSociale: texteS("numeroSecuriteSociale", 25),
+        lieuTravail: texteS("lieuTravail") || locationTitulaire,
+        periodeEssaiMois: essaiBrut === null || essaiBrut === "" ? null : entierS("periodeEssaiMois", PERIODE_ESSAI_MOIS_CDI_DEFAUT, 0, 8),
+        remunerationBrutMensuelle: remuneration,
+        caisseRetraite:   texteS("caisseRetraite", 120),
+        regimeFraisSante: texteS("regimeFraisSante", 120),
+        regimePrevoyance: texteS("regimePrevoyance", 120),
+        // `dureeMois` à 0 = clause écartée. L'article 11 est marqué « facultative » par l'Ordre ;
+        // le gabarit énonce alors son absence au lieu de se taire.
+        nonConcurrence: {
+          dureeMois:    entierS("nonConcurrenceDureeMois", NON_CONCURRENCE_DUREE_MOIS_DEFAUT, 0, 60),
+          rayonKm,
+          indemnitePct: entierS("nonConcurrenceIndemnitePct", NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT, 0, 100),
+          periodicite: sp.get("nonConcurrencePeriodicite") === "TRIMESTRIELLE" ? "TRIMESTRIELLE" : "MENSUELLE",
+        },
+        nonConcurrenceDetail: {
+          moisDeReference:       entierS("nonConcurrenceMoisReference", NON_CONCURRENCE_MOIS_REFERENCE_DEFAUT, 1, 36),
+          dommagesInteretsEuros: entierS("nonConcurrenceDommagesEuros", NON_CONCURRENCE_DOMMAGES_EUROS_DEFAUT, 0, 100000),
+          renonciationJours:     entierS("nonConcurrenceRenonciationJours", NON_CONCURRENCE_RENONCIATION_JOURS_DEFAUT, 0, 90),
+        },
+        vehicule: vehiculeEmployeur
+          ? {
+              type: "EMPLOYEUR",
+              designation: texteS("vehiculeDesignation", 120),
+              usage: sp.get("vehiculeUsage") === "AUSSI_HORS_HORAIRES" ? "AUSSI_HORS_HORAIRES" : "PROFESSIONNEL",
+            }
+          : { type: "PERSONNEL" },
+        indemnitePrecaritePct: entierS("indemnitePrecaritePct", INDEMNITE_PRECARITE_PCT_DEFAUT, 0, 100),
+        preavisJours: entierS("preavisJours", PREAVIS_JOURS_DEFAUT, 0, 180), // hérité du socle, non imprimé ici
+        preavisMois:  entierS("preavisMois", PREAVIS_MOIS_CDD_DEFAUT, 0, 12),
+        generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
+      });
+      filename = "contrat-travail-cdd-infirmier.pdf";
     } else {
       // Inatteignable aujourd'hui — un seul gabarit salarié est enregistré. Refus explicite
       // plutôt qu'un repli, pour que l'ajout du prochain gabarit sans branchement se voie.

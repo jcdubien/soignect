@@ -117,3 +117,28 @@ export function dureeMoisParDefaut(
 ): number {
   return missionTitulaire?.minMonths ?? missionCandidat?.minMonths ?? DUREE_MOIS_DEFAUT;
 }
+
+// ── CDD SALARIÉ INFIRMIER (section 259) ──────────────────────────────────────────────────────
+//
+// Valeurs par défaut des champs que le modèle CNOI laisse en pointillés. Elles ne sont PAS des
+// recommandations juridiques : ce sont des points de départ modifiables à l'écran, comme partout
+// ailleurs depuis la section 241 — aucune valeur n'atteint le PDF sans y être passée.
+
+/** Indemnité de fin de contrat. 10 % est le taux LÉGAL (art. L.1243-8 du Code du travail), pas
+ *  un choix : le modèle l'écrit en toutes lettres. Reste paramétrable parce qu'une convention
+ *  collective peut prévoir mieux, jamais moins. */
+export const INDEMNITE_PRECARITE_PCT_DEFAUT = 10;
+
+/** Préavis en MOIS — le modèle CNOI compte en mois là où le CDI kiné comptait en jours. */
+export const PREAVIS_MOIS_CDD_DEFAUT = 1;
+
+/** Nombre de mois servant de référence au calcul de la contrepartie de non-concurrence. */
+export const NON_CONCURRENCE_MOIS_REFERENCE_DEFAUT = 12;
+
+/** Dommages-intérêts forfaitaires en cas de non-respect de la clause de non-concurrence, en
+ *  euros. Le modèle laisse le montant entièrement libre ; ce défaut est délibérément BAS, pour
+ *  qu'un montant non relu ne soit pas un montant lourd. */
+export const NON_CONCURRENCE_DOMMAGES_EUROS_DEFAUT = 1000;
+
+/** Délai pendant lequel l'employeur peut renoncer à la clause, en jours après la rupture. */
+export const NON_CONCURRENCE_RENONCIATION_JOURS_DEFAUT = 15;
