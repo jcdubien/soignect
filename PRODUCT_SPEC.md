@@ -7410,9 +7410,36 @@ contrat signé        bouton grisé · « …reste possible depuis le Planning �
 DELETE sans force    403 « Contrat confirmé — annulation impossible »
 ```
 
-⚠️ **L'annulation réelle n'est pas exercée.** Les trois matchs en base appartiennent à des
-personnes réelles, et confirmer détruirait leur conversation et leur enverrait une notification.
-Reste à exercer sur un couple de test, ou sur un match que JC désigne.
+#### Le parcours complet, exercé sur un couple de test (22/09)
+
+Les trois matchs en base appartiennent à des personnes réelles — confirmer aurait détruit leur
+conversation. Un couple de test a donc été créé sur décision de JC : deux profils, deux annonces
+**`isActive: false`** pour ne pas les exposer au fil, swipes réciproques, match, message.
+
+Vérifié après annulation depuis le chat :
+
+```
+match supprimé          oui
+messages supprimés      oui (cascade)
+swipes supprimés        oui  → les deux peuvent se re-choisir
+missions en RECHERCHE   oui, matchedName effacé
+notification in-app     « Une mise en relation a été annulée » → /matches
+trace MATCH_CANCELLED   1
+```
+
+Données de test **entièrement supprimées**, vérifié à zéro sur les cinq tables. Le compte de test
+préexistant est intact.
+
+#### Un défaut que seule l'exécution pouvait montrer
+
+Le premier passage s'est terminé sur **« Page introuvable »**. `onCancelled` déclenchait
+`router.refresh()` — or `/match/[id]` décrit un match qui vient d'être supprimé, donc le
+rafraîchissement tombait sur une 404. À la relecture, le code paraît juste : on rafraîchit après
+une mutation, c'est le réflexe correct partout ailleurs.
+
+Finir un geste délibéré par une erreur est une mauvaise fin de parcours. On navigue désormais vers
+`/matches`, qui existe toujours et reflète l'annulation ; depuis `/matches`, c'est un
+rafraîchissement. Rejoué sur un second match de test : on atterrit sur « Mes mises en relation ».
 
 ### SECTION 257 — LES ARBITRAGES DU CONTRAT SALARIÉ, TRANCHÉS (22/09)
 
