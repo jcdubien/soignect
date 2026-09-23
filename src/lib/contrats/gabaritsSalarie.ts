@@ -97,8 +97,15 @@ export const GABARITS_SALARIE: GabaritSalarie[] = [
     libelle: "Contrat salarié entre infirmiers à durée indéterminée",
     source: "Modèle-type CNOI du 3 juin 2025",
   },
-  // KINE_SALARIAT_CDD : dernier gabarit non écrit. Son absence est un fait constaté, pas un
-  // oubli — la route refuse explicitement plutôt que de retomber sur un autre gabarit.
+  {
+    id: "KINE_SALARIAT_CDD",
+    profession: Profession.KINESITHERAPEUTE,
+    nature: "CDD",
+    libelle: "Contrat de travail à durée déterminée — remplacement",
+    source: "Modèle CNOMK du 28 mars 2023",
+  },
+  // Les quatre gabarits salariés sont désormais écrits. Le refus explicite de la route subsiste
+  // pour tout identifiant inconnu : un gabarit ajouté sans branchement doit se voir.
 ];
 
 export function gabaritsSalariePour(

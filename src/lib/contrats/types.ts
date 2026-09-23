@@ -278,6 +278,43 @@ export interface ContractDataSalarieInfirmier extends ContractDataSalarie {
  *  données. Les deux gabarits lisent le même type. */
 export type ContractDataSalarieInfirmierCdd = ContractDataSalarieInfirmier;
 
+// ── CDD SALARIÉ KINÉ — REMPLACEMENT (section 261) ───────────────────────────────────────────
+//
+// Modèle CNOMK du 28/03/2023, STRUCTURELLEMENT DIFFÉRENT des deux contrats infirmiers : 20
+// articles dans un autre ordre, pas de clause véhicule, et une non-concurrence d'une autre nature.
+//
+// LA NON-CONCURRENCE N'EST PAS NÉGOCIABLE ICI, et c'est le point à retenir. Elle découle de
+// l'article R.4321-130 du Code de la santé publique : le kiné qui a remplacé un confrère pendant
+// au moins trois mois ne doit pas s'installer en concurrence directe pendant DEUX ANS. La durée
+// est donc fixée par le code, pas par les parties — `nonConcurrence.dureeMois` du socle n'a aucun
+// effet sur ce gabarit, seuls le rayon et la contrepartie se saisissent.
+export interface ContractDataSalarieKineCdd extends ContractDataSalarie {
+  /** Article 1er : « pour assurer le remplacement pendant son absence pour cause de … ». Le
+   *  modèle l'exige, et un CDD de remplacement sans motif est un CDD sans cause. */
+  motifAbsence: string;
+
+  /** Article 15 : date de la déclaration préalable à l'embauche auprès de l'URSSAF. */
+  dateDeclarationPrealable: string | null;
+
+  /** Article 18 : conseil départemental saisi en conciliation. */
+  conseilDepartemental: string;
+
+  /** Article 3, branche « sans terme précis » : le contrat prend fin AU RETOUR du remplacé, non
+   *  à l'extinction d'un motif comme chez l'infirmier. Durée minimale, en mois. */
+  dureeMinimaleMois: number;
+
+  /** Ce que l'article 14 exige en plus du socle. */
+  nonConcurrenceKine: {
+    /** « …de la moyenne mensuelle du salaire brut perçu au cours des N derniers mois ». */
+    moisDeReference: number;
+    /** Délai de renonciation de l'employeur, en jours après la rupture. */
+    renonciationJours: number;
+    /** Indemnité due en cas de violation, exprimée en MOIS de rémunération brute — et non en
+     *  euros comme chez l'infirmier. Convertir en euros aurait changé la clause. */
+    indemniteViolationMois: number;
+  };
+}
+
 export interface ContractDataRemplacement extends SignatureImages, NegotiableClauses {
   remplace: ContractParty;
   remplacant: ContractParty;

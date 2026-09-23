@@ -13,6 +13,7 @@ import { buildCollaborationInfirmierPdf } from "@/lib/contrats/template-infirmie
 import { gabaritsPour } from "@/lib/contrats/gabarits";
 import { buildInfirmierSalariatCddPdf } from "@/lib/contrats/template-infirmier-salariat-cdd";
 import { buildInfirmierSalariatCdiPdf } from "@/lib/contrats/template-infirmier-salariat-cdi";
+import { buildKineSalariatCddPdf } from "@/lib/contrats/template-kine-salariat-cdd";
 import { buildKineSalariatCdiPdf } from "@/lib/contrats/template-kine-salariat-cdi";
 import { NATURE_PAR_MISSION, gabaritsSalariePour } from "@/lib/contrats/gabaritsSalarie";
 import type { ContractParty } from "@/lib/contrats/types";
@@ -46,6 +47,7 @@ import {
   NON_CONCURRENCE_MOIS_REFERENCE_DEFAUT,
   NON_CONCURRENCE_DOMMAGES_EUROS_DEFAUT,
   NON_CONCURRENCE_RENONCIATION_JOURS_DEFAUT,
+  NON_CONCURRENCE_VIOLATION_MOIS_DEFAUT,
 } from "@/lib/contrats/defauts";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -520,6 +522,59 @@ export async function GET(req: NextRequest, { params }: Params) {
         generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
       });
       filename = "contrat-travail-cdi-infirmier.pdf";
+    } else if (gabaritSalarie.id === "KINE_SALARIAT_CDD") {
+      // ── CDD salarié kiné, remplacement (section 261) ───────────────────────────────────────
+      //
+      // La non-concurrence n'expose PAS sa durée : R.4321-130 la fixe à deux ans. Seuls le rayon
+      // et la contrepartie se saisissent — voir l'en-tête du gabarit.
+      element = buildKineSalariatCddPdf({
+        employeur: titulaireParty,
+        salarie: autreParty,
+        nature: periode.fin
+          ? { type: "CDD_TERME", debut: periode.debut, fin: periode.fin, renouvellementsMax: 2 }
+          : {
+              type: "CDD_SANS_TERME",
+              debut: periode.debut,
+              dureeMinimaleMois: entierS("dureeMinimaleMois", 1, 1, 18),
+              motif: texteS("motifAbsence", 200),
+            },
+        temps: estPartiel
+          ? {
+              type: "PARTIEL",
+              heuresHebdomadaires: heures,
+              repartition,
+              heuresComplementairesMax: entierS("heuresComplementairesMax", HEURES_COMPLEMENTAIRES_DEFAUT, 0, 20),
+            }
+          : { type: "COMPLET", heuresHebdomadaires: heures },
+        urssafVille: texteS("urssafVille", 80),
+        numeroSecuriteSociale: texteS("numeroSecuriteSociale", 25),
+        lieuTravail: texteS("lieuTravail") || locationTitulaire,
+        motifAbsence: texteS("motifAbsence", 200),
+        dateDeclarationPrealable: sp.get("dateDeclarationPrealable"),
+        conseilDepartemental: texteS("conseilDepartemental", 80) || locationTitulaire,
+        dureeMinimaleMois: entierS("dureeMinimaleMois", 1, 1, 18),
+        periodeEssaiMois: essaiBrut === null || essaiBrut === "" ? null : entierS("periodeEssaiMois", PERIODE_ESSAI_MOIS_CDI_DEFAUT, 0, 8),
+        remunerationBrutMensuelle: remuneration,
+        caisseRetraite:   texteS("caisseRetraite", 120),
+        regimeFraisSante: texteS("regimeFraisSante", 120),
+        regimePrevoyance: texteS("regimePrevoyance", 120),
+        nonConcurrence: {
+          // Durée non exposée : fixée à deux ans par R.4321-130, le gabarit l'imprime en clair.
+          dureeMois: 24,
+          rayonKm,
+          indemnitePct: entierS("nonConcurrenceIndemnitePct", NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT, 0, 100),
+          periodicite: sp.get("nonConcurrencePeriodicite") === "TRIMESTRIELLE" ? "TRIMESTRIELLE" : "MENSUELLE",
+        },
+        nonConcurrenceKine: {
+          moisDeReference:        entierS("nonConcurrenceMoisReference", NON_CONCURRENCE_MOIS_REFERENCE_DEFAUT, 1, 36),
+          renonciationJours:      entierS("nonConcurrenceRenonciationJours", NON_CONCURRENCE_RENONCIATION_JOURS_DEFAUT, 0, 90),
+          indemniteViolationMois: entierS("nonConcurrenceViolationMois", NON_CONCURRENCE_VIOLATION_MOIS_DEFAUT, 1, 24),
+        },
+        indemnitePrecaritePct: entierS("indemnitePrecaritePct", INDEMNITE_PRECARITE_PCT_DEFAUT, 0, 100),
+        preavisJours: entierS("preavisJours", PREAVIS_JOURS_DEFAUT, 0, 180), // hérité, non imprimé
+        generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
+      });
+      filename = "contrat-travail-cdd-kine.pdf";
     } else {
       // Inatteignable aujourd'hui — un seul gabarit salarié est enregistré. Refus explicite
       // plutôt qu'un repli, pour que l'ajout du prochain gabarit sans branchement se voie.

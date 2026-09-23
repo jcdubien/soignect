@@ -142,3 +142,8 @@ export const NON_CONCURRENCE_DOMMAGES_EUROS_DEFAUT = 1000;
 
 /** Délai pendant lequel l'employeur peut renoncer à la clause, en jours après la rupture. */
 export const NON_CONCURRENCE_RENONCIATION_JOURS_DEFAUT = 15;
+
+/** Indemnité due par le remplaçant en cas de VIOLATION de la clause de non-concurrence, exprimée
+ *  en MOIS de rémunération brute (modèle CNOMK, art. 14). Pas en euros : convertir aurait changé
+ *  la clause. Défaut délibérément bas, comme les dommages-intérêts du modèle infirmier. */
+export const NON_CONCURRENCE_VIOLATION_MOIS_DEFAUT = 3;
