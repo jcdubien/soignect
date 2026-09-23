@@ -7347,6 +7347,70 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 260 — LE CDI SALARIÉ INFIRMIER, ET UNE RÈGLE DE FACTORISATION SUSPENDUE (23/09)
+
+Deuxième des trois gabarits débloqués par les arbitrages de la section 257. 21 articles — un de
+moins que le CDD, qui porte en plus l'indemnité de précarité ; rupture et transmission à l'Ordre y
+sont donc numérotées 20 et 21, contre 21 et 22.
+
+#### La méthode : differ les sources, pas les relire
+
+Plutôt que de relire 20 000 caractères et de comparer de tête, les deux `.docx` « à remplir » ont
+été **diffés**. Le diff isole six écarts de fond — et c'est lui, pas la lecture, qui a montré que
+des articles d'apparence identique diffèrent en réalité.
+
+| Article | Écart |
+|---|---|
+| 3 | durée indéterminée, une seule branche |
+| 4 | renouvellement par L.1221-21, là où le CDD passe par un avenant |
+| 9 | le CDI ajoute « (carte grise, assurance du véhicule …) » |
+| 12 | reformulation — « de par l'exercice », « ces renseignements » |
+| 14 | congés « au moins deux mois à l'avance » contre « dans un délai raisonnable » |
+| fin | bloc « Fait à … en trois exemplaires », absent du CDD |
+
+#### La règle de factorisation, suspendue et pourquoi
+
+Les deux modèles partagent environ **90 %** de leur texte. Ce dépôt factorise d'ordinaire bien
+moins que ça — la section 258 vient encore d'extraire une expression écrite trois fois. Ici la
+règle ne s'applique pas, et le raisonnement mérite d'être écrit parce qu'il vaudra pour les
+prochains gabarits :
+
+**Factoriser du code qui se répète évite les divergences. Factoriser deux CONTRATS qui se
+ressemblent en fabrique une — celle entre le gabarit et sa source.**
+
+Partager ce texte imposerait de paramétrer chacun des six écarts, et surtout : une retouche future
+au texte « commun » modifierait **en silence** deux transcriptions de deux documents officiels
+distincts, que le CNOI peut faire évoluer séparément. Le risque n'est pas la duplication, c'est la
+dérive par rapport à un modèle signé.
+
+**Le type, lui, est partagé** : `ContractDataSalarieInfirmier` sert aux deux. Ce sont les mêmes
+données — seule `nature` bascule, et l'indemnité de précarité vaut `null` en CDI. La duplication
+est celle du TEXTE, pas de la structure.
+
+#### Vérifié par rendu réel
+
+```
+CDI   articles 2 à 21 tous présents · durée indéterminée · L.1221-21 · carte grise
+      usage hors horaires · congés à deux mois · rupture en 20 · transmission en 21
+      bloc de clôture présent
+      ABSENTS : précarité, article 22, vocabulaire CDD, consigne de remplissage
+
+CDD   re-rendu APRÈS le renommage du type qu'il partage désormais :
+      articles 2 à 22 intacts · précarité toujours là · article 14 inchangé
+      pas de bloc de clôture CDI
+```
+
+Le second bloc est une vérification de **non-régression**, pas une redite : renommer un type que
+deux gabarits partagent est exactement le genre de changement qu'un build vert laisse passer sans
+rien dire du rendu.
+
+#### Ce qui reste
+
+**CDD kiné** — dernier gabarit non écrit, et le seul des trois adossé à un modèle-type du CNOMK
+(28/03/2023). Comme le CDD infirmier, il ne pourra pas être déclenché tant que la phase 2 n'est pas
+ouverte : les 64 profils en base sont tous `KINESITHERAPEUTE`, et le gabarit kiné salarié existant
+(CDI composé) couvre déjà leur cas de CDI.
+
 ### SECTION 259 — LE CDD SALARIÉ INFIRMIER, TRANSCRIT (23/09)
 
 Premier des trois gabarits salariés débloqués par les arbitrages de la section 257. 22 articles,
