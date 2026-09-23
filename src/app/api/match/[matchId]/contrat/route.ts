@@ -12,6 +12,7 @@ import { buildRemplacementInfirmierConfrerePdf } from "@/lib/contrats/template-i
 import { buildCollaborationInfirmierPdf } from "@/lib/contrats/template-infirmier-collaboration";
 import { gabaritsPour } from "@/lib/contrats/gabarits";
 import { buildInfirmierSalariatCddPdf } from "@/lib/contrats/template-infirmier-salariat-cdd";
+import { buildInfirmierSalariatCdiPdf } from "@/lib/contrats/template-infirmier-salariat-cdi";
 import { buildKineSalariatCdiPdf } from "@/lib/contrats/template-kine-salariat-cdi";
 import { NATURE_PAR_MISSION, gabaritsSalariePour } from "@/lib/contrats/gabaritsSalarie";
 import type { ContractParty } from "@/lib/contrats/types";
@@ -464,9 +465,61 @@ export async function GET(req: NextRequest, { params }: Params) {
         indemnitePrecaritePct: entierS("indemnitePrecaritePct", INDEMNITE_PRECARITE_PCT_DEFAUT, 0, 100),
         preavisJours: entierS("preavisJours", PREAVIS_JOURS_DEFAUT, 0, 180), // hérité du socle, non imprimé ici
         preavisMois:  entierS("preavisMois", PREAVIS_MOIS_CDD_DEFAUT, 0, 12),
+        lieuSignature: texteS("lieuSignature", 80) || locationTitulaire, // non imprimé par le CDD
         generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
       });
       filename = "contrat-travail-cdd-infirmier.pdf";
+    } else if (gabaritSalarie.id === "INFIRMIER_SALARIAT_CDI") {
+      // ── CDI salarié infirmier (section 260) ────────────────────────────────────────────────
+      //
+      // Même famille que le CDD ci-dessus, et mêmes données : `nature` est la seule bascule,
+      // et l'indemnité de précarité n'existe pas — l'article correspondant n'est pas rendu.
+      const vehiculeEmployeurCdi = sp.get("vehicule") === "EMPLOYEUR";
+      element = buildInfirmierSalariatCdiPdf({
+        employeur: titulaireParty,
+        salarie: autreParty,
+        nature: { type: "CDI", debut: periode.debut },
+        temps: estPartiel
+          ? {
+              type: "PARTIEL",
+              heuresHebdomadaires: heures,
+              repartition,
+              heuresComplementairesMax: entierS("heuresComplementairesMax", HEURES_COMPLEMENTAIRES_DEFAUT, 0, 20),
+            }
+          : { type: "COMPLET", heuresHebdomadaires: heures },
+        urssafVille: texteS("urssafVille", 80),
+        numeroSecuriteSociale: texteS("numeroSecuriteSociale", 25),
+        lieuTravail: texteS("lieuTravail") || locationTitulaire,
+        periodeEssaiMois: essaiBrut === null || essaiBrut === "" ? null : entierS("periodeEssaiMois", PERIODE_ESSAI_MOIS_CDI_DEFAUT, 0, 8),
+        remunerationBrutMensuelle: remuneration,
+        caisseRetraite:   texteS("caisseRetraite", 120),
+        regimeFraisSante: texteS("regimeFraisSante", 120),
+        regimePrevoyance: texteS("regimePrevoyance", 120),
+        nonConcurrence: {
+          dureeMois:    entierS("nonConcurrenceDureeMois", NON_CONCURRENCE_DUREE_MOIS_DEFAUT, 0, 60),
+          rayonKm,
+          indemnitePct: entierS("nonConcurrenceIndemnitePct", NON_CONCURRENCE_INDEMNITE_PCT_DEFAUT, 0, 100),
+          periodicite: sp.get("nonConcurrencePeriodicite") === "TRIMESTRIELLE" ? "TRIMESTRIELLE" : "MENSUELLE",
+        },
+        nonConcurrenceDetail: {
+          moisDeReference:       entierS("nonConcurrenceMoisReference", NON_CONCURRENCE_MOIS_REFERENCE_DEFAUT, 1, 36),
+          dommagesInteretsEuros: entierS("nonConcurrenceDommagesEuros", NON_CONCURRENCE_DOMMAGES_EUROS_DEFAUT, 0, 100000),
+          renonciationJours:     entierS("nonConcurrenceRenonciationJours", NON_CONCURRENCE_RENONCIATION_JOURS_DEFAUT, 0, 90),
+        },
+        vehicule: vehiculeEmployeurCdi
+          ? {
+              type: "EMPLOYEUR",
+              designation: texteS("vehiculeDesignation", 120),
+              usage: sp.get("vehiculeUsage") === "AUSSI_HORS_HORAIRES" ? "AUSSI_HORS_HORAIRES" : "PROFESSIONNEL",
+            }
+          : { type: "PERSONNEL" },
+        indemnitePrecaritePct: null, // sans objet en CDI
+        preavisJours: entierS("preavisJours", PREAVIS_JOURS_DEFAUT, 0, 180),
+        preavisMois:  entierS("preavisMois", PREAVIS_MOIS_CDD_DEFAUT, 0, 12),
+        lieuSignature: texteS("lieuSignature", 80) || locationTitulaire,
+        generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
+      });
+      filename = "contrat-travail-cdi-infirmier.pdf";
     } else {
       // Inatteignable aujourd'hui — un seul gabarit salarié est enregistré. Refus explicite
       // plutôt qu'un repli, pour que l'ajout du prochain gabarit sans branchement se voie.

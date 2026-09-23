@@ -250,7 +250,7 @@ export type VehiculeSalarie =
       usage: "PROFESSIONNEL" | "AUSSI_HORS_HORAIRES";
     };
 
-export interface ContractDataSalarieInfirmierCdd extends ContractDataSalarie {
+export interface ContractDataSalarieInfirmier extends ContractDataSalarie {
   vehicule: VehiculeSalarie;
 
   /** Ce que l'article 11 du modèle CNOI exige EN PLUS de `nonConcurrence` du socle. Regroupé
@@ -268,7 +268,15 @@ export interface ContractDataSalarieInfirmierCdd extends ContractDataSalarie {
    *  porte `preavisJours` parce que le CDI kiné, composé, s'exprimait en jours. On ne convertit
    *  pas : transcrire un modèle officiel en changeant son unité, c'est déjà le réécrire. */
   preavisMois: number;
+
+  /** Lieu de signature — le modèle CDI se termine par « Fait à …… le …… , en trois exemplaires ».
+   *  Le modèle CDD n'a pas ce bloc ; le champ reste donc sans effet sur lui. */
+  lieuSignature: string;
 }
+
+/** Alias conservé : le CDD a été écrit avant que le CDI ne montre que les deux partagent leurs
+ *  données. Les deux gabarits lisent le même type. */
+export type ContractDataSalarieInfirmierCdd = ContractDataSalarieInfirmier;
 
 export interface ContractDataRemplacement extends SignatureImages, NegotiableClauses {
   remplace: ContractParty;

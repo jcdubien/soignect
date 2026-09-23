@@ -90,9 +90,15 @@ export const GABARITS_SALARIE: GabaritSalarie[] = [
     // ici affaiblirait celui du CDI kiné, qui lui est mérité.
     source: "Modèle-type CNOI du 3 juin 2025",
   },
-  // KINE_SALARIAT_CDD et INFIRMIER_SALARIAT_CDI : gabarits non encore écrits. Leur absence est
-  // un fait constaté, pas un oubli — la route refuse explicitement plutôt que de retomber sur un
-  // autre gabarit.
+  {
+    id: "INFIRMIER_SALARIAT_CDI",
+    profession: Profession.INFIRMIER,
+    nature: "CDI",
+    libelle: "Contrat salarié entre infirmiers à durée indéterminée",
+    source: "Modèle-type CNOI du 3 juin 2025",
+  },
+  // KINE_SALARIAT_CDD : dernier gabarit non écrit. Son absence est un fait constaté, pas un
+  // oubli — la route refuse explicitement plutôt que de retomber sur un autre gabarit.
 ];
 
 export function gabaritsSalariePour(
