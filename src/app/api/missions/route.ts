@@ -26,6 +26,9 @@ const createMissionSchema = z.object({
   bioTinder: z.string().max(700).optional().nullable(),
   retrocessionRate: z.number().int().min(0).max(100).optional().nullable(),
   missionType: z.nativeEnum(MissionType).optional(),
+  // Salariat (section 262) — orthogonal à `missionType`, qui garde son sens de FORME du poste.
+  estSalariat: z.boolean().optional(),
+  natureSalariat: z.enum(["CDI", "CDD_TERME", "CDD_SANS_TERME"]).optional(),
   dateFlexibility: z.number().int().min(0).max(4).optional(),
   logementPropose: z.boolean().optional(),   // annonce cabinet : logement proposé (section 120)
   rechercheLogement: z.boolean().optional(), // dispo remplaçant : recherche un logement (→ Profile)
@@ -122,7 +125,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, remunerationBrute, rawText, ouvertSalariat, briqueStatus, cabinetPostId, diffuserSurFacebook } = parsed.data;
+  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, estSalariat, natureSalariat, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, remunerationBrute, rawText, ouvertSalariat, briqueStatus, cabinetPostId, diffuserSurFacebook } = parsed.data;
 
   // Le SIÈGE du titulaire n'accueille que du remplacement (section 191). Un assistant occupe
   // structurellement une autre ligne du planning — un nouveau poste, ou un poste d'assistant
@@ -175,6 +178,32 @@ export async function POST(req: NextRequest) {
 
   // Validation 90 jours minimum pour les postes longs (section 37.E)
   const effectiveMissionType = missionType ?? MissionType.REMPLACEMENT;
+
+  // ── Salariat (section 262) ────────────────────────────────────────────────────────────────
+  //
+  // SEUL UN TITULAIRE PEUT EMPLOYER. Un candidat publie sa disponibilité, il ne recrute pas :
+  // laisser passer le drapeau depuis son formulaire produirait une « disponibilité salariée »,
+  // qui n'a pas de sens et déclencherait un gabarit de contrat de travail à l'envers.
+  //
+  // OUVERT AUX CABINETS LIBÉRAUX, PAS SEULEMENT AUX STRUCTURES (arbitrage du 23/09). Le modèle
+  // CNOMK du CDD est écrit mot pour mot pour « le masseur-kinésithérapeute LIBÉRAL » qui embauche
+  // son remplaçant : le réserver aux structures rendait ce gabarit inatteignable par ceux à qui
+  // il s'adresse.
+  const salariat = estSalariat === true && me?.type === "TITULAIRE";
+  if (estSalariat === true && me?.type !== "TITULAIRE") {
+    return NextResponse.json(
+      { error: "Seul un cabinet ou un établissement peut proposer un poste salarié." },
+      { status: 422 },
+    );
+  }
+  // La nature est EXIGÉE quand le poste est salarié — c'est elle qui choisit le gabarit de
+  // contrat. Sans elle, la génération n'aurait pas de quoi trancher entre CDI et CDD.
+  if (salariat && !natureSalariat) {
+    return NextResponse.json(
+      { error: "Précisez la nature du contrat salarié (CDI, CDD à terme précis ou sans terme précis)." },
+      { status: 422 },
+    );
+  }
 
   // Une disponibilité de remplacement « en recherche » DOIT avoir des dates (section 165) :
   // sinon elle est créée en base mais n'apparaît sur AUCUN segment de la timeline (les briques
@@ -298,6 +327,9 @@ export async function POST(req: NextRequest) {
       bioTinder: bioTinder ?? null,
       retrocessionRate: retrocessionRate ?? null,
       missionType: effectiveMissionType,
+      estSalariat: salariat,
+      // Miroir de la contrainte CHECK en base : hors salariat, la colonne reste nulle.
+      natureSalariat: salariat ? natureSalariat! : null,
       zonage: zonage ? (zonage as import("@prisma/client").ZonageType) : null,
       dateFlexibility: dateFlexibility ?? 0,
       logementPropose: logementPropose ?? false,

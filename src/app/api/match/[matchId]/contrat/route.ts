@@ -15,7 +15,7 @@ import { buildInfirmierSalariatCddPdf } from "@/lib/contrats/template-infirmier-
 import { buildInfirmierSalariatCdiPdf } from "@/lib/contrats/template-infirmier-salariat-cdi";
 import { buildKineSalariatCddPdf } from "@/lib/contrats/template-kine-salariat-cdd";
 import { buildKineSalariatCdiPdf } from "@/lib/contrats/template-kine-salariat-cdi";
-import { NATURE_PAR_MISSION, gabaritsSalariePour } from "@/lib/contrats/gabaritsSalarie";
+import { NATURE_PAR_MISSION, gabaritsSalariePour, type NatureContratTravail } from "@/lib/contrats/gabaritsSalarie";
 import type { ContractParty } from "@/lib/contrats/types";
 import { sendContratEmail } from "@/lib/email";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
@@ -285,8 +285,28 @@ export async function GET(req: NextRequest, { params }: Params) {
   // `missionType` reste la source de la nature CDI/CDD, via une table déclarée — voir
   // NATURE_PAR_MISSION et le commentaire qui l'accompagne : la même valeur d'enum désigne une
   // collaboration libérale chez un cabinet et un CDI chez une structure.
-  if (profileTitulaire.titulaireKind === "STRUCTURE") {
-    const nature = NATURE_PAR_MISSION[missionType];
+  // ── CE QUI DÉCIDE DU SALARIAT (section 262) ───────────────────────────────────────────────
+  //
+  // C'est désormais L'ANNONCE, plus le profil. Un cabinet libéral peut employer — le modèle CNOMK
+  // du CDD est écrit mot pour mot pour « le masseur-kinésithérapeute LIBÉRAL » qui embauche son
+  // remplaçant — et réserver le salariat aux structures rendait ce gabarit inatteignable par ceux
+  // à qui il s'adresse.
+  //
+  // `titulaireKind === STRUCTURE` EST CONSERVÉ EN REPLI, et ce n'est pas de la prudence pour la
+  // forme : les deux établissements en base ont publié AVANT cette section, donc avec
+  // `estSalariat = false`. Retirer l'ancienne porte aurait basculé leurs contrats en libéral,
+  // sans erreur et sans que rien ne le signale.
+  const estSalariat =
+    missionTitulaire?.estSalariat === true || profileTitulaire.titulaireKind === "STRUCTURE";
+
+  if (estSalariat) {
+    // La nature déclarée À LA PUBLICATION prime sur la dérivation par type de poste. Cette
+    // dérivation (NATURE_PAR_MISSION) reste le repli des annonces d'avant, qui n'en portent pas.
+    const natureAnnoncee = missionTitulaire?.natureSalariat;
+    const nature: NatureContratTravail =
+      natureAnnoncee === "CDI" ? "CDI"
+      : natureAnnoncee === "CDD_TERME" || natureAnnoncee === "CDD_SANS_TERME" ? "CDD"
+      : NATURE_PAR_MISSION[missionType];
     const candidatsSalarie = gabaritsSalariePour(profileTitulaire.profession, nature);
 
     // Trois des quatre gabarits salariés ne sont pas écrits. Refus explicite, jamais un repli
@@ -420,7 +440,9 @@ export async function GET(req: NextRequest, { params }: Params) {
         salarie: autreParty,
         // Le CDD n'a pas de forme CDI : sans date de fin, c'est un CDD SANS TERME PRÉCIS, qui
         // porte alors une durée minimale et un motif. Le repli n'invente pas de date.
-        nature: periode.fin
+        // La forme du CDD vient de l'ANNONCE quand elle est déclarée ; sinon on retombe sur la
+        // présence d'une date de fin, qui était la seule information disponible avant la 262.
+        nature: (natureAnnoncee === "CDD_TERME" || (natureAnnoncee !== "CDD_SANS_TERME" && periode.fin))
           ? { type: "CDD_TERME", debut: periode.debut, fin: periode.fin, renouvellementsMax: 2 }
           : {
               type: "CDD_SANS_TERME",
@@ -530,7 +552,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       element = buildKineSalariatCddPdf({
         employeur: titulaireParty,
         salarie: autreParty,
-        nature: periode.fin
+        // La forme du CDD vient de l'ANNONCE quand elle est déclarée ; sinon on retombe sur la
+        // présence d'une date de fin, qui était la seule information disponible avant la 262.
+        nature: (natureAnnoncee === "CDD_TERME" || (natureAnnoncee !== "CDD_SANS_TERME" && periode.fin))
           ? { type: "CDD_TERME", debut: periode.debut, fin: periode.fin, renouvellementsMax: 2 }
           : {
               type: "CDD_SANS_TERME",

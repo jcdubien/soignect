@@ -378,6 +378,22 @@ model Mission {
   // formulaire employeur demandait justement un « CA mensuel estimé » à qui embauche.
   remunerationBrute Int?
 
+  // ── Salariat proposé à la publication (section 262) ────────────────────────────────────────
+  //
+  // PAS une valeur de `MissionType`, et c'est mesuré : 45 fichiers touchent cet enum, dont 47
+  // comparaisons littérales et seulement 2 `Record<MissionType, …>`. Une quatrième valeur
+  // n'aurait cassé la compilation que sur 2 sites sur 47 ; les autres auraient traité un
+  // salariat comme « autre chose », et un contrat de travail serait ressorti en collaboration
+  // libérale. Refus déjà posé en section 217, confirmé par le comptage.
+  //
+  // `missionType` conserve donc son sens — la FORME du poste (remplacement, assistanat,
+  // collaboration) — et ces deux colonnes disent s'il est salarié et sous quelle nature.
+  estSalariat    Boolean @default(false)
+  // "CDI" | "CDD_TERME" | "CDD_SANS_TERME" — valeurs du type TS `NatureSalariat`. Pas un enum
+  // Postgres : il aurait fallu tenir deux sources d'accord. Une contrainte CHECK en base
+  // garantit la cohérence avec `estSalariat`.
+  natureSalariat String?
+
   // CA mensuel estimé en euros (feature terrain) — publié spontanément par certains titulaires.
   // Optionnel, affichage seul. Alimentera plus tard le calculateur de revenu net (B4).
   caMensuelEstime Int?

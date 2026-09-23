@@ -73,13 +73,37 @@ const CONFIG = {
 } as const;
 
 type ProfileTypeKey = keyof typeof CONFIG;
-type NeedType = "remplacement" | "assistant" | "collaboration" | "";
+type NeedType = "remplacement" | "assistant" | "collaboration" | "salariat" | "";
 
 // Correspondance entre le vocabulaire du formulaire et l'enum Prisma. Elle existait déjà en bas
 // de fichier (`missionTypeMap`), reconstruite à la soumission ; elle est remontée ici pour que
 // le FILTRE d'affichage et l'ENVOI parlent de la même chose — sans quoi on pourrait masquer une
 // option tout en continuant de l'accepter.
+// ── SALARIAT (section 262) ───────────────────────────────────────────────────────────────────
+//
+// Le salariat est une QUATRIÈME CARTE à l'écran, mais il n'est pas une quatrième valeur de
+// `MissionType` — cet enum en garde trois, pour la raison mesurée en section 262 (47 comparaisons
+// littérales, 2 seulement protégées par le compilateur). Ce que le salariat ajoute vit dans
+// `estSalariat` et `natureSalariat`.
+//
+// Le `missionType` stocké est donc DÉRIVÉ de la nature choisie, et suit la correspondance que le
+// produit applique déjà (NATURE_PAR_MISSION, section 217) : un CDI est un poste long terme, un
+// CDD de remplacement en est un court.
+type NatureSalariatChoix = "CDI" | "CDD_TERME" | "CDD_SANS_TERME";
+const MISSION_TYPE_PAR_NATURE: Record<NatureSalariatChoix, string> = {
+  CDI:             "COLLABORATION",
+  CDD_TERME:       "REMPLACEMENT",
+  CDD_SANS_TERME:  "REMPLACEMENT",
+};
+const LIBELLE_NATURE: Record<NatureSalariatChoix, { titre: string; sous: string }> = {
+  CDI:            { titre: "CDI",                    sous: "Sans date de fin" },
+  CDD_TERME:      { titre: "CDD à terme précis",     sous: "Dates fixées, renouvelable 2 fois" },
+  CDD_SANS_TERME: { titre: "CDD sans terme précis",  sous: "Jusqu'au retour de la personne remplacée" },
+};
+
 const MISSION_TYPE_PAR_BESOIN: Record<Exclude<NeedType, "">, string> = {
+  // `salariat` n'a pas de correspondance fixe : elle vient de la nature choisie.
+  salariat: "REMPLACEMENT",
   remplacement: "REMPLACEMENT",
   assistant: "ASSISTANAT",
   collaboration: "COLLABORATION",
@@ -132,6 +156,8 @@ export default function CreateMissionClient({ typesContractualisables }: { types
   const needTypeLabels = isEmployeur
     ? { remplacement: "Vacation", assistant: "CDD", collaboration: "CDI" }
     : { remplacement: "Remplacement", assistant: "Assistanat", collaboration: "Collaboration" };
+  // Le salariat se nomme pareil des deux côtés : c'est un contrat de travail, pas une nuance de
+  // vocabulaire commercial.
   const needTypeSubLabels = isEmployeur
     ? { remplacement: "Courte durée", assistant: "Contrat moyen terme", collaboration: "Contrat long terme" }
     : { remplacement: "Courte durée", assistant: "Contrat long terme", collaboration: "Libéral indépendant" };
@@ -146,6 +172,9 @@ export default function CreateMissionClient({ typesContractualisables }: { types
     return coverMode ? "remplacement" : "";
   })();
   const [needType, setNeedType] = useState<NeedType>(initialNeedType);
+  // Nature du contrat salarié — n'a de sens que si `needType === "salariat"`. Pas de valeur par
+  // défaut : c'est elle qui choisit le gabarit de contrat, la deviner serait deviner le document.
+  const [natureSalariat, setNatureSalariat] = useState<NatureSalariatChoix | "">("");
 
   // Poste précis du planning auquel lier l'annonce (section 92 / 55) — le futur
   // match s'attribuera directement à cette ligne du Planning Board. Stateful pour
@@ -356,6 +385,9 @@ export default function CreateMissionClient({ typesContractualisables }: { types
   // Ces champs restent STRUCTURÉS et confirmés ; l'IA ne fait que pré-remplir. Taux/CA non bloquants.
   const missingRequired: string[] = [];
   if (profileType === "TITULAIRE" && !needType) missingRequired.push("le type de poste");
+  // Sans nature, la génération n'aurait pas de quoi trancher entre CDI et CDD — le serveur
+  // refuse déjà, on évite l'aller-retour.
+  if (needType === "salariat" && !natureSalariat) missingRequired.push("la nature du contrat salarié");
   if (!form.title.trim())                        missingRequired.push("un titre");
   if (!form.location)                            missingRequired.push("la commune");
   if (!contentValid)                             missingRequired.push("une description (≥ 40 caractères)");
@@ -440,7 +472,14 @@ export default function CreateMissionClient({ typesContractualisables }: { types
       minMonths: form.minMonths ? parseInt(form.minMonths) : null,
       pitch: pitchFull,
       bioTinder: pitchFull,
-      missionType: missionTypeMap[needType] ?? "REMPLACEMENT",
+      // Pour un salariat, le type stocké vient de la NATURE choisie, pas de la carte : l'enum
+      // garde ses trois valeurs (section 262).
+      missionType:
+        needType === "salariat" && natureSalariat
+          ? MISSION_TYPE_PAR_NATURE[natureSalariat]
+          : (missionTypeMap[needType] ?? "REMPLACEMENT"),
+      estSalariat: needType === "salariat",
+      natureSalariat: needType === "salariat" ? natureSalariat : undefined,
       dateFlexibility: form.dateFlexibility,
       logementPropose: form.logementPropose,
       vehiculePropose: form.vehiculePropose,
@@ -798,11 +837,12 @@ export default function CreateMissionClient({ typesContractualisables }: { types
                 intégrés.
               </div>
             )}
-            <div className={seatOnly ? "grid grid-cols-1 gap-2" : "grid grid-cols-3 gap-2"}>
+            <div className={seatOnly ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 sm:grid-cols-4 gap-2"}>
               {[
                 { value: "remplacement"  as NeedType, icon: "📅", label: needTypeLabels.remplacement,  sub: needTypeSubLabels.remplacement },
                 { value: "assistant"     as NeedType, icon: "📋", label: needTypeLabels.assistant,     sub: needTypeSubLabels.assistant },
                 { value: "collaboration" as NeedType, icon: "🤝", label: needTypeLabels.collaboration,  sub: needTypeSubLabels.collaboration },
+                { value: "salariat"      as NeedType, icon: "💼", label: "Salariat", sub: "Contrat de travail" },
               ]
                 .filter((opt) => !seatOnly || opt.value === "remplacement")
                 // Un type sans gabarit de contrat pour cette profession n'est pas proposé.
@@ -810,6 +850,11 @@ export default function CreateMissionClient({ typesContractualisables }: { types
                 // à publier un poste dont aucun contrat ne pourrait sortir, et l'échec
                 // n'apparaîtrait qu'à la génération, une fois les deux parties engagées.
                 .filter((opt) => {
+                  // Le salariat ne se filtre PAS sur les gabarits libéraux : ses modèles vivent
+                  // dans un registre séparé (gabaritsSalarie), et les quatre existent depuis le
+                  // 23/09. Le passer dans le filtre ci-dessous l'aurait masqué chez l'infirmier,
+                  // dont l'assistanat libéral n'existe pas.
+                  if (opt.value === "salariat") return true;
                   const t = MISSION_TYPE_PAR_BESOIN[opt.value as Exclude<NeedType, "">];
                   return t !== undefined && typesContractualisables.includes(t);
                 })
@@ -830,6 +875,40 @@ export default function CreateMissionClient({ typesContractualisables }: { types
                 </button>
               ))}
             </div>
+
+            {/* ── Nature du contrat salarié (section 262) ────────────────────────────────────
+                Le vocabulaire est celui des DEUX modèles d'ordre — « terme précis » / « sans
+                terme précis » — et non « reconductible », qui ne figure dans aucun des deux :
+                le renouvellement y est fixe (deux fois, 18 mois) et n'est pas un choix.
+                Le libellé dit en clair ce que le jargon recouvre, pour qu'un cabinet n'ait pas
+                à connaître le Code du travail pour choisir. ── */}
+            {needType === "salariat" && (
+              <div className="mt-3 p-3 rounded-xl border border-kine-200 bg-kine-50/60">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Nature du contrat</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {(["CDI", "CDD_TERME", "CDD_SANS_TERME"] as NatureSalariatChoix[]).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setNatureSalariat(natureSalariat === n ? "" : n)}
+                      className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border-2 text-left transition text-xs ${
+                        natureSalariat === n
+                          ? "border-kine-500 bg-white text-kine-700"
+                          : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                      }`}
+                    >
+                      <span className="font-semibold text-gray-800">{LIBELLE_NATURE[n].titre}</span>
+                      <span className="text-gray-400 leading-snug">{LIBELLE_NATURE[n].sous}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-2 leading-snug">
+                  Employer crée un lien de subordination : déclaration préalable à l&apos;embauche,
+                  paie et cotisations vous incombent. Le contrat généré suit le modèle-type de
+                  votre ordre professionnel.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
