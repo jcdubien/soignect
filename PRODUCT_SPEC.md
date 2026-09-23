@@ -7347,6 +7347,88 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 261 — LE CDD SALARIÉ KINÉ, ET LES QUATRE GABARITS COMPLETS (23/09)
+
+Dernier des quatre. Transcription du modèle CNOMK du **28 mars 2023** — 12 pages, 127 champs
+AcroForm, 20 articles. Le bloquant du 8 septembre est entièrement levé.
+
+#### Je n'ai pas écrit avant d'avoir la source
+
+Le modèle n'était **nulle part sur le disque** : ni dépôt, ni téléchargements, ni Bureau, ni
+Documents. J'avais pourtant des notes précises du 28/08 sur ce document — nombre de champs, cinq
+clauses essentielles dont deux propres au remplacement. **Des notes sur un contrat ne sont pas le
+contrat.** En transcrire les clauses de mémoire aurait produit un document qui *ressemble* au
+modèle de l'Ordre tout en portant sa référence en sous-titre — exactement ce que l'avertissement
+du CDI kiné existe pour éviter.
+
+Deux tentatives de récupération par le site de l'Ordre ont échoué (pages tronquées pour l'outil de
+lecture). J'ai arrêté et demandé le fichier plutôt que d'insister ou de contourner.
+
+#### Ce modèle n'est pas une variante des deux infirmiers
+
+| | Infirmiers (CNOI) | Kiné (CNOMK) |
+|---|---|---|
+| Articles | 21-22 | **20** |
+| Clause véhicule | art. 9, deux branches | **aucune** — indemnité kilométrique inconditionnelle (art. 7) |
+| Non-concurrence | droit du travail, durée négociée | **R.4321-130 CSP, deux ans fixés par le code** |
+| Indemnité de violation | en euros | **en mois de rémunération brute** |
+| Fin sans terme précis | à l'extinction du motif | **au retour du remplacé** |
+
+#### La durée de non-concurrence ne se saisit pas, et c'est délibéré
+
+Chez l'infirmier, la clause relève du seul droit du travail : durée et zone se négocient. Ici elle
+découle de l'article **R.4321-130** — le kiné qui a remplacé un confrère pendant au moins trois
+mois ne doit pas s'installer en concurrence directe pendant **deux ans**. Le gabarit l'imprime en
+toutes lettres et n'expose pas le champ : l'ouvrir à la saisie aurait laissé croire qu'on peut en
+négocier une autre.
+
+Même raisonnement pour l'indemnité de violation : elle s'exprime en **mois de rémunération brute**.
+Réutiliser le champ en euros du modèle infirmier aurait changé la clause.
+
+#### Les deux articles 5
+
+Le modèle publie **deux versions** de l'article 5 — « pour un CDD à temps complet » et « pour un
+CDD à temps partiel » — aux clauses distinctes : délai de prévenance, heures complémentaires,
+majorations 10 / 25 %. Le gabarit en rend **une**, choisie par l'union `TempsDeTravail`.
+
+Rendre les deux, comme le fait le PDF de l'Ordre qu'on remplit à la main, produirait un contrat
+signé portant **deux régimes horaires contradictoires**.
+
+#### Vérifié par rendu réel, deux jeux opposés
+
+```
+jeu 1   terme précis · temps complet · avec essai
+        5 pages · articles 2 à 20 tous présents · clause des 35 heures
+        R.4321-130 et durée de deux ans · motif d'absence · « en deux exemplaires »
+        ABSENTS : temps partiel, heures complémentaires, clause véhicule, vocabulaire infirmier
+
+jeu 2   sans terme · temps partiel · sans essai
+        fin « au retour du remplacé » · absence d'essai énoncée
+        majorations 10 / 25 % · répartition horaire
+        ABSENTS : date de fin, clause des 35 heures
+```
+
+⚠️ **Une sonde a d'abord annoncé `R.4321-130` absent.** Elle cherchait « R. » avec une espace, là
+où le gabarit écrit `R.4321-130` — la forme déjà employée dans `lib/professions.ts`. Défaut de
+sonde, pas de document. C'est la deuxième fois en deux jours qu'un instrument accuse une pièce
+saine ; la leçon de la section 259 tient toujours.
+
+#### Les quatre gabarits salariés
+
+| Gabarit | Source | Statut |
+|---|---|---|
+| CDI kiné | **aucune** — composé | avertissement imprimé en tête |
+| CDD kiné | CNOMK 28/03/2023 | transcription |
+| CDI infirmier | CNOI 03/06/2025 | transcription |
+| CDD infirmier | CNOI 03/06/2025 | transcription |
+
+Le refus explicite de la route subsiste pour tout identifiant inconnu : un gabarit ajouté sans
+branchement doit se voir, plutôt que de retomber sur un autre document.
+
+**Aucun des trois nouveaux ne peut encore être déclenché** : les 64 profils en base sont tous
+`KINESITHERAPEUTE`, et le CDD kiné suppose en outre un employeur `STRUCTURE`. Pour les infirmiers,
+c'est la phase 2 qui commande — arbitrage toujours en attente depuis le 21/08.
+
 ### SECTION 260 — LE CDI SALARIÉ INFIRMIER, ET UNE RÈGLE DE FACTORISATION SUSPENDUE (23/09)
 
 Deuxième des trois gabarits débloqués par les arbitrages de la section 257. 21 articles — un de
