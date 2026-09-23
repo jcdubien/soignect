@@ -7347,6 +7347,78 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 259 — LE CDD SALARIÉ INFIRMIER, TRANSCRIT (23/09)
+
+Premier des trois gabarits salariés débloqués par les arbitrages de la section 257. 22 articles,
+transcrits un à un.
+
+#### Transcription, pas composition — et la différence s'imprime
+
+Le CDI kiné porte un avertissement « document composé » parce qu'aucun modèle-type ne le couvre.
+**Celui-ci suit un modèle-type officiel du CNOI.** Il ne porte donc pas cet avertissement, et
+`composeSansModele` reste absent de son entrée au registre : le mettre partout l'aurait vidé de
+sens là où il est mérité.
+
+**La source a changé, et c'est ce qui rendait la transcription possible.** Le 28/08, seules les
+versions *commentées* étaient disponibles — commentaire pesant trois à quatre fois le contrat, avec
+le risque nommé alors : transcrire un commentaire comme une clause. Le `.docx` **« à remplir »**
+lève la réserve : texte contractuel seul, 161 paragraphes, 20 387 caractères.
+
+#### Les arbitrages du 22/09, appliqués
+
+| Article | Décision | Rendu |
+|---|---|---|
+| 9 | véhicule : les deux branches | union `PERSONNEL \| EMPLOYEUR` — un booléen plus des champs optionnels aurait laissé produire un contrat mettant un véhicule à disposition **sans le désigner** |
+| 11 | formulation large | « exercer sa profession pour son propre compte ou pour le compte d'autrui » |
+| 11 | zone | rayon en kilomètres, comme tous les contrats libéraux du produit |
+| 4 | période d'essai absente | l'article est **toujours rendu** et énonce son absence |
+
+Même parti pris pour l'article 11, que l'Ordre marque lui aussi « facultative » : `dureeMois` à 0
+signifie clause écartée, et le contrat **le dit** au lieu de se taire.
+
+#### Deux écarts de données, portés par une extension du socle
+
+`ContractDataSalarie` ne bouge pas ; `ContractDataSalarieInfirmierCdd` l'étend.
+
+- **Le préavis se compte en MOIS.** Le socle porte `preavisJours` parce que le CDI kiné, composé,
+  s'exprimait en jours. Transcrire un modèle officiel en changeant son unité, c'est déjà le
+  réécrire.
+- **L'article 11 exige trois données de plus** — mois de référence, dommages-intérêts forfaitaires,
+  délai de renonciation — que le CDI kiné n'imprime pas. Les ajouter au socle en aurait fait du
+  poids mort que le gabarit kiné devrait fournir sans l'utiliser.
+
+#### Vérifié par rendu réel, deux jeux opposés
+
+Un seul jeu de données ne montre jamais les branches qu'il n'emprunte pas. Texte extrait au
+`pdftotext`, pas au jugé :
+
+```
+jeu 1   CDD à terme · essai · non-concurrence · véhicule employeur
+        7 pages · articles 2 à 22 TOUS présents · formulation large rendue
+        branche « s'installer en libéral » ABSENTE
+        aucune consigne de remplissage du modèle (« barrer la mention inutile »,
+        « clause facultative ») · aucun vocabulaire kiné
+
+jeu 2   CDD sans terme · sans essai · sans non-concurrence · véhicule personnel
+        durée minimale et extinction du motif rendues
+        les deux absences ÉNONCÉES · assurance à la charge du salarié
+        ni date de fin, ni contrepartie, ni véhicule employeur
+```
+
+⚠️ **Une sonde de vérification a d'abord tout rendu faux.** Mon premier extracteur de texte PDF a
+rendu zéro caractère, et affichait donc « KO » sur les douze contrôles. Les défauts étaient dans la
+sonde, pas dans le document — `pdftotext` a ensuite extrait 21 205 caractères et tout validé. Une
+batterie de contrôles qui échoue *entièrement* accuse l'instrument avant la pièce.
+
+#### Ce qui reste
+
+**Ce gabarit ne peut pas encore être déclenché par un utilisateur** : les 64 profils en base sont
+tous `KINESITHERAPEUTE`. C'est attendu — la phase 2 infirmier n'est pas ouverte, et l'arbitrage
+« quelle profession en phase 2 » est toujours en attente côté marketing.
+
+Restent **CDI infirmier** (même ossature, articles 8, 13 subdivisé et 21 en plus) et **CDD kiné**
+(le seul des trois adossé à un modèle-type CNOMK, celui du 28/03/2023).
+
 ### SECTION 258 — ANNULER LA MISE EN RELATION DEPUIS LE CHAT (22/09)
 
 Demandé le 21/09, captures à l'appui : l'écran de chat n'offrait que « Envoyer un contrat » et
