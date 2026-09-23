@@ -7347,6 +7347,106 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 262 — LE SALARIAT DEVIENT UN TYPE DE POSTE PROPOSABLE (23/09)
+
+Demandé le 22/09. Les quatre gabarits de contrat de travail existaient depuis la veille, mais rien
+n'y menait explicitement.
+
+#### La lecture préalable a renversé la prémisse
+
+Un chemin de publication vers les gabarits salariés **existait déjà** — implicite, et confus :
+
+```
+titulaireKind === STRUCTURE
+  → NATURE_PAR_MISSION[missionType]   COLLABORATION→CDI · ASSISTANAT→CDD · REMPLACEMENT→CDD
+  → gabaritsSalariePour(profession, nature)
+```
+
+Une structure qui publiait « Collaboration » obtenait donc un **CDI**. Le formulaire relabellait
+même les trois types en *Vacation / CDD / CDI* dès que `isEmployeur` était vrai — sans que la
+valeur stockée change. Deux drapeaux indépendants pilotaient l'affichage (`isEmployeur`) et le
+contrat (`titulaireKind`), et rien ne garantissait leur accord. Croisés sur les 24 titulaires
+réels : 22 cabinets cohérents, une structure `isEmployeur=true`, et **une structure
+`isEmployeur=false`** — l'Hôpital Beauperthuy, qui lit donc des libellés libéraux et génère des
+contrats de travail.
+
+#### Les trois arbitrages
+
+| Question | Décision | Raison |
+|---|---|---|
+| Porteur du choix | **champ dédié sur `Mission`**, pas une 4ᵉ valeur de `MissionType` | mesure ci-dessous |
+| Éligibilité | **tout titulaire**, structure ou libéral | le modèle CNOMK s'adresse au libéral |
+| Sous-choix du CDD | **terme précis / sans terme précis** | vocabulaire des deux modèles d'ordre |
+
+**La mesure qui a tranché le premier point.** La section 217 avait refusé d'ajouter `SALARIE` à
+`MissionType` en invoquant le risque de compilation silencieuse. Chiffré le 23/09 : **45 fichiers**
+touchent cet enum, **47 comparaisons littérales**, et seulement **2 `Record<MissionType, …>`**. Une
+quatrième valeur n'aurait donc cassé la compilation que sur **2 sites sur 47** ; les 45 autres
+auraient traité un salariat comme « autre chose », et un contrat de travail serait ressorti en
+collaboration libérale par un `else` final. Le refus de 217 tient, et il est maintenant chiffré.
+
+**Le deuxième point corrige un défaut, pas une contrainte.** Le modèle CNOMK transcrit la veille
+s'ouvre sur « Afin de pourvoir à son remplacement temporaire, le masseur-kinésithérapeute
+**LIBÉRAL** a la possibilité de conclure un CDD ». Exiger `STRUCTURE` rendait ce gabarit
+inatteignable par exactement ceux à qui il s'adresse.
+
+**Le troisième écarte le vocabulaire de la demande.** « Reconductible » ne figure dans aucun des
+deux modèles : leur axe est *terme précis / sans terme précis*, et le renouvellement y est **fixe**
+— deux fois, 18 mois. Les libellés à l'écran disent la chose sans le jargon : « Dates fixées,
+renouvelable 2 fois » et « Jusqu'au retour de la personne remplacée ».
+
+#### Ce qui a été conservé, et pourquoi
+
+`titulaireKind === STRUCTURE` **reste un repli** dans la route de contrat. Les deux établissements
+en base ont publié *avant* cette section, donc avec `estSalariat = false`. Retirer l'ancienne porte
+aurait basculé leurs contrats en libéral — sans erreur, sans message, sur des documents signés.
+
+De même, `NATURE_PAR_MISSION` reste le repli des annonces qui ne portent pas de nature déclarée.
+
+#### Le défaut que seule l'exécution pouvait montrer
+
+La contrainte `CHECK` posée en base **ne refusait rien**. Un `INSERT` volontairement incohérent est
+passé, et mes deux premiers tests ont rapporté « KO » sans que je comprenne pourquoi.
+
+**En SQL, une contrainte `CHECK` n'échoue que si son expression vaut `FALSE`. À `NULL`, la ligne
+est acceptée.** Avec `natureSalariat` à `NULL` :
+
+```
+("estSalariat" = true)  AND  (NULL IN ('CDI', …))   →   TRUE AND NULL   →   NULL
+FALSE  OR  NULL                                      →   NULL           →   ACCEPTÉE
+```
+
+Le cas même que la contrainte devait attraper était le seul qu'elle laissait passer. À la
+relecture, la définition paraît juste — c'est la logique trivaluée qui trompe, pas la syntaxe.
+Corrigée par un `IS NOT NULL` explicite, et revérifiée sur les **quatre** cas : salarié sans
+nature, nature invalide, libéral avec nature, et le cas légitime.
+
+C'est la troisième fois en trois jours qu'une vérification par exécution attrape ce qu'une
+relecture validait — après `seuilFranchi()` qui renvoyait toujours 30 (section 255) et
+`router.refresh()` sur une page supprimée (section 258).
+
+#### Vérifié
+
+```
+écran     quatre cartes · sous-choix des trois natures à la sélection
+          « Pour publier, il reste à renseigner : la nature du contrat salarié »
+API       POST sans nature        → 422
+          POST nature invalide    → 400 (zod)
+          POST complet            → 201 · estSalariat=true · natureSalariat=CDD_TERME
+                                    missionType dérivé en REMPLACEMENT
+base      les quatre cas de la contrainte, après correction
+```
+
+L'annonce de test a été créée avec `diffuserSurFacebook: false` — rien n'est parti sur la Page —
+puis supprimée, vérifiée à zéro.
+
+#### Ce que cette section ne fait pas
+
+Elle **ne réconcilie pas `isEmployeur` et `titulaireKind`**. Les deux drapeaux continuent de vivre
+côte à côte : le premier décide des libellés, le second sert de repli au contrat. Aucun compte n'est
+aujourd'hui dans la configuration qui poserait problème, mais rien ne l'empêche — et le cas inverse
+existe déjà chez l'Hôpital Beauperthuy. À traiter séparément.
+
 ### SECTION 261 — LE CDD SALARIÉ KINÉ, ET LES QUATRE GABARITS COMPLETS (23/09)
 
 Dernier des quatre. Transcription du modèle CNOMK du **28 mars 2023** — 12 pages, 127 champs
