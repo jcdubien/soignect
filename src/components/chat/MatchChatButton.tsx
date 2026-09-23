@@ -41,10 +41,12 @@ export default function MatchChatButton({ matchId, myProfileId, partner, aiScore
           aiScore={aiScore}
           myType={myType}
           contratConfirmed={contratConfirmed}
-          // Le match vient d'être supprimé : rester sur une page qui le décrit afficherait un
-          // écran mort. On rafraîchit, la page se replie d'elle-même sur son état « introuvable »
-          // ou sur la liste.
-          onCancelled={() => router.refresh()}
+          // ON NAVIGUE, ON NE RAFRAÎCHIT PAS. Premier essai : `router.refresh()`. Vérifié à
+          // l'écran le 22/09 — la page `/match/[id]` décrit un match qui vient d'être supprimé,
+          // le rafraîchissement tombait donc sur « Page introuvable ». Finir un geste délibéré
+          // par une erreur 404 est une mauvaise fin de parcours : on mène à la liste, qui existe
+          // toujours et reflète l'annulation. Depuis `/matches`, c'est un rafraîchissement.
+          onCancelled={() => router.replace("/matches")}
           onClose={() => setOpen(false)}
         />
       )}
