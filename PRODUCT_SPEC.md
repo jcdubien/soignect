@@ -7364,11 +7364,14 @@ titulaireKind === STRUCTURE
 
 Une structure qui publiait « Collaboration » obtenait donc un **CDI**. Le formulaire relabellait
 même les trois types en *Vacation / CDD / CDI* dès que `isEmployeur` était vrai — sans que la
-valeur stockée change. Deux drapeaux indépendants pilotaient l'affichage (`isEmployeur`) et le
-contrat (`titulaireKind`), et rien ne garantissait leur accord. Croisés sur les 24 titulaires
-réels : 22 cabinets cohérents, une structure `isEmployeur=true`, et **une structure
-`isEmployeur=false`** — l'Hôpital Beauperthuy, qui lit donc des libellés libéraux et génère des
-contrats de travail.
+valeur stockée change. Croisés sur les 24 titulaires réels : 22 cabinets cohérents, une structure
+`isEmployeur=true`, et **une structure `isEmployeur=false`** — l'Hôpital Beauperthuy.
+
+⚠️ **Correction du 23/09 au soir.** J'ai d'abord écrit que Beauperthuy « lisait des libellés
+libéraux à la publication ». **C'est faux.** J'avais lu la colonne brute en base et conclu sur
+l'écran sans le vérifier : le formulaire calcule `isEmployeur = session || titulaireKind ===
+STRUCTURE`, et affichait donc déjà les bons libellés. La divergence réelle était ailleurs — voir
+la section 262 bis.
 
 #### Les trois arbitrages
 
@@ -7440,12 +7443,56 @@ base      les quatre cas de la contrainte, après correction
 L'annonce de test a été créée avec `diffuserSurFacebook: false` — rien n'est parti sur la Page —
 puis supprimée, vérifiée à zéro.
 
-#### Ce que cette section ne fait pas
+### SECTION 262 bis — LE PLANNING LISAIT UN DRAPEAU HÉRITÉ AU LIEU DE LE DÉRIVER (23/09)
 
-Elle **ne réconcilie pas `isEmployeur` et `titulaireKind`**. Les deux drapeaux continuent de vivre
-côte à côte : le premier décide des libellés, le second sert de repli au contrat. Aucun compte n'est
-aujourd'hui dans la configuration qui poserait problème, mais rien ne l'empêche — et le cas inverse
-existe déjà chez l'Hôpital Beauperthuy. À traiter séparément.
+#### Où était vraiment la divergence
+
+Quatre endroits manipulent `isEmployeur`. Trois le **dérivent** de `titulaireKind` :
+
+| Endroit | Calcul |
+|---|---|
+| `lib/auth.ts` (session) | `isEmployeur ?? false \|\| titulaireKind === "STRUCTURE"` |
+| `missions/create` | `session.isEmployeur \|\| titulaireKind === "STRUCTURE"` |
+| `api/profiles/[id]` | écrit `isEmployeur: titulaireKind === "STRUCTURE"` à chaque mise à jour |
+| **`planning/page.tsx`** | **lisait la colonne telle quelle** |
+
+Un établissement dont la colonne héritée était restée à `false` recevait donc un Planning au
+vocabulaire **libéral** — « créer une annonce » au lieu de « ouvrir un poste », type de poste par
+défaut `TITULAIRE` au lieu d'`ASSISTANT` — pendant que ses contrats partaient bien en contrat de
+travail. `PlanningBoard` affirmait pourtant l'équivalence dans son propre commentaire,
+« `isEmployeur` ⇔ `titulaireKind === STRUCTURE` », sans que rien ne la garantisse en amont.
+
+#### Le correctif retenu, et celui qui a été écarté
+
+| | Décision |
+|---|---|
+| **Retenu** | Corriger la **source** : `planning/page.tsx` dérive comme les trois autres. Un seul endroit, aucune donnée publiée touchée, et cela protège tout futur établissement créé sans le drapeau. |
+| **Retenu** | Aligner la colonne héritée du profil Beauperthuy — **une ligne**. C'est déjà ce que fait `/api/profiles` à chaque mise à jour de `titulaireKind` ; la valeur était simplement antérieure à cette règle. |
+| **Écarté** | Migrer ses annonces publiées vers `estSalariat = true`. Son annonce active porte **8 swipes**, et la route de contrat la traite déjà correctement par le repli `STRUCTURE` conservé en section 262. Réécrire une annonce publiée pour un résultat identique, c'est du risque sans gain. |
+
+Le troisième point mérite d'être retenu comme règle : **un correctif qui ne change rien au résultat
+mais réécrit des données vivantes n'est pas un correctif.**
+
+#### Vérifié à l'écran, sur les deux branches
+
+Le cas ne pouvait pas se vérifier sur un compte réel sans consulter les données privées d'un
+établissement. Un profil de test jetable a donc reproduit exactement la configuration —
+`titulaireKind: STRUCTURE` **et** `isEmployeur: false` en base :
+
+```
+structure, colonne héritée à false   vocabulaire employeur rendu · vocabulaire libéral absent
+cabinet libéral (compte de JC)       vocabulaire libéral conservé · aucune régression
+```
+
+Profil de test supprimé, vérifié à zéro. Les deux structures réelles portent désormais
+`isEmployeur: true`, cohérent avec leur `titulaireKind`.
+
+#### Une nuance de méthode sur la session
+
+La session **re-dérive** `isEmployeur` à chaque lecture (`lib/auth.ts`). Un jeton forgé portant
+`false` ressort donc à `true` : le test ne pouvait pas passer par là. C'est la **colonne en base**
+que le Planning lisait, et c'est elle qu'il fallait mettre à `false` sur le profil de test pour
+que la branche fautive soit réellement exercée.
 
 ### SECTION 261 — LE CDD SALARIÉ KINÉ, ET LES QUATRE GABARITS COMPLETS (23/09)
 
