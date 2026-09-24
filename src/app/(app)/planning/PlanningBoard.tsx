@@ -100,37 +100,84 @@ const LABEL_WIDTH  = 140;
 //
 // On répartit désormais les briques qui se chevauchent sur des sous-lignes distinctes, et la
 // ligne du poste grandit d'autant. Aucune brique ne peut plus être invisible.
-const LANE_HEIGHT = 20; // hauteur d'une brique quand la ligne est partagée
+const LANE_HEIGHT = 20; // pas de croissance de la piste par sous-ligne supplémentaire
 const LANE_GAP    = 2;
 const LANE_PAD    = 4;  // marge haute/basse, équivalente au `top-1 bottom-1` d'origine
+const MOBILE_TRACK_HEIGHT = 56; // piste d'une carte mobile à une seule sous-ligne
 
-// Placement glouton par intervalles : chaque élément prend la première sous-ligne libre à sa
-// date de début. Les éléments qui ne se chevauchent pas restent donc sur une seule sous-ligne —
-// le cas courant garde exactement l'affichage d'avant.
-function assignLanes<T>(items: T[], start: (x: T) => number, end: (x: T) => number): { lanes: Map<T, number>; count: number } {
-  const ordonnes = [...items].sort((a, b) => start(a) - start(b) || end(a) - end(b));
+// ── INCLUSION ≠ CHEVAUCHEMENT (section 264) ──────────────────────────────────────────────────
+//
+// La première version ouvrait une sous-ligne dès que deux intervalles se touchaient. Mesuré le
+// 24/09 sur la base entière : 4 postes portaient une sous-ligne, et les 4 étaient des INCLUSIONS
+// STRICTES — une annonce de trois semaines logée dans une occupation ouverte. Aucun croisement
+// partiel n'existait nulle part.
+//
+// Or une inclusion n'a jamais eu besoin d'une seconde bande. La brique de fond reste lisible DES
+// DEUX CÔTÉS de celle qui se loge dedans ; c'est même ce que le titulaire décrit quand il dit
+// qu'un remplaçant « comble un trou » plutôt qu'il ne chevauche quelqu'un. Ce qui exige vraiment
+// deux bandes, c'est le CROISEMENT PARTIEL — un tuilage de succession, un double engagement —
+// où aucune des deux ne peut se dessiner sur l'autre sans lui manger une extrémité.
+//
+// `margeVisible` (dans l'unité des bornes) est la garde : si la brique intérieure couvre son
+// hôte sur toute sa longueur, l'hôte disparaîtrait — on retombe alors sur deux sous-lignes,
+// parce que c'est exactement le défaut d'invisibilité décrit plus haut.
+//
+// ── CE QU'ON N'A PAS FAIT, ET POURQUOI ───────────────────────────────────────────────────────
+//
+// Une règle SÉMANTIQUE était envisagée en plus : peindre le « fait » (CONFIRME) au fond et
+// l'« intention » (RECHERCHE) par-dessus. Confrontée aux données, elle se retourne — sur le poste
+// « JP », c'est l'annonce ouverte qui CONTIENT l'occupation de Camille : la peindre par-dessus
+// masquerait Camille intégralement. La géométrie désigne déjà le bon fond partout (le contenant),
+// sans avoir à deviner ce qu'un statut veut dire. On s'en tient donc à elle.
+function assignLanes<T>(
+  items: T[], start: (x: T) => number, end: (x: T) => number, margeVisible = 0,
+): { lanes: Map<T, number>; count: number } {
+  // Contenants d'abord : à début égal, le plus long passe devant, sinon il chercherait un hôte
+  // dans une brique qu'il contient.
+  const ordonnes = [...items].sort((a, b) => start(a) - start(b) || end(b) - end(a));
   const finDeLane: number[] = [];
+  const placees: { it: T; lane: number }[] = [];
   const lanes = new Map<T, number>();
   for (const it of ordonnes) {
+    // 1. Entièrement contenue dans une brique déjà posée → elle se loge dans SA bande, à
+    //    condition qu'il reste de l'hôte à voir d'un côté au moins.
+    const hote = placees.find(
+      (p) =>
+        start(p.it) <= start(it) && end(it) <= end(p.it) &&
+        (start(it) - start(p.it) >= margeVisible || end(p.it) - end(it) >= margeVisible),
+    );
+    if (hote) { lanes.set(it, hote.lane); placees.push({ it, lane: hote.lane }); continue; }
+    // 2. Sinon, placement glouton : la première sous-ligne libre à sa date de début.
     let l = finDeLane.findIndex((fin) => fin <= start(it));
     if (l === -1) { l = finDeLane.length; finDeLane.push(end(it)); }
     else finDeLane[l] = end(it);
     lanes.set(it, l);
+    placees.push({ it, lane: l });
   }
   return { lanes, count: Math.max(finDeLane.length, 1) };
 }
 
-// Hauteur d'une piste selon le nombre de sous-lignes. À une seule sous-ligne, on conserve la
-// hauteur historique (44) : rien ne bouge pour les plannings sans chevauchement.
+// ── HAUTEUR : UNE SEULE FORMULE (section 264) ────────────────────────────────────────────────
+//
+// Avant, deux cas disjoints : à une sous-ligne la brique faisait 36 px (44 − marges), à deux
+// elle tombait d'un coup à 20 px pour une piste de 50. Une ligne partagée perdait donc 44 % de
+// sa hauteur pendant que sa voisine gardait la sienne — c'est la « dissociation de hauteur »
+// signalée le 17/09, deux captures à l'appui.
+//
+// Désormais la piste GRANDIT d'une sous-ligne (22 px) et les bandes se partagent l'espace à
+// parts égales. À une sous-ligne la formule redonne exactement 36 px : rien ne bouge pour les
+// plannings sans chevauchement, ce qui est le cas de tous après la règle d'inclusion ci-dessus.
+const LANE_PITCH = LANE_HEIGHT + LANE_GAP;
+
 function trackHeightFor(laneCount: number): number {
-  if (laneCount <= 1) return TRACK_HEIGHT;
-  return LANE_PAD * 2 + laneCount * LANE_HEIGHT + (laneCount - 1) * LANE_GAP;
+  return TRACK_HEIGHT + Math.max(0, laneCount - 1) * LANE_PITCH;
 }
 
-// Position verticale d'une brique dans sa sous-ligne.
 function laneStyle(lane: number, laneCount: number, trackHeight: number): { top: number; height: number } {
-  if (laneCount <= 1) return { top: LANE_PAD, height: trackHeight - LANE_PAD * 2 };
-  return { top: LANE_PAD + lane * (LANE_HEIGHT + LANE_GAP), height: LANE_HEIGHT };
+  const n = Math.max(1, laneCount);
+  const utile = trackHeight - LANE_PAD * 2 - (n - 1) * LANE_GAP;
+  const hauteur = utile / n;
+  return { top: LANE_PAD + lane * (hauteur + LANE_GAP), height: hauteur };
 }
 
 // Plage large pour montrer l'historique réel des postes (occupation antérieure, section 56)
@@ -312,9 +359,11 @@ interface MobileBrick {
 function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
   label: string; bricks: MobileBrick[]; todayPct: number; onLabelClick?: () => void;
 }) {
-  // Même règle que la vue desktop : les briques qui se chevauchent s'empilent, la piste grandit.
+  // Même règle que la vue desktop : la piste grandit d'une sous-ligne par bande supplémentaire
+  // et les bandes se partagent l'espace à parts égales (section 264). À une sous-ligne, la
+  // hauteur mobile historique (56) est conservée à l'identique.
   const laneCount = Math.max(1, ...bricks.map((b) => (b.lane ?? 0) + 1));
-  const pisteH = laneCount <= 1 ? 56 : LANE_PAD * 2 + laneCount * LANE_HEIGHT + (laneCount - 1) * LANE_GAP;
+  const pisteH = MOBILE_TRACK_HEIGHT + (laneCount - 1) * LANE_PITCH;
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
       {onLabelClick ? (
@@ -1288,14 +1337,39 @@ function TimelineRow({
   const now = new Date();
   const isSelf = post.id === "self";
 
-  // Répartition des briques en sous-lignes : deux périodes qui se chevauchent ne partagent
-  // plus la même bande. On borne chaque mission comme le fait MissionBrick (départ prévu,
-  // sinon fin, sinon ouverte jusqu'au bord droit) pour que le calcul colle au rendu.
-  const missionsDatees = post.missions.filter((m) => toDate(m.startDate));
+  // Répartition des briques en sous-lignes. On borne chaque mission comme le fait MissionBrick
+  // (départ prévu, sinon fin, sinon ouverte jusqu'au bord droit) pour que le calcul colle au rendu.
   const debutDe = (m: MissionData) => dayOffset(toDate(m.startDate)!);
   const finDe   = (m: MissionData) => dayOffset(toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END);
-  const { lanes, count: laneCount } = assignLanes(missionsDatees, debutDe, finDe);
+
+  // COMPTER CE QUI EST DESSINÉ, PAS CE QUI EXISTE (section 264). MissionBrick renvoie `null`
+  // quand la période tombe entièrement hors de la plage affichée (`width <= 0`). Ces missions
+  // consommaient malgré tout un indice de sous-ligne : la piste grandissait pour une bande vide,
+  // et la brique restante se retrouvait décalée vers le bas d'une hauteur sans contenu. On
+  // applique donc ici le MÊME bornage que le rendu.
+  const missionsDatees = post.missions.filter((m) => {
+    if (!toDate(m.startDate)) return false;
+    return Math.min(finDe(m), TOTAL_DAYS) > Math.max(debutDe(m), 0);
+  });
+
+  // Garde d'invisibilité, convertie dans l'unité des bornes (des jours) : 6 px de l'hôte doivent
+  // rester visibles d'un côté au moins pour qu'une brique ait le droit de se loger dedans.
+  const margeVisible = dayWidth > 0 ? 6 / dayWidth : 0;
+  const { lanes, count: laneCount } = assignLanes(missionsDatees, debutDe, finDe, margeVisible);
   const trackHeight = trackHeightFor(laneCount);
+
+  // ORDRE DE PEINTURE : la plus longue d'abord. Dans une bande partagée par inclusion, le
+  // contenant doit être posé AVANT la brique qui se loge dedans — sans ça, l'ordre de la base
+  // décide au hasard laquelle des deux est visible.
+  // Les missions sans date de début ne se peignent pas (MissionBrick renvoie `null`) et n'ont
+  // pas de longueur à comparer : on les laisse à la fin plutôt que de les passer au tri.
+  const sansDate = post.missions.filter((m) => !toDate(m.startDate));
+  const missionsAPeindre = [
+    ...post.missions
+      .filter((m) => toDate(m.startDate))
+      .sort((a, b) => (finDe(b) - debutDe(b)) - (finDe(a) - debutDe(a))),
+    ...sansDate,
+  ];
 
   return (
     <div className="flex border-b border-gray-100 last:border-0" style={{ height: trackHeight }}>
@@ -1374,8 +1448,8 @@ function TimelineRow({
             })
           }
 
-          {/* Briques missions */}
-          {post.missions.map(m => (
+          {/* Briques missions — ordre de peinture : contenant d'abord (section 264) */}
+          {missionsAPeindre.map(m => (
             <MissionBrick
               key={m.id}
               mission={m}
@@ -2431,19 +2505,39 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
         });
       });
     }
-    // Sous-lignes calculées sur les seules missions : deux périodes qui se chevauchent
-    // s'empilent au lieu de se recouvrir. Les zones non couvertes, elles, ne chevauchent
-    // aucune mission par construction et gardent la pleine hauteur.
-    const missionsDatees = post.missions.filter((m) => toDate(m.startDate));
+    // Sous-lignes calculées sur les seules missions : un vrai croisement s'empile, une période
+    // incluse dans une autre se loge dedans (section 264). Les zones non couvertes, elles, ne
+    // concurrencent aucune brique et gardent la pleine hauteur.
     const debutDe = (m: MissionData) => toDate(m.startDate)!.getTime();
-    const finDe   = (m: MissionData) => (toDate(m.departureDate) ?? toDate(m.endDate) ?? mWin.end).getTime();
-    const { lanes } = assignLanes(missionsDatees, debutDe, finDe);
+    // SANS TERME = RANGE_END, PAS LA FIN DE LA FENÊTRE. Borner une occupation ouverte à la fin
+    // des ~3 mois affichés la tronquait artificiellement : sur la carte de Marion, l'occupation
+    // s'arrêtait au 15/12 et l'annonce du 10/12 au 03/01 en dépassait — le mobile y lisait un
+    // croisement partiel et ouvrait une sous-ligne, là où le desktop voyait une inclusion. Le
+    // rendu, lui, ne change pas : `pctIn` plafonne déjà à 100 %.
+    const finDe   = (m: MissionData) => (toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END).getTime();
+    // Même bornage que le rendu ci-dessous : une mission hors fenêtre ne produit pas de brique
+    // et ne doit donc pas consommer d'indice de sous-ligne, sinon la piste grandit pour rien et
+    // la brique restante descend d'une bande vide.
+    const missionsDatees = post.missions.filter((m) => {
+      if (!toDate(m.startDate)) return false;
+      return mpct(toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END) - mpct(toDate(m.startDate)!) > 0;
+    });
+    // Garde d'invisibilité en millisecondes : 6 px sur une piste mobile d'environ 330 px, soit
+    // ~1,8 % de la fenêtre affichée. Approximation assumée — la largeur réelle n'est connue
+    // qu'après rendu, et ce seuil ne sert qu'à refuser les inclusions qui masquent leur hôte.
+    const margeVisible = (mWin.end.getTime() - mWin.start.getTime()) * 0.018;
+    const { lanes } = assignLanes(missionsDatees, debutDe, finDe, margeVisible);
 
-    post.missions.forEach(m => {
+    // Contenant d'abord : dans une bande partagée, la brique la plus longue se pose dessous.
+    const aPeindre = [...post.missions]
+      .filter((m) => toDate(m.startDate))
+      .sort((a, b) => (finDe(b) - debutDe(b)) - (finDe(a) - debutDe(a)));
+
+    aPeindre.forEach(m => {
       const start = toDate(m.startDate);
       if (!start) return;
       // Fin effective : date de départ prévue (section 6) sinon endDate sinon bord fenêtre
-      const end = toDate(m.departureDate) ?? toDate(m.endDate) ?? mWin.end;
+      const end = toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END;
       const w = mpct(end) - mpct(start);
       if (w <= 0) return;
       const status = getEffectiveStatus(m, post, localStatuses);
