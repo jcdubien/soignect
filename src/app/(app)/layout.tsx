@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import LienParcourir from "@/components/nav/LienParcourir";
 import Image from "next/image";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { prisma } from "@/lib/prisma";
@@ -210,6 +211,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 candidat déclare une « disponibilité ». */}
             {profileType === "TITULAIRE" ? "+ Annonce" : "+ Disponibilité"}
           </Link>
+          {/* Parcourir le fil (section 263) — `/annonces` n'existait QUE dans la barre du bas
+              mobile. Sur desktop, depuis l'écran d'édition d'une annonce, il fallait passer par
+              le logo (qui mène au Planning) ou taper l'URL. Placé avant la liste personnelle :
+              on parcourt le camp d'en face, puis on revient chez soi. */}
+          <LienParcourir className="text-xs px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg font-semibold hover:bg-gray-50 transition hidden sm:inline-flex items-center gap-1" />
           <Link
             href={homeHref}
             className="text-xs px-3 py-1.5 border border-kine-200 text-kine-700 rounded-lg font-semibold hover:bg-kine-50 transition hidden sm:inline-flex items-center gap-1"

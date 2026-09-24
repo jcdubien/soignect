@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { marquerSaisieEnCours } from "@/lib/saisieEnCours";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { COMMUNES_GUADELOUPE } from "@/lib/communes";
@@ -351,10 +352,36 @@ export default function CreateMissionClient({ typesContractualisables }: { types
           setEditingAbsence(true);
         }
         setShowManual(true); // édition = accès direct aux champs
+        // Référence de comparaison pour la garde de saisie (section 263) : prise APRÈS le
+        // pré-remplissage, sans quoi le chargement lui-même passerait pour une modification.
+        setTimeout(() => { referenceSaisie.current = null; }, 0);
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
+
+  // ── GARDE DE SAISIE (section 263) ─────────────────────────────────────────────────────────
+  //
+  // Le header porte désormais un lien « Parcourir » atteignable depuis cet écran. En ÉDITION, ce
+  // formulaire n'a pas de brouillon — décision de la section 252 : un brouillon écraserait les
+  // vraies valeurs chargées du serveur. Partir, c'est donc perdre ses modifications.
+  //
+  // On ne compare pas champ à champ : on prend une empreinte de l'état APRÈS chargement, et tout
+  // écart ultérieur vaut modification. Comparer champ à champ aurait demandé de tenir une liste
+  // à jour — et d'oublier celui qu'on ajoute six mois plus tard.
+  //
+  // EN CRÉATION AUSSI, mais seulement si quelque chose a été tapé : un formulaire vierge quitté
+  // n'a rien à protéger, et une confirmation sur un écran vide est le faux positif qui apprend à
+  // cliquer « partir » sans lire.
+  const referenceSaisie = useRef<string | null>(null);
+  useEffect(() => {
+    const empreinte = JSON.stringify({ form, needType, natureSalariat });
+    if (referenceSaisie.current === null) { referenceSaisie.current = empreinte; return; }
+    marquerSaisieEnCours(empreinte !== referenceSaisie.current);
+  }, [form, needType, natureSalariat]);
+
+  // Le drapeau est un état d'écran : il retombe au démontage, quelle qu'en soit la raison.
+  useEffect(() => () => marquerSaisieEnCours(false), []);
 
   // Validation 90 jours pour ASSISTANAT/CDD (front-end)
   const missionDays = form.startDate && form.endDate
@@ -526,6 +553,9 @@ export default function CreateMissionClient({ typesContractualisables }: { types
     }
     const created = await res.json().catch(() => null);
     const publishedId = created?.id ? String(created.id) : "";
+    // Enregistré : il n'y a plus rien à protéger. Levé AVANT la navigation, sans quoi la garde
+    // du header se déclencherait sur une publication réussie.
+    marquerSaisieEnCours(false);
     router.push(`/annonces?published=1&pid=${encodeURIComponent(publishedId)}&pt=${encodeURIComponent(form.title)}`);
   }
 
