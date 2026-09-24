@@ -7347,6 +7347,103 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 264 — UNE INCLUSION N'EST PAS UN CHEVAUCHEMENT (24/09)
+
+Deux demandes du 24/09, une seule zone de code, traitées ensemble : qu'une sous-ligne n'apparaisse
+qu'en cas de vrai chevauchement, et le correctif de hauteur ouvert depuis le 17/09.
+
+#### Ce que la mesure a trouvé, et qui a changé la règle
+
+Sur la base entière : **4 postes portaient une sous-ligne, et les 4 étaient des inclusions
+strictes.** Aucun croisement partiel n'existait nulle part.
+
+```
+JC · siège      présence 01/09/26 → sans fin   ⊃  annonce 21/12 → 16/01
+Marion          Marion   01/01/26 → sans fin   ⊃  annonce 10/12 → 03/01
+ravines         occupation 01/01 → 30/09       ⊃  remplacement 07/09 → 25/09
+JP              annonce  07/09/26 → sans fin   ⊃  Camille 19/10 → 18/04
+```
+
+Une inclusion n'a jamais eu besoin d'une seconde bande : **le contenant reste lisible des deux
+côtés** de la brique qui se loge dedans. C'est littéralement « se loger dans le trou ». Ce qui
+exige deux bandes, c'est le **croisement partiel** — tuilage de succession, double engagement —
+où aucune des deux ne peut se dessiner sur l'autre sans lui manger une extrémité.
+
+La ligne de Léa, 6 périodes enchaînées bout à bout sans jamais se croiser, est le modèle de ce à
+quoi ressemble une ligne saine : **les périodes se chaînent, elles ne s'empilent pas.**
+
+#### Deux hypothèses de travail écartées, chacune par une donnée
+
+**« Une sous-ligne ne devrait apparaître que sur la ligne du titulaire. »** La règle se retourne :
+le siège de JC et la ligne de Marion portent la **même structure à onze jours près** (occupation
+sans terme + annonce de remplacement courte à l'intérieur). L'exception aurait **conservé la
+sous-ligne signalée** et supprimé sa jumelle. Elle aurait par ailleurs masqué deux cas où
+l'empilement est légitime : un poste à `maxSlots > 1` (le champ existe, aucun poste ne l'utilise
+aujourd'hui) et un double engagement sur une ligne d'assistant.
+
+**« Peindre le fait au fond, l'intention par-dessus. »** Sur le poste « JP », c'est l'**annonce
+ouverte qui contient l'occupation de Camille** : la peindre par-dessus masquerait Camille
+intégralement — l'inverse exact du but. La géométrie désigne déjà le bon fond partout (le
+contenant), sans avoir à deviner ce qu'un statut veut dire.
+
+#### Une correction de prémisse
+
+« Un remplaçant n'existe que pour combler une absence **du titulaire** » n'est pas ce que le
+modèle représente. Sur la ligne de Léa, deux remplacements couvrent l'absence **de Léa**. Le
+serveur le dit déjà (`api/missions/route.ts`) : un assistant rattaché peut publier un remplacement
+« pour couvrir **SON** absence ». La relation est **occupant de cette ligne ↔ celui qui le
+couvre**, à chaque étage — c'est pourquoi les sous-lignes apparaissaient aussi bas dans la
+hiérarchie.
+
+#### La garde d'invisibilité
+
+Si la brique intérieure couvre son hôte sur toute sa longueur, l'hôte disparaîtrait. On retombe
+alors sur deux sous-lignes — parce que c'est **exactement le défaut d'invisibilité** que les
+sous-lignes avaient été créées pour corriger (une brique de 47 px disparue sous une annonce de
+1 280 px, mesurée en production). Le seuil vaut 6 px de l'hôte visibles d'un côté au moins,
+converti dans l'unité des bornes à chaque vue.
+
+#### Hauteur : une formule au lieu de deux cas
+
+Avant : 36 px à une sous-ligne, **20 px dès deux**, pour une piste de 50. Une ligne partagée
+perdait 44 % de sa hauteur pendant que sa voisine gardait la sienne — la « dissociation de
+hauteur » signalée le 17/09. Désormais la piste **grandit** d'une sous-ligne (22 px) et les bandes
+se partagent l'espace à parts égales. À une sous-ligne, la formule redonne **exactement 36 px** :
+rien ne bouge pour les plannings sans chevauchement, c'est-à-dire tous, après la règle ci-dessus.
+
+| sous-lignes | piste | bande |
+|---|---|---|
+| 1 | 44 px (historique) | 36 px |
+| 2 | 66 px | 28 px |
+| 3 | 88 px | 25,3 px |
+
+#### Comptage : compter ce qui est dessiné, pas ce qui existe
+
+Les sous-lignes se calculaient sur les missions **existantes**, le rendu ne dessinait que celles
+dont la période tombe dans la plage affichée. Une période hors plage consommait donc un indice :
+la piste grandissait pour une bande vide et la brique restante descendait dessous. Même bornage
+des deux côtés maintenant.
+
+#### Deux vues qui divergeaient sur les mêmes données
+
+Le mobile bornait une occupation **sans terme** à la fin de la fenêtre affichée au lieu de
+l'infini. Sur la carte de Marion, l'occupation s'arrêtait au 15/12 et l'annonce du 10/12 au 03/01
+en dépassait : le mobile y lisait un croisement partiel là où le desktop voyait une inclusion.
+Trouvé en vérifiant à 390 px — pas à 1440.
+
+#### Vérifié
+
+13 cas sur la fonction de placement, **extraite du fichier source plutôt que recopiée** pour
+qu'aucune divergence ne s'installe entre le test et le code : les 4 paires réelles, la chaîne de
+6 périodes de Léa, tuilage, double engagement, inclusion exacte, inclusion trop serrée, hauteurs.
+Un cas a échoué — et c'était **l'attente qui était fausse** : une brique incluse doit suivre son
+hôte sur sa sous-ligne, pas retomber sur une bande libre, sinon elle se lit comme une période
+concurrente.
+
+Puis à l'écran : desktop aux zooms Trimestre et 2 ans, mobile à 390 px. Toutes les lignes
+reviennent à une bande unique — 44 px en desktop, 56 px en mobile — et la géométrie confirme que
+le contenant reste visible de part et d'autre de l'incluse, peinte par-dessus.
+
 ### SECTION 263 — PARCOURIR LES ANNONCES DEPUIS LE DESKTOP, ET LA PREMIÈRE GARDE DE SAISIE (24/09)
 
 Signalé le 24/09, capture à l'appui : sur « Modifier l'annonce » en desktop, la barre du haut ne
