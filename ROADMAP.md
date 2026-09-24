@@ -888,6 +888,364 @@ ci-dessus, plus une référence de file d'attente.
 
 ## 🔴 Prêts, en file, pas encore envoyées
 
+🚨. **"Salariat" comme type de poste proposable à la publication —
+   investigation reçue, décisions prises (22/09).**
+   **Prémisse partiellement fausse** : le lien annonce→gabarit ne
+   passe pas par le type de poste. Il passe déjà par
+   `titulaireKind === STRUCTURE` — une structure qui publie
+   "Collaboration" obtient déjà un CDI en coulisses (formulaire
+   relabelle Vacation/CDD/CDI), mais la valeur stockée reste
+   "COLLABORATION". Le chemin existe, il est juste invisible et mal
+   câblé.
+   **🐛 Deux vrais bugs trouvés en cherchant autre chose** : le
+   gabarit CDD kiné (CNOMK, transcrit la veille) exige aujourd'hui
+   une STRUCTURE — alors que le modèle officiel est écrit pour "le
+   masseur-kinésithérapeute LIBÉRAL". Inatteignable par la population
+   pour qui il a été écrit. Et l'Hôpital Beauperthuy (cas réel) est
+   `STRUCTURE` avec `isEmployeur: false` — affiche les libellés
+   libéraux tout en générant des contrats de travail derrière, seul
+   cas de divergence aujourd'hui mais rien ne l'empêchait.
+   **La "reconductibilité" ne correspond à rien dans les modèles
+   officiels** — ni CNOMK ni CNOI n'opposent reconductible/non ; leur
+   axe est terme précis/sans terme précis (déjà structurel dans
+   `NatureSalariat`), le renouvellement est du texte fixe dans les
+   deux modèles, pas un choix à faire.
+   **Décision technique, chiffrée** : 45 fichiers touchent
+   `MissionType`, 47 comparaisons littérales — exactement le risque
+   que la section 217 avait invoqué pour refuser d'étendre
+   l'énumération. **Option 1 retenue (22/09)** : champ dédié sur
+   Mission (`estSalariat` + `natureSalariat`), `MissionType` reste à
+   trois valeurs, aucune des 47 comparaisons ne casse en silence.
+   **Décision de Jean-Charles (22/09)** : implémente l'option 1 ET
+   corrige les deux bugs trouvés dans la même foulée.
+   **🏁 Livré (22/09, `25a006a`), build vert, migration appliquée.**
+   Trois arbitrages tranchés : champ dédié sur Mission ; tout
+   titulaire (structure ou libéral) peut proposer du salariat —
+   résout directement le bug de la gate STRUCTURE ; sous-choix nommé
+   "terme précis / sans terme précis" plutôt que reconductible/non.
+   **🐛 Bug SQL trouvé uniquement par exécution, pas par lecture** :
+   la contrainte CHECK en base ne refusait rien — l'INSERT
+   délibérément incohérent (estSalariat=true, natureSalariat=NULL)
+   était accepté. Cause : une contrainte CHECK n'échoue que si son
+   expression vaut FALSE, pas NULL — `NULL IN (...)` renvoie NULL,
+   qui ne fait jamais échouer la contrainte. Exactement le cas que la
+   contrainte devait attraper était le seul qu'elle laissait passer.
+   "À la relecture, la définition paraît juste." Corrigé par un
+   `IS NOT NULL` explicite, revérifié sur 4 cas (sans nature, nature
+   invalide, libéral avec nature, cas légitime).
+   **Bonne prudence sur la compatibilité arrière** : l'ancienne porte
+   `titulaireKind === STRUCTURE` reste en repli dans la route de
+   contrat — retirer l'ancien chemin aurait basculé silencieusement
+   les contrats déjà publiés (Clinique l'Espérance, Hôpital
+   Beauperthuy) vers du libéral, sans erreur ni avertissement.
+   **Décision de Jean-Charles (22/09)** : continuer avec la
+   rédaction de la spec (section 262), et corriger séparément le cas
+   Beauperthuy (labels libéraux affichés, contrats de travail générés
+   — choisir la correction qui ne casse rien de ses annonces déjà
+   publiées). Prompt envoyé. Rapport pas encore reçu.
+
+⚠️. **Clic sur un segment de timeline occupé propose "Poser une
+   annonce" au lieu de gérer l'existante** — signalé le 21/09,
+   capture à l'appui (segment jaune de Marion, annonce déjà active
+   10 déc.→3 janv., modale traite le clic comme sur une case vide).
+   Prompt prêt, pas encore envoyé.
+
+🚨. **Filtre de dates du feed corrigé — livré (21/09, `c2223d3`,
+   spec `36b4290`).** Suite de l'investigation majeure du même jour.
+   **Diagnostic** : `scoreDates` sait déjà dégrader (souplesse
+   déclarée, repli sur `minMonths`, neutre si rien connu) — le
+   filtre placé devant lui était plus grossier que ce qu'il
+   protégeait.
+   **Invariant retenu** : le filtre ne retire que les candidats qui
+   scoreraient 0 de toute façon, avec la tolérance la plus généreuse
+   déclarable (30j) comme borne SQL-calculable — garantit qu'on
+   n'écarte jamais quelqu'un de valable.
+   **Accroc de méthode bien résolu** : le compte de Jean-Charles
+   avait déjà swipé tous les candidats disponibles, rendant la
+   démonstration directe impossible. Résolu en rebundlant la version
+   précédente de la vraie route depuis HEAD — avant/après sur le
+   même chemin de code, pas une réimplémentation.
+   **Résultat mesuré** : 4,5 → 13,3 candidats visibles en moyenne
+   sur 11 annonces à deux bornes ; le cabinet à zéro en voit
+   désormais 8.
+   **Règle de souplesse déplacée** de `deepseek.ts` vers
+   `compatibilite.ts` — n'existait qu'à un seul endroit, exactement
+   pourquoi le filtre du feed avait pu diverger du score.
+   **Honnêteté maintenue** : ne règle ni les 45% d'intérêt venant de
+   comptes sans annonce, ni le déficit d'offre long terme — dit
+   explicitement pour ne pas passer pour LA réponse au funnel.
+
+🚨. **Six arbitrages de contrats salariés — réduits à quatre,
+   tranchés et consignés (21/09, `a97c059`).** Thread résurgi du
+   08/09 (six points dérivés des modèles CNOI, relevés le 28/08).
+   **Bon réflexe** : confronté chaque arbitrage au code existant
+   AVANT de les soumettre — deux des six étaient déjà tranchés
+   (`ContractParty.isStructure`, `periodeEssaiMois`), seuls quatre
+   restaient de vraies questions.
+   **Réponses de Jean-Charles** : véhicule (infirmier) → choix à la
+   saisie ; non-concurrence → "pour son compte ou celui d'autrui" ;
+   zone → rayon en km ; absence de période d'essai → "l'article
+   l'écarte expressément".
+   **Trois des quatre réponses ne changent rien au code** — déjà
+   conformes dans le gabarit CDD kiné livré, vérifié texte contre
+   texte. **Le seul arbitrage à effet réel** (véhicule) touche des
+   gabarits infirmiers qui n'existent pas encore — champ
+   délibérément PAS ajouté au type maintenant : "des champs que rien
+   ne rend, c'est exactement le levier dormant que ce dépôt combat
+   depuis des semaines." Arrivera avec les gabarits qui l'utilisent.
+   **Résultat concret** : lève la réserve du 31/08 ("rédaction à
+   confirmer par JC", art. 4) qui traînait 3 semaines sur un document
+   déjà signable.
+   **Décision de Jean-Charles (21/09)** : lance le CDD infirmier en
+   premier (2 établissements réels en base, dont un avec déjà 2
+   mises en relation en attente — devant CDI infirmier et CDD kiné).
+   **CDD infirmier livré (`5ed9a90`, spec `a77d9d9`)** : transcrit
+   depuis le `.docx` "à remplir" trouvé dans les téléchargements
+   (texte contractuel seul, préféré à la version commentée risquée
+   du 28/08). Testé sur deux jeux de données opposés (avec/sans
+   essai, avec/sans non-concurrence, véhicule employeur/personnel).
+   **Quasi-loupé honnêtement rapporté** : premier extracteur PDF a
+   rendu 0 caractère, douze contrôles à "KO" — failli rapporter douze
+   défauts inexistants. Rattrapé par un vrai extracteur (pdftotext).
+   Leçon écrite dans la spec : "une batterie de contrôles qui échoue
+   partout accuse l'instrument avant la pièce."
+   **CDI infirmier livré (`6f59b9d`, spec `ac1a8af`)** : diffé les
+   deux sources plutôt que relues — 6 écarts réels isolés, dont 3
+   qu'une lecture aurait probablement manqués.
+   **Décision la plus fine de la session** : texte délibérément
+   DUPLIQUÉ entre CDD et CDI, à l'encontre de l'habitude anti-
+   duplication du dépôt — expliqué en spec : "Factoriser du code qui
+   se répète évite les divergences. Factoriser deux contrats qui se
+   ressemblent introduit une divergence : celle entre le gabarit et
+   sa source." Partager le texte aurait créé un faux couplage entre
+   deux documents officiels que le CNOI peut faire évoluer
+   séparément — le type reste partagé, seul le texte est dupliqué.
+   **Régression vérifiée** : CDD re-rendu après renommage du type
+   partagé — "renommer un type partagé est exactement le genre de
+   changement qu'un build vert laisse passer sans le détecter."
+   Articles intacts.
+   **Décision de Jean-Charles (21/09)** : lance le CDD kiné, dernier
+   des trois gabarits (le seul adossé au modèle-type officiel
+   CNOMK).
+   **🏁 CDD kiné livré (21/09, `1f8cdc3`, spec `e43dc71`) — BLOQUANT
+   DU 08/09 ENTIÈREMENT LEVÉ, les quatre gabarits salariés
+   existent.**
+   **Hypothèse de départ corrigée avant de coûter cher** : attendu
+   comme variante des deux gabarits infirmiers, la source a dit le
+   contraire — 5 écarts structurels réels (nb d'articles, clause
+   véhicule absente au profit d'une indemnité kilométrique
+   inconditionnelle, non-concurrence fixée par R.4321-130 vs
+   négociée, indemnité de violation en mois vs en euros, fin sans
+   terme différente).
+   **Deux décisions évitant de corrompre le sens juridique** : durée
+   de non-concurrence non exposée à la saisie (fixée par la loi,
+   l'exposer suggérerait à tort qu'elle est négociable) ; indemnité
+   de violation gardée en mois plutôt que de réutiliser le champ en
+   euros du modèle infirmier (aurait changé silencieusement le sens
+   de la clause).
+   **Risque de document auto-contradictoire évité** : le modèle
+   officiel publie deux versions (temps complet/partiel) aux clauses
+   distinctes — les rendre toutes les deux (comme le PDF papier
+   rempli à la main) aurait produit un contrat signé portant deux
+   régimes horaires contradictoires. Une seule rendue, choisie par
+   le type.
+   **2ᵉ quasi-loupé en deux jours, nommé comme tel** : une sonde a
+   d'abord annoncé R.4321-130 absent — cherchait "R." avec une
+   espace, défaut de l'outil, pas du document. Vérifié plutôt que
+   rapporté.
+   **Statut final des 4 gabarits** : CDI kiné (composé, aucune source
+   officielle, avertissement imprimé) ; CDD kiné, CDI infirmier, CDD
+   infirmier (tous transcrits depuis CNOMK/CNOI). Aucun des trois
+   nouveaux ne peut être déclenché avant l'ouverture de Phase 2 (tous
+   les profils actuels sont kiné) — bloquant marketing en attente
+   depuis le 21/08.
+   **🔔 Pour Jean-Charles, pas pour Opus** : deux de ses annonces
+   dépubliées portent 25 et 10 intérêts — intérêt réel qui ne mène
+   nulle part tant qu'elles restent hors ligne. À regarder.
+   **Rappel de priorité, dit par Opus lui-même** : les deux vraies
+   pertes d'entonnoir mesurées le 21/09 (45% d'intérêt venant de
+   comptes sans annonce, déficit d'offre long terme) pèsent plus
+   lourd que tout ce qui a été corrigé cette semaine, gabarits
+   compris. Chantier des 4 gabarits fermé.
+
+⚠️. **Bouton "Annuler le match" depuis l'écran de chat** — demandé le
+   21/09, captures à l'appui. Aucun moyen d'annuler un match si la
+   discussion ne mène à rien — seuls "Envoyer un contrat" et l'envoi
+   de message sont proposés. Prompt prêt, lecture seule d'abord
+   (réutiliser un motif d'annulation déjà existant, vérifier
+   l'articulation avec un contrat déjà commencé sur ce match). Pas
+   encore envoyé.
+
+⚠️. **Retirer le cœur sur l'écran "Mise en relation confirmée"** —
+   demandé le 21/09, capture à l'appui. Rejoint le retour de Mélissa
+   sur la métaphore "appli de rencontre" (voir
+   STRATEGIE_MARKETING_BUSINESS.md) — cœur vert entre les deux
+   photos jugé trop proche de ce ton. Prompt prêt, pas encore envoyé.
+
+⚠️. **Splash screen avec tip aléatoire (30 tips) + lien mode
+   d'emploi** — demandé le 21/09, 1x/jour à l'ouverture de session.
+   30 tips rédigés (couvrant remplaçant/assistant, cabinet, général —
+   dont deux rappels sur des confusions réelles déjà signalées :
+   rétrocession/redevance, marge de flexibilité des dates). Prompt
+   prêt, contenu complet inclus. Pas encore envoyé.
+
+🚨. **Investigation majeure (21/09) : funnel complet de mise en
+   relation mesuré — filtre de dates du feed exclut silencieusement
+   la population la plus demandée.** Réponse à la question de Jean-
+   Charles "comment améliorer le taux de mise en relation".
+   **Visibilité n'est pas le goulot** : 44/47 annonces (94%) reçoivent
+   au moins un swipe.
+   **Réciprocité à 19% seulement** : 70 swipes RIGHT sur 425
+   décisions (16%), 13 réciproques, 57 sans réponse.
+   **Point du 09/09 enfin tranché** : exclusion stricte, pas
+   dégradation. Chevauchement de dates exact dans `/api/feed` — un
+   candidat décalé d'un jour disparaît entièrement, pas de score
+   dégradé. Moyenne 3,7 candidats visibles sur 22 par recherche
+   cabinet, un cabinet en voyait zéro.
+   **🐛 Deux défauts précis trouvés** : `dateFlexibility` renseigné
+   chez la moitié des candidats, affiché à l'écran, jamais lu par le
+   filtre. Et un candidat sans date de fin (NULL) exclu
+   systématiquement — exactement les profils long terme, la
+   population la plus rare (13 annonces cabinet cherchent du long
+   terme contre 6 disponibilités qui en offrent).
+   **57% de l'intérêt exprimé ne pouvait mécaniquement pas
+   aboutir** (45% swipeur sans annonce, 12% dates exclues par le
+   filtre) — seuls 43% des swipes sans réponse sont de vraies
+   non-réponses.
+   **Patron net sur les 8 matches réels** : les 4 confirmés se sont
+   tous formés en moins de 24h après publication ; ceux qui ont
+   traîné (1,9 à 14,9 jours) sont restés en attente ou ont été
+   déclinés — rien n'a abouti après un long délai.
+   **Décision de Jean-Charles (21/09)** : transformer en prompts de
+   correction. Prompt envoyé (filtre `dateFlexibility` + fin
+   d'exclusion des profils sans date de fin, avec re-mesure attendue
+   sur les mêmes annonces). Rapport pas encore reçu. Le déficit
+   structurel d'offre long terme (assistants surtout) reste un sujet
+   à part, pas un correctif technique.
+
+🚨. **Quota CPU gratuit Vercel atteint** — alerte du 21/09, pas de
+   dégradation constatée pour l'instant. Prompt d'investigation prêt
+   : identifier les routes consommatrices, vérifier si le correctif
+   de la vignette de partage (16/09) — qui avait un cache en MISS
+   systématique avant, gros contributeur historique probable — a
+   déjà résorbé une partie du problème, distinguer croissance
+   normale (60 comptes) d'une vraie inefficacité. Pas encore envoyé.
+
+🚨. **NOUVEAU CHANTIER — Contrat salarié (CDD/CDI) proposable depuis
+   une annonce, toutes professions, avec calculateur de charges
+   patronales indicatif simple** — décidé le 21/09, **précision
+   revue à la baisse le même jour** (calcul barème URSSAF précis
+   d'abord envisagé, puis simplifié en ordre de grandeur — retire
+   l'essentiel du risque de maintenance annuelle identifié). Périmètre
+   large : toutes professions déjà sur la plateforme (pas seulement
+   kiné), intégré au flux de publication existant.
+   Prompt d'investigation + conception (pas de code) envoyé le 21/09,
+   couvre : état actuel des gabarits CDI/CDD par profession, point
+   d'intégration dans le flux de publication, calcul indicatif simple
+   (multiplicateur du brut, fourchette plutôt que chiffre unique si
+   possible) avec formulation à l'écran qui ne garantit rien. Rapport
+   pas encore reçu.
+
+⚠️. **Dissociation de hauteur sur certaines bandes du Planning** —
+   signalé le 17/09, deux captures à l'appui, **jamais consigné ici
+   par erreur — corrigé le 20/09.** Sur la vue Planning, certaines
+   lignes affichent une bande pleine sur toute la hauteur
+   (Jean-Charles, JP, Louison sur les vues courtes) pendant que
+   d'autres (Marion, Léa) affichent une bande claire en haut puis une
+   bande colorée plus courte en dessous, ne remplissant pas toute la
+   hauteur. **Nouveau détail (20/09)** : sur la vue "2 ans", même la
+   ligne de Jean-Charles montre désormais un petit badge orange "K"
+   sous la bande verte — donc ce n'est pas propre à Marion/Léa, la
+   vue longue durée révèle le même phénomène partout. Prompt
+   d'investigation prêt (lecture seule d'abord, hypothèse : lien avec
+   un historique de plusieurs occupants successifs sur le même
+   poste), à mettre à jour avec ce nouveau détail avant envoi.
+
+🚨. **Vignette de partage trop lourde — cause trouvée et corrigée
+   (16/09, `81a2db5`).** Fermeture de l'item ouvert depuis le 04/09.
+   **Résultat mesuré** : 1 066 260 octets → 211-281 Ko ; 4,8s → 0,3s ;
+   cache passait en MISS systématique avant (aucune requête jamais
+   servie depuis le cache), HIT dès le 2ᵉ appel après.
+   **Deux fausses pistes partagées, pas cachées** : la photo n'était
+   pas le problème (gain de 17% seulement en réduisant sa résolution,
+   le PNG se reconstruit toujours à 1200×630) ; `transform: scale`
+   ignoré silencieusement par le moteur de rendu (3ᵉ occurrence du
+   même piège dans ce fichier, après `objectPosition` et
+   `WebkitLineClamp`) — mesure de "94 Ko" sur ce rendu cassé jugée
+   trop belle pour être vraie (image aux 3/4 blanche), jetée plutôt
+   que rapportée comme un succès.
+   **Solution** : sortie ramenée à 600×315, le minimum documenté par
+   Facebook pour le format grand format (pas un chiffre arbitraire) —
+   en dessous, bascule en vignette carrée. Gabarit toujours écrit en
+   1200×630, `px()` comme seul point de conversion d'échelle.
+   **Bug préexistant trouvé et corrigé au passage** : un titre
+   sortait sur 3 lignes au lieu de 2, déjà le cas avant ce correctif
+   (vérifié par comparaison avec le rendu antérieur, pas une
+   régression causée).
+   **Décision de Jean-Charles (16/09)** : ajouter la conversion JPEG
+   après génération (dépendance `sharp`) pour une marge plus
+   confortable sous le seuil de 300 Ko. Prompt envoyé. Et test réel
+   de partage WhatsApp depuis le téléphone en cours — seule
+   vérification qui tranche si la vignette apparaît vraiment.
+   **✅ CONFIRMÉ EN CONDITIONS RÉELLES (20/09)** : capture WhatsApp à
+   l'appui — vraie photo, bon titre, bonnes dates, bon lieu, tout
+   s'affiche correctement au partage. Chantier définitivement clos.
+   **Détail à corriger séparément, trouvé sur cette même capture** :
+   le titre de l'aperçu répète deux fois le taux de rétrocession
+   ("assistant kiné en MSP, 20% rétrocession" dans le titre ET dans
+   la description en dessous) — redondant, pas une erreur, mais
+   pourrait être resserré. Pas urgent.
+
+⚠️. **Bouton "Contacter/Relancer" manquant sur la fiche détaillée
+   d'un candidat** — signalé le 13/09, capture à l'appui (fiche
+   Calista, 81% d'affinité). Seul "Retirer ce choix" est proposé,
+   aucun moyen de contact direct depuis cet écran. Prompt prêt,
+   demande de vérifier les règles de réciprocité déjà en place avant
+   d'ajouter le bouton. Pas encore envoyé.
+
+🚨. **Investigation : friction réelle sur l'écran "Publier ma
+   recherche" ?** — décidé le 13/09, suite logique après l'échec de
+   la relance email seule (0 publication sur les 18 relancés). Sur
+   le sujet de fond des 74% qui ne publient jamais (investigation du
+   03/09). Recense les champs obligatoires, cherche une mesure de
+   taux d'abandon existante, compare au formulaire équivalent
+   cabinet. Prompt prêt, pas encore envoyé.
+
+🚨. **Notifications "s'intéresse" différées jusqu'à publication —
+   livré (13/09, `d2cfc76`).** Build vert, données de test
+   supprimées. Suite au retour direct de Jean-Charles (13/09,
+   utilisateur réel du produit) sur le bruit de notifications sans
+   destination utile.
+   **Principe, plus élégant qu'une suppression de bruit** : le geste
+   du candidat n'est pas perdu, seule la notification attend — elle
+   part le jour où il publie enfin, c'est-à-dire le jour où le
+   cabinet peut réellement agir. Et à ce moment, le message vaut
+   mieux qu'avant : la personne est visible dans le fil, un match
+   peut se former dans la seconde.
+   **Vérifié par exécution réelle des deux routes** : swipe sans
+   publication → 0 notification (avant : 2 impasses) ; publication
+   ensuite → 2 notifications correctes.
+   **Bonne décision technique** : `INTERET_SIGNALE` (dédup) toujours
+   écrit même en différé — sinon le rattrapage à la publication
+   aurait été bloqué par la déduplication elle-même. Règle vivant
+   dans un seul fichier, appelée par les deux routes, avec la raison
+   explicite : "c'est le motif qui a coûté quatre correctifs cette
+   quinzaine" — leçon interne appliquée avant d'être redécouverte.
+   **🎯 Sixième faux négatif d'Opus, compté et nommé comme tel** : le
+   rattrapage semblait ne rien produire — mesure prise trop tôt après
+   un appel fire-and-forget, "même piège que le 3 septembre".
+   Discipline d'auto-diagnostic maintenant explicitement suivie dans
+   le temps.
+   **Honnêteté centrale sur ce que ça ne règle PAS** : ce correctif
+   supprime le bruit, il ne fait pas publier les 18 candidats
+   silencieux — "le goulot reste entier [...] plus personne n'est
+   prévenu qu'ils existent." Conclusion d'Opus lui-même : le vrai
+   problème (74% des candidats qui ne publient jamais, investigation
+   du 03/09) vaut plus que ce correctif. Reste le sujet de fond à
+   traiter, pas remplacé par cette amélioration.
+   **Décision de Jean-Charles (13/09)** : vérifier le déploiement.
+   Rapport pas encore reçu.
+
 🚨. **Lien de partage figé sur WhatsApp — livré (13/09, `00da776`).**
    Build vert.
    **Diagnostic confirmé, pas un bug Soignect** : vérifié à trois
@@ -1568,20 +1926,6 @@ ci-dessus, plus une référence de file d'attente.
    24 · log 0 · véh 0 · sec 0 · coord 0 · socle/100" — ressemble à un
    dump de débogage des composantes du score. Prompt prêt, pas
    encore envoyé.
-
-🚨. **Aucune vignette d'image lors du partage — WhatsApp Web ET
-   Facebook mobile, pas un cas isolé** — signalé le 04/09, confirmé
-   plus large par une seconde capture (composeur de partage Facebook
-   mobile, zone image totalement vide, groupe "Kinésithérapeutes de
-   Guadeloupe"). Touche directement au travail de la section 220
-   (image de partage). Le fait que ça touche deux plateformes
-   différentes (WhatsApp Web ET Facebook mobile) suggère un problème
-   plus général que le cache ou le comportement d'un client
-   particulier — probablement dans la génération ou la mise à
-   disposition de l'image elle-même. Prompt prêt, investigation
-   lecture seule d'abord — distinguer serveur vs cache client,
-   vérifier les exigences de poids/format, comparer les plateformes.
-   Priorité relevée vu l'ampleur confirmée. Pas encore envoyé.
 
 🚨. **Investigation majeure (03/09) : 74% des candidats ne publient
    jamais de recherche, 0 mise en relation dans cette population —

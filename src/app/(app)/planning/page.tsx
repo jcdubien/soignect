@@ -21,7 +21,7 @@ export default async function PlanningPage() {
 
   const profile = await prisma.profile.findUnique({
     where: { id: profileId },
-    select: { name: true, isEmployeur: true },
+    select: { name: true, isEmployeur: true, titulaireKind: true },
   });
 
   // Charger tous les postes + leurs missions actives + matchs associés
@@ -65,7 +65,16 @@ export default async function PlanningPage() {
       posts={posts}
       profileId={profileId}
       cabinetName={profile?.name ?? "Mon cabinet"}
-      isEmployeur={profile?.isEmployeur ?? false}
+      // ── DÉRIVÉ, PAS LU BRUT (section 262 bis) ─────────────────────────────────────────
+      // Cet écran lisait la colonne `isEmployeur` telle quelle, alors que partout ailleurs —
+      // session (lib/auth), formulaire de publication, mise à jour de profil — elle est dérivée
+      // de `titulaireKind`. Un établissement dont la colonne héritée était restée à false lisait
+      // donc un Planning au vocabulaire libéral (« créer une annonce », poste par défaut
+      // TITULAIRE) tout en générant des contrats de travail. Constaté sur l'Hôpital Beauperthuy.
+      //
+      // `PlanningBoard` affirmait déjà l'équivalence en commentaire — « isEmployeur ⇔
+      // titulaireKind === STRUCTURE » — sans que rien ne la garantisse ici.
+      isEmployeur={(profile?.isEmployeur ?? false) || profile?.titulaireKind === "STRUCTURE"}
       unlinkedMissions={unlinkedMissions}
     />
   );
