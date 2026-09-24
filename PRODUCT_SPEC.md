@@ -7347,6 +7347,81 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 263 — PARCOURIR LES ANNONCES DEPUIS LE DESKTOP, ET LA PREMIÈRE GARDE DE SAISIE (24/09)
+
+Signalé le 24/09, capture à l'appui : sur « Modifier l'annonce » en desktop, la barre du haut ne
+porte que **Admin**, **+ Annonce** et **Planning**. Rien pour aller voir le fil.
+
+#### Ce que la lecture a trouvé
+
+`/annonces` figure dans la barre du bas **mobile** depuis toujours (`layout.tsx`), et **nulle part**
+sur desktop. Le seul chemin restant était le logo — qui mène au Planning, pas au fil — ou l'URL
+tapée à la main. Le trou n'est donc pas propre à l'écran d'édition : il vaut pour tout le desktop,
+et l'écran d'édition est simplement celui où il se voit le plus, puisqu'on y arrive depuis le fil.
+
+#### « Parcourir », pas « Annonces »
+
+Le layout porte déjà cette règle, écrite pour le candidat : *le bouton de CONSULTATION ne se
+distinguait de celui de CRÉATION que par un « s »*. Face à « + Annonce », un lien « Annonces »
+aurait reproduit exactement cette confusion. Le libellé nomme donc le **geste**, et le geste seul
+tient pour les deux camps — un cabinet y parcourt des candidats, un candidat des annonces, le même
+mot couvre les deux sans mentir à personne.
+
+#### La garde de saisie — la première du produit
+
+Quitter un formulaire d'édition, c'est perdre ce qu'on y a tapé. `beforeunload` n'existait nulle
+part dans le dépôt, et n'aurait de toute façon rien donné : **les navigations `next/link` sont côté
+client et ne le déclenchent pas**.
+
+La garde ne couvre que ce qui n'est pas déjà couvert :
+
+| Formulaire | Protection existante | Lève le drapeau ? |
+|---|---|---|
+| Candidat (publication) | Brouillon local à chaque frappe (section 252) | **Non** — rien n'y est perdu |
+| Cabinet, mode création | Brouillon local (section 252) | **Non** |
+| Cabinet, **mode édition** | **Aucune**, par décision de la 252 : un brouillon écraserait les valeurs chargées du serveur | **Oui** |
+
+C'est ce dernier cas, et lui seul, que la confirmation protège. Une garde posée partout aurait
+produit le faux positif le plus agaçant : une demande de confirmation sur un écran d'où rien ne
+peut être perdu.
+
+#### Un module partagé, pas un contexte React
+
+`app/(app)/layout.tsx` est un composant **serveur** ; le formulaire qui sait s'il reste du texte non
+enregistré est un composant **client**, monté bien plus bas. Un contexte aurait exigé d'envelopper
+tout le layout dans un provider client — de faire passer l'arbre entier côté client pour un booléen.
+`lib/saisieEnCours.ts` est donc un module partagé : un drapeau, des abonnés, rien d'autre.
+
+C'est un **état de session d'écran, pas une donnée** : jamais persisté, jamais lu par le serveur.
+Il retombe à deux moments, et les deux comptent :
+
+- au **démontage** du formulaire — sans quoi la confirmation apparaîtrait sur un écran où l'on n'a
+  rien tapé ;
+- à la **publication réussie**, levé *avant* la navigation — sans quoi la garde se déclencherait sur
+  un enregistrement qui a parfaitement marché.
+
+La détection compare une **empreinte** (`JSON.stringify`) de l'état courant à celle prise *après* le
+préremplissage. Prendre l'instantané avant aurait marqué comme « modifié » le simple chargement de
+l'annonce depuis le serveur.
+
+#### Vérifié à l'écran, en desktop, les quatre chemins
+
+```
+champ intact       -> clic « Parcourir »  ->  /annonces, sans confirmation
+champ modifié      -> clic « Parcourir »  ->  « Quitter sans enregistrer ? »
+« Rester »         -> modale fermée, texte modifié CONSERVÉ, toujours sur l'annonce
+« Partir »         -> /annonces
+formulaire quitté  -> clic « Parcourir »  ->  aucune modale fantôme
+```
+
+#### Une lenteur de dev qui a failli passer pour un bug
+
+Le préremplissage de l'édition met **~12 s** en `next dev` (compilation à la demande). Une première
+capture, prise dans cet intervalle, montrait le formulaire **vide** juste après un clic — de quoi
+conclure que le lien effaçait la saisie. Il ne se passait rien d'autre qu'un écran pas encore
+rempli. La leçon est la même qu'au 20/09 sur le pooler Supabase : **un écran lu trop tôt n'est pas
+une observation, c'est une hypothèse.**
+
 ### SECTION 262 — LE SALARIAT DEVIENT UN TYPE DE POSTE PROPOSABLE (23/09)
 
 Demandé le 22/09. Les quatre gabarits de contrat de travail existaient depuis la veille, mais rien
