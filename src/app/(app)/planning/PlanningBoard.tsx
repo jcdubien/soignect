@@ -620,6 +620,110 @@ function getEffectiveStatus(
 
 // ── Menu à 3 choix au clic sur un poste (section 55) ─────────────────────────────
 
+// ── FORMULAIRE DE PÉRIODE (section 266, extrait du menu de poste) ────────────────────────────
+//
+// Il vivait en état local de `PostMenu`, initialisé une fois pour la mission du menu. Deux
+// conséquences : il ne pouvait modifier QUE celle-là, et il n'était offert que sur une brique
+// SANS annonce active — donc jamais sur une annonce en ligne, qui est pourtant le cas où l'on
+// veut le plus souvent décaler trois jours sans rouvrir l'édition complète.
+//
+// Extrait en composant, il prend sa cible en propriété et repart de ses valeurs à chaque montage.
+function FormulairePeriode({
+  mission, onRetour, onDone,
+}: { mission: MissionData; onRetour: () => void; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [eName, setEName] = useState(mission.title ?? "");
+  const [eStart, setEStart] = useState(toDate(mission.startDate)?.toISOString().slice(0, 10) ?? "");
+  const [eFinMode, setEFinMode] = useState<"A" | "B" | "C">(toDate(mission.endDate) ? "A" : "C");
+  const [eEnd, setEEnd] = useState(toDate(mission.endDate)?.toISOString().slice(0, 10) ?? "");
+  const [eDureeNum, setEDureeNum] = useState("");
+  const [eDureeUnit, setEDureeUnit] = useState<"jours" | "semaines" | "mois">("mois");
+
+  function computeEnd(): string | null {
+    if (eFinMode === "A") return eEnd ? new Date(eEnd).toISOString() : null;
+    if (eFinMode === "B" && eStart && eDureeNum) {
+      const n = parseInt(eDureeNum, 10);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      const d = new Date(eStart);
+      if (eDureeUnit === "jours") d.setDate(d.getDate() + n);
+      else if (eDureeUnit === "semaines") d.setDate(d.getDate() + n * 7);
+      else d.setMonth(d.getMonth() + n);
+      return d.toISOString();
+    }
+    return null;
+  }
+
+  async function submit() {
+    if (!eStart || busy) return;
+    setBusy(true);
+    const title = eName.trim();
+    await fetch(`/api/missions/${mission.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...(title.length >= 3 ? { title } : {}),
+        startDate: new Date(eStart).toISOString(),
+        endDate: computeEnd(),
+      }),
+    });
+    onDone();
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Nom / praticien</label>
+        <input
+          type="text" value={eName} onChange={e => setEName(e.target.value)} maxLength={100}
+          placeholder="Ex : Dr Marion L."
+          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Date de début</label>
+        <input
+          type="date" value={eStart} onChange={e => setEStart(e.target.value)}
+          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1.5">Fin</label>
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-2">
+          {([["A", "Date connue"], ["B", "Durée"], ["C", "Indéterminée"]] as const).map(([m, lbl]) => (
+            <button key={m} type="button" onClick={() => setEFinMode(m)}
+              className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition ${eFinMode === m ? "bg-white text-kine-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+        {eFinMode === "A" && (
+          <input type="date" value={eEnd} min={eStart || undefined} onChange={e => setEEnd(e.target.value)}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+        )}
+        {eFinMode === "B" && (
+          <div className="flex gap-2">
+            <input type="number" min={1} value={eDureeNum} onChange={e => setEDureeNum(e.target.value)} placeholder="6"
+              className="w-20 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
+            <select value={eDureeUnit} onChange={e => setEDureeUnit(e.target.value as "jours" | "semaines" | "mois")}
+              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400">
+              <option value="jours">jours</option>
+              <option value="semaines">semaines</option>
+              <option value="mois">mois</option>
+            </select>
+          </div>
+        )}
+        {eFinMode === "C" && <p className="text-xs text-gray-400">Durée indéterminée (pas de date de fin).</p>}
+      </div>
+      <div className="flex gap-2 pt-1">
+        <Button variant="outlined" onClick={onRetour} className="flex-1 !py-2.5">Retour</Button>
+        <Button onClick={submit} disabled={!eStart || busy} className="flex-1 !py-2.5">
+          {busy ? "…" : "Enregistrer"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function PostMenu({
   dropdown,
   onClose,
@@ -629,6 +733,7 @@ function PostMenu({
   onDone,
   onSeeRelations,
   onEditAnnonce,
+  onEditMission,
 }: {
   dropdown: DropdownState;
   onClose: () => void;
@@ -638,6 +743,9 @@ function PostMenu({
   onDone: () => void; // fermer + rafraîchir après création
   onSeeRelations: () => void; // Cas 2 READ — tray filtré sur l'annonce
   onEditAnnonce: () => void;  // Cas 2 UPDATE — formulaire de création en mode édition
+  // Édition complète d'une annonce DÉSIGNÉE — le menu ouvert depuis le libellé du poste
+  // n'a pas de mission courante, mais peut viser l'une des annonces en ligne (section 266).
+  onEditMission: (missionId: string) => void;
 }) {
   const { mission, post } = dropdown;
   const [step, setStep] = useState<"menu" | "presence" | "preavis" | "modifier" | "renommer" | "annuler_annonce" | "retour">("menu");
@@ -648,6 +756,26 @@ function PostMenu({
   // On se base sur le statut STOCKÉ (pas l'effectif) pour capturer aussi les annonces
   // ayant déjà des mises en relation en attente (rendues en vert par getEffectiveStatus).
   const isAnnonceActive = !!mission && mission.isActive && mission.briqueStatus === "RECHERCHE";
+
+  // Quelle mission le formulaire de dates va-t-il modifier ? Celle du menu par défaut, mais on
+  // peut viser une annonce choisie dans la liste des annonces en ligne du poste (section 266).
+  const [cibleDates, setCibleDates] = useState<MissionData | null>(null);
+  const ouvrirDates = (m: MissionData) => { setCibleDates(m); setStep("modifier"); };
+
+  // ── ANNONCE DÉPUBLIÉE (section 266) ────────────────────────────────────────────────────
+  // La frise peint une brique en « Recrutement » sur le seul `briqueStatus` : une annonce
+  // dépubliée y est donc INDISTINGUABLE d'une annonce en ligne. Mesuré le 25/09 : 4 briques
+  // sur 10 étaient dans ce cas. C'est ce qui a fait demander « repartager » une annonce qui
+  // n'était plus publiée — et dont le lien aurait mené à un 404, `/annonce/[id]` exigeant
+  // `isActive`. On le dit ici, là où l'utilisateur vient chercher l'action.
+  const estDepubliee = !!mission && !mission.isActive && mission.briqueStatus === "RECHERCHE";
+
+  // Annonces RÉELLEMENT en ligne portées par ce poste. Le menu ouvert depuis le LIBELLÉ du
+  // poste n'a pas de mission : il proposait « Poser une annonce » à un poste qui en portait
+  // déjà une, sans jamais offrir de la partager ni de la modifier.
+  const annoncesEnLigne = post.missions.filter(
+    (m) => m.isActive && m.briqueStatus === "RECHERCHE" && toDate(m.startDate),
+  );
   const relationCount = (mission?.matchesA?.length ?? 0) + (mission?.matchesB?.length ?? 0);
 
   // DELETE — "Annuler l'annonce" : supprime l'annonce (pas le poste). Timeline resync.
@@ -682,40 +810,15 @@ function PostMenu({
   const [pStart, setPStart] = useState(toDate(mission?.startDate)?.toISOString().slice(0, 10) ?? dropdown.suggestedStart ?? "");
   const [pEnd, setPEnd] = useState(toDate(mission?.endDate)?.toISOString().slice(0, 10) ?? dropdown.suggestedEnd ?? "");
 
-  // ── Modifier manuellement une occupation existante (section 60) ──
-  const [eName, setEName] = useState(mission?.title ?? "");
-  const [eStart, setEStart] = useState(toDate(mission?.startDate)?.toISOString().slice(0, 10) ?? "");
-  const [eFinMode, setEFinMode] = useState<"A" | "B" | "C">(toDate(mission?.endDate) ? "A" : "C");
-  const [eEnd, setEEnd] = useState(toDate(mission?.endDate)?.toISOString().slice(0, 10) ?? "");
-  const [eDureeNum, setEDureeNum] = useState("");
-  const [eDureeUnit, setEDureeUnit] = useState<"jours" | "semaines" | "mois">("mois");
-
-  function computeModifierEnd(): string | null {
-    if (eFinMode === "A") return eEnd ? new Date(eEnd).toISOString() : null;
-    if (eFinMode === "B" && eStart && eDureeNum) {
-      const n = parseInt(eDureeNum, 10);
-      if (!Number.isFinite(n) || n <= 0) return null;
-      const d = new Date(eStart);
-      if (eDureeUnit === "jours") d.setDate(d.getDate() + n);
-      else if (eDureeUnit === "semaines") d.setDate(d.getDate() + n * 7);
-      else d.setMonth(d.getMonth() + n);
-      return d.toISOString();
-    }
-    return null;
-  }
-
-  async function submitModifier() {
-    if (!mission || !eStart || busy) return;
+  // Republier une annonce dépubliée (section 266). C'est le PRÉALABLE au partage : tant que
+  // `isActive` est faux, la page publique répond 404 et le lien partagé ne mène nulle part.
+  async function submitRepublier() {
+    if (!mission || busy) return;
     setBusy(true);
-    const title = eName.trim();
     await fetch(`/api/missions/${mission.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...(title.length >= 3 ? { title } : {}),
-        startDate: new Date(eStart).toISOString(),
-        endDate: computeModifierEnd(),
-      }),
+      body: JSON.stringify({ isActive: true }),
     });
     onDone();
   }
@@ -797,7 +900,13 @@ function PostMenu({
                 {mission.title}
                 {toDate(mission.startDate) ? ` · depuis le ${fmtDate(mission.startDate)}` : ""}
                 {toDate(mission.endDate) ? ` → ${fmtDate(mission.endDate)}` : isIndeterminate ? " · durée indéterminée" : ""}
+                {estDepubliee && <span className="text-[#8a5a00] font-semibold"> · dépubliée</span>}
               </>
+            ) : annoncesEnLigne.length > 0 ? (
+              // « Poste vide » était faux dès qu'une annonce y recrutait — et la liste juste
+              // en dessous le contredisait à l'écran. Un poste sans occupant mais avec une
+              // annonce en ligne n'est pas vide : il est en cours de recrutement.
+              `Personne en poste · ${annoncesEnLigne.length} annonce${annoncesEnLigne.length > 1 ? "s" : ""} en ligne`
             ) : (
               "Poste vide — définissez son occupation"
             )}
@@ -818,6 +927,55 @@ function PostMenu({
         {/* ── Cas 1 (section 64) — aucune annonce active : menu inchangé ── */}
         {step === "menu" && !isAnnonceActive && (
           <div className="flex flex-col gap-2.5">
+            {/* Annonce dépubliée : la republier est la seule action qui rétablit tout le reste
+                — partage compris, puisque le lien public reste mort tant qu'elle ne l'est pas. */}
+            {estDepubliee && (
+              <>
+                <p className="text-[11px] leading-snug text-[#8a5a00] bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
+                  Cette annonce n&apos;est plus proposée aux candidats et son lien de partage ne
+                  mène à rien. La frise la peint pourtant en « Recrutement ».
+                </p>
+                <Button onClick={submitRepublier} disabled={busy} className="w-full">
+                  {busy ? "…" : "Republier cette annonce"}
+                </Button>
+                {mission && (
+                  <Button variant="outlined" onClick={() => ouvrirDates(mission)} className="w-full !py-2.5">
+                    Modifier les dates
+                  </Button>
+                )}
+              </>
+            )}
+            {/* Annonces DÉJÀ en ligne sur ce poste (section 266). Le menu ouvert depuis le
+                libellé ne les voyait pas : il proposait d'en poser une nouvelle sans jamais
+                donner accès à celles qui existent. Une liste, parce qu'un poste peut en porter
+                plusieurs — la ligne de Léa en a deux. */}
+            {!mission && annoncesEnLigne.length > 0 && (
+              <div className="rounded-xl border border-gray-200 p-3 flex flex-col gap-3">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                  {annoncesEnLigne.length} annonce{annoncesEnLigne.length > 1 ? "s" : ""} en ligne sur ce poste
+                </p>
+                {annoncesEnLigne.map((a) => (
+                  <div key={a.id} className="flex flex-col gap-2 border-t border-gray-100 pt-2.5 first:border-0 first:pt-0">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800 leading-snug">{a.title}</p>
+                      <p className="text-[11px] text-gray-400">
+                        {fmtDate(a.startDate)}
+                        {toDate(a.endDate) ? ` → ${fmtDate(a.endDate)}` : " → sans date de fin"}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outlined" onClick={() => onEditMission(a.id)} className="flex-1 !py-2 !text-xs">
+                        Modifier l&apos;annonce
+                      </Button>
+                      <Button variant="outlined" onClick={() => ouvrirDates(a)} className="flex-1 !py-2 !text-xs">
+                        Modifier les dates
+                      </Button>
+                    </div>
+                    <ShareActions path={cheminPartageAnnonce(a)} title={a.title} />
+                  </div>
+                ))}
+              </div>
+            )}
             {/* [1] Poser une annonce */}
             <Button onClick={onPoserAnnonce} className="w-full">Poser une annonce →</Button>
             {/* [2] Modifier la période — TOUTE occupation reste éditable, y compris issue d'un match */}
@@ -891,6 +1049,15 @@ function PostMenu({
             <Button variant="outlined" onClick={onEditAnnonce} className="w-full !py-2.5">
               Modifier l&apos;annonce
             </Button>
+            {/* Décaler trois jours ne devrait pas demander de rouvrir l'édition complète. Ce
+                raccourci existait déjà — mais SEULEMENT sur une brique sans annonce active,
+                c'est-à-dire jamais sur celle qui en a le plus besoin (section 266). */}
+            {mission && (
+              <Button variant="outlined" onClick={() => ouvrirDates(mission)} className="w-full !py-2.5">
+                Modifier les dates
+                <span className="block text-[11px] font-normal opacity-70">sans rouvrir l&apos;édition complète</span>
+              </Button>
+            )}
             {/* Retour en arrière (section 188) — pendant manquant de la fusion : une fois la
                 période publiée, rien ne permettait d'y renoncer sans passer par l'annulation
                 de l'annonce, qui n'est pas la même intention. On pose la question au lieu de
@@ -1003,59 +1170,18 @@ function PostMenu({
           </div>
         )}
 
-        {/* ── Étape modifier (édition manuelle — section 60) ── */}
-        {step === "modifier" && (
-          <div className="flex flex-col gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Nom / praticien</label>
-              <input
-                type="text" value={eName} onChange={e => setEName(e.target.value)} maxLength={100}
-                placeholder="Ex : Dr Marion L."
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Date de début</label>
-              <input
-                type="date" value={eStart} onChange={e => setEStart(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Fin</label>
-              <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-2">
-                {([["A", "Date connue"], ["B", "Durée"], ["C", "Indéterminée"]] as const).map(([m, lbl]) => (
-                  <button key={m} type="button" onClick={() => setEFinMode(m)}
-                    className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold transition ${eFinMode === m ? "bg-white text-kine-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-              {eFinMode === "A" && (
-                <input type="date" value={eEnd} min={eStart || undefined} onChange={e => setEEnd(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
-              )}
-              {eFinMode === "B" && (
-                <div className="flex gap-2">
-                  <input type="number" min={1} value={eDureeNum} onChange={e => setEDureeNum(e.target.value)} placeholder="6"
-                    className="w-20 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
-                  <select value={eDureeUnit} onChange={e => setEDureeUnit(e.target.value as "jours" | "semaines" | "mois")}
-                    className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400">
-                    <option value="jours">jours</option>
-                    <option value="semaines">semaines</option>
-                    <option value="mois">mois</option>
-                  </select>
-                </div>
-              )}
-              {eFinMode === "C" && <p className="text-xs text-gray-400">Durée indéterminée (pas de date de fin).</p>}
-            </div>
-            <div className="flex gap-2 pt-1">
-              <Button variant="outlined" onClick={() => setStep("menu")} className="flex-1 !py-2.5">Retour</Button>
-              <Button onClick={submitModifier} disabled={!eStart || busy} className="flex-1 !py-2.5">
-                {busy ? "…" : "Enregistrer"}
-              </Button>
-            </div>
-          </div>
+        {/* ── Étape modifier les dates (section 266) — le formulaire est un COMPOSANT, et sa
+            cible peut être une autre mission que celle du menu : depuis la liste des annonces
+            en ligne d'un poste, on modifie les dates de CELLE qu'on a choisie. Monté avec une
+            `key`, il repart des bonnes valeurs à chaque changement de cible — en état local du
+            menu, il aurait gardé celles de la première annonce ouverte. ── */}
+        {step === "modifier" && cibleDates && (
+          <FormulairePeriode
+            key={cibleDates.id}
+            mission={cibleDates}
+            onRetour={() => { setCibleDates(null); setStep("menu"); }}
+            onDone={onDone}
+          />
         )}
 
         {/* ── Étape occupation externe hors Soignect (section 64 [6]) — CONFIRME sans matchId ── */}
@@ -2824,6 +2950,10 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
             setDropdown(null);
             // Cas 2 UPDATE — formulaire de création en mode édition
             if (m) router.push(`/missions/create?editId=${encodeURIComponent(m.id)}`);
+          }}
+          onEditMission={(missionId) => {
+            setDropdown(null);
+            router.push(`/missions/create?editId=${encodeURIComponent(missionId)}`);
           }}
         />
       )}
