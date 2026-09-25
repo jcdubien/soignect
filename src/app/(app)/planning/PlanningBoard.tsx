@@ -283,6 +283,60 @@ export function EncartPeriodeEcoulee() {
   );
 }
 
+// ── POSTE DÉJÀ TENU (section 265) ────────────────────────────────────────────────────────────
+//
+// Trouvé le 24/09 sur le poste « JP » : une annonce d'assistanat ouverte depuis le 07/09 restait
+// en ligne alors que Camille tient le poste jusqu'au 18/04/27. Elle avait déjà recueilli 31
+// swipes, dont 3 à droite — trois personnes en attente sur un poste qui n'est pas libre.
+//
+// CE N'EST PAS UN OUBLI DE MÉCANISME, C'EST UN CHEMIN QUI N'EN A PAS. Signer un contrat
+// TRANSFORME l'annonce (elle passe en CONFIRME, `match/[matchId]/signature`) et la section 184
+// la retire du feed. Mais « Définir l'occupant » crée une brique SÉPARÉE et ne touche à aucune
+// annonce en cours : aucun match n'existe, donc rien ne se déclenche. Les deux façons de pourvoir
+// un poste ne produisent pas le même état.
+//
+// ON SIGNALE, ON NE FERME PAS. Le produit ne peut pas savoir si l'annonce est obsolète ou si elle
+// cherche le successeur de l'occupant — auquel cas ce sont ses DATES qui sont fausses, pas son
+// existence. Fermer d'autorité trancherait à la place du titulaire, et sur trois candidats en
+// attente. L'écran nomme le fait et les deux issues, comme pour la période écoulée.
+//
+// LE REMPLACEMENT EST EXCLU, et c'est le cœur de la règle : un remplaçant se loge PAR DÉFINITION
+// dans une occupation en cours. Sans cette exclusion, l'avertissement se déclencherait sur le cas
+// nominal — l'annonce de trois semaines sur le siège du titulaire, sous sa propre présence — et
+// un avertissement faux use les vrais (leçon du 13/09, juste au-dessus).
+export function posteDejaTenu(
+  m: MissionData, missionsDuPoste: MissionData[],
+): MissionData | null {
+  if (!m.isActive || m.briqueStatus !== "RECHERCHE") return null;
+  if (m.missionType === "REMPLACEMENT") return null;
+  const debut = toDate(m.startDate);
+  if (!debut) return null;
+  const fin = toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END;
+  return (
+    missionsDuPoste.find((o) => {
+      if (o.id === m.id) return false;
+      if (!["CONFIRME", "OCCUPE", "PREAVIS"].includes(o.briqueStatus)) return false;
+      const oDebut = toDate(o.startDate);
+      if (!oDebut) return false;
+      const oFin = toDate(o.departureDate) ?? toDate(o.endDate) ?? RANGE_END;
+      return oDebut < fin && debut < oFin;
+    }) ?? null
+  );
+}
+
+/** Même forme que l'encart « période écoulée » : le fait, puis les deux issues. */
+export function EncartPosteDejaTenu({ occupant }: { occupant: MissionData }) {
+  const fin = toDate(occupant.departureDate) ?? toDate(occupant.endDate);
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-snug text-amber-800">
+      ⚠️ <strong>Poste déjà tenu.</strong> {occupant.matchedName || occupant.title} occupe ce poste
+      {fin ? ` jusqu'au ${fin.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}` : " sans terme connu"},
+      et cette annonce reste proposée aux candidats sur la même période. Décalez ses dates après
+      cette occupation, ou dépubliez-la.
+    </div>
+  );
+}
+
 function computeOwnerSeatGaps(missions: MissionData[]): { start: Date; end: Date }[] {
   const now = new Date();
   return missions
@@ -753,6 +807,12 @@ function PostMenu({
           {mission && estAnnoncePerimee(mission) && (
             <div className="mt-2"><EncartPeriodeEcoulee /></div>
           )}
+          {/* Et recrute-t-elle sur une période que quelqu'un occupe déjà ? Même endroit, mêmes
+              deux issues — c'est ici que vivent « Modifier l'annonce » et « Annuler l'annonce ». */}
+          {mission && (() => {
+            const occupant = posteDejaTenu(mission, post.missions);
+            return occupant ? <div className="mt-2"><EncartPosteDejaTenu occupant={occupant} /></div> : null;
+          })()}
         </div>
 
         {/* ── Cas 1 (section 64) — aucune annonce active : menu inchangé ── */}
@@ -2286,17 +2346,29 @@ function AddPostForm({ onClose, onCreated, isEmployeur }: { onClose: () => void;
 export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinkedMissions }: Props) {
   const router = useRouter();
 
-  // Annonces périmées, POSTES ET NON RATTACHÉES CONFONDUS — une seule liste, un seul prédicat.
-  // Le poste est conservé pour que la ligne dise d'où vient l'annonce ; l'utilisateur qui la
-  // corrige a besoin de savoir laquelle de ses lignes il touche.
-  const annoncesPerimees = [
+  // Annonces à mettre à jour, POSTES ET NON RATTACHÉES CONFONDUS — une seule liste, un seul
+  // prédicat par motif. Le poste est conservé pour que la ligne dise d'où vient l'annonce ;
+  // l'utilisateur qui la corrige a besoin de savoir laquelle de ses lignes il touche.
+  //
+  // DEUX MOTIFS DANS LA MÊME BANDE (section 265). « Période écoulée » et « poste déjà tenu »
+  // appellent le même geste — redater ou dépublier — et visent la même chose : une annonce que
+  // les candidats voient encore alors qu'elle ne propose plus rien. Une seconde bande à côté
+  // aurait partagé l'attention entre deux listes qui demandent la même action.
+  const annoncesAMettreAJour = [
     ...posts.flatMap((po) =>
-      po.missions.filter(estAnnoncePerimee).map((m) => ({
-        id: m.id, title: m.title, endDate: m.endDate, posteLabel: po.label as string | null,
-      })),
+      po.missions.flatMap((m) => {
+        const perimee = estAnnoncePerimee(m);
+        const occupant = posteDejaTenu(m, po.missions);
+        if (!perimee && !occupant) return [];
+        return [{
+          id: m.id, title: m.title, endDate: m.endDate,
+          posteLabel: po.label as string | null, perimee, occupant,
+        }];
+      }),
     ),
     ...unlinkedMissions.filter(estAnnoncePerimee).map((m) => ({
       id: m.id, title: m.title, endDate: m.endDate, posteLabel: null as string | null,
+      perimee: true, occupant: null as MissionData | null,
     })),
   ];
   const [zoom, setZoom]         = useState<Zoom>("quarter");
@@ -2916,20 +2988,23 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
               Une alerte posée sur la timeline ne peut donc pas couvrir ce cas : plus une annonce
               est ancienne, moins sa brique est visible — alors que c'est exactement celle-là qui
               traîne dans le fil des candidats. Le récapitulatif, lui, ne dépend d'aucune date. */}
-          {annoncesPerimees.length > 0 && (
+          {annoncesAMettreAJour.length > 0 && (
             <div className="flex-shrink-0 border-t border-amber-200 bg-amber-50/40 px-3 sm:px-4 py-3 max-h-56 overflow-y-auto">
               <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wide mb-2">
-                {annoncesPerimees.length} annonce{annoncesPerimees.length > 1 ? "s" : ""} à mettre à jour
+                {annoncesAMettreAJour.length} annonce{annoncesAMettreAJour.length > 1 ? "s" : ""} à mettre à jour
               </p>
               <div className="space-y-2">
-                {annoncesPerimees.map((m) => (
+                {annoncesAMettreAJour.map((m) => (
                   <div key={m.id} className="rounded-xl border border-amber-200 bg-white p-3">
                     <p className="text-sm font-semibold text-gray-800 truncate">{m.title}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Terminée le {fmtDate(m.endDate)}
+                      {/* Une annonce sur un poste déjà tenu n'a pas forcément de date de fin :
+                          annoncer « Terminée le — » y serait faux. On dit ce qui est vrai. */}
+                      {m.perimee ? `Terminée le ${fmtDate(m.endDate)}` : "Période encore ouverte"}
                       {m.posteLabel ? ` · poste « ${m.posteLabel} »` : " · non rattachée à un poste"}
                     </p>
-                    <div className="mt-1.5"><EncartPeriodeEcoulee /></div>
+                    {m.perimee && <div className="mt-1.5"><EncartPeriodeEcoulee /></div>}
+                    {m.occupant && <div className="mt-1.5"><EncartPosteDejaTenu occupant={m.occupant} /></div>}
                     <button
                       type="button"
                       onClick={() => router.push(`/missions/create?editId=${encodeURIComponent(m.id)}`)}
