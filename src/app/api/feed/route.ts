@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ProfileType, TitulaireKind, Prisma, BriqueStatus } from "@prisma/client";
+import { ProfileType, TitulaireKind, Prisma } from "@prisma/client";
 import { stripMissionProfiles } from "@/lib/publicProfile";
-import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
+import { EST_UNE_OFFRE, NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
 import { logTraceEvent } from "@/lib/trace";
@@ -138,12 +138,9 @@ export async function GET(req: NextRequest) {
 
   const missions = await prisma.mission.findMany({
     where: {
-      isActive: true,
-      briqueStatus: { not: BriqueStatus.INDISPONIBLE }, // « Dates bloquées » = pas une offre
-      // Les absences du titulaire (congés, présence) ne sont pas des offres non plus : elles
-      // étaient pourtant swipables, un candidat s'est vu proposer une annonce « Congés ».
-      // C'est aussi ce qui créait des Swipe sur une absence, bloquant ensuite sa suppression.
-      isSelfPresence: false,
+      // Prédicat unique (section 265) : active, EN RECHERCHE, et pas une absence. Le feed
+      // retenait ici sa propre définition, plus large que celle de la page publique.
+      ...EST_UNE_OFFRE,
       id: { notIn: excludeMissionIds },
       ...NO_ACTIVE_MATCH_FILTER,
       profile: profileWhere,
@@ -275,8 +272,10 @@ export async function GET(req: NextRequest) {
   const seenAvailable = excludeMissionIds.length
     ? await prisma.mission.count({
         where: {
-          isActive: true,
-          briqueStatus: { not: BriqueStatus.INDISPONIBLE },
+          // MÊME prédicat que le feed lui-même : ce compte sert à dire « vous les avez tous
+          // vus » plutôt que « il n'y en a aucun ». Calculé sur un périmètre plus large, il
+          // aurait annoncé des déjà-vus que le feed ne propose plus.
+          ...EST_UNE_OFFRE,
           id: { in: excludeMissionIds },
           ...NO_ACTIVE_MATCH_FILTER,
           profile: profileWhere,
