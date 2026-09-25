@@ -7347,6 +7347,73 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 266 — DEUX CHEMINS VERS LE MÊME POSTE, DEUX MENUS DIFFÉRENTS (25/09)
+
+Demandé le 25/09, capture à l'appui : pouvoir repartager une annonce, la modifier entièrement, et
+redater vite. La lecture a trouvé **trois choses distinctes** derrière une seule demande.
+
+#### Le menu ouvert depuis le libellé ne voyait pas les annonces du poste
+
+`PostMenu` rend deux branches selon `isAnnonceActive`, dérivé de la mission **cliquée**. Or cliquer
+le **libellé** du poste ouvre le menu avec `mission: null` : la branche « annonce » n'était donc
+jamais atteinte, quel que soit ce que le poste portait réellement.
+
+Relevé à l'écran sur le poste JP, qui porte une annonce bien en ligne :
+
+```
+par le LIBELLÉ   Poser une annonce · Définir l'occupation · Renommer · Retirer
+par la BRIQUE    Voir les mises en relation · Modifier l'annonce · Copier le lien ·
+                 Partager… · Je ne cherche plus · Suivi · Annuler l'annonce
+```
+
+Deux chemins vers le même poste, deux menus. Celui que JC empruntait proposait **« Poser une
+annonce » à un poste qui en portait déjà une**, sans jamais donner accès à celle-ci.
+
+Le menu liste désormais les annonces réellement en ligne, avec pour chacune partage, édition
+complète et dates. Une **liste**, parce qu'un poste peut en porter plusieurs : la ligne de Léa en
+a deux.
+
+#### La modification rapide des dates n'existait pas là où elle sert
+
+« Modifier la période » existait — mais **uniquement dans la branche sans annonce active**, donc
+jamais sur une annonce en ligne. C'est pourtant le cas qui l'appelle : décaler trois jours sans
+rouvrir l'édition complète.
+
+Le formulaire est **extrait en composant** et prend sa cible en propriété. Monté avec une `key`, il
+repart des bonnes valeurs à chaque changement d'annonce — en état local du menu, il aurait gardé
+celles de la première ouverte. Vérifié sur Léa : la deuxième annonce donne bien `30/09 → 04/10`, la
+première `13/11 → indéterminée`.
+
+#### La frise ne dit pas qu'une annonce est dépubliée — et c'est l'origine de la demande
+
+La brique est peinte sur le seul `briqueStatus` : une annonce **dépubliée** y est indistinguable
+d'une annonce en ligne. **4 briques sur 10** étaient dans ce cas.
+
+C'est exactement ce qui s'est passé : l'annonce de Marion, demandée « à repartager », n'était plus
+publiée depuis un moment. Son lien aurait mené à un **404** — `/annonce/[id]` exige `isActive`.
+
+On ne propose donc **pas** le partage dans ce cas. On nomme l'état (« · dépubliée » dans
+l'en-tête), on explique, et on offre **« Republier cette annonce »**, qui en est le préalable.
+Partager d'abord aurait livré un bouton qui produit un lien mort.
+
+| état de l'annonce | ce que le menu propose |
+|---|---|
+| en ligne | partage · édition complète · dates |
+| dépubliée | *avertissement* · republier · dates — **pas de partage** |
+
+Accessoirement, « Poste vide — définissez son occupation » était faux dès qu'une annonce y
+recrutait, et la liste juste en dessous le contredisait à l'écran.
+
+#### Vérifié à l'écran, parcours complet
+
+JP (une annonce en ligne, menu ouvert par le libellé), Léa (deux annonces, deux blocs de partage,
+formulaire de dates reprenant bien celles de l'annonce choisie), Marion (dépubliée : mention,
+avertissement, republication, partage absent).
+
+L'**écriture** a été testée de bout en bout — sur l'annonce **dépubliée**, donc invisible des
+candidats — puis la valeur d'origine rétablie et revérifiée en base. Tester une écriture sur une
+annonce en ligne aurait fait bouger une période que des candidats consultent.
+
 ### SECTION 265 — CE QUI EST UNE OFFRE, ET CE QUI N'EN EST PAS (24/09)
 
 Trois correctifs issus d'une même journée d'enquête, tous nés de la même question : **le produit
