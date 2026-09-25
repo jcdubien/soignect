@@ -7347,6 +7347,102 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 265 — CE QUI EST UNE OFFRE, ET CE QUI N'EN EST PAS (24/09)
+
+Trois correctifs issus d'une même journée d'enquête, tous nés de la même question : **le produit
+sait-il distinguer ce qu'il propose de ce qu'il enregistre ?**
+
+#### Le point de départ : une annonce sur un poste déjà tenu
+
+Sur le poste « JP », une annonce d'assistanat ouverte depuis le 07/09 était toujours en ligne
+alors que Camille tient le poste jusqu'au 18/04/27. **31 swipes reçus, dont 3 à droite** — trois
+personnes en attente sur un poste qui n'est pas libre.
+
+Ce n'est pas un mécanisme oublié, **c'est un chemin qui n'en a pas**. Signer un contrat
+*transforme* l'annonce (elle passe en `CONFIRME`) et la section 184 la retire du feed. Mais
+« Définir l'occupation (hors Soignect) » crée une brique **séparée** et ne touche à aucune annonce
+en cours : aucun match n'existe, donc rien ne se déclenche. Les deux façons de pourvoir un poste
+ne produisent pas le même état.
+
+L'écran **signale**, il ne ferme pas. Le produit ne peut pas savoir si l'annonce est obsolète ou
+si elle cherche le successeur de l'occupant — auquel cas ce sont ses *dates* qui sont fausses, pas
+son existence. Fermer d'autorité trancherait à la place du titulaire, et sur trois candidats en
+attente.
+
+**Le remplacement est exclu du prédicat, et c'est son cœur** : un remplaçant se loge par
+définition dans une occupation en cours. Sans cette exclusion, l'avertissement se déclencherait
+sur le cas nominal — l'annonce de trois semaines sur le siège du titulaire, sous sa propre
+présence — et un avertissement faux use les vrais (leçon du 13/09).
+
+Les deux motifs partagent la **même bande** récapitulative : « période écoulée » et « poste déjà
+tenu » appellent le même geste — redater ou dépublier — et visent la même chose.
+
+#### La fuite plus large : le feed n'avait pas la même définition de « publié »
+
+Le feed décidait de la visibilité sur `isActive` seul, en n'écartant qu'`INDISPONIBLE`. Or le
+produit dit « ceci est proposé » par le statut `RECHERCHE` : la page publique `/annonce/[id]`
+l'exigeait déjà, le feed non.
+
+Ce que ça laissait passer, mesuré :
+
+| | servies avant | après | retirées |
+|---|---|---|---|
+| Feed | 36 | 34 | **2** |
+| Pages publiques de territoire | 56 | 52 | **4** |
+| Annonces en `RECHERCHE` perdues | — | — | **0** |
+
+Les deux retirées du feed sont des **briques d'occupation** du Cabinet Christelle Délé — des
+enregistrements de *qui tient* un poste, pas des annonces. Elles avaient absorbé **42 swipes** à
+elles deux. La section 184 ne pouvait rien pour elles : elle masque ce qu'un match actif engage,
+et ces briques n'ont aucun match.
+
+Conséquence moins visible et plus grave : l'action « Je ne cherche plus personne » du Planning,
+qui passe la brique en `FERME`, était **inopérante** — le feed continuait de la servir. Un bouton
+qui dit qu'il retire une annonce et ne la retire pas est pire que pas de bouton.
+
+Un seul prédicat exporté (`EST_UNE_OFFRE`), appliqué aux trois endroits. Le comptage des déjà-vus
+devait suivre : calculé sur un périmètre plus large, il aurait annoncé des déjà-vus que le feed
+ne propose plus.
+
+**Pourquoi c'est sûr** : annuler un match **remet** la mission en `RECHERCHE`, elle réapparaît
+donc comme la 184 le promet ; `DECLINE` / `EXPIRE` ne touchent pas au statut ; seule la signature
+pose `CONFIRME`, et un poste dont le contrat est signé n'a plus rien à proposer.
+
+#### Un contrat non signé affirmait avoir été signé électroniquement
+
+Tous les gabarits impriment « Ce document a été signé électroniquement par apposition d'une image
+de signature manuscrite ». **Six gabarits libéraux conditionnaient déjà cette phrase** à la
+présence d'une signature ; les **trois gabarits salariés** — infirmier CDD, infirmier CDI, kiné
+CDD, sections 259 à 261, les plus récents — l'imprimaient sans condition.
+
+Or le produit laisse télécharger un **brouillon** sans aucune signature. Ces trois-là affirmaient
+donc avoir été signés alors qu'ils ne l'étaient pas. Constaté en produisant un contrat destiné à
+être signé **à la main, hors application** : le document annonçait une signature électronique qui
+n'aurait jamais lieu.
+
+Un document qui se trompe sur la façon dont il a été signé se trompe sur sa propre valeur
+juridique — c'est la seule phrase du PDF qui parle du PDF.
+
+La règle passe dans un **composant partagé** plutôt que dans dix conditions recopiées : la
+divergence se lisait déjà sur trois documents opposables. Le style reste au gabarit, les deux
+familles n'utilisant pas le même.
+
+#### Un commentaire qui disait l'inverse du code
+
+`numeroSecuriteSociale` était annoncé « demandé par le modèle CNOMK, pas par le CNOI ». Les deux
+gabarits **infirmiers (CNOI) l'impriment**, et le **CDD kiné** — seule transcription fidèle d'un
+modèle CNOMK — **ne l'imprime pas**. Le commentaire avait les deux ordres à l'envers.
+
+Le modèle CNOMK n'étant pas sur le disque (section 261 : il avait fallu le demander), impossible
+de trancher si cette absence est fidèle ou une omission. **On ne l'ajoute donc pas** : inventer
+l'emplacement d'une mention dans un document qui porte la référence de l'Ordre en sous-titre est
+exactement ce que la 261 s'interdit. Le commentaire, lui, décrit maintenant ce qui est.
+
+#### Ce qui n'a pas été fait
+
+L'annonce JP **n'a pas été fermée**. Elle porte trois intérêts en attente, et le produit signale
+désormais le problème là où le titulaire le verra. La décision lui revient.
+
 ### SECTION 264 — UNE INCLUSION N'EST PAS UN CHEVAUCHEMENT (24/09)
 
 Deux demandes du 24/09, une seule zone de code, traitées ensemble : qu'une sous-ligne n'apparaisse
