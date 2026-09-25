@@ -199,7 +199,21 @@ export interface ContractDataSalarie extends SignatureImages {
 
   /** Ville de l'URSSAF où la déclaration préalable à l'embauche a été déposée. */
   urssafVille: string;
-  /** N° de sécurité sociale du salarié — demandé par le modèle CNOMK, pas par le CNOI. */
+  /** N° de sécurité sociale du salarié.
+   *
+   *  LE COMMENTAIRE D'ORIGINE DISAIT L'INVERSE DES GABARITS (corrigé le 24/09). Il affirmait
+   *  « demandé par le modèle CNOMK, pas par le CNOI » — or les DEUX gabarits infirmiers (CNOI)
+   *  l'impriment, et le CDD kiné, seule transcription fidèle d'un modèle CNOMK, ne l'imprime pas.
+   *  Trois gabarits sur quatre le rendent : les deux infirmiers et le CDI kiné, ce dernier étant
+   *  COMPOSÉ (aucun modèle d'ordre ne le couvre) et donc libre de sa structure.
+   *
+   *  CE QUI RESTE OUVERT. Le modèle CNOMK du 28/03/2023 n'est pas sur le disque (section 261 :
+   *  il avait fallu le demander pour écrire le gabarit). Impossible donc de trancher si son
+   *  absence dans le CDD kiné est fidèle au modèle ou une omission de transcription. Tant que la
+   *  source manque, on ne l'ajoute PAS : inventer l'emplacement d'une mention dans un document
+   *  qui porte la référence de l'Ordre en sous-titre est exactement ce que la section 261
+   *  s'interdit. Le champ reste sur le socle, les trois gabarits qui l'utilisent le consomment.
+   */
   numeroSecuriteSociale: string;
 
   lieuTravail: string;

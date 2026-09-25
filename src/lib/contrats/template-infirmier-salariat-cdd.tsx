@@ -1,7 +1,8 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
-import { type ContractDataSalarieInfirmierCdd, SIGNATURE_LEGAL_MENTION } from "./types";
+import { type ContractDataSalarieInfirmierCdd } from "./types";
+import { MentionSignature } from "./signature-mention";
 import { DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 import { fmtDateUTC } from "@/lib/contrats/date";
@@ -658,7 +659,11 @@ export function buildInfirmierSalariatCddPdf(d: ContractDataSalarieInfirmierCdd)
               : <Text style={[S.sigLabel, { marginTop: 18 }]}>Signature</Text>}
           </View>
         </View>
-        <Text style={S.sigMention}>{SIGNATURE_LEGAL_MENTION}</Text>
+        <MentionSignature
+          signatureTitulaireImg={signatureTitulaireImg}
+          signatureRemplacantImg={signatureRemplacantImg}
+          style={S.sigMention}
+        />
 
         <Text style={S.footer} fixed>
           Contrat salarié entre infirmiers à durée déterminée — modèle-type du Conseil national de

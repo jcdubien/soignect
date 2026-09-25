@@ -1,7 +1,8 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
-import { type ContractDataSalarieKineCdd, SIGNATURE_LEGAL_MENTION } from "./types";
+import { type ContractDataSalarieKineCdd } from "./types";
+import { MentionSignature } from "./signature-mention";
 import { DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 import { fmtDateUTC } from "@/lib/contrats/date";
@@ -507,7 +508,11 @@ export function buildKineSalariatCddPdf(d: ContractDataSalarieKineCdd) {
               : <Text style={[S.sigLabel, { marginTop: 18 }]}>Signature</Text>}
           </View>
         </View>
-        <Text style={S.sigMention}>{SIGNATURE_LEGAL_MENTION}</Text>
+        <MentionSignature
+          signatureTitulaireImg={signatureTitulaireImg}
+          signatureRemplacantImg={signatureRemplacantImg}
+          style={S.sigMention}
+        />
 
         <Text style={S.footer} fixed>
           Contrat de travail à durée déterminée — remplacement d'un masseur-kinésithérapeute libéral

@@ -1,7 +1,8 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
-import { type ContractDataCollaboration, SIGNATURE_LEGAL_MENTION, paymentMethodPhrase, localModalities } from "./types";
+import { type ContractDataCollaboration, paymentMethodPhrase, localModalities } from "./types";
+import { MentionSignature } from "./signature-mention";
 import { DraftBanner, DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 import { fmtDateUTC } from "@/lib/contrats/date";
@@ -295,9 +296,11 @@ export function buildCollaborationPdf(data: ContractDataCollaboration) {
           </View>
         </View>
 
-        {(signatureTitulaireImg || signatureRemplacantImg) && (
-          <Text style={S.eidas}>{SIGNATURE_LEGAL_MENTION}</Text>
-        )}
+        <MentionSignature
+          signatureTitulaireImg={signatureTitulaireImg}
+          signatureRemplacantImg={signatureRemplacantImg}
+          style={S.eidas}
+        />
 
         {/* Pied de page */}
         <Text style={S.footer}>{LEGAL_MENTION}</Text>

@@ -1,7 +1,8 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
-import { type ContractDataRemplacementInfirmierConfrere, SIGNATURE_LEGAL_MENTION } from "./types";
+import { type ContractDataRemplacementInfirmierConfrere } from "./types";
+import { MentionSignature } from "./signature-mention";
 import { DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 import { fmtDateUTC } from "@/lib/contrats/date";
@@ -424,9 +425,11 @@ export function buildRemplacementInfirmierConfrerePdf(data: ContractDataRemplace
           </View>
         </View>
 
-        {(signatureTitulaireImg || signatureRemplacantImg) && (
-          <Text style={S.eidas}>{SIGNATURE_LEGAL_MENTION}</Text>
-        )}
+        <MentionSignature
+          signatureTitulaireImg={signatureTitulaireImg}
+          signatureRemplacantImg={signatureRemplacantImg}
+          style={S.eidas}
+        />
 
         <Text style={S.footer}>{LEGAL_MENTION}</Text>
         <Text style={S.pageNum} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
