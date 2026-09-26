@@ -11,6 +11,7 @@ import { fmtDay } from "@/lib/dates";
 import ActiveAnnoncesMenu from "./ActiveAnnoncesMenu";
 import ActiveAnnoncesMobile from "./ActiveAnnoncesMobile";
 import NotificationBell from "@/components/ui/NotificationBell";
+import { EST_UNE_OFFRE } from "@/lib/feedFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +36,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       region: true,
       subscriptionPlan: true,
       billingTriggeredAt: true,
-      _count: { select: { missions: { where: { isActive: true } } } },
+      // « Annonces actives » comptait `isActive` SEUL (section 267) — troisième surface à
+      // retenir sa propre définition de « publié », après le feed et les pages de territoire
+      // (section 265). Une mission dont le contrat est signé reste `isActive` : elle était donc
+      // comptée et listée comme une annonce en recherche. Constaté sur le compte de JC —
+      // en-tête « 6 annonces actives » pour 5 annonces réelles, la sixième étant un
+      // remplacement CONFIRMÉ du 05/10 au 13/11.
+      _count: { select: { missions: { where: EST_UNE_OFFRE } } },
       missions: {
-        where: { isActive: true },
+        where: EST_UNE_OFFRE,
         orderBy: { startDate: "asc" },
         select: {
           id: true, title: true, startDate: true, endDate: true, location: true, missionType: true,
