@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Mission, Profile } from "@prisma/client";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
-import { fmtDay, fmtDayYear } from "@/lib/dates";
+import { fmtDayAuto, fmtDayYear } from "@/lib/dates";
 import type { TitulaireMission } from "@/components/swipe/MissionSelector";
 import { libelleAuteur } from "@/lib/libellesPoste";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
@@ -298,8 +298,9 @@ function MissionSheet({
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <span>📅</span>
                   <span>
-                    {fmtDay(mission.startDate)}
-                    {mission.endDate && ` → ${fmtDay(mission.endDate)}`}
+                    {/* Année affichée si elle change la lecture (section 267). */}
+                    {fmtDayAuto(mission.startDate)}
+                    {mission.endDate && ` → ${fmtDayAuto(mission.endDate)}`}
                   </span>
                 </div>
               )}

@@ -25,6 +25,34 @@ export function fmtDayYear(d: Date | string | null | undefined): string | null {
   return x ? x.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : null;
 }
 
+// ── L'ANNÉE APPARAÎT QUAND ELLE CHANGE QUELQUE CHOSE (section 267) ──────────────────────────
+//
+// CE QUE LE FORMAT COMPACT A COÛTÉ. Le 25/09, une annonce a été publiée pour « fin octobre »
+// avec des dates de 2025 — onze mois dans le passé. La carte de swipe la présentait
+// « 19 oct. → 1 nov. », sans année : parfaitement plausible pour une annonce publiée en
+// septembre. Trois candidats l'ont vue, les trois ont passé. Aucun ne pouvait savoir ce qui
+// clochait, pendant que le barème la sanctionnait en silence (0/35 sur les dates, soit 40 % du
+// score d'un remplacement — 0 candidat sur 30 recouvrait la période).
+//
+// L'ANNÉE N'EST PAS AJOUTÉE PARTOUT, et c'est le point. Le format compact existe parce que la
+// carte est étroite et que « 21 déc. → 16 janv. » se lit mieux que la même chose alourdie de
+// deux années. On ne l'affiche donc que lorsqu'elle porte une information : quand la date n'est
+// PAS dans les douze mois à venir. Ce seuil couvre les deux cas qui trompent — l'année fausse,
+// et la période simplement écoulée.
+const DOUZE_MOIS_MS = 365 * 24 * 60 * 60 * 1000;
+
+/** Vrai si la date mérite d'être datée : passée, ou au-delà d'un an. */
+export function anneeUtile(d: Date | string | null | undefined, ref: Date = new Date()): boolean {
+  const x = parse(d);
+  if (!x) return false;
+  return x.getTime() < ref.getTime() || x.getTime() > ref.getTime() + DOUZE_MOIS_MS;
+}
+
+/** "31 juil." d'ordinaire, "19 oct. 2025" quand l'année change la lecture. */
+export function fmtDayAuto(d: Date | string | null | undefined, ref: Date = new Date()): string | null {
+  return anneeUtile(d, ref) ? fmtDayYear(d) : fmtDay(d);
+}
+
 /**
  * Plage de dates cohérente : "31 juil. → 29 sept." (ou avec année), sinon
  * "Dès le 31 juil." si seule la date de début est connue, sinon null.

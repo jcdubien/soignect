@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
-import { fmtDay } from "@/lib/dates";
+import { fmtDayAuto } from "@/lib/dates";
 import { zoneOfCommune } from "@/lib/communes";
 
 // Type souple, compatible avec MissionWithProfile (carrousel) ET la réponse /card.
@@ -47,7 +47,8 @@ const TYPE_LABEL: Record<string, string> = {
 
 function fmt(d?: Date | string | null): string | null {
   if (!d) return null;
-  return fmtDay(d);
+  // Même règle que la carte (section 267) : l'année n'apparaît que si elle change la lecture.
+  return fmtDayAuto(d);
 }
 
 export default function MissionDetailSheet({

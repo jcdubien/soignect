@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { Mission, MissionType, Profile } from "@prisma/client";
 import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
-import { fmtDay } from "@/lib/dates";
+import { fmtDayAuto } from "@/lib/dates";
 import MissionSelector, { TitulaireMission } from "./MissionSelector";
 import { libelleAuteur } from "@/lib/libellesPoste";
 import MissionDetailSheet from "./MissionDetailSheet";
@@ -68,7 +68,9 @@ const FILTER_LABELS: Record<MissionFilter, string> = {
 };
 
 function fmt(d: Date | string | null): string | null {
-  return fmtDay(d);
+  // L'année apparaît quand elle change la lecture (section 267) : une annonce datée 2025 se
+  // lisait « 19 oct. » ici, indistinguable d'octobre prochain.
+  return fmtDayAuto(d);
 }
 
 function toDate(v: string | Date | null | undefined): Date | null {
