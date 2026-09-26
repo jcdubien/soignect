@@ -30,6 +30,9 @@ interface TrayItem {
   contratConfirmed: boolean;
   /** Peut-on signaler à nouveau son intérêt ? Décidé par le serveur (section 253). */
   nouveauSignal?: EtatNouveauSignal;
+  /** Présent SEULEMENT sur un intérêt REÇU (section 268) : ce candidat a retenu une de mes
+   *  annonces et attend. `mission` est alors SA disponibilité — celle que je swipe pour fermer. */
+  interetRecu?: { depuis: string; annonces: string[] };
 }
 
 interface MatchTrayProps {
@@ -154,6 +157,38 @@ function MissionSheet({
   }
 
   // Annulation possible uniquement si un match existe et n'est pas confirmé (section 48)
+  // ── INTÉRÊT REÇU (section 268) : le geste est de retenir sa disponibilité ────────────────
+  // L'autre a déjà dit oui. /api/swipe voit la réciprocité et crée la mise en relation, en
+  // choisissant lui-même celle de mes annonces dont la période colle le mieux
+  // (`pickBestPeriode`) — on ne lui impose donc PAS d'annonce cible : ce choix est déjà écrit,
+  // et le refaire ici le ferait diverger.
+  const [enRelationEnCours, setEnRelationEnCours] = useState(false);
+  async function handleMettreEnRelation() {
+    if (enRelationEnCours) return;
+    setEnRelationEnCours(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/swipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ swipedMissionId: item.mission.id, direction: "RIGHT" }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(typeof d?.error === "string" ? d.error : "La mise en relation a échoué."); return; }
+      if (!d?.match) {
+        // Ne pas fermer sur un succès muet : sans match, rien n'a abouti et l'écran doit le dire.
+        setError("Le swipe est enregistré mais la mise en relation n'a pas pu se faire. Rechargez la page.");
+        return;
+      }
+      onReassigned?.();  // refetch des deux tiroirs — optionnel côté appelant
+      onClose();
+    } catch {
+      setError("La mise en relation a échoué.");
+    } finally {
+      setEnRelationEnCours(false);
+    }
+  }
+
   const canCancel = !!item.matchId && !item.contratConfirmed;
 
   async function handleCancel() {
@@ -388,7 +423,28 @@ function MissionSheet({
                 dit laquelle des quatre raisons s'applique, et mène au geste qui la lève quand il
                 y en a un. Un levier inerte sans explication est le défaut de fond que ce dépôt
                 corrige depuis des semaines. ── */}
-            {signalFait ? (
+            {/* ── INTÉRÊT REÇU : l'autre a déjà dit oui, un geste suffit (section 268) ── */}
+            {item.interetRecu && (
+              <>
+                <p className="text-[11px] leading-snug text-amber-800 bg-amber-50 rounded-lg px-3 py-2">
+                  A retenu {item.interetRecu.annonces.length > 1
+                    ? `${item.interetRecu.annonces.length} de vos annonces`
+                    : `votre annonce « ${item.interetRecu.annonces[0]} »`}, et attend depuis le{" "}
+                  <strong>{fmtDayYear(item.interetRecu.depuis)}</strong>.
+                </p>
+                <Button
+                  variant="filled"
+                  onClick={handleMettreEnRelation}
+                  disabled={enRelationEnCours}
+                  className="w-full !py-2.5 !text-sm"
+                >
+                  {enRelationEnCours ? "…" : "Mettre en relation"}
+                </Button>
+              </>
+            )}
+
+            {/* « Signaler à nouveau » est le geste de CELUI QUI ATTEND : il n'a aucun sens ici. */}
+            {item.interetRecu ? null : signalFait ? (
               <p className="text-xs text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 text-center">
                 ✓ Votre intérêt a été signalé à nouveau. Vous pourrez le refaire dans une semaine.
               </p>
@@ -497,9 +553,25 @@ function MissionSheet({
   );
 }
 
+// Candidats qui ont retenu une annonce SANS avoir rien publié (section 268). Ils n'ont ni fiche
+// à ouvrir ni mission à swiper — le cabinet ne peut rien en faire. Les taire serait pourtant
+// mentir par omission : ils étaient 9 pour 21 intérêts, soit près de la moitié de l'attente.
+function MentionSansPublication({ n }: { n: number }) {
+  if (n <= 0) return null;
+  return (
+    <p className="mt-1.5 text-[10px] leading-snug text-amber-700/80">
+      {n} autre{n > 1 ? "s" : ""} personne{n > 1 ? "s ont" : " a"} retenu une de vos annonces sans
+      avoir publié de disponibilité : rien à ouvrir tant qu&apos;{n > 1 ? "elles ne publient" : "elle ne publie"} pas.
+    </p>
+  );
+}
+
 // ── MatchTray principal ───────────────────────────────────────────────────────
 export default function MatchTray({ refreshKey, titulaireMissions = [], myProfileType, myProfileId, isPremium, disponibiliteId, isAdmin }: MatchTrayProps) {
   const [items,       setItems]       = useState<TrayItem[]>([]);
+  // Intérêts REÇUS — route distincte de /api/tray, qui ne sert que MES propres swipes.
+  const [recus,       setRecus]       = useState<TrayItem[]>([]);
+  const [sansPublication, setSansPublication] = useState(0);
   const [selected,    setSelected]    = useState<TrayItem | null>(null);
   const [, setSeenIds] = useState<Set<string>>(new Set());
   const [unreadIds,   setUnreadIds]   = useState<Set<string>>(new Set());
@@ -525,7 +597,18 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
     } catch { /* silencieux */ }
   }, [disponibiliteId]);
 
+  const fetchRecus = useCallback(async () => {
+    try {
+      const r = await fetch("/api/interets-recus");
+      if (!r.ok) return;
+      const d: { items: TrayItem[]; sansPublication: number } = await r.json();
+      setRecus(d.items ?? []);
+      setSansPublication(d.sansPublication ?? 0);
+    } catch { /* silencieux, comme fetchTray */ }
+  }, []);
+
   useEffect(() => { fetchTray(); }, [fetchTray, refreshKey]);
+  useEffect(() => { fetchRecus(); }, [fetchRecus, refreshKey]);
 
   // Item 11 — une mise en relation disparaît du tray après 7 jours (reste dans /matches)
   const SEVEN_DAYS = 7 * 86400000;
@@ -539,7 +622,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
   const totalUnread = unreadIds.size;
 
   // État vide filtré (section 7) : message clair au lieu de masquer le tray
-  if (matchedItems.length === 0 && likedItems.length === 0) {
+  if (matchedItems.length === 0 && likedItems.length === 0 && recus.length === 0 && sansPublication === 0) {
     if (disponibiliteId) {
       return (
         <div className="shrink-0 bg-white border-t border-gray-100 px-4 py-3 text-center">
@@ -656,7 +739,16 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-800 truncate">{name}</p>
-          <p className="text-[11px] text-gray-400 truncate">{item.matchId ? "Mise en relation" : "En attente de réponse"}</p>
+          {/* « En attente de réponse » dit que J'ATTENDS l'autre — vrai dans « Vos choix », faux
+              dans « Vous attendent », où c'est l'inverse. Le même libellé pour les deux sens
+              inversait la responsabilité du geste (section 268). */}
+          <p className={`text-[11px] truncate ${item.interetRecu ? "text-amber-700 font-medium" : "text-gray-400"}`}>
+            {item.matchId
+              ? "Mise en relation"
+              : item.interetRecu
+                ? `Attend depuis le ${fmtDayAuto(item.interetRecu.depuis)}`
+                : "En attente de réponse"}
+          </p>
         </div>
         {item.affinityScore !== null && (
           <span className="shrink-0 text-[10px] font-bold text-kine-600 bg-kine-50 rounded-full px-2 py-0.5">
@@ -694,6 +786,25 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
             </div>
           )}
 
+          {/* ── Intérêts REÇUS (section 268) ─────────────────────────────────────────────
+              PLACÉE EN PREMIER, et c'est tout l'objet du correctif. 66 intérêts sur 78 restaient
+              sans réponse, le plus ancien depuis le 1er août : la notification partait bien, mais
+              le compte ne vivait que derrière « N annonces actives », qui se lit comme un
+              inventaire et non comme une file d'attente. Ces gens-là sont à UN SWIPE d'une mise
+              en relation — ils passent donc devant ce que j'ai choisi, moi. ── */}
+          {(recus.length > 0 || sansPublication > 0) && (
+            <div className="flex-1 min-w-0 rounded-2xl bg-amber-50 border border-amber-200 px-2.5 py-2">
+              <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-1.5">
+                Vous attendent
+                {recus.length > 0 && <span className="ml-1 text-amber-500 normal-case tracking-normal font-normal">· {recus.length}</span>}
+              </p>
+              <div className="flex gap-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                {recus.map(renderItem)}
+              </div>
+              <MentionSansPublication n={sansPublication} />
+            </div>
+          )}
+
           {/* ── Vos choix (swipes à droite en attente de réciprocité) ── */}
           {likedItems.length > 0 && (
             <div className="flex-1 min-w-0 rounded-2xl bg-gray-50 border border-gray-100 px-2.5 py-2">
@@ -724,8 +835,18 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
             <div className="flex flex-col gap-1">{matchedItems.map(renderItemRow)}</div>
           </div>
         )}
+        {(recus.length > 0 || sansPublication > 0) && (
+          <div className={`p-3 ${matchedItems.length > 0 ? "border-t border-gray-100" : ""} bg-amber-50/40`}>
+            <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest mb-2">
+              Vous attendent
+              {recus.length > 0 && <span className="ml-1 text-amber-500 normal-case tracking-normal font-normal">· {recus.length}</span>}
+            </p>
+            <div className="flex flex-col gap-1">{recus.map(renderItemRow)}</div>
+            <MentionSansPublication n={sansPublication} />
+          </div>
+        )}
         {likedItems.length > 0 && (
-          <div className={`p-3 ${matchedItems.length > 0 ? "border-t border-gray-100" : ""}`}>
+          <div className={`p-3 ${matchedItems.length > 0 || recus.length > 0 ? "border-t border-gray-100" : ""}`}>
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
               Vos choix
               <span className="ml-1 text-gray-300 normal-case tracking-normal font-normal">· en attente</span>
@@ -743,7 +864,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
           myProfileId={myProfileId}
           isPremium={isPremium}
           isAdmin={isAdmin}
-          onReassigned={() => { fetchTray(); /* section 185 : NE PAS fermer la fiche — choisir
+          onReassigned={() => { fetchTray(); fetchRecus(); /* section 185 : NE PAS fermer la fiche — choisir
             la mission cible enregistre juste le choix, l'utilisateur continue (annuler, chat…). */ }}
           onClose={() => setSelected(null)}
           onRemoved={(missionId) => {
