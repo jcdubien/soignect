@@ -7347,6 +7347,91 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 268 — 85 % DES « OUI » CANDIDATS N'ALLAIENT NULLE PART (26/09)
+
+Item P1 de la liste du 26/09. La mesure a trouvé plus que ce qu'elle cherchait.
+
+#### Le chiffre
+
+```
+intérêts de candidats vers une annonce de cabinet   78
+   sans aucun match en retour                       66   (85 %)
+   dont sur une annonce encore vivante              45
+   le plus ancien                                   01/08/2026
+```
+
+16 cabinets concernés : Christelle Délé 14, Jean-Charles 8, Clinique l'Espérance 8, Cabinet des
+ravines 7…
+
+**Ce n'est pas un défaut de notification** : 104 signaux d'intérêt émis pour 119 swipes à droite,
+et le compte par annonce existait déjà (`pendingCount`). Il vivait derrière le compteur du header,
+qui se lit comme un **inventaire** — « 5 annonces actives » — et non comme une file d'attente.
+Rien non plus ne les remontait dans le fil : l'ordre tient compte de la désirabilité commerciale,
+du bonus saisonnier et de la priorité territoriale, **jamais** du fait qu'une personne a déjà dit
+oui.
+
+#### Ce qui est servi, et ce qui ne l'est pas
+
+Sur les 45 intérêts en attente sur une annonce vivante : **24 viennent de candidats ayant publié**
+une disponibilité — une fiche à ouvrir, un geste à faire. Les **21 autres viennent de 9 candidats
+qui n'ont rien publié** : ni fiche ni mission à swiper, et `lib/interetSignale` diffère déjà leur
+signal jusqu'au jour où ils publient.
+
+On ne les sert pas, **mais on les compte**. Un écran qui laisse tomber la moitié de l'attente en
+silence ment par omission.
+
+#### Le geste, et celui qu'il ne fallait pas reprendre
+
+« Mettre en relation », pas « Signaler à nouveau » — ce dernier est le geste de **celui qui
+attend**, et n'a aucun sens du côté de celui qui est attendu. Il retient la disponibilité du
+candidat ; `/api/swipe` voit la réciprocité et choisit lui-même celle de mes annonces dont la
+période colle le mieux (`pickBestPeriode`). On ne lui impose donc pas d'annonce cible : ce choix
+est déjà écrit ailleurs, et le refaire ici le ferait diverger.
+
+Même logique pour le libellé : « En attente de réponse » dit que **j'attends l'autre** — vrai dans
+« Vos choix », faux dans « Vous attendent », où c'est l'inverse. Le même mot pour les deux sens
+inversait la responsabilité du geste.
+
+#### CE QUE LA VÉRIFICATION À L'ÉCRAN A RÉVÉLÉ, ET QUI EST PIRE
+
+Mélisande ZOUAG apparaissait dans **les deux** listes : elle attend une réponse, et j'attends la
+sienne. Impossible par construction — sauf défaut.
+
+```
+21/09 22:10   Mélisande → RIGHT sur l'annonce « Kiné remplaçant … MSP secrétariat 75/25 »
+21/09 22:42   Jean-Charles → RIGHT sur sa disponibilité « Disponible dès Septembre 2026 »
+              match créé : AUCUN
+```
+
+**Deux « oui » à 32 minutes d'intervalle, et rien.** Mesuré sur toute la base : **2 paires
+réciproques sur 14 n'ont produit aucune mise en relation — 14 %**, les deux sur le compte de JC
+(favre Emma le 08/09, à 7 h d'écart ; Mélisande ZOUAG le 21/09, à 1 h).
+
+**La cause est dans `/api/swipe`** : quand un cabinet swipe avec une « puce » d'annonce
+sélectionnée, `targetMissionId` restreint la recherche de réciprocité à **cette seule annonce** —
+
+```ts
+if (targetMissionId) reciprocalMissionFilter = { swipedMissionId: targetMissionId };
+else                 reciprocalMissionFilter = { swipedMissionId: { in: mesMissionsActives } };
+```
+
+Un candidat qui a retenu une **autre** de mes annonces est donc invisible au contrôle, et son oui
+est jeté. C'était délibéré (« le candidat a-t-il swipé exactement la mission sélectionnée ? ») ;
+la conséquence, elle, ne l'était pas.
+
+**Correctif proposé, non appliqué** : chercher la réciprocité sur **toutes** mes missions actives
+en toutes circonstances, et ne garder `targetMissionId` que comme *préférence* d'attachement —
+`pickBestPeriode` sait déjà trancher entre plusieurs. Non appliqué parce que ça change la
+sémantique du matching pour tout le monde, crée des `Match` et déclenche des emails : c'est un
+arbitrage, pas un correctif de rendu. Les 2 paires déjà perdues demanderaient en plus une reprise
+séparée, qui enverrait 4 emails.
+
+#### Vérifié à l'écran
+
+3 fiches — Julien MORISOT depuis le 14 août sur 2 annonces, favre Emma depuis le 8 septembre,
+Mélisande ZOUAG depuis le 21 — triées du plus ancien au plus récent, plus la mention des 2
+candidats sans publication. Les libellés portent l'année (section 267), ces dates étant passées.
+
 ### SECTION 267 — L'ANNÉE QUI MANQUAIT, ET CE QU'ELLE A COÛTÉ (26/09)
 
 Question du 25/09 : « j'ai posé une annonce pour fin octobre, vérifie qu'il est normal que je
