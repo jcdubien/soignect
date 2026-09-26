@@ -7347,6 +7347,82 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 267 — L'ANNÉE QUI MANQUAIT, ET CE QU'ELLE A COÛTÉ (26/09)
+
+Question du 25/09 : « j'ai posé une annonce pour fin octobre, vérifie qu'il est normal que je
+n'aie pas de candidature en face ». Ce n'était pas normal.
+
+#### Le diagnostic
+
+L'annonce portait la période **19 octobre 2025 → 1er novembre 2025** — onze mois dans le passé.
+Mesuré :
+
+| | l'annonce « octobre » | l'annonce de décembre (témoin) |
+|---|---|---|
+| Candidats dont la période recouvre (tolérance 30 j) | **0 / 30** | 17 / 30 |
+| Candidats à score de dates nul | 24 | 7 |
+| Intérêts reçus | **0** | 4 |
+
+`scoreDates` rend **0** sans le moindre recouvrement, et les dates pèsent **40 %** du barème d'un
+remplacement. L'annonce était donc en fond de fil pour tout le monde — mais bien diffusée : le
+filtre de dates du fil ne s'applique qu'à un **cabinet** qui lit son propre feed, jamais à un
+candidat. Trois l'ont vue, les trois ont passé.
+
+#### Ce qui rendait l'erreur invisible du seul public qui pouvait la signaler
+
+La carte de swipe formate les dates **sans année** (`fmtDay`). Ces trois candidats ont lu
+« 19 oct. → 1 nov. » — parfaitement plausible pour une annonce publiée en septembre. Ils n'ont pas
+refusé une date passée : ils ont refusé une annonce qui, pour eux, ne disait rien d'anormal,
+pendant que le barème la sanctionnait en silence.
+
+Le cabinet, lui, **était prévenu** : son Planning affichait « ⚠️ Période écoulée » dès le matin
+(section 247). L'asymétrie est le cœur du défaut — l'écran qui sait ne décide pas, l'écran qui
+décide ne sait pas.
+
+#### L'année n'est pas ajoutée partout, et c'est le point
+
+Le format compact existe pour une raison : la carte est étroite, et « 21 déc. → 16 janv. » se lit
+mieux que la même chose alourdie de deux années. L'année n'apparaît donc **que lorsqu'elle porte
+une information** — quand la date n'est pas dans les douze mois à venir. Ce seuil couvre les deux
+cas qui trompent : l'année fausse, **et** la période simplement écoulée, y compris dans l'année
+courante.
+
+Trois surfaces candidat la masquaient : la carte de swipe, la fiche détaillée, le tiroir des mises
+en relation. La page publique `/annonce/[id]`, elle, l'affichait déjà — la décision se prenait donc
+sur l'écran le moins bavard.
+
+Vérifié sur 10 bornes, puis à l'écran sur un cas réel : la disponibilité de Cappelaere Léonie
+s'affiche « **6 sept. → 31 mai 2028** » — début compact, fin datée — pendant que les annonces en
+fenêtre gardent « 21 déc. → 16 janv. ».
+
+#### Troisième surface à retenir sa propre définition de « publié »
+
+L'en-tête comptait les « annonces actives » sur `isActive` **seul** — après le feed et les pages de
+territoire (section 265). Une mission dont le contrat est signé passe en `CONFIRME` mais reste
+active : elle était comptée et listée comme une annonce en recherche. Constaté : **6 annoncées pour
+5 réelles**, la sixième étant un remplacement confirmé du 05/10 au 13/11. Même prédicat partagé
+désormais.
+
+#### Ce qui a été corrigé en base, et ce qui ne l'a pas été
+
+Dates passées à 2026 (19/10 → 01/11), via le bouton « Modifier les dates » livré la veille — le
+vivier qui recouvre la période passe de **0 à 11**. Les **trois swipes** posés sur les mauvaises
+dates ont été annulés, bornés à leurs identifiants, après deux garde-fous : aucun match sur
+l'annonce, et les trois cibles toutes `LEFT` sur cette mission.
+
+Un **quatrième** swipe, apparu entre la lecture et la suppression, n'a **pas** été annulé : il date
+d'après la correction. Cette candidate a vu la bonne année et a passé quand même — c'est un refus
+informé, pas une victime de la date. L'annuler serait lui represser la même carte en espérant une
+autre réponse.
+
+#### Un faux doublon
+
+Deux annonces portent le même titre (« Kiné remplaçant Pointe-Noire Guadeloupe MSP secrétariat
+75/25 »). Vérification : **deux besoins distincts** — 30/09 → 04/10 sur la ligne de Léa, 19/10 →
+01/11 sur le siège du titulaire, accroches différentes. Seul le titre a été recopié. Rien à
+corriger côté produit ; à savoir que deux annonces au même titre sont indistinguables dans les
+listes.
+
 ### SECTION 266 — DEUX CHEMINS VERS LE MÊME POSTE, DEUX MENUS DIFFÉRENTS (25/09)
 
 Demandé le 25/09, capture à l'appui : pouvoir repartager une annonce, la modifier entièrement, et
