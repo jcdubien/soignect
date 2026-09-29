@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { EST_UNE_OFFRE } from "@/lib/feedFilters";
 import { z } from "zod";
 import { Prisma, SwipeDirection } from "@prisma/client";
 import { computeAffinityScore } from "@/lib/deepseek";
@@ -77,6 +78,18 @@ export async function POST(req: NextRequest) {
     // plus bas. Le score notait donc parfois un couple qui n'existait pas : constaté en prod,
     // deux lectures de la même paire à 25/25 et 6/25 en géographie selon le sens du swipe.
     // On applique ici le classement qui sert déjà à l'appariement — même règle, même résultat.
+    //
+    // ⚠️ UNE DIVERGENCE SUBSISTE DEPUIS LA SECTION 269, et elle est nommée plutôt que tue. Quand
+    // une puce est sélectionnée, le score se calcule contre CETTE annonce, alors que la mise en
+    // relation s'attache désormais à celle que le candidat a réellement retenue — qui peut être
+    // une autre. `Swipe.affinityScore`, et donc `Match.aiScore` qui en est l'instantané,
+    // décrivent alors le couple de la puce, pas celui du match.
+    //
+    // Non corrigé ici : aligner les deux demande de résoudre la réciprocité AVANT le scoring,
+    // donc de réordonner une route qui enchaîne budget DeepSeek, appel modèle et upsert. Le prix
+    // de ce réordonnancement est plus élevé que celui de l'écart, qui ne porte que sur les cas où
+    // le candidat a retenu une autre annonce que celle affichée. À reprendre si la mesure montre
+    // que ces cas sont fréquents.
     const [swiperProfile, swiperMission] = await Promise.all([
       prisma.profile.findUnique({ where: { id: swiperId } }),
       targetMissionId
@@ -184,18 +197,45 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    let reciprocalMissionFilter: { swipedMissionId: string | { in: string[] } };
+    // ── LA RÉCIPROCITÉ SE CHERCHE SUR TOUTES MES OFFRES (section 269) ───────────────────────
+    //
+    // Avant, une puce d'annonce sélectionnée en haut du fil restreignait le contrôle à CETTE
+    // SEULE annonce : « le candidat a-t-il swipé exactement la mission sélectionnée ? ». Un oui
+    // réciproque posé sur une AUTRE de mes annonces était donc invisible, et jeté sans trace.
+    //
+    // Mesuré le 26/09 sur toute la base : **2 paires réciproques sur 14 n'avaient produit aucune
+    // mise en relation** — 14 %. Mélisande ZOUAG avait retenu une annonce à 22:10, Jean-Charles
+    // avait retenu sa disponibilité à 22:42 ; trente-deux minutes, deux oui, et rien.
+    //
+    // LA PUCE NE DISPARAÎT PAS, ELLE CHANGE DE RÔLE : elle ne filtre plus, elle PRÉFÈRE. Si le
+    // candidat a justement retenu l'annonce sélectionnée, c'est elle qu'on rattache ; sinon
+    // `pickBestPeriode` tranche entre celles qu'il a réellement retenues.
+    //
+    // ── POURQUOI `EST_UNE_OFFRE` ET PLUS SEULEMENT `isActive` ──────────────────────────────
+    //
+    // Élargir la recherche fait entrer d'un coup tous les swipes posés sur mes missions actives.
+    // Or 10 d'entre eux portent sur des briques d'OCCUPATION — l'enregistrement de qui tient un
+    // poste — qui fuyaient dans le feed avant la section 265. Avec le seul `isActive`, ce
+    // correctif aurait créé des mises en relation sur « Christelle » et « Assistant 1 », c'est-à-
+    // dire sur des personnes déjà en poste. Le resserrage n'est donc pas un ajout : il est ce qui
+    // rend l'élargissement sûr.
+    // La garde vaut DES DEUX CÔTÉS. Elle porte ci-dessous sur mes annonces ; elle doit aussi
+    // porter sur celle que je viens de retenir, sinon un client resté ouvert sur une carte
+    // périmée pourrait encore nouer une relation sur une mission qui n'est plus proposée.
+    // Repéré en rejouant le correctif sur la base : une paire y apparaissait via un swipe
+    // historique posé sur une annonce désormais inactive.
+    const cibleEstUneOffre =
+      swipedMission.isActive &&
+      swipedMission.briqueStatus === EST_UNE_OFFRE.briqueStatus &&
+      !swipedMission.isSelfPresence;
 
-    if (targetMissionId) {
-      // Précis : le candidat a-t-il swipé exactement la mission sélectionnée ?
-      reciprocalMissionFilter = { swipedMissionId: targetMissionId };
-    } else {
-      const myMissions = await prisma.mission.findMany({
-        where: { profileId: swiperId, isActive: true },
-        select: { id: true },
-      });
-      reciprocalMissionFilter = { swipedMissionId: { in: myMissions.map((m) => m.id) } };
-    }
+    const mesOffres = cibleEstUneOffre
+      ? await prisma.mission.findMany({
+          where: { ...EST_UNE_OFFRE, profileId: swiperId },
+          select: { id: true },
+        })
+      : [];
+    const reciprocalMissionFilter = { swipedMissionId: { in: mesOffres.map((m) => m.id) } };
 
     // Une même personne peut avoir retenu PLUSIEURS de mes annonces. Prendre la première
     // venue (findFirst, sans tri) liait la mise en relation à une annonce dont la période
@@ -212,7 +252,14 @@ export async function POST(req: NextRequest) {
       include: { swipedMission: { select: { startDate: true, endDate: true } } },
       orderBy: { createdAt: "desc" },
     });
-    const reciprocalSwipe = pickBestPeriode(reciprocalSwipes, (s) => s.swipedMission, swipedMission);
+    // La puce, désormais simple préférence : si le candidat a justement retenu l'annonce
+    // sélectionnée, on rattache celle-là ; sinon on laisse `pickBestPeriode` choisir parmi
+    // celles qu'il a vraiment retenues.
+    const surLaPuce = targetMissionId
+      ? reciprocalSwipes.filter((s) => s.swipedMissionId === targetMissionId)
+      : [];
+    const candidatesReciproques = surLaPuce.length > 0 ? surLaPuce : reciprocalSwipes;
+    const reciprocalSwipe = pickBestPeriode(candidatesReciproques, (s) => s.swipedMission, swipedMission);
 
     if (reciprocalSwipe) {
       const profileAId = swiperId < swipedMission.profileId ? swiperId : swipedMission.profileId;
@@ -220,7 +267,11 @@ export async function POST(req: NextRequest) {
 
       // missionA = côté A du couple ordonné, missionB = côté B — mêmes conventions que la
       // création ci-dessous, calculées ici pour servir aussi au garde d'unicité.
-      const mySideMissionId = targetMissionId ?? reciprocalSwipe.swipedMissionId;
+      // L'annonce rattachée est celle que le candidat a RÉELLEMENT retenue. Prendre
+      // `targetMissionId` d'office aurait attaché la relation à une annonce qu'il n'a jamais
+      // vue — c'était sans conséquence tant que le filtre garantissait que les deux coïncidaient,
+      // ça ne l'est plus maintenant que la recherche est large.
+      const mySideMissionId = reciprocalSwipe.swipedMissionId;
       const missionAId = profileAId === swiperId ? mySideMissionId : swipedMissionId;
       const missionBId = profileAId === swiperId ? swipedMissionId : mySideMissionId;
 
