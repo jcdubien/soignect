@@ -1,7 +1,7 @@
 // ── Système de scoring affinité 0-100 (Sprint 3) ─────────────────────────────
 
 import { zoneOfCommune, type ZoneGeo } from "@/lib/communes";
-import { socleFor, BONUS, joursDeSouplesse, type BonusKey } from "@/lib/compatibilite";
+import { socleFor, BONUS, joursDeSouplesse, HORIZON_DEMARRAGE_JOURS, type BonusKey } from "@/lib/compatibilite";
 
 export interface AffinityInput {
   bioTinder?: string | null;
@@ -83,7 +83,32 @@ function scoreDates(mission: AffinityInput, profile: AffinityInput): number {
     const flexBonus = totalFlex >= 14 ? 5 : 0;
     return Math.min(Math.round(ratio * 30) + flexBonus, 35);
   }
-  // Fallback minMonths
+  // ── POSTE OUVERT SANS DURÉE MINIMALE (section 271) ──────────────────────────────────────
+  //
+  // Ni fin, ni `minMonths` : aucune branche ne s'appliquait et le score retombait sur le neutre
+  // 17, identique pour tous. 6 des 13 annonces long terme vivantes sont dans ce cas — la
+  // composante dates y était muette.
+  //
+  // Ce qu'on peut dire honnêtement : quand la personne peut-elle COMMENCER. Être disponible
+  // avant le début du poste ne coûte rien ; seul le retard compte, amorti par la souplesse
+  // déclarée des deux côtés.
+  //
+  // CE QU'ON NE DIT PAS. Rien sur la DURÉE : une fenêtre de remplaçant borne une période de
+  // liberté, pas un engagement maximal. Quelqu'un qui publie « libre du 15/10 au 30/11 »
+  // prendrait peut-être un poste de six mois démarrant le 15/10 — le produit n'en sait rien, et
+  // le déduire de sa fenêtre serait inventer une limite qu'il n'a jamais posée. Tant que
+  // l'intention n'est pas demandée, on se tait dessus plutôt que d'affirmer.
+  if (mS && !mE && !mission.minMonths && pS) {
+    const retardMs = Math.max(0, pS.getTime() - mS.getTime()) - toleranceMs;
+    const retardJours = Math.max(0, retardMs) / (1000 * 60 * 60 * 24);
+    const part = 1 - Math.min(retardJours / HORIZON_DEMARRAGE_JOURS, 1);
+    const flexBonus = totalFlex >= 14 ? 5 : 0;
+    return Math.min(Math.round(part * 30) + flexBonus, 35);
+  }
+
+  // Fallback minMonths. INCHANGÉ : quand l'annonce déclare une durée minimale, la comparer à la
+  // fenêtre du candidat discrimine réellement — fenêtre médiane 116 jours contre des minima de 3
+  // à 12 mois. C'est la branche muette ci-dessus qui était fautive, pas celle-ci.
   if (mission.minMonths && pS && pE) {
     const months = (pE.getTime() - pS.getTime()) / (1000 * 60 * 60 * 24 * 30);
     return Math.round(Math.min(months / mission.minMonths, 1) * 25);

@@ -36,6 +36,26 @@ export const SOCLE_REMPLACEMENT: SocleProfile = { dates: 40, geo: 30, bio: 30 };
 // en base, la séparer aujourd'hui reviendrait à encoder une supposition.
 export const SOCLE_LONG_TERME: SocleProfile = { dates: 20, geo: 25, bio: 55 };
 
+// ── POUR UN POSTE OUVERT, LA QUESTION DE DATE EST « QUAND POUVEZ-VOUS COMMENCER ? » (section 271)
+//
+// Mesuré le 30/09 : sur les 13 annonces long terme vivantes, **les 13** sont sans date de fin, et
+// **6** n'ont pas non plus de durée minimale. Pour celles-là, aucune branche de `scoreDates` ne
+// s'appliquait et la composante retombait sur le NEUTRE 17/35 — la même valeur pour tout le monde,
+// quel que soit le candidat. Le barème ne disait donc rien sur près de la moitié des postes longs.
+//
+// Les deux camps ont pourtant des formes symétriques et exploitables : 27 disponibilités de
+// remplacement portent un début ET une fin (fenêtre médiane 116 jours), 6 disponibilités longues
+// portent un début ET une durée minimale. Le SEUL fait que les deux côtés énoncent toujours, c'est
+// la DATE DE DÉBUT. C'est donc sur elle que se juge un poste sans terme : le retard au démarrage.
+//
+// Être disponible AVANT ne coûte rien — on ne mesure que `max(0, début candidat − début poste)`.
+//
+// L'HORIZON EST UN CHOIX, PAS UNE DÉCOUVERTE. Six mois est le point où « je serai libre un jour »
+// cesse de répondre à « quand pouvez-vous commencer ». Les annonces longues en base s'étalent sur
+// huit mois de dates de début ; un horizon plus court les écraserait toutes à zéro, un plus long
+// ne distinguerait plus rien. À revoir si la distribution des dates de début change.
+export const HORIZON_DEMARRAGE_JOURS = 180;
+
 // La géographie pèse PLUS sur un remplacement court que sur un poste long : on ne déménage pas
 // pour trois semaines, on déménage pour un assistanat. Un candidat à 40 km est disqualifiant
 // dans un cas, secondaire dans l'autre.
