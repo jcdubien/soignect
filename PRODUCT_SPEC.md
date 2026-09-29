@@ -7347,6 +7347,81 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 270 — LE RATTRAPAGE S'ÉTAIT FAIT TOUT SEUL, ET LE SCORE DÉCRIT ENFIN LE BON COUPLE (29/09)
+
+Deux demandes du 29/09. La première était déjà accomplie ; la seconde ferme la divergence que la
+269 avait nommée sans la corriger.
+
+#### Le rattrapage n'a rien eu à rattraper
+
+Les 2 `Match` manquants — favre Emma et Mélisande ZOUAG — **existaient déjà** au moment de lancer
+la reprise, créés le **27/09 à 09:31 et 09:34**, soit après la mise en ligne de `c690ae9`. Le
+correctif les a produits **par la route normale**, au premier geste réel qui les a traversés.
+
+Et ils sont attachés aux bonnes annonces, exactement comme le rejeu l'avait prédit :
+
+```
+Mélisande ZOUAG  → « Kiné remplaçant Pointe-Noire Guadeloupe MSP… »   aiScore 82
+favre Emma       → « Kiné Pointe-Noire Guadeloupe : assistant en… »   aiScore 70
+```
+
+**Aucune écriture n'a donc été faite.** Rejouer la reprise aurait buté sur le garde d'unicité, ou
+pire, produit des doublons et de nouvelles notifications pour des gens déjà prévenus.
+
+#### Quatre emails attendus, deux notifications émises, un seul email parti
+
+La demande parlait de 4 emails. Le produit n'en envoie **pas** quatre, et c'est correct :
+
+| | attendu dans la demande | réalité |
+|---|---|---|
+| notifications in-app | — | **2** (une par match, à la partie qui n'a pas swipé) |
+| emails | 4 | **1** |
+
+`sendNewRelationEmail` ne part qu'**une fois par match**, vers la partie qui subit le swipe — celui
+qui agit voit la relation apparaître dans son écran, lui réécrire serait du bruit. Et sur ces deux
+destinataires, **favre Emma est en `emailOptIn: false`** : son email a été supprimé par le produit,
+comme il doit l'être. Seule Mélisande ZOUAG a reçu le sien.
+
+Forcer un envoi à Emma aurait violé son propre refus ; le noter ici vaut mieux que de l'avoir fait.
+
+#### La divergence score / aiScore, fermée
+
+La réciprocité se résolvait **après** le scoring. Depuis la 269, la mise en relation s'attache à
+l'annonce réellement retenue par le candidat — le score, lui, continuait de se calculer contre la
+puce. `Swipe.affinityScore`, et `Match.aiScore` qui en est l'instantané, décrivaient donc un couple
+qui n'était pas celui du match. C'est mot pour mot le défaut que le commentaire du bloc de scoring
+décrivait déjà pour un autre repli : *« le score notait parfois un couple qui n'existait pas »*.
+
+La résolution remonte donc avant le scoring, et la mission de mon côté devient **celle qui sera
+appariée**. À défaut d'appariement — aucun oui réciproque — on retombe sur la puce puis sur le
+meilleur recouvrement : aucun couple n'existe encore, le score ne peut que décrire l'hypothèse la
+plus plausible.
+
+**L'ordre des effets ne change pas**, et c'est ce qui rend le déplacement sûr : la réciprocité
+n'est que de la **lecture** — elle interroge les swipes de l'autre partie, jamais le mien, qui
+n'est pas encore écrit à ce stade. Vérifié après réorganisation : budget DeepSeek, appel modèle,
+enregistrement de l'appel, upsert du swipe, trace, création du match — **un seul site d'appel
+chacun**, dans cet ordre.
+
+#### Vérifié
+
+Banc d'essai sur la route réelle, couple de test jetable, `auth` et les 15 fonctions d'email
+doublées. L'annonce de la puce **ne recouvre pas** la disponibilité ; celle retenue la recouvre
+entièrement. Un score calculé contre la puce aurait donc donné **0** sur les dates :
+
+```
+match créé              oui
+annonce rattachée       B  (celle que le candidat a retenue)
+score de dates stocké   34   ← un calcul contre la puce aurait donné 0
+Swipe.affinityScore     79
+Match.aiScore           79   (égal — l'instantané décrit bien le même couple)
+```
+
+Données de test supprimées, vérifiées à zéro.
+
+**Mesure finale sur la base**, comme demandé : **15 paires où les deux ont dit oui, 15 mises en
+relation, zéro perdue.**
+
 ### SECTION 269 — LA PUCE FILTRAIT LA RÉCIPROCITÉ, ELLE NE FAIT PLUS QUE LA PRÉFÉRER (27/09)
 
 Correctif du défaut trouvé en vérifiant la section 268. Arbitrage de Jean-Charles le 25/09.
