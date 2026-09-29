@@ -7347,6 +7347,79 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 269 — LA PUCE FILTRAIT LA RÉCIPROCITÉ, ELLE NE FAIT PLUS QUE LA PRÉFÉRER (27/09)
+
+Correctif du défaut trouvé en vérifiant la section 268. Arbitrage de Jean-Charles le 25/09.
+
+#### Le défaut
+
+Une puce d'annonce sélectionnée en haut du fil restreignait la recherche de réciprocité à **cette
+seule annonce** :
+
+```ts
+if (targetMissionId) reciprocalMissionFilter = { swipedMissionId: targetMissionId };
+else                 reciprocalMissionFilter = { swipedMissionId: { in: mesMissionsActives } };
+```
+
+Un oui réciproque posé sur une **autre** annonce du même cabinet était donc invisible au contrôle,
+et jeté sans trace. **2 paires réciproques sur 14 — 14 %** n'avaient produit aucune mise en
+relation. Mélisande ZOUAG avait retenu une annonce à 22:10, Jean-Charles avait retenu sa
+disponibilité à 22:42 : trente-deux minutes, deux oui, et rien.
+
+#### La puce change de rôle
+
+Elle ne **filtre** plus, elle **préfère**. Si le candidat a justement retenu l'annonce
+sélectionnée, c'est elle qu'on rattache ; sinon `pickBestPeriode` tranche entre celles qu'il a
+réellement retenues.
+
+Et le match s'attache désormais à l'annonce **réellement retenue**. Prendre `targetMissionId`
+d'office aurait lié la relation à une annonce que le candidat n'a jamais vue — sans conséquence
+tant que le filtre garantissait que les deux coïncidaient, plus du tout une fois la recherche
+élargie.
+
+#### Le resserrage n'est pas un ajout : il rend l'élargissement sûr
+
+Chercher sur toutes mes missions `isActive` aurait fait entrer d'un coup **10 swipes posés sur des
+briques d'occupation** — l'enregistrement de qui tient un poste — qui fuyaient dans le feed avant
+la section 265. Le correctif aurait créé des mises en relation sur des personnes **déjà en poste**.
+
+La recherche porte donc sur `EST_UNE_OFFRE`, et la garde vaut **des deux côtés** : repérée en
+rejouant le correctif sur la base, une paire y apparaissait via un swipe historique posé sur une
+annonce devenue inactive.
+
+#### Une divergence nommée plutôt que tue
+
+Le score se calcule contre la puce, alors que le match peut désormais s'attacher ailleurs :
+`Swipe.affinityScore` — et `Match.aiScore` qui en est l'instantané — décrivent alors le couple de
+la puce, pas celui du match. L'aligner demande de résoudre la réciprocité **avant** le scoring,
+donc de réordonner une route qui enchaîne budget DeepSeek, appel modèle et upsert. Le prix du
+réordonnancement dépasse celui de l'écart, qui ne porte que sur les cas où le candidat a retenu
+une autre annonce que celle affichée. Écrit dans le code, à reprendre si la mesure le réclame.
+
+#### Vérifié de deux façons
+
+**Rejeu sur toute la base** : 13 paires appariées par la nouvelle logique, 11 déjà en base,
+exactement **2 manquantes** — favre Emma et Mélisande ZOUAG, celles nommées par JC — et **zéro**
+appariement sur une non-offre. Sans la garde symétrique, le rejeu en produisait 3, la troisième
+venant d'un swipe historique sur une mission inactive.
+
+**Banc d'essai sur la route réelle**, `auth` et les 15 fonctions d'email remplacées par des
+doublures, couple de test jetable (adresses `@example.com`, non délivrables par la RFC 2606) :
+
+```
+candidat → B                       200 · aucun match          (attendu)
+cabinet  → dispo, puce sur A       200 · match CRÉÉ, sur B    (l'annonce réellement retenue)
+cabinet  → dispo DÉPUBLIÉE         200 · aucun match          (garde symétrique)
+```
+
+Données de test supprimées, vérifiées à zéro.
+
+#### Ce qui n'est pas encore fait
+
+Le rattrapage des 2 paires perdues. Il crée des `Match` et envoie **4 emails** à des gens qui ont
+swipé il y a deux semaines et un mois — un envoi ne part pas du même geste que le correctif qui le
+rend possible (règle du 20/09). Il attend la validation du hash `c690ae9`.
+
 ### SECTION 268 — 85 % DES « OUI » CANDIDATS N'ALLAIENT NULLE PART (26/09)
 
 Item P1 de la liste du 26/09. La mesure a trouvé plus que ce qu'elle cherchait.
