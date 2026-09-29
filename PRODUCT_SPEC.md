@@ -7347,6 +7347,102 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 271 — LA CONVERGENCE EXISTAIT DÉJÀ ; C'EST LA RÈGLE DE DATES QUI ÉTAIT MUETTE (30/09)
+
+Demande du 25/09 : faire converger remplacement et assistanat pour les chercheurs de poste, et
+surpondérer l'assistanat. **La mesure a retourné les deux moitiés de la demande.**
+
+#### La convergence n'était pas à faire
+
+`/api/feed` **ne filtre pas sur `missionType`**. Le seul cloisonnement est le camp. Un remplaçant
+voit donc déjà l'assistanat, par défaut. Le tri par type est un filtre **client** — les pastilles
+`Tout · Remplacement · Assistanat · Collaboration`, initialisées sur `ALL`. La garde demandée
+(« un remplaçant qui ne veut que du remplacement doit pouvoir filtrer ») était déjà là.
+
+Manque réel, mais vide de données : **aucune pastille « Salariat »**, et **0 annonce** ne porte
+`estSalariat`. Toute règle écrite pour lui aujourd'hui serait un levier dormant de plus.
+
+#### La surpondération ne se justifie pas par le comportement
+
+```
+swipeur → annonce              droite  gauche   taux
+REMPLACANT → ASSISTANAT           26     202    11 %
+REMPLACANT → REMPLACEMENT         40     270    13 %
+ASSISTANT  → REMPLACEMENT          1      23     4 %
+```
+
+**Un remplaçant accepte l'assistanat presque aussi souvent que le remplacement.** Et le score ne
+les sépare pas davantage — sur les swipes à droite, moyenne **59** vers le long terme contre
+**60** vers le remplacement, médianes 63 et 64. Le croisement se pratique déjà, au même prix.
+
+*Angle mort à connaître* : **les swipes à gauche ne sont jamais scorés**. On ne peut donc pas
+savoir si le score prédit un refus — ce qui interdit de régler un bonus sur des données.
+
+Le déficit, lui, est bien réel, et il est **en amont** :
+
+```
+cabinets cherchent    long terme 13  ·  remplacement  9
+candidats publient    long terme  6  ·  remplacement 27
+profils actifs        47 remplaçants ·  7 assistants
+```
+
+Il n'est pas dans le classement : il est dans ce que les candidats **publient**.
+
+#### E — la bannière de la section 191 ne convertit pas, et probablement parce qu'elle n'est pas vue
+
+```
+remplaçants ayant franchi le seuil (2 intérêts long terme)   9
+   ont écarté la bannière                                    0
+   ont publié du long terme ensuite                          0
+```
+
+**Zéro écartement sur neuf.** Si elle avait été vue, au moins une l'aurait fermée. Elle vit sur
+`/compte` — une page qu'un candidat ouvre rarement, loin du fil où le geste se fait. Elle ne trace
+ni son affichage ni son clic : l'exposition réelle n'est pas mesurable, et c'est en soi le défaut.
+
+**Le frein est l'exposition, pas l'envie.**
+
+#### B — la composante dates était muette sur près de la moitié des postes longs
+
+```
+annonces long terme vivantes          13
+   sans date de fin                   13  (100 %)
+   sans minMonths                      6
+   sans date de début                  2
+```
+
+Pour ces 6, aucune branche de `scoreDates` ne s'appliquait : retour au **neutre 17/35**, identique
+pour tout le monde.
+
+Les deux camps ont pourtant des formes **symétriques** : 27 disponibilités de remplacement avec
+début **et** fin (fenêtre médiane **116 jours**), 6 disponibilités longues avec début **et** durée
+minimale. Le seul fait que les deux côtés énoncent toujours est la **date de début**. Pour un poste
+sans terme, la question de date devient donc **« quand pouvez-vous commencer »** : le retard au
+démarrage, amorti par la souplesse déclarée. Être disponible avant ne coûte rien.
+
+**Ce qu'on ne dit pas, délibérément** : rien sur la durée. Une fenêtre de remplaçant borne une
+période de **liberté**, pas un engagement maximal. Quelqu'un qui publie « libre du 15/10 au 30/11 »
+prendrait peut-être un poste de six mois démarrant le 15/10 ; le déduire de sa fenêtre inventerait
+une limite qu'il n'a jamais posée. Tant que l'intention n'est pas demandée, le barème se tait.
+
+La branche `minMonths` est **inchangée** — elle discrimine réellement (médiane 116 jours contre des
+minima de 3 à 12 mois). C'est la branche muette qui était fautive.
+
+L'horizon de six mois est un **choix** : le point où « je serai libre un jour » cesse de répondre à
+la question. Les annonces longues s'étalent sur huit mois de dates de début ; plus court les
+écraserait toutes à zéro, plus long ne distinguerait plus rien.
+
+**Effet mesuré** sur les 6 annonces auparavant muettes : **4 produisent désormais 4 à 12 valeurs
+distinctes** au lieu d'une seule. Les 2 qui restent plates n'ont **aucune date de début** — rien à
+dire, et le barème se tait.
+
+#### Ce qui reste ouvert
+
+A (bonus d'ordre directionnel), C (déclarer l'ouverture au long terme, sur le modèle
+d'`ouvertSalariat`) et D (mention sur la carte) n'ont pas été faits : la mesure ne les justifie
+pas encore. Et **2 annonces longues sans date de début** restent un problème de données, pas de
+barème.
+
 ### SECTION 270 — LE RATTRAPAGE S'ÉTAIT FAIT TOUT SEUL, ET LE SCORE DÉCRIT ENFIN LE BON COUPLE (29/09)
 
 Deux demandes du 29/09. La première était déjà accomplie ; la seconde ferme la divergence que la
