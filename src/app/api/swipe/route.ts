@@ -70,8 +70,68 @@ export async function POST(req: NextRequest) {
   // besoin plus bas, et la recalculer ferait un second appel à la base pour rien.
   let periodeSwipeur: { startDate: Date | null; endDate: Date | null } | null = null;
   let scoreDetails: object | undefined;
+  // Résolu AVANT le scoring (section 270) et consommé plus bas par la création du match : seul
+  // l'identifiant de l'annonce appariée est utilisé, le reste du swipe réciproque ne sert pas.
+  let reciprocalSwipe: { swipedMissionId: string } | null = null;
 
   if (direction === SwipeDirection.RIGHT) {
+    // ── LA RÉCIPROCITÉ SE RÉSOUT AVANT LE SCORING (section 270) ────────────────────────────
+    //
+    // Elle vivait APRÈS, et le score se calculait donc contre la puce sélectionnée pendant que
+    // la mise en relation s'attachait, depuis la section 269, à l'annonce réellement retenue par
+    // le candidat. `Swipe.affinityScore` — et `Match.aiScore`, qui en est l'instantané —
+    // décrivaient alors un couple qui n'était pas celui du match. C'est exactement le défaut que
+    // le commentaire du bloc de scoring décrivait déjà pour un autre repli : « le score notait
+    // parfois un couple qui n'existait pas ».
+    //
+    // L'ORDRE DES EFFETS NE CHANGE PAS. La réciprocité n'est que de la LECTURE — elle interroge
+    // les swipes de l'autre partie, jamais le mien, qui n'est pas encore écrit à ce stade. Le
+    // budget DeepSeek, l'appel au modèle et l'upsert du swipe restent chacun exécutés une fois,
+    // dans cet ordre, après elle.
+    // La garde vaut DES DEUX CÔTÉS. Elle porte ci-dessous sur mes annonces ; elle doit aussi
+    // porter sur celle que je viens de retenir, sinon un client resté ouvert sur une carte
+    // périmée pourrait encore nouer une relation sur une mission qui n'est plus proposée.
+    // Repéré en rejouant le correctif sur la base : une paire y apparaissait via un swipe
+    // historique posé sur une annonce désormais inactive.
+    const cibleEstUneOffre =
+      swipedMission.isActive &&
+      swipedMission.briqueStatus === EST_UNE_OFFRE.briqueStatus &&
+      !swipedMission.isSelfPresence;
+
+    const mesOffres = cibleEstUneOffre
+      ? await prisma.mission.findMany({
+          where: { ...EST_UNE_OFFRE, profileId: swiperId },
+          select: { id: true },
+        })
+      : [];
+    const reciprocalMissionFilter = { swipedMissionId: { in: mesOffres.map((m) => m.id) } };
+
+    // Une même personne peut avoir retenu PLUSIEURS de mes annonces. Prendre la première
+    // venue (findFirst, sans tri) liait la mise en relation à une annonce dont la période
+    // n'avait parfois rien à voir avec celle du candidat — constaté en prod : une dispo
+    // 7 sept → 7 oct appariée à une annonce 14 déc → 17 janv, deux périodes disjointes.
+    // Le match partait donc sur un malentendu de dates. On retient l'annonce qui recouvre
+    // le mieux la période visée ; à défaut d'information de dates, la plus récente.
+    const reciprocalSwipes = await prisma.swipe.findMany({
+      where: {
+        swiperId: swipedMission.profileId,
+        ...reciprocalMissionFilter,
+        direction: SwipeDirection.RIGHT,
+      },
+      include: { swipedMission: { select: { startDate: true, endDate: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    // La puce, désormais simple préférence : si le candidat a justement retenu l'annonce
+    // sélectionnée, on rattache celle-là ; sinon on laisse `pickBestPeriode` choisir parmi
+    // celles qu'il a vraiment retenues.
+    const surLaPuce = targetMissionId
+      ? reciprocalSwipes.filter((s) => s.swipedMissionId === targetMissionId)
+      : [];
+    const candidatesReciproques = surLaPuce.length > 0 ? surLaPuce : reciprocalSwipes;
+    reciprocalSwipe = pickBestPeriode(candidatesReciproques, (s) => s.swipedMission, swipedMission);
+
+
+    // ── Scoring, contre la mission qui sera RÉELLEMENT appariée ────────────────────────────
     // Le score compare l'annonce swipée à UNE de mes missions — encore faut-il que ce soit la
     // bonne. Le repli historique prenait findFirst({ isActive: true }), c'est-à-dire une mission
     // ARBITRAIRE (ordre d'insertion), pas celle qui sera appariée par le match quelques lignes
@@ -92,11 +152,17 @@ export async function POST(req: NextRequest) {
     // que ces cas sont fréquents.
     const [swiperProfile, swiperMission] = await Promise.all([
       prisma.profile.findUnique({ where: { id: swiperId } }),
-      targetMissionId
-        ? prisma.mission.findUnique({ where: { id: targetMissionId } })
-        : prisma.mission
-            .findMany({ where: { profileId: swiperId, isActive: true }, orderBy: { createdAt: "desc" } })
-            .then((mes) => pickBestPeriode(mes, (m) => m, swipedMission)),
+      // L'annonce APPARIÉE d'abord : c'est elle que le match portera, donc elle que le score
+      // doit décrire. À défaut d'appariement — aucun oui réciproque — on retombe sur la puce,
+      // puis sur le meilleur recouvrement : dans ce cas aucun couple n'existe encore, et le
+      // score ne peut que décrire l'hypothèse la plus plausible.
+      reciprocalSwipe
+        ? prisma.mission.findUnique({ where: { id: reciprocalSwipe.swipedMissionId } })
+        : targetMissionId
+          ? prisma.mission.findUnique({ where: { id: targetMissionId } })
+          : prisma.mission
+              .findMany({ where: { profileId: swiperId, isActive: true }, orderBy: { createdAt: "desc" } })
+              .then((mes) => pickBestPeriode(mes, (m) => m, swipedMission)),
     ]);
 
     if (swiperMission) periodeSwipeur = { startDate: swiperMission.startDate, endDate: swiperMission.endDate };
@@ -219,48 +285,6 @@ export async function POST(req: NextRequest) {
     // correctif aurait créé des mises en relation sur « Christelle » et « Assistant 1 », c'est-à-
     // dire sur des personnes déjà en poste. Le resserrage n'est donc pas un ajout : il est ce qui
     // rend l'élargissement sûr.
-    // La garde vaut DES DEUX CÔTÉS. Elle porte ci-dessous sur mes annonces ; elle doit aussi
-    // porter sur celle que je viens de retenir, sinon un client resté ouvert sur une carte
-    // périmée pourrait encore nouer une relation sur une mission qui n'est plus proposée.
-    // Repéré en rejouant le correctif sur la base : une paire y apparaissait via un swipe
-    // historique posé sur une annonce désormais inactive.
-    const cibleEstUneOffre =
-      swipedMission.isActive &&
-      swipedMission.briqueStatus === EST_UNE_OFFRE.briqueStatus &&
-      !swipedMission.isSelfPresence;
-
-    const mesOffres = cibleEstUneOffre
-      ? await prisma.mission.findMany({
-          where: { ...EST_UNE_OFFRE, profileId: swiperId },
-          select: { id: true },
-        })
-      : [];
-    const reciprocalMissionFilter = { swipedMissionId: { in: mesOffres.map((m) => m.id) } };
-
-    // Une même personne peut avoir retenu PLUSIEURS de mes annonces. Prendre la première
-    // venue (findFirst, sans tri) liait la mise en relation à une annonce dont la période
-    // n'avait parfois rien à voir avec celle du candidat — constaté en prod : une dispo
-    // 7 sept → 7 oct appariée à une annonce 14 déc → 17 janv, deux périodes disjointes.
-    // Le match partait donc sur un malentendu de dates. On retient l'annonce qui recouvre
-    // le mieux la période visée ; à défaut d'information de dates, la plus récente.
-    const reciprocalSwipes = await prisma.swipe.findMany({
-      where: {
-        swiperId: swipedMission.profileId,
-        ...reciprocalMissionFilter,
-        direction: SwipeDirection.RIGHT,
-      },
-      include: { swipedMission: { select: { startDate: true, endDate: true } } },
-      orderBy: { createdAt: "desc" },
-    });
-    // La puce, désormais simple préférence : si le candidat a justement retenu l'annonce
-    // sélectionnée, on rattache celle-là ; sinon on laisse `pickBestPeriode` choisir parmi
-    // celles qu'il a vraiment retenues.
-    const surLaPuce = targetMissionId
-      ? reciprocalSwipes.filter((s) => s.swipedMissionId === targetMissionId)
-      : [];
-    const candidatesReciproques = surLaPuce.length > 0 ? surLaPuce : reciprocalSwipes;
-    const reciprocalSwipe = pickBestPeriode(candidatesReciproques, (s) => s.swipedMission, swipedMission);
-
     if (reciprocalSwipe) {
       const profileAId = swiperId < swipedMission.profileId ? swiperId : swipedMission.profileId;
       const profileBId = swiperId < swipedMission.profileId ? swipedMission.profileId : swiperId;
