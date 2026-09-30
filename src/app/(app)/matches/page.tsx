@@ -140,7 +140,10 @@ export default async function MatchesPage() {
 
       {formatted.length === 0 ? (
         <div className="text-center py-20">
-          <div className="text-6xl mb-4">💚</div>
+          {/* Même retrait qu'ailleurs (section 274) : un cœur pour dire « aucune mise en
+              relation » empruntait au registre des applications de rencontre. Le glyphe nomme
+              l'objet absent — une relation entre deux parties — sans rien suggérer d'autre. */}
+          <div className="text-6xl mb-4 text-gray-300" aria-hidden>⇄</div>
           <p className="text-gray-500 font-medium">Pas encore de mise en relation</p>
           <p className="text-gray-400 text-sm mt-1">Continuez à explorer les annonces pour trouver des profils compatibles !</p>
           <Link

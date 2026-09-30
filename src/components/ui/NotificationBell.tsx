@@ -14,7 +14,10 @@ interface Notif {
 
 const TYPE_ICON: Record<string, string> = {
   message: "💬",
-  match: "💚",
+  // « ⇄ » et non un cœur (section 274). Le glyphe dit ce que le produit nomme — deux parties
+  // reliées, dans les deux sens — là où le cœur disait autre chose. Il est libre de tout autre
+  // usage dans l'interface : 🤝 sert déjà pour « Collaboration », 🔗 pour « Copier le lien ».
+  match: "⇄",
   signature: "✍️",
   consultation: "👀", // historique : signal émis sur une simple vue, avant la section 223
   interet: "🙋",
@@ -117,7 +120,11 @@ export default function NotificationBell() {
                 onClick={() => openNotif(n)}
                 className={`w-full text-left flex gap-2.5 px-4 py-3 hover:bg-gray-50 transition border-b border-gray-50 ${n.readAt ? "" : "bg-kine-50/50"}`}
               >
-                <span className="text-base shrink-0">{TYPE_ICON[n.type] ?? "🔔"}</span>
+                {/* Les emojis portent leur propre graisse ; un glyphe typographique non. Le
+                    gras et la couleur lui rendent le poids visuel des autres icônes de la liste. */}
+                <span className={`text-base shrink-0 ${n.type === "match" ? "font-bold text-kine-600" : ""}`}>
+                  {TYPE_ICON[n.type] ?? "🔔"}
+                </span>
                 <span className="min-w-0">
                   <span className="block text-sm text-gray-800 leading-snug">{n.message}</span>
                   <span className="block text-[11px] text-gray-400 mt-0.5">{timeAgo(n.createdAt)}</span>
