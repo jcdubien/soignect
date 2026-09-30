@@ -7347,6 +7347,54 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 273 — LE CŒUR ENTRE LES DEUX PHOTOS (30/09)
+
+Demandé le 21/09, encore là le 29/09, capture à l'appui.
+
+#### Pourquoi il partait
+
+Un cœur vert entre deux portraits est le signe visuel d'une **application de rencontre** —
+reproche déjà formulé par un utilisateur réel. Le dépôt avait d'ailleurs retiré, pour exactement
+cette raison, les deux gros boutons ronds ✕/♥ du carrousel : *« donnaient une couleur application
+de rencontre »*. Le cœur entre deux visages était le dernier reste du même registre.
+
+#### Il y en avait deux, pas un
+
+Le même motif vivait à deux endroits :
+
+| écran | nature |
+|---|---|
+| « Mise en relation confirmée » | cœur entre les deux photos — celui de la capture |
+| « Nouvelle mise en relation ! » | cœur entre les deux avatars, **plein écran et animé** |
+
+Le second est celui où la métaphore s'entendait le plus fort. N'en retirer qu'un aurait laissé le
+plus visible des deux.
+
+#### Un trait, pas une flèche
+
+Le trait garde ce qu'il fallait garder : lire les deux portraits comme une **paire**. Une flèche
+aurait donné une **direction** à une relation mutuelle — les deux parties se sont choisies, aucune
+ne va vers l'autre. Et « rien du tout » aurait laissé deux photos côte à côte sans lien lisible.
+
+#### Deux cœurs subsistent, et c'est délibéré
+
+L'état vide de `/matches` (un gros cœur décoratif, **aucune photo autour**) et l'icône des
+notifications de type match. Ni l'un ni l'autre ne met deux visages en regard : ce n'est pas le
+motif visé. Signalés, pas touchés.
+
+#### Vérifié, et ce qui ne l'a pas été
+
+Aucune bascule d'incarnation n'existe et l'écran demande d'être partie à un match : un **couple de
+test jetable** a donc été créé sur localhost, avec une mise en relation. Résultat à l'écran sur
+« Mise en relation confirmée » : **cœur absent, trait présent** entre les deux avatars.
+
+Le **bandeau de célébration n'a pas pu être vérifié visuellement**. Le déclencher demandait un
+swipe réciproque en conditions réelles ; le fil a refusé de charger en développement à plusieurs
+reprises, puis l'extension navigateur s'est déconnectée. Même substitution de trois lignes, typée
+et compilée, mais **non vue**. À confirmer au prochain match réel.
+
+Données de test supprimées, vérifiées à zéro — 17 matchs en base, le compte d'avant.
+
 ### SECTION 272 — UNE BANNIÈRE QU'ON NE VOYAIT PAS, ET QU'ON NE POUVAIT PAS MESURER (30/09)
 
 Suite directe de la section 271, volet E.
