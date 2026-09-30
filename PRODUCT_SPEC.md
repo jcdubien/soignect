@@ -7347,6 +7347,75 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 274 — LES DEUX DERNIERS CŒURS, ET UN FAUX MESSAGE D'ERREUR TROUVÉ EN CHEMIN (30/09)
+
+La section 273 avait traité le motif « cœur entre deux photos » et laissé deux occurrences hors de
+ce motif. Elles partent aussi.
+
+#### Le glyphe était contraint, pas choisi
+
+`⇄` dit ce que le produit nomme — **deux parties reliées, dans les deux sens** — et il est **libre
+de tout autre usage** dans l'interface. Ce n'était le cas d'aucun autre candidat plausible :
+
+| glyphe | déjà employé pour |
+|---|---|
+| 🤝 | « Collaboration » — 9 occurrences (tuiles de publication, Planning) |
+| 🔗 | « Copier le lien » |
+| 💬 ✍️ 👀 🙋 | les autres types de notification |
+
+Réutiliser l'un d'eux aurait échangé une fausse piste contre une autre. `⇄` prolonge par ailleurs
+le trait posé en 273 entre les deux portraits : même famille — un **connecteur typographique**
+plutôt qu'un sentiment.
+
+#### Un glyphe n'est pas un emoji
+
+Deux ajustements de rendu, mesurés à l'écran :
+
+- **Liste de notifications** — les emojis portent leur propre graisse et leur propre couleur ; un
+  glyphe non. Il reçoit donc le gras et le bleu de la marque. Vérifié : 16 px, graisse 700,
+  `rgb(40, 71, 119)`, **même boîte de 16 px** que 💬 et 🙋 à côté.
+- **État vide de `/matches`** — gris clair et `aria-hidden` : c'est une décoration, le texte dit
+  déjà tout.
+
+**Plus aucun 💚 nulle part dans `src/`.**
+
+#### Ce qui n'a toujours pas pu être vu
+
+Le bandeau de célébration. Deuxième tentative, échouée pour une autre raison : le clic a atterri
+sur une autre carte de la pile, et aucune mise en relation n'a été créée. La confirmation se fera
+**au prochain match réel** — c'est ce qui a été convenu.
+
+#### CE QUE LA TENTATIVE A RÉVÉLÉ : « Impossible de charger les annonces » est un faux
+
+Ce message est apparu cinq fois au cours des dernières sessions, chaque fois écarté comme une
+lenteur de développement. Il ne l'est pas.
+
+```
+GET /api/feed  200 in 6331ms
+GET /api/feed  200 in 4711ms
+GET /api/feed  200 in 1635ms
+```
+
+**Toutes les requêtes servies répondent 200.** Les échecs affichés correspondent donc à des
+requêtes qui n'atteignent jamais le serveur. Or le `catch` de `fetchFeed` traite **`AbortError`
+comme une panne** :
+
+```ts
+} catch (e) {
+  if ((e as Error).name === "AbortError") { console.error("… feed timeout après 12s"); }
+  else { console.error(…); }
+  setFeedError(true);          // ← dans les DEUX cas
+}
+```
+
+Un `AbortError` ne vient pas que du délai de 12 s : il vient de **toute annulation** — navigation,
+démontage du composant, re-rendu qui relance l'effet. L'écran affiche alors « Impossible de
+charger les annonces · vérifiez votre connexion » pendant que le serveur va parfaitement bien.
+
+En développement la fenêtre est large (le feed met 4 à 6 s) ; en production elle est plus étroite
+mais non nulle. **Non corrigé** : c'est une autre affaire que les cœurs, et toucher à la gestion
+d'erreur du fil sans vérification risquerait de masquer de vraies pannes.
+
 ### SECTION 273 — LE CŒUR ENTRE LES DEUX PHOTOS (30/09)
 
 Demandé le 21/09, encore là le 29/09, capture à l'appui.
