@@ -7347,6 +7347,77 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 272 — UNE BANNIÈRE QU'ON NE VOYAIT PAS, ET QU'ON NE POUVAIT PAS MESURER (30/09)
+
+Suite directe de la section 271, volet E.
+
+#### Ce que la mesure disait, et ce qu'elle ne pouvait pas dire
+
+```
+remplaçants ayant franchi le seuil (2 intérêts long terme)   9
+   ont écarté la bannière                                    0
+   ont publié du long terme ensuite                          0
+```
+
+Zéro écartement sur neuf ne dit **pas** « elle ne convainc pas ». Ça dit qu'elle n'a probablement
+jamais été **vue**. Mais ce n'était qu'une déduction : rien n'enregistrait ni l'affichage ni le
+clic. L'exposition réelle n'a jamais été observable.
+
+#### Elle suit le geste
+
+Elle vivait sur `/compte`, une page qu'un candidat ouvre rarement. Le geste qui la déclenche —
+retenir deux postes d'assistanat — se fait **dans le fil**. Elle y est déplacée, au-dessus du
+carrousel, à côté du bandeau qui tient déjà ce rôle de l'autre côté (« Intéressés sans
+recherche »).
+
+**Retirée de `/compte`** : elle ne vit qu'à un endroit, sinon l'exposition se compterait deux fois.
+
+#### Et elle se trace — c'était le vrai manque
+
+Trois évènements sur `TraceEvent.eventType`, qui est une chaîne libre : **aucune migration**.
+
+| geste | trace | éteint la bannière ? |
+|---|---|---|
+| affichage | `SUGGESTION_LT_VUE` | **non** |
+| clic | `SUGGESTION_LT_CLIC` | **non** |
+| fermeture | `SUGGESTION_LT_ECARTEE` | **oui** |
+
+**Ce que chaque geste ne fait pas, délibérément.** « vue » et « clic » ne l'éteignent pas :
+l'afficher une fois en tout n'est pas la montrer, et on peut partir publier puis renoncer en
+route — elle doit être là au retour. Seul « écartée » l'éteint, parce que c'est le seul geste qui
+dit non.
+
+L'affichage ne se compte **qu'une fois par montage** : React monte deux fois en développement, et
+sans ce garde la mesure d'exposition serait doublée dès le premier jour.
+
+#### Un nom de colonne qui ment
+
+`suggestionAssistanatVueAt` date l'**écartement**, pas la vue. Renommer demanderait une migration
+pour un gain cosmétique ; l'avertissement est écrit aux deux endroits qui la lisent.
+
+#### Vérifié à l'écran, avec un compte jetable
+
+Aucune bascule d'incarnation n'existe et la bannière ne s'affiche que pour un remplaçant : un
+compte candidat a donc été créé **sur localhost** (adresse `@example.com`, non délivrable par la
+RFC 2606) avec exactement 2 intérêts sur de l'assistanat.
+
+```
+bannière affichée dans le fil                    ✓   « …intérêt pour 2 postes d'assistanat… »
+trace VUE                                        1   (une seule, malgré le double montage)
+clic → /disponibilites/create?type=ASSISTANAT    ✓   tracé
+bannière au retour                               ✓   toujours là — le clic ne l'éteint pas
+fermeture                                        ✓   tracée, colonne posée
+après rechargement                               ✓   toujours masquée
+```
+
+Compte de test, swipes et traces supprimés, vérifiés à zéro.
+
+#### Ce que ça permet maintenant
+
+Trois questions qu'on ne pouvait pas poser : combien de fois elle s'affiche, combien de ces
+affichages produisent un clic, et combien de clics produisent une publication. La première
+mesure utile demandera quelques jours de trafic.
+
 ### SECTION 271 — LA CONVERGENCE EXISTAIT DÉJÀ ; C'EST LA RÈGLE DE DATES QUI ÉTAIT MUETTE (30/09)
 
 Demande du 25/09 : faire converger remplacement et assistanat pour les chercheurs de poste, et
