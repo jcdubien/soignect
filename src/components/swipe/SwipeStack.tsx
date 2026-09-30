@@ -169,8 +169,10 @@ function MatchModal({ match, onClose }: { match: MatchData; onClose: () => void 
         >
           <span className="text-3xl font-black text-white">Vous</span>
         </motion.div>
+        {/* Même motif, même retrait (section 273) : un cœur entre deux portraits, en plein
+            écran et animé, est l'endroit où la métaphore « rencontre » s'entendait le plus. */}
         <div className="w-8 flex items-center justify-center z-20">
-          <span className="text-2xl">💚</span>
+          <span aria-hidden className="w-6 h-px bg-white/70" />
         </div>
         <motion.div
           initial={{ x: 50, opacity: 0 }}

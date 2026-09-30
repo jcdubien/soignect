@@ -102,7 +102,11 @@ export default async function MatchPage({ params, searchParams }: Props) {
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center justify-center gap-4 mb-5">
           <Avatar name={myProfile.name} photoUrl={myProfile.photoUrl} />
-          <span className="text-2xl">💚</span>
+          {/* Un trait, pas un cœur (section 273). Le cœur vert entre deux photos est le signe
+              visuel d'une application de rencontre — reproche déjà formulé par un utilisateur
+              réel. Le trait garde ce qu'il fallait garder : lire les deux portraits comme une
+              PAIRE. Pas de flèche : elle donnerait une direction à une relation mutuelle. */}
+          <span aria-hidden className="w-6 h-px bg-gray-300 shrink-0" />
           <Avatar name={theirProfile.name} photoUrl={theirProfile.photoUrl} />
         </div>
 
