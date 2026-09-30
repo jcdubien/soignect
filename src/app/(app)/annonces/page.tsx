@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { hasPremiumAccess, isFreeAccessMode } from "@/lib/platform";
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
 import AnnoncesClient from "./AnnoncesClient";
+import { suggestionAssistanat } from "@/lib/suggestionAssistanat";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,11 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
 
   // Mode lancement gratuit : masque toute communication « gratuit → payant » (section 2).
   const freeAccessMode = await isFreeAccessMode();
+
+  // Suggestion « poste long terme » (section 272) — calculée ICI et plus sur /compte : le geste
+  // qui la déclenche se fait dans le fil, et c'est là qu'elle doit apparaître. Renvoie null si
+  // le profil n'est pas concerné, si le seuil n'est pas atteint, ou si elle a été écartée.
+  const signalLongTerme = profileId ? await suggestionAssistanat(profileId) : null;
 
   let titulaireMissions: TitulaireMission[] = [];
 
@@ -70,6 +76,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
       disponibiliteId={disponibiliteId}
       cardMissionId={cardMissionId}
       isAdmin={isAdmin}
+      signalLongTerme={signalLongTerme}
     />
   );
 }

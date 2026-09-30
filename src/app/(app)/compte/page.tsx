@@ -3,8 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CompteForm from "./CompteForm";
-import SuggestionAssistanat from "@/components/compte/SuggestionAssistanat";
-import { suggestionAssistanat } from "@/lib/suggestionAssistanat";
 
 export const dynamic = "force-dynamic";
 
@@ -103,20 +101,12 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
     ];
   }
 
-  // Suggestion « poste long terme » (section 191) — null si le profil n'est pas concerné,
-  // si le signal n'est pas atteint, ou si l'utilisateur l'a déjà écartée.
-  const signalLongTerme = await suggestionAssistanat(profileId);
+  // La suggestion « poste long terme » a QUITTÉ cet écran (section 272) : elle vit désormais
+  // dans le fil, là où se fait le geste qui la déclenche. Mesuré ici : 9 remplaçants concernés,
+  // 0 écartement, 0 publication — la page compte s'ouvre trop rarement pour la porter.
 
   return (
     <>
-      {signalLongTerme && (
-        <div className="mx-auto max-w-2xl px-4 pt-4">
-          <SuggestionAssistanat
-            interets={signalLongTerme.interets}
-            avecCollaboration={signalLongTerme.avecCollaboration}
-          />
-        </div>
-      )}
       {photoError && (
         <div className="mx-auto max-w-2xl px-4 pt-4">
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">

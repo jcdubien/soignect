@@ -11,11 +11,14 @@ import MissionDetailSheet, { DetailMission, MissionRelation } from "@/components
 import { TitulaireMission } from "@/components/swipe/MissionSelector";
 import InteressesSansRecherche from "@/components/swipe/InteressesSansRecherche";
 import PartageApresPublication from "@/components/share/PartageApresPublication";
+import SuggestionLongTerme from "@/components/swipe/SuggestionLongTerme";
 
 interface Props {
   profileType: string;
   profileId: string;
   isPremium?: boolean;
+  /** Suggestion « poste long terme » (section 272), null si non concerné. */
+  signalLongTerme?: { interets: number; avecCollaboration: boolean } | null;
   freeAccessMode?: boolean;
   titulaireMissions: TitulaireMission[];
   initialMissionId?: string;
@@ -24,7 +27,7 @@ interface Props {
   isAdmin?: boolean;
 }
 
-export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId, cardMissionId, isAdmin }: Props) {
+export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId, cardMissionId, isAdmin, signalLongTerme }: Props) {
   const [trayKey, setTrayKey] = useState(0);
   // Rechargement du feed après annulation d'un choix (section 218).
   const [feedKey, setFeedKey] = useState(0);
@@ -174,6 +177,15 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
               a aucune. */}
           {profileType === "TITULAIRE" && initialMissionId && (
             <InteressesSansRecherche missionId={initialMissionId} />
+          )}
+          {/* Suggestion « poste long terme » (section 272) — au-dessus du carrousel, dans l'écran
+              où se fait le geste qui la déclenche. Elle vivait sur /compte, où la mesure a montré
+              qu'elle n'était très probablement jamais vue. */}
+          {signalLongTerme && (
+            <SuggestionLongTerme
+              interets={signalLongTerme.interets}
+              avecCollaboration={signalLongTerme.avecCollaboration}
+            />
           )}
           <SwipeStack
             onSwipeRight={() => setTrayKey(k => k + 1)}
