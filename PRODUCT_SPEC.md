@@ -7347,6 +7347,91 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 276 — METTRE FIN À UNE OCCUPATION SANS SUPPRIMER LE POSTE (01/10)
+
+Signalé le 30/09 sur le poste JP, tenu par Camille du 19/10/26 au 18/04/27 : aucune action ne
+permettait de dire « cette personne n'occupe plus ce poste » en gardant le poste ouvert.
+
+#### L'impasse, chiffrée
+
+```
+occupations sur un poste                                    11
+   sans aucun match                                         10   ← DELETE les refuse
+   bornées (date de fin) → préavis NON proposé               8
+```
+
+`DELETE /api/missions/[id]` refusait toute brique `CONFIRME` en renvoyant vers « Annuler la mise
+en relation ». Or une occupation déclarée via « Occupation externe (hors Soignect) » **n'a aucun
+match** : le produit renvoyait **10 occupations sur 11** vers une action qui, pour elles, n'existe
+nulle part. Il ne restait qu'à raccourcir les dates en silence, ou supprimer la ligne entière.
+
+#### Le mécanisme existait, pas la porte
+
+`departureDate` — « date de départ prévue » — est **déjà** la fin effective partout : la brique
+(`departureDate ?? endDate ?? RANGE_END`), le calcul des trous, les sous-lignes. Seul le bouton
+manquait : « Indiquer une date de départ » n'apparaissait que sur une occupation **sans** date de
+fin.
+
+**Un seul geste, pas deux.** Un départ est une date ; le préavis n'est que la même chose annoncée
+à l'avance — une date future laisse la couverture courir jusque-là, aujourd'hui y met fin tout de
+suite. Deux boutons écrivant la même colonne auraient fini par diverger. Le bouton est donc
+**remplacé**, pas doublé, et ouvert à toute occupation.
+
+#### La contrainte qui commande tout
+
+`briqueStatus` reste **intact**. « Le contrat est-il signé ? » n'a pas de colonne : il se dérive de
+`briqueStatus === CONFIRME` (`lib/matchEtat`). Toucher au statut pour dire « elle est partie »
+ferait mentir le contrat.
+
+Et la période libérée ne demande rien : un trou n'est aucun objet en base, c'est un intervalle
+calculé entre deux briques. Poser la date suffit — la zone « non couvert » et son alerte
+reviennent seules.
+
+#### La bifurcation
+
+| l'occupation porte… | ce que fait le produit |
+|---|---|
+| **aucun match** | met fin ici — rien à annuler, personne à prévenir |
+| **un match vivant** | refuse, et nomme « Annuler la mise en relation » |
+
+#### Deux bogues corrigés dans la même foulée
+
+**1. Le refus de `DELETE` ne désignait pas le bon chemin.** Il reste — supprimer effacerait qui a
+tenu le poste — mais distingue désormais les deux cas et nomme l'action qui existe vraiment.
+
+**2. « Fermer temporairement » cassait le contrat signé dérivé.** Il posait `briqueStatus = FERME`,
+« Rouvrir » réécrivait `CONFIRME`. Sur une occupation **appariée**, fermer faisait donc basculer le
+contrat signé à **faux**, puis à vrai au retour — sur un document opposable. Le serveur refuse
+maintenant tout changement de statut ou de date de départ sur une période engagée ; l'écran ne
+propose plus ces gestes.
+
+La liste des statuts de match vivants est **exportée** depuis `feedFilters` plutôt que réécrite :
+« cette mission est-elle engagée ? » se pose désormais à deux endroits.
+
+#### Vérifié à l'écran
+
+Couple de test jetable reproduisant exactement le cas JP/Camille — occupation bornée, `CONFIRME`,
+sans match.
+
+```
+bouton présent là où rien n'existait            ✓
+date du jour par défaut                         2026-10-01
+confirmation nommant le départ et le poste      « …ne tiendra plus ce poste à partir du 1 oct. 26 »
+                                                « Le poste, lui, reste ouvert. »
+après confirmation : departureDate              2026-10-01
+                     briqueStatus               CONFIRME — intact
+                     poste                      vivant
+                     alerte                     « non couvert dès aujourd'hui »
+```
+
+Puis la même occupation **engagée** dans un match : bouton remplacé par la mention, « Fermer
+temporairement » retiré, et les trois routes refusant en 409 avec le bon message. Enfin, le
+message de suppression sur une occupation sans match : *« Utilisez Mettre fin à cette occupation
+— le poste reste ouvert. »*
+
+Données de test supprimées ; **l'occupation réelle de Camille vérifiée inchangée** (19/10/26 →
+18/04/27, aucune date de départ, `CONFIRME`).
+
 ### SECTION 275 — UNE ANNULATION N'EST PAS UNE PANNE, ET UNE CORRECTION DE MON PROPRE RAPPORT (01/10)
 
 #### D'abord, ce que la section 274 affirmait à tort
