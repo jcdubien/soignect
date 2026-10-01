@@ -638,9 +638,33 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   useEffect(() => { onEmptyChange?.(noCards); }, [noCards, onEmptyChange]);
 
   // ── Fetch feed ──────────────────────────────────────────────────────────────
+  // Requête en vol, pour pouvoir l'annuler quand une plus récente la remplace (section 275).
+  const controllerRef = useRef<AbortController | null>(null);
+  // Au démontage : la réponse n'intéresse plus personne, et la laisser arriver déclencherait
+  // des mises à jour d'état sur un composant disparu.
+  useEffect(() => () => controllerRef.current?.abort(), []);
+
   const fetchFeed = useCallback(async (currentMissionId?: string | null) => {
+    // ── UNE ANNULATION N'EST PAS UNE PANNE (section 275) ──────────────────────────────────
+    //
+    // Le `catch` traitait tout `AbortError` comme un échec et peignait « Impossible de charger
+    // les annonces · vérifiez votre connexion ». Tant que le SEUL abandon possible venait du
+    // délai de 12 s, c'était juste. Ça cesse de l'être dès qu'on annule aussi les requêtes
+    // REMPLACÉES — et il fallait les annuler : six appelants relancent `fetchFeed` (montage,
+    // changement d'annonce active, rechargement parent, réassort, bouton Réessayer), sans que
+    // rien n'arrête la précédente. Deux réponses se disputaient alors `missions`, `loading` et
+    // `feedError`, la plus lente écrasant la plus récente.
+    //
+    // `parDelai` est le seul discriminant fiable : il n'est posé que par le minuteur. Un abandon
+    // sans lui vient forcément d'un remplacement ou d'un démontage — personne n'attend plus
+    // cette réponse, et afficher une erreur reviendrait à accuser le réseau d'un geste du
+    // produit. Le délai réellement dépassé, lui, continue d'afficher l'erreur.
+    controllerRef.current?.abort();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    controllerRef.current = controller;
+    let parDelai = false;
+    let remplacee = false;
+    const timeout = setTimeout(() => { parDelai = true; controller.abort(); }, 12000);
     try {
       const missionParam = (isTitulaire && currentMissionId)
         ? `&targetMissionId=${encodeURIComponent(currentMissionId)}`
@@ -685,15 +709,20 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
         return [...prev, ...(data as MissionWithProfile[]).filter(m => !seen.has(m.id))];
       });
     } catch (e) {
-      if ((e as Error).name === "AbortError") {
-        console.error("[SwipeStack] feed timeout après 12s");
-      } else {
-        console.error("[SwipeStack]", e);
+      const abandon = (e as Error).name === "AbortError";
+      if (abandon && !parDelai) {
+        // Remplacée ou démontée : plus personne n'attend ce résultat. On se tait, et on laisse
+        // la requête qui prend la suite gouverner `loading` — sans quoi l'écran clignoterait
+        // sur un état vide entre les deux.
+        remplacee = true;
+        return;
       }
+      if (abandon) console.error("[SwipeStack] feed timeout après 12s");
+      else console.error("[SwipeStack]", e);
       setFeedError(true);
     } finally {
       clearTimeout(timeout);
-      setLoading(false);
+      if (!remplacee) setLoading(false);
     }
   }, [isTitulaire]);
 
