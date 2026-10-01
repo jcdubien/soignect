@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ACTIVE_MATCH_STATUSES } from "@/lib/feedFilters";
 import { z } from "zod";
 import { BriqueStatus, MissionType, SuiviStatut, ZonageType, ZoneGeographique } from "@prisma/client";
 import { logMatchCancelled } from "@/lib/trace";
@@ -93,6 +94,40 @@ export async function PATCH(
 
   const { briqueStatus, statusNote, statusUpdatedAt, suiviStatut, startDate, endDate, departureDate, ...rest } = parsed.data;
 
+  // ── CE QUI APPARTIENT À LA MISE EN RELATION NE SE RÈGLE PAS ICI (section 276) ───────────
+  //
+  // Deux gestes du Planning écrivaient à la main sur une période ENGAGÉE :
+  //
+  //   · « Fermer temporairement » posait `briqueStatus = FERME`, et « Rouvrir » réécrivait
+  //     CONFIRME. Or « le contrat est-il signé ? » n'a PAS de colonne : il se dérive de
+  //     `briqueStatus === CONFIRME` (lib/matchEtat). Fermer une occupation appariée faisait donc
+  //     basculer le contrat signé à FAUX, puis à vrai au retour — sur un document opposable.
+  //   · « Mettre fin à cette occupation » écrit `departureDate`. Sur une occupation appariée,
+  //     avancer la fin sans prévenir l'autre partie la laisserait découvrir son congé sur un
+  //     écran.
+  //
+  // Les deux relèvent de l'annulation de mise en relation, qui annule le contrat, prévient
+  // l'autre partie et resynchronise le poste. On refuse, en nommant le chemin.
+  if (briqueStatus !== undefined || departureDate !== undefined) {
+    const engagee = await prisma.match.findFirst({
+      where: {
+        OR: [{ missionAId: id }, { missionBId: id }],
+        status: { in: ACTIVE_MATCH_STATUSES },
+      },
+      select: { id: true },
+    });
+    if (engagee) {
+      return NextResponse.json(
+        {
+          error:
+            "Cette période est engagée dans une mise en relation. Utilisez « Annuler la mise en " +
+            "relation » : le contrat sera annulé et l'autre partie prévenue.",
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   // Le zonage ARS (section 201) est DÉRIVÉ de la commune — il n'est pas saisi. Il n'était
   // calculé qu'à la CRÉATION : changer la commune d'une annonce laissait l'ancien classement
   // en place. Constaté en production le 12/08 sur une annonce du Gosier portée en
@@ -166,11 +201,27 @@ export async function DELETE(
     return NextResponse.json({ error: "Interdit" }, { status: 403 });
   }
 
-  // Une période liée à un match CONFIRMÉ (contrat signé) ne se supprime pas ici : passer par
-  // l'annulation de match dédiée (section 145/149) qui notifie l'autre partie et resync le poste.
-  if (mission.briqueStatus === "CONFIRME") {
+  // ── LE REFUS NE DÉSIGNAIT PAS LE BON CHEMIN (section 276) ────────────────────────────────
+  //
+  // Il portait sur `briqueStatus === "CONFIRME"` et renvoyait TOUT LE MONDE vers « Annuler la
+  // mise en relation ». Or une occupation déclarée à la main — « Occupation externe (hors
+  // Soignect) » — est CONFIRME et n'a AUCUN match : mesuré le 01/10, **10 occupations sur 11**
+  // étaient dans ce cas. Le produit renvoyait donc vers une action qui, pour elles, n'existe
+  // nulle part. Il ne restait qu'à supprimer le poste entier.
+  //
+  // Le refus reste — supprimer une occupation effacerait qui a tenu le poste. Mais il nomme
+  // désormais le chemin qui existe VRAIMENT pour chaque cas.
+  if (["CONFIRME", "OCCUPE", "PREAVIS"].includes(mission.briqueStatus)) {
+    const engagee = await prisma.match.findFirst({
+      where: { OR: [{ missionAId: id }, { missionBId: id }], status: { in: ACTIVE_MATCH_STATUSES } },
+      select: { id: true },
+    });
     return NextResponse.json(
-      { error: "Cette période est liée à un contrat confirmé. Utilisez « Annuler la mise en relation » pour l'annuler." },
+      {
+        error: engagee
+          ? "Cette période est liée à une mise en relation. Utilisez « Annuler la mise en relation » pour l'annuler."
+          : "Cette période est une occupation. Utilisez « Mettre fin à cette occupation » pour la clore — le poste reste ouvert.",
+      },
       { status: 409 }
     );
   }

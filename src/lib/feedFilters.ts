@@ -36,7 +36,10 @@ export const EST_UNE_OFFRE = {
 // tiers swipent un poste déjà pourvu. Un match REFUSÉ/EXPIRÉ ne masque pas (poste redevenu
 // disponible ; un match annulé supprime carrément la ligne → réapparaît aussi).
 // Filtre via les relations Mission.matchesA / matchesB.
-const ACTIVE_MATCH_STATUSES = [MatchStatus.EN_ATTENTE, MatchStatus.DISCUSSION, MatchStatus.CONFIRME];
+// Exportée (section 276) : « cette mission est-elle engagée ? » se pose aussi hors du fil —
+// la route de mission s'en sert pour refuser les gestes qui appartiennent à la mise en relation.
+// Une seconde liste écrite à la main aurait fini par diverger de celle-ci.
+export const ACTIVE_MATCH_STATUSES = [MatchStatus.EN_ATTENTE, MatchStatus.DISCUSSION, MatchStatus.CONFIRME];
 
 export const NO_ACTIVE_MATCH_FILTER = {
   matchesA: { none: { status: { in: ACTIVE_MATCH_STATUSES } } },

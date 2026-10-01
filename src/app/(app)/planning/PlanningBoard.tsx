@@ -864,21 +864,45 @@ function PostMenu({
     onDone();
   }
 
-  // ── Date de départ prévue (section 6) — un seul champ, vide par défaut, pas de durée.
-  // Déclencheur silencieux : à cette date, la couverture s'arrête → Recrutement (si annonce)
-  // ou Non couvert (sinon). Avant, le poste reste affiché Confirmé.
+  // ── METTRE FIN À UNE OCCUPATION (sections 6 et 276) ─────────────────────────────────────
+  //
+  // Un seul geste, un seul champ : `departureDate`. Il était déjà écrit par « Indiquer une date
+  // de départ », mais ce bouton n'apparaissait QUE sur une occupation sans date de fin — mesuré
+  // le 01/10, 8 occupations sur 11 en ont une, donc n'avaient aucune sortie. Il ne restait qu'à
+  // raccourcir les dates en silence, ou supprimer la ligne entière.
+  //
+  // UN DÉPART EST UNE DATE. Le préavis n'est que la même chose annoncée à l'avance : une date
+  // future laisse la couverture courir jusque-là, aujourd'hui y met fin tout de suite. Deux
+  // boutons écrivant la même colonne auraient fini par diverger.
+  //
+  // `briqueStatus` reste INTACT, et c'est la contrainte qui commande tout : « le contrat est-il
+  // signé ? » n'a pas de colonne, il se dérive de `briqueStatus === CONFIRME` (lib/matchEtat).
+  // Toucher au statut pour dire « elle est partie » ferait mentir le contrat.
+  //
+  // Par défaut aujourd'hui : on met fin à ce qui a lieu, on ne planifie pas.
   const [departureDate, setDepartureDate] = useState(
-    toDate(mission?.departureDate)?.toISOString().slice(0, 10) ?? ""
+    toDate(mission?.departureDate)?.toISOString().slice(0, 10) ?? new Date().toISOString().slice(0, 10)
   );
+  const [finErreur, setFinErreur] = useState<string | null>(null);
 
-  async function submitPreavis() {
+  const estOccupation = !!mission && ["CONFIRME", "OCCUPE", "PREAVIS"].includes(mission.briqueStatus);
+  const estEngagee = !!mission && ((mission.matchesA?.length ?? 0) + (mission.matchesB?.length ?? 0)) > 0;
+
+  async function submitFinOccupation() {
     if (!mission || busy) return;
     setBusy(true);
-    await fetch(`/api/missions/${mission.id}`, {
+    setFinErreur(null);
+    const res = await fetch(`/api/missions/${mission.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ departureDate: departureDate ? new Date(departureDate).toISOString() : null }),
     });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setFinErreur(typeof d?.error === "string" ? d.error : "La fin d'occupation n'a pas pu être enregistrée.");
+      setBusy(false);
+      return;
+    }
     onDone();
   }
 
@@ -988,18 +1012,29 @@ function PostMenu({
             <Button variant="outlined" onClick={() => setStep("presence")} className="w-full !py-2.5">
               {mission ? "Occupation externe (hors Soignect)" : "Définir l'occupation (hors Soignect)"}
             </Button>
-            {/* Date de départ prévue (section 6) — si occupation en durée indéterminée */}
-            {isIndeterminate && (
+            {/* Mettre fin à l'occupation (section 276) — offert sur TOUTE occupation, bornée ou
+                non. Masqué quand la période est engagée : ce geste-là appartient alors à la mise
+                en relation, qui annule le contrat et prévient l'autre partie. */}
+            {estOccupation && !estEngagee && (
               <Button
                 variant="outlined"
                 onClick={() => setStep("preavis")}
                 className="w-full !py-2.5 !border-[var(--ambre)] !text-[#8a5a00] hover:!bg-amber-50"
               >
-                Indiquer une date de départ
+                Mettre fin à cette occupation
               </Button>
             )}
-            {/* [5] Fermer temporairement — marque la période FERME (réversible) */}
-            {mission && (
+            {estOccupation && estEngagee && (
+              <p className="text-[11px] leading-snug text-gray-500 bg-gray-50 rounded-lg px-2.5 py-2">
+                Cette période est engagée dans une mise en relation : pour y mettre fin, passez par
+                « Annuler la mise en relation » — le contrat sera annulé et l&apos;autre partie prévenue.
+              </p>
+            )}
+            {/* [5] Fermer temporairement — marque la période FERME (réversible). Retiré sur une
+                période ENGAGÉE (section 276) : il écrivait FERME sur le statut, et le « contrat
+                signé » se dérivant de ce même statut, fermer faisait basculer un contrat signé à
+                faux. Le serveur refuse désormais ; l'écran ne le propose plus. */}
+            {mission && !estEngagee && (
               <Button variant="outlined" onClick={submitFermer} disabled={busy} className="w-full !py-2.5">
                 {isFerme ? "Rouvrir cette période" : "Fermer temporairement"}
               </Button>
@@ -1227,24 +1262,45 @@ function PostMenu({
           </div>
         )}
 
-        {/* ── Étape préavis ── */}
+        {/* ── Étape « mettre fin à cette occupation » (section 276) ── */}
         {step === "preavis" && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-gray-600">
-              Indiquez la date de départ prévue de la personne en poste. À cette date, le poste
-              basculera automatiquement en recrutement (ou non couvert si aucune annonce).
-            </p>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Date de départ prévue</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Date de départ</label>
               <input
                 type="date" value={departureDate} onChange={e => setDepartureDate(e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
               />
             </div>
+
+            {/* LA CONFIRMATION NOMME CE QUI SE PASSE, et notamment ce qui NE se passe pas : le
+                poste reste ouvert. C'est tout l'objet de l'action — jusqu'ici, la seule sortie
+                connue était de supprimer la ligne entière. */}
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
+              <p className="text-[11px] leading-snug text-amber-900">
+                {departureDate ? (
+                  <>
+                    <strong>{mission?.matchedName || mission?.title}</strong> ne tiendra plus ce poste
+                    à partir du <strong>{fmtDate(departureDate)}</strong>. La période suivante
+                    redeviendra non couverte, prête pour une annonce ou une autre occupation.
+                    <span className="block mt-1">Le poste, lui, reste ouvert.</span>
+                  </>
+                ) : (
+                  <>La date de départ sera retirée : l&apos;occupation redeviendra sans terme connu.</>
+                )}
+              </p>
+            </div>
+
+            {finErreur && (
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 leading-snug">{finErreur}</p>
+            )}
+
             <div className="flex gap-2 pt-1">
-              <Button variant="outlined" onClick={() => setStep("menu")} className="flex-1 !py-2.5">Retour</Button>
-              <Button onClick={submitPreavis} disabled={busy} className="flex-1 !py-2.5">
-                {busy ? "…" : departureDate ? "Enregistrer la date" : "Retirer la date"}
+              <Button variant="outlined" onClick={() => { setFinErreur(null); setStep("menu"); }} className="flex-1 !py-2.5">
+                Retour
+              </Button>
+              <Button onClick={submitFinOccupation} disabled={busy} className="flex-1 !py-2.5">
+                {busy ? "…" : departureDate ? "Confirmer le départ" : "Retirer la date"}
               </Button>
             </div>
           </div>
