@@ -7347,6 +7347,60 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 275 — UNE ANNULATION N'EST PAS UNE PANNE, ET UNE CORRECTION DE MON PROPRE RAPPORT (01/10)
+
+#### D'abord, ce que la section 274 affirmait à tort
+
+Elle disait que « Impossible de charger les annonces », vu cinq fois, était un **faux** message
+causé par une annulation prise pour une panne. **C'était une déduction, pas une observation** : le
+message de console correspondant n'a jamais été lu.
+
+La preuve pointe ailleurs. Le journal de développement montre `○ Compiling /api/feed ...` **avant**
+la requête, et le « 200 in Xms » ne compte **que l'exécution du gestionnaire**, pas la compilation
+à la demande :
+
+```
+○ Compiling /api/feed ...
+GET /api/feed?limit=20 200 in 6802ms
+```
+
+Compilation **plus** traitement peuvent donc réellement dépasser les 12 s du client. Les erreurs
+observées étaient très probablement de **vrais délais dépassés**, en développement.
+
+#### Le défaut réel, lui, existe bien
+
+`catch` posait `setFeedError(true)` pour **toute** erreur, `AbortError` compris. Mais — vérifié —
+le seul `controller.abort()` du fichier était celui du minuteur, et **aucun effet ne nettoyait la
+requête en vol**. Distinguer l'annulation du délai aurait donc été du code mort.
+
+**On annule donc aussi**, et c'était le vrai manque. Six appelants relancent `fetchFeed` — montage,
+changement d'annonce active, rechargement parent, réassort sous 4 cartes, bouton Réessayer — sans
+que rien n'arrête la précédente. Deux réponses se disputaient `missions`, `loading` et `feedError`,
+la plus lente écrasant la plus récente.
+
+| origine de l'abandon | `parDelai` | écran |
+|---|---|---|
+| minuteur de 12 s | **vrai** | erreur affichée |
+| requête remplacée | faux | silence, `loading` laissé à la suivante |
+| démontage | faux | silence |
+
+`parDelai` n'est posé **que** dans le callback du minuteur : un délai réellement dépassé continue
+donc d'afficher l'erreur. Un abandon sans ce drapeau vient forcément du produit lui-même —
+accuser le réseau d'un geste qu'on a soi-même déclenché serait un mensonge.
+
+Le silence s'étend à `loading`, laissé à la requête qui prend la suite : sans cela l'écran
+clignoterait sur un état vide entre les deux.
+
+#### Ce qui n'a pas pu être vérifié
+
+Les deux branches d'abandon n'ont **pas** été exercées à l'écran. Le carrousel ne répond qu'à de
+vrais gestes de pointeur — les clics synthétiques ne déclenchent ni swipe ni réassort — et les
+autres déclencheurs de rechargement sont trop étroits pour être pilotés depuis le harnais.
+
+Vérifié en revanche : l'écran **charge normalement** après le changement, aucune régression sur le
+chemin nominal. Et le discriminant est lisible statiquement — une seule affectation, dans le seul
+callback du minuteur.
+
 ### SECTION 274 — LES DEUX DERNIERS CŒURS, ET UN FAUX MESSAGE D'ERREUR TROUVÉ EN CHEMIN (30/09)
 
 La section 273 avait traité le motif « cœur entre deux photos » et laissé deux occurrences hors de
