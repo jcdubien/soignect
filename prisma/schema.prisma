@@ -49,12 +49,29 @@ enum ZonageType {
   TRES_SOUS_DOTEE  // Zone 1 ARS — désert médical
 }
 
+// Une valeur = UN MARCHÉ, pas un diplôme (section 277). Un généraliste et un ophtalmologue ne se
+// remplacent pas : les séparer ici est ce qui empêche le fil de les mélanger. Ils relèvent en
+// revanche du MÊME ordre et du MÊME contrat — cette part-là se DÉRIVE dans lib/professions.ts
+// plutôt que de se recopier dix fois.
+//
+// `MEDECIN` a été retiré, pas conservé « au cas où » : à côté de dix valeurs qui nomment un
+// marché, elle aurait désigné « un médecin, on ne sait pas lequel » — et une valeur ambiguë
+// survit toujours à la migration censée la remplacer.
 enum Profession {
   KINESITHERAPEUTE
   INFIRMIER
   ORTHOPHONISTE
   SAGE_FEMME
-  MEDECIN
+  MEDECIN_GENERALISTE
+  MEDECIN_CARDIOLOGIE
+  MEDECIN_DERMATOLOGIE
+  MEDECIN_ENDOCRINOLOGIE
+  MEDECIN_GYNECOLOGIE
+  MEDECIN_OPHTALMOLOGIE
+  MEDECIN_ORL
+  MEDECIN_PEDIATRIE
+  MEDECIN_PSYCHIATRIE
+  MEDECIN_RHUMATOLOGIE
 }
 
 enum Region {

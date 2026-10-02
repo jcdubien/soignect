@@ -1,5 +1,38 @@
 import type { Profession } from "@prisma/client";
 
+// ── LES DIX MARCHÉS MÉDICAUX (section 277) ───────────────────────────────────────────────────
+//
+// Un généraliste et un ophtalmologue ne se remplacent pas : ce sont deux marchés, donc deux
+// valeurs d'enum. Mais ils relèvent du MÊME ordre, du MÊME régime juridique et, le jour venu, du
+// MÊME contrat de remplacement.
+//
+// Ce qui leur est PROPRE s'écrit (le libellé du marché) ; ce qui leur est COMMUN se DÉRIVE.
+// Écrire « l'Ordre des médecins » dix fois aurait été la recopie que ce dépôt a déjà payée
+// quatre fois — et il aurait suffi d'en corriger neuf pour que la dixième mente.
+export const MEDECINS = [
+  "MEDECIN_GENERALISTE",
+  "MEDECIN_CARDIOLOGIE",
+  "MEDECIN_DERMATOLOGIE",
+  "MEDECIN_ENDOCRINOLOGIE",
+  "MEDECIN_GYNECOLOGIE",
+  "MEDECIN_OPHTALMOLOGIE",
+  "MEDECIN_ORL",
+  "MEDECIN_PEDIATRIE",
+  "MEDECIN_PSYCHIATRIE",
+  "MEDECIN_RHUMATOLOGIE",
+] as const satisfies readonly Profession[];
+
+export type ProfessionMedecin = (typeof MEDECINS)[number];
+
+export function estMedecin(p?: string | null): boolean {
+  return (MEDECINS as readonly string[]).includes(p ?? "");
+}
+
+/** La même valeur pour les dix marchés médicaux — une seule écriture, dix entrées. */
+function pourTousLesMedecins<T>(valeur: T): Record<ProfessionMedecin, T> {
+  return Object.fromEntries(MEDECINS.map((m) => [m, valeur])) as Record<ProfessionMedecin, T>;
+}
+
 // Libellés des professions — source unique, et surtout TYPÉE (section 196).
 //
 // Deux correspondances existaient, dont une fausse. Celle du contrat était déclarée
@@ -18,7 +51,17 @@ export const PROFESSION_LABELS: Record<Profession, string> = {
   INFIRMIER:        "Infirmier·ère",
   ORTHOPHONISTE:    "Orthophoniste",
   SAGE_FEMME:       "Sage-femme",
-  MEDECIN:          "Médecin",
+  // Le libellé du MARCHÉ : c'est lui qui distingue, donc il s'écrit.
+  MEDECIN_GENERALISTE:    "Médecin généraliste",
+  MEDECIN_CARDIOLOGIE:    "Cardiologue",
+  MEDECIN_DERMATOLOGIE:   "Dermatologue",
+  MEDECIN_ENDOCRINOLOGIE: "Endocrinologue",
+  MEDECIN_GYNECOLOGIE:    "Gynécologue médical·e",
+  MEDECIN_OPHTALMOLOGIE:  "Ophtalmologue",
+  MEDECIN_ORL:            "ORL",
+  MEDECIN_PEDIATRIE:      "Pédiatre",
+  MEDECIN_PSYCHIATRIE:    "Psychiatre",
+  MEDECIN_RHUMATOLOGIE:   "Rhumatologue",
 };
 
 // Dénomination LÉGALE, pour les documents contractuels. Elle diffère volontairement de l'usage
@@ -30,7 +73,19 @@ export const PROFESSION_LABELS_CONTRAT: Record<Profession, string> = {
   INFIRMIER:        "Infirmier diplômé d'État",
   ORTHOPHONISTE:    "Orthophoniste",
   SAGE_FEMME:       "Sage-femme",
-  MEDECIN:          "Médecin",
+  // NON VÉRIFIÉ AUPRÈS DU CNOM : aucun gabarit médecin n'est transcrit, donc aucune de ces
+  // valeurs n'est imprimée nulle part aujourd'hui. Forme descriptive, à confronter au modèle
+  // de l'Ordre le jour où le premier contrat médecin sera écrit.
+  MEDECIN_GENERALISTE:    "Médecin généraliste",
+  MEDECIN_CARDIOLOGIE:    "Médecin spécialiste en cardiologie",
+  MEDECIN_DERMATOLOGIE:   "Médecin spécialiste en dermatologie",
+  MEDECIN_ENDOCRINOLOGIE: "Médecin spécialiste en endocrinologie",
+  MEDECIN_GYNECOLOGIE:    "Médecin spécialiste en gynécologie médicale",
+  MEDECIN_OPHTALMOLOGIE:  "Médecin spécialiste en ophtalmologie",
+  MEDECIN_ORL:            "Médecin spécialiste en oto-rhino-laryngologie",
+  MEDECIN_PEDIATRIE:      "Médecin spécialiste en pédiatrie",
+  MEDECIN_PSYCHIATRIE:    "Médecin spécialiste en psychiatrie",
+  MEDECIN_RHUMATOLOGIE:   "Médecin spécialiste en rhumatologie",
 };
 
 // Intitulé du NUMÉRO D'INSCRIPTION À L'ORDRE, qui change de nom d'une profession à l'autre.
@@ -46,7 +101,8 @@ export const LIBELLE_NUMERO_ORDRE: Record<Profession, string> = {
   INFIRMIER:        "N° ordinal",    // vocabulaire du CNOI, relevé sur ses modèles de contrat
   ORTHOPHONISTE:    "N° Ordre",
   SAGE_FEMME:       "N° Ordre",
-  MEDECIN:          "N° Ordre",
+  // Dérivé : un seul ordre pour les dix marchés, donc un seul vocabulaire.
+  ...pourTousLesMedecins("N° Ordre"),
 };
 
 export function libelleNumeroOrdre(p?: string | null): string {
@@ -66,7 +122,8 @@ export const LIBELLE_ORDRE: Record<Profession, string> = {
   INFIRMIER:        "l'Ordre des infirmiers",
   ORTHOPHONISTE:    "votre ordre professionnel",  // pas de gabarit à ce jour
   SAGE_FEMME:       "l'Ordre des sages-femmes",
-  MEDECIN:          "l'Ordre des médecins",
+  // Dérivé : c'est exactement ce que la scission ne doit PAS recopier dix fois.
+  ...pourTousLesMedecins("l'Ordre des médecins"),
 };
 
 export function libelleOrdre(p?: string | null): string {
@@ -87,7 +144,9 @@ export const ARTICLE_NON_INSTALLATION: Record<Profession, string | null> = {
   INFIRMIER:        "R.4312-87",    // relevé sur le modèle CNOI transcrit
   ORTHOPHONISTE:    null,
   SAGE_FEMME:       null,
-  MEDECIN:          null,
+  // Dérivé à `null`, et c'est la règle du fichier : pas de gabarit médecin transcrit, donc
+  // aucune référence vérifiée. Inventer un numéro d'article serait le défaut qu'on corrige ici.
+  ...pourTousLesMedecins(null),
 };
 
 export function articleNonInstallation(p?: string | null): string | null {
