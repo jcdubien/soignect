@@ -1,14 +1,31 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendConversationReminderEmail } from "@/lib/email";
+import { traiterMatchsDormants } from "@/lib/matchsDormants";
 
 export const dynamic = "force-dynamic";
 
 const REMINDER_AFTER_MS = 24 * 60 * 60 * 1000; // 24h
 
-// GET /api/cron/message-reminders — job horaire (Vercel Cron). Scanne les conversations
+// GET /api/cron/message-reminders — job quotidien (Vercel Cron, 9h00). Scanne les conversations
 // dont le dernier message est resté sans réponse depuis > 24h, sans rappel déjà envoyé
 // pour ce seuil (Message.reminderSentAt). Email UNIQUEMENT au destinataire (section 9/112).
+//
+// ── DEUX TRAITEMENTS DANS UNE SEULE ROUTE, ET POURQUOI (section 279) ─────────────────────────
+//
+// L'expiration des mises en relation dormantes est greffée ici plutôt que servie par un cron
+// à elle. Ce n'est PAS un choix de commodité : le plan Vercel Hobby n'autorise que **deux**
+// entrées dans `vercel.json`, et les deux sont prises (`message-reminders` 9h00,
+// `publication-reminders` 9h15). Une troisième ne se déploierait pas — pire, le dépôt a déjà
+// payé l'apprentissage qu'une entrée de cron invalide bloque SILENCIEUSEMENT tous les builds.
+//
+// La greffe est de surcroît le bon endroit : les deux traitements partent du même objet — une
+// relation et ses messages — et se répondent exactement. Le rappel s'adresse aux conversations
+// qui ont AU MOINS un message ; l'expiration ne regarde que celles qui n'en ont AUCUN. Aucune
+// relation ne peut donc relever des deux, et aucune ne tombe entre les deux.
+//
+// Les deux blocs sont INDÉPENDANTS À L'ÉCHEC : une erreur sur l'expiration ne doit pas priver
+// les conversations de leur rappel, ni l'inverse.
 export async function GET(req: Request) {
   // Protection : si CRON_SECRET est défini, exiger le header Authorization (Vercel Cron)
   // ou un paramètre ?key=.
@@ -20,6 +37,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Interdit" }, { status: 401 });
     }
   }
+
+  // `?simulation=1` — compte ce qui SERAIT fait sans rien écrire ni envoyer. Le balayage des
+  // dormants agit sur des relations réelles : pouvoir le mesurer avant de le laisser agir n'est
+  // pas un confort, c'est la seule façon de vérifier le périmètre sur la vraie base.
+  // Il couvre les DEUX traitements. Une simulation qui enverrait quand même les rappels de
+  // conversation ne serait pas une simulation — et c'est précisément la route qu'on appelle
+  // pour vérifier le périmètre avant de laisser le cron agir.
+  const simulation = new URL(req.url).searchParams.get("simulation") === "1";
 
   const cutoff = new Date(Date.now() - REMINDER_AFTER_MS);
 
@@ -50,18 +75,40 @@ export async function GET(req: Request) {
     const missionTitle = m.missionA?.title ?? m.missionB?.title ?? null;
 
     if (recipient.user?.email) {
-      await sendConversationReminderEmail(recipient.user.email, {
-        partnerName: senderProfile.name,
-        missionTitle,
-        excerpt: last.content,
-        matchId: m.id,
-        optIn: recipient.user.emailOptIn,
-      });
       sent++;
+      if (!simulation) {
+        await sendConversationReminderEmail(recipient.user.email, {
+          partnerName: senderProfile.name,
+          missionTitle,
+          excerpt: last.content,
+          matchId: m.id,
+          optIn: recipient.user.emailOptIn,
+        });
+      }
     }
+    if (simulation) continue; // ne pas consommer le seuil d'un rappel qu'on n'a pas envoyé
     // Marque le seuil comme traité (évite les doublons), même si pas d'email envoyable
     await prisma.message.update({ where: { id: last.id }, data: { reminderSentAt: new Date() } });
   }
 
-  return NextResponse.json({ ok: true, scanned: matches.length, remindersSent: sent });
+  // ── Expiration des mises en relation dormantes (section 279) ──────────────────────────────
+  // Isolée : le rappel ci-dessus est déjà envoyé à ce stade, et ne doit pas être annulé par un
+  // échec ici. On rapporte l'erreur dans la réponse plutôt que de la taire.
+  let dormants;
+  let erreurDormants: string | null = null;
+  try {
+    dormants = await traiterMatchsDormants({ simulation });
+  } catch (e) {
+    erreurDormants = e instanceof Error ? e.message : String(e);
+    console.error("[cron] expiration des dormants échouée:", e);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    scanned: matches.length,
+    remindersSent: sent,
+    dormants: dormants ?? null,
+    ...(erreurDormants ? { erreurDormants } : {}),
+    ...(simulation ? { simulation: true } : {}),
+  });
 }

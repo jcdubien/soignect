@@ -7347,6 +7347,126 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 279 — UNE MISE EN RELATION PEUT ENFIN PRENDRE FIN (06/10)
+
+Question du 05/10 : « est-ce que les matchs restent indéfiniment, même sans nouvelles depuis
+plusieurs semaines ? » Oui. Et ce n'était pas qu'un encombrement de liste.
+
+#### Ce que la dormance coûtait réellement
+
+`MatchStatus.EXPIRE` existait depuis l'origine, et **rien ne le posait jamais** : aucun automate,
+et aucun écran — `MatchStatusActions` n'offre que « Confirmer » et « Décliner ». La valeur n'était
+atteignable que par un PATCH direct, dont le code de traçage `initiateur: "SYSTEME"` attendait un
+appelant qui n'a jamais existé.
+
+Or `ACTIVE_MATCH_STATUSES` compte `EN_ATTENTE` comme vivant, et `NO_ACTIVE_MATCH_FILTER` retire
+du fil de **tous** les autres utilisateurs toute annonce engagée dans une telle relation. Une
+réciprocité obtenue puis jamais suivie d'un mot gelait donc les deux annonces **indéfiniment** :
+le poste sortait du marché sans que personne ne l'occupe. Mesuré avant d'écrire : **3 annonces
+gelées** par 2 relations de 50 jours, sur un marché dont la section 268 a montré qu'il manque
+d'offre visible.
+
+#### Le périmètre, et ce qu'il épargne exprès
+
+On n'expire QUE les relations **sans un seul message**. La mesure du 21/09 est explicite : les 4
+mises en relation confirmées se sont toutes formées en **moins de 24 h**, et celles qui ont traîné
+— de 1,9 à 14,9 jours — sont restées en attente ou ont été déclinées. **Rien n'a jamais abouti
+après un long délai.**
+
+Une relation où les deux parties ont échangé puis se sont tues est un cas **différent**, et il
+n'est pas traité : décider qu'un automate peut clore une conversation réelle est un arbitrage
+produit, pas un correctif. Le périmètre épargne donc, sur la base réelle, **1 relation de 42 jours
+portant 6 messages** — exactement la ligne que le filtre existe pour ne pas franchir.
+
+`DISCUSSION` n'y est pas non plus, pour une raison plus simple : vérifié, **aucun code du dépôt ne
+pose jamais ce statut**. Toute relation vivante est `EN_ATTENTE`.
+
+#### Le préavis n'est pas une politesse, c'est la clé d'entrée
+
+On n'expire que ce qui a reçu un préavis il y a au moins 3 jours. Pas d'expiration possible sans
+avertissement émis — la condition est structurelle, pas une étape qu'un chemin pourrait sauter.
+
+Cette forme règle aussi, **sans cas particulier**, le premier passage sur l'existant : un arriéré
+de relations dormantes depuis des mois ne part pas en masse le jour de la mise en ligne. Il reçoit
+son préavis, et expire trois jours plus tard, comme toutes les suivantes.
+
+Préavis à **18 jours**, donc expiration effective à 21. Le chiffre vient de la mesure et non d'une
+intuition : le plus long délai observé sur une relation qui a fini par bouger est de 14,9 jours —
+et elle n'a pas abouti. Le seuil est posé au-delà de tout ce que la base a vu vivre. Les deux
+parties sont prévenues : elles ont dit oui toutes les deux, aucune n'a écrit, et n'en avertir
+qu'une désignerait un coupable que les données ne nomment pas.
+
+Vocabulaire : le courrier ne « relance » pas — mot proscrit, registre du recouvrement. Il annonce
+une échéance et offre de la lever d'un geste.
+
+#### Pourquoi c'est greffé dans un cron existant
+
+Le plan Vercel Hobby n'autorise que **deux** entrées dans `vercel.json`, et les deux sont prises
+(`message-reminders` 9h00, `publication-reminders` 9h15). Une troisième ne se déploierait pas —
+pire, le dépôt a déjà payé l'apprentissage qu'une entrée de cron invalide **bloque silencieusement
+tous les builds**.
+
+La greffe est de surcroît le bon endroit : les deux traitements partent du même objet et se
+répondent exactement. Le rappel s'adresse aux conversations qui ont **au moins** un message ;
+l'expiration ne regarde que celles qui n'en ont **aucun**. Aucune relation ne relève des deux,
+aucune ne tombe entre les deux. Les deux blocs sont indépendants à l'échec.
+
+#### Ce qui n'est pas détruit
+
+`EXPIRE` ne supprime rien : la ligne reste, lisible dans « Déclinées / Expirées ». Même parti pris
+que l'invitation qui reste `PENDING` plutôt que de disparaître. Et l'annonce se libère **seule** —
+`feedFilters` exclut `EXPIRE`, la mission n'a jamais quitté `RECHERCHE`. Aucune écriture
+supplémentaire, donc aucune à oublier.
+
+#### Un champ qui se contredisait lui-même
+
+`api/matches/[id]` posait `origine: "DECLINE"` pour un `EXPIRE`, tout en écrivant
+`initiateur: "SYSTEME"` sur la même ligne — un refus attribué à personne. Les confondre faisait
+compter comme refusées des relations que **personne n'a refusées**, alors que la fiabilité du
+marché se mesure précisément sur cet écart. `OrigineAnnulation` gagne `EXPIRATION`.
+
+#### Vérifié sur la base réelle
+
+Périmètre mesuré en lecture seule, puis confronté à la route : **mêmes chiffres**.
+
+```
+20 mises en relation · 4 EN_ATTENTE · 15 CONFIRME · 1 DECLINE
+périmètre (EN_ATTENTE, 0 message, ≥ 18 j)   2   (deux annonces du même couple, 50 j)
+épargnées (ont échangé, ≥ 18 j)             1   (42 j, 6 messages)
+simulation de la route                      examinees 2 · preavis 2 · expirees 0
+```
+
+Chemin complet exercé sur un **couple jetable** (match de 50 jours, 0 message, préavis antidaté de
+5 jours), par la vraie route :
+
+| | |
+|---|---|
+| statut après balayage | `EXPIRE` ✅ |
+| annonce avant / après | gelée → **proposable** ✅ |
+| trace | `MATCH_CANCELLED`, `origine: EXPIRATION`, `initiateur: SYSTEME`, `stade: EN_ATTENTE`, `joursDepuisMatch: 50` ✅ |
+| notifications | 2 (expiration seule — le préavis avait déjà été consommé) ✅ |
+
+Le balayage réel a aussi posé un préavis sur les **2 relations réelles**, ce qui était attendu :
+**supprimé immédiatement**, car aucun email n'est parti (pas de clé Resend en local) et un préavis
+tracé sans avertissement reçu aurait produit exactement l'expiration silencieuse que cette section
+existe pour empêcher. État restauré au bit près — 453 notifications avant comme après, 20 relations,
+mêmes statuts, 0 trace de préavis, 0 résidu du banc.
+
+#### Points d'exploitation
+
+- `?simulation=1` compte ce qui serait fait **sans rien écrire ni envoyer**, les deux traitements
+  compris. C'est par là qu'on vérifie un périmètre avant de laisser l'automate agir.
+- La route reste protégée par `CRON_SECRET`, configuré en production.
+- Les seuils sont deux constantes exportées (`SEUIL_DORMANCE_JOURS`, `DELAI_PREAVIS_JOURS`) : les
+  changer ne demande pas de relire la logique.
+
+#### Ce qui n'est PAS fait
+
+- **Les relations qui ont parlé puis se sont tues** ne sont pas touchées. C'est l'arbitrage laissé
+  ouvert, et il demande une décision, pas du code.
+- **Aucun écran ne permet encore d'expirer à la main** : `MatchStatusActions` n'offre toujours que
+  Confirmer / Décliner. L'automate est le seul chemin vers `EXPIRE`.
+
 ### SECTION 278 — L'INSCRIPTION DEMANDE ENFIN LA PROFESSION (05/10)
 
 Le blocage dur du 30/09, levé. `Profile.profession` existait depuis le 17/08, le feed s'en

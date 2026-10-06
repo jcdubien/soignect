@@ -250,6 +250,42 @@ export async function sendConversationReminderEmail(
   await sendEmail(to, "Un message attend votre réponse sur Soignect", html);
 }
 
+// ── d bis) Préavis d'expiration d'une mise en relation dormante (section 279) ──
+//
+// Le mot « relance » est proscrit dans ce produit : il appartient au registre du recouvrement.
+// Ce courrier ne réclame rien — il annonce une échéance et offre de la lever d'un geste.
+export async function sendPreavisExpirationEmail(
+  to: string,
+  opts: {
+    partnerName: string | null;
+    missionTitle: string | null;
+    matchId: string;
+    joursRestants: number;
+    optIn: boolean;
+  }
+): Promise<void> {
+  if (!opts.optIn) return;
+  const qui = opts.partnerName ? escapeHtml(opts.partnerName) : "un professionnel";
+  const apropos = opts.missionTitle ? ` au sujet de « ${escapeHtml(opts.missionTitle)} »` : "";
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       Vous et ${qui} vous êtes mutuellement signalé votre intérêt${apropos}, mais la
+       conversation n'a jamais commencé.
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       Sans premier message, cette mise en relation prendra fin dans
+       <strong>${opts.joursRestants} jours</strong>, et les annonces concernées seront de
+       nouveau proposées aux autres professionnels.
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0">
+       Si vous êtes toujours intéressé, un simple message suffit à la maintenir.
+     </p>`,
+    { label: "Ouvrir la conversation", path: `/match/${opts.matchId}?chat=1` }
+  );
+  await sendEmail(to, "Votre mise en relation Soignect prend fin dans 3 jours", html);
+}
+
 // ── e) Bascule vers le payant déclenchée (section 100) ─────────────────────────
 // Notice de compte importante : envoyée quel que soit l'opt-in marketing.
 export async function sendBillingTriggeredEmail(

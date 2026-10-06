@@ -42,8 +42,11 @@ export async function PATCH(
     if (status === MatchStatus.DECLINE || status === MatchStatus.EXPIRE) {
       const viewerId = session.user.profileId as string;
       const acteur = viewerId === profileAId ? match.missionA?.profile : match.missionB?.profile;
+      // L'origine suit le statut REELLEMENT posé (section 279) : elle valait « DECLINE » dans
+      // les deux cas, si bien qu'une expiration se comptait comme un refus. L'initiateur, lui,
+      // disait déjà SYSTEME — les deux champs se contredisaient sur la même ligne.
       logMatchCancelled(match, {
-        origine: "DECLINE",
+        origine: status === MatchStatus.EXPIRE ? "EXPIRATION" : "DECLINE",
         initiateur: status === MatchStatus.EXPIRE
           ? "SYSTEME"
           : acteur?.type === "TITULAIRE" ? "CABINET" : "CANDIDAT",

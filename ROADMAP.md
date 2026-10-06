@@ -102,6 +102,56 @@ depuis l'étendent concrètement.
 
 ---
 
+## ✅ Clos et vérifié — 06/10, expiration des mises en relation dormantes
+
+> Entrée rédigée par Opus à la demande de Jean-Charles, ce fichier
+> étant normalement tenu par Sonnet. Détail : PRODUCT_SPEC.md
+> section 279.
+
+**Une mise en relation pouvait rester vivante indéfiniment**, et le
+coût n'était pas l'encombrement : `EN_ATTENTE` compte comme actif dans
+`NO_ACTIVE_MATCH_FILTER`, donc une réciprocité jamais suivie d'un mot
+**gelait les deux annonces hors du fil de tout le monde**. Mesuré :
+3 annonces gelées par 2 relations de 50 jours — sur un marché dont
+l'investigation du 21/09 a montré qu'il manque d'offre visible
+(3,7 candidats visibles sur 22 par recherche cabinet).
+
+- **Le seuil vient de la mesure du 21/09, pas d'une intuition** :
+  les 4 relations confirmées se sont formées en moins de 24 h, et
+  celles qui ont traîné (1,9 à 14,9 j) n'ont jamais abouti. Préavis à
+  18 jours, expiration à 21 — au-delà de tout ce que la base a vu
+  vivre.
+- **Périmètre volontairement étroit** : uniquement les relations
+  **sans un seul message**. Celles qui ont échangé puis se sont tues
+  ne sont pas touchées — le filtre épargne ainsi, sur la base réelle,
+  une relation de 42 jours portant 6 messages.
+- **Le préavis est la condition d'entrée de l'expiration**, pas une
+  politesse à côté : on n'expire que ce qui a été prévenu il y a 3
+  jours. Effet de bord voulu — l'arriéré existant ne part pas en masse
+  le jour de la mise en ligne.
+- **Greffé dans `message-reminders`**, pas dans un cron dédié : le
+  plan Hobby n'autorise que 2 entrées et les deux sont prises. Le
+  dépôt sait déjà qu'une 3ᵉ bloque SILENCIEUSEMENT tous les builds.
+  Les deux traitements se répondent d'ailleurs exactement (au moins un
+  message / aucun message).
+- `origine: "DECLINE"` était posé pour un `EXPIRE` tout en écrivant
+  `initiateur: "SYSTEME"` — un refus attribué à personne. Des
+  relations que personne n'a refusées se comptaient comme refusées.
+
+**Vérifié sur la base réelle** : périmètre mesuré à la main, puis
+confronté à la route en simulation — mêmes chiffres. Chemin complet
+exercé sur un couple jetable (statut `EXPIRE`, annonce dégelée, trace
+correcte, notifications aux deux parties), puis état restauré au bit
+près : 453 notifications avant comme après, 20 relations, mêmes
+statuts, zéro résidu.
+
+**Arbitrages laissés ouverts** :
+- Les relations qui ont parlé puis se sont tues : faut-il les expirer
+  aussi, et à quel délai ? Décision produit, pas du code.
+- Aucun écran ne permet d'expirer à la main — `MatchStatusActions`
+  n'offre toujours que Confirmer / Décliner. L'automate est le seul
+  chemin vers `EXPIRE`.
+
 ## ✅ Clos et vérifié — 05/10, ouverture à toutes les professions
 
 > Entrée rédigée par Opus à la demande explicite de Jean-Charles

@@ -54,6 +54,10 @@ export type OrigineAnnulation =
   | "DECLINE"             // refus via le statut, sans suppression
   | "ANNONCE_SUPPRIMEE"   // l'annonce disparaît → ses mises en relation avec
   | "ABSENCE_SUPPRIMEE"   // idem pour une période d'absence publiée
+  // Dormance : personne n'a écrit, le délai a couru (section 279). DISTINCTE de `DECLINE`, qui
+  // porte un refus. Les confondre ferait compter comme des refus des relations que PERSONNE
+  // n'a refusées — et la fiabilité du marché se mesure précisément sur cet écart.
+  | "EXPIRATION"
   | "ADMIN";              // suppression par l'administration
 
 export type InitiateurAnnulation = "CABINET" | "CANDIDAT" | "ADMIN" | "SYSTEME";
