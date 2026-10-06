@@ -149,9 +149,15 @@ correcte, notifications aux deux parties), puis état restauré au bit
 près : 453 notifications avant comme après, 20 relations, mêmes
 statuts, zéro résidu.
 
-**Arbitrages laissés ouverts** :
-- Les relations qui ont parlé puis se sont tues : faut-il les expirer
-  aussi, et à quel délai ? Décision produit, pas du code.
+**Arbitrages — les deux tranchés depuis** :
+- ~~Les relations qui ont parlé puis se sont tues.~~ **Tranché le
+  06/10 (section 281)** : elles expirent aussi, à 15 jours de
+  SILENCE. Le critère n'est plus « a parlé » mais « est silencieuse »,
+  et la mesure justifie le renversement de mon propre argument : la
+  seule relation que l'ancien périmètre épargnait portait 6 messages,
+  tous dans ses deux premiers jours, et se taisait depuis 40 jours.
+  « A parlé » ne veut pas dire « est vivante ». Les `CONFIRME` restent
+  hors de portée — un accord ne se défait pas par le silence.
 - ~~Aucun écran ne permet d'expirer à la main.~~ **Tranché le 06/10
   (section 280)** : pas de bouton, et la porte qui existait côté API
   est fermée. `PATCH /api/matches/[id]` acceptait toute valeur de

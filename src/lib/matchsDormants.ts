@@ -20,22 +20,33 @@ import { sendPreavisExpirationEmail } from "@/lib/email";
 // jamais suivie d'un mot **gelait donc les deux annonces indéfiniment** : le poste disparaissait
 // du marché sans que personne ne l'occupe.
 //
-// ── POURQUOI CE PÉRIMÈTRE, ET PAS UN PLUS LARGE ──────────────────────────────────────────────
+// ── LE PÉRIMÈTRE : LE SILENCE, PAS L'ABSENCE DE CONVERSATION (élargi le 06/10) ───────────────
 //
-// On n'expire QUE les relations **sans un seul message**. La mesure du 21/09 (ROADMAP) est
-// explicite : les 4 mises en relation confirmées se sont toutes formées en moins de 24 h, et
-// celles qui ont traîné — de 1,9 à 14,9 jours — sont restées en attente ou ont été déclinées.
-// **Rien n'a jamais abouti après un long délai.** Une relation où personne n'a parlé n'est donc
-// pas « en cours » : elle est mort-née, et le produit n'a aucun autre moyen de s'en apercevoir
-// (le cron de rappel ne regarde que les conversations qui ont au moins un message).
+// La première version n'expirait QUE les relations sans un seul message, et ce module expliquait
+// longuement pourquoi une conversation réelle ne devait pas être close par un automate.
+// **Jean-Charles a tranché l'inverse**, et la mesure lui donne raison : la seule relation que
+// l'ancien périmètre épargnait portait 6 messages — tous échangés dans ses deux premiers jours —
+// et était **silencieuse depuis 40 jours**. « A parlé » ne veut pas dire « est vivante ». Ce que
+// l'ancien critère protégeait, ce n'était pas une discussion en cours, c'était son souvenir.
 //
-// Une relation où les deux parties ONT échangé puis se sont tues est un cas DIFFÉRENT, et il
-// n'est pas traité ici. Y toucher demanderait de décider qu'une conversation réelle peut être
-// close par un automate — un arbitrage produit, pas un correctif. Le laisser de côté coûte
-// quelques lignes dans une liste ; le trancher à la légère coûterait une relation vivante.
+// Le critère est donc désormais **la dernière activité**, pas le nombre de messages :
 //
-// `DISCUSSION` n'est pas non plus dans le périmètre, et pour une raison plus simple : vérifié,
-// **aucun code du dépôt ne pose jamais ce statut**. Toute relation vivante est `EN_ATTENTE`.
+//     aucun message          → on compte depuis la création du match
+//     au moins un message    → on compte depuis le DERNIER message
+//
+// Les deux tiennent dans un seul prédicat (`messages: { none: { createdAt: { gt: seuil } } }`
+// conjugué à `createdAt <= seuil`) : sans message, la clause est vraie par vacuité et c'est la
+// date de création qui décide ; avec messages, elle exige que le plus récent soit lui-même
+// au-delà du seuil. Un seul filtre, donc aucun risque que les deux cas divergent.
+//
+// Ce que la mesure du 21/09 (ROADMAP) fonde reste inchangé : les 4 mises en relation confirmées
+// se sont toutes formées en moins de 24 h, et celles qui ont traîné — 1,9 à 14,9 jours — n'ont
+// jamais abouti. **Rien n'a jamais abouti après un long délai**, qu'il y ait eu des mots ou non.
+//
+// CE QUI RESTE HORS DE PORTÉE, ET QUI COMPTE : seules les relations `EN_ATTENTE` sont examinées.
+// Une relation `CONFIRME` est un accord, et le silence ne défait pas un accord — c'est le cas de
+// 15 des 20 relations en base. `DISCUSSION` n'y est pas non plus, pour une raison plus simple :
+// vérifié, **aucun code du dépôt ne pose jamais ce statut**.
 //
 // ── POURQUOI UN PRÉAVIS, ET POURQUOI IL EST LA CONDITION DE L'EXPIRATION ─────────────────────
 //
@@ -114,11 +125,18 @@ const SELECTION_MATCH = {
   missionB: { select: { title: true, location: true, missionType: true, briqueStatus: true } },
   profileA: { select: { id: true, name: true, user: { select: { id: true, email: true, emailOptIn: true } } } },
   profileB: { select: { id: true, name: true, user: { select: { id: true, email: true, emailOptIn: true } } } },
+  // Le dernier message sert UNIQUEMENT à ce que le préavis dise vrai : « la conversation n'a
+  // jamais commencé » serait un énoncé faux adressé à quelqu'un qui a échangé six messages.
+  messages: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
 } as const;
 
 /**
- * Les relations candidates : en attente, sans un seul message, assez vieilles, et dont aucune
- * signature n'a été déposée.
+ * Les relations candidates : en attente, SANS ACTIVITÉ depuis `avant`, et dont aucune signature
+ * n'a été déposée.
+ *
+ * « Sans activité » couvre les deux formes en une seule clause : la relation est née avant le
+ * seuil ET ne porte aucun message postérieur à celui-ci. Sans message, la seconde condition est
+ * vraie par vacuité et c'est la date de création qui tranche.
  *
  * La garde sur les signatures est une ceinture : une relation signée est `CONFIRME` et ne passe
  * déjà pas le filtre de statut. Mais le coût d'un `EXPIRE` posé sur un contrat signé serait sans
@@ -130,7 +148,7 @@ async function relationsDormantes(avant: Date) {
     where: {
       status: MatchStatus.EN_ATTENTE,
       createdAt: { lte: avant },
-      messages: { none: {} },
+      messages: { none: { createdAt: { gt: avant } } },
       signatureTitulaireUrl: null,
       signatureRemplacantUrl: null,
     },
@@ -220,6 +238,8 @@ async function emettrePreavis(m: MatchDormant): Promise<void> {
         missionTitle: titrePour(m, cote),
         matchId: m.id,
         joursRestants,
+        // `null` = aucun message échangé. Le courrier choisit sa phrase là-dessus.
+        dernierEchangeLe: m.messages[0]?.createdAt ?? null,
         optIn: moi.user.emailOptIn,
       });
     }

@@ -261,20 +261,30 @@ export async function sendPreavisExpirationEmail(
     missionTitle: string | null;
     matchId: string;
     joursRestants: number;
+    /** Date du dernier message, ou `null` si la conversation n'a jamais commencé. Décide de la
+     *  phrase d'ouverture : « n'a jamais commencé » adressé à quelqu'un qui a échangé six
+     *  messages serait un énoncé faux, et l'envoyer détruirait la confiance qu'il demande. */
+    dernierEchangeLe: Date | null;
     optIn: boolean;
   }
 ): Promise<void> {
   if (!opts.optIn) return;
   const qui = opts.partnerName ? escapeHtml(opts.partnerName) : "un professionnel";
   const apropos = opts.missionTitle ? ` au sujet de « ${escapeHtml(opts.missionTitle)} »` : "";
+  const joursSilence = opts.dernierEchangeLe
+    ? Math.max(1, Math.floor((Date.now() - opts.dernierEchangeLe.getTime()) / 86_400_000))
+    : null;
+  const ouverture = joursSilence === null
+    ? `Vous et ${qui} vous êtes mutuellement signalé votre intérêt${apropos}, mais la
+       conversation n'a jamais commencé.`
+    : `Votre conversation avec ${qui}${apropos} s'est arrêtée il y a ${joursSilence} jours.`;
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
-       Vous et ${qui} vous êtes mutuellement signalé votre intérêt${apropos}, mais la
-       conversation n'a jamais commencé.
+       ${ouverture}
      </p>
      <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
-       Sans premier message, cette mise en relation prendra fin dans
+       Sans nouvelle de votre part, cette mise en relation prendra fin dans
        <strong>${opts.joursRestants} jours</strong>, et les annonces concernées seront de
        nouveau proposées aux autres professionnels.
      </p>

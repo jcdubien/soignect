@@ -7347,6 +7347,115 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 281 — LE CRITÈRE N'EST PLUS « A PARLÉ », C'EST « EST SILENCIEUSE » (06/10)
+
+Dernier arbitrage ouvert de la 279, tranché par Jean-Charles : les relations qui ont échangé puis
+se sont tues expirent elles aussi, à 15 jours de silence, et l'annonce repart au fil si rien
+d'autre ne la retient.
+
+#### Ce que la mesure a dit, et qui renverse mon propre argument
+
+La 279 excluait délibérément ces relations, et argumentait longuement qu'une conversation réelle
+ne devait pas être close par un automate. **La base dit autre chose.** La seule relation que
+l'ancien périmètre épargnait portait 6 messages — tous échangés dans ses deux premiers jours — et
+était **silencieuse depuis 40 jours** :
+
+```
+EN_ATTENTE          âge    messages   silence
+                     50 j     0        50 j
+                     50 j     0        50 j
+                     42 j     6        40 j   ← « épargnée » par l'ancien critère
+                     11 j     1        11 j
+```
+
+« A parlé » ne veut pas dire « est vivante ». Ce que l'ancien critère protégeait, ce n'était pas
+une discussion en cours, c'était son souvenir.
+
+#### Le critère
+
+La **dernière activité**, pas le nombre de messages. Sans message, on compte depuis la création du
+match ; avec messages, depuis le plus récent. Les deux tiennent dans un seul prédicat —
+`messages: { none: { createdAt: { gt: seuil } } }` conjugué à `createdAt <= seuil` : sans message
+la clause est vraie par vacuité et c'est la création qui décide. Un seul filtre, donc aucun risque
+que les deux cas divergent avec le temps.
+
+Seuils inchangés : préavis à 12 jours de silence, expiration à 15.
+
+**Ce qui reste hors de portée, et qui compte** : seules les relations `EN_ATTENTE` sont examinées.
+Une relation `CONFIRME` est un accord, et le silence ne défait pas un accord — c'est le cas de
+**15 des 20** relations en base.
+
+#### Deux énoncés que l'élargissement rendait faux
+
+**1. Le courrier.** Le préavis disait « mais la conversation n'a jamais commencé ». Adressé à
+quelqu'un qui a échangé six messages, c'est un énoncé faux — dans un courrier qui demande
+précisément qu'on lui fasse confiance. Il branche désormais sur la dernière activité : « Votre
+conversation avec X s'est arrêtée il y a N jours. »
+
+**2. L'invariant des deux crons.** La 279 écrivait : « le rappel s'adresse aux conversations qui
+ont au moins un message ; l'expiration ne regarde que celles qui n'en ont aucun — aucune relation
+ne peut donc relever des deux ». **Cet invariant meurt avec l'élargissement** : une conversation
+ancienne a des messages (le rappel la voit) et son dernier message est vieux (l'expiration aussi).
+Sans garde, la même personne recevrait dans la même minute « quelqu'un attend votre réponse » et
+« cette relation prend fin dans 3 jours ». Le rappel cède donc la main au-delà du seuil de
+dormance — passé ce point, la relation n'appartient plus au registre de la conversation à
+poursuivre. Sur la base actuelle le cas ne se présentait pas (les deux conversations concernées
+avaient déjà leur `reminderSentAt`), mais il devient atteignable dès qu'un passage de cron est
+manqué entre le 1ᵉʳ et le 12ᵉ jour.
+
+#### « Si non pourvu ailleurs » — rien à construire
+
+Le retour au fil n'est pas une action : c'est **l'absence d'une exclusion**. `feedFilters` écarte
+`EXPIRE` de `ACTIVE_MATCH_STATUSES`, et toutes les autres raisons de masquer une annonce
+continuent de s'appliquer indépendamment :
+
+| ce qui retient encore l'annonce | mécanisme |
+|---|---|
+| pourvue par une **autre** relation vivante | `NO_ACTIVE_MATCH_FILTER` voit l'autre match |
+| poste fermé depuis le Planning | `briqueStatus ≠ RECHERCHE` |
+| annonce désactivée ou supprimée | `isActive: false` |
+| période d'absence, pas une offre | `isSelfPresence: true` |
+
+Vérifié sur les quatre annonces concernées : aucune n'est retenue par l'un de ces motifs, elles
+reviendraient donc toutes au fil — ce qui est le résultat voulu.
+
+**Limite connue, hors périmètre** : `/api/feed` n'exclut pas globalement les annonces dont la
+période est écoulée (son filtre de dates ne joue que lorsqu'un cabinet a sélectionné une puce).
+`interets-recus` le fait, lui. Une annonce rendue au fil alors que ses dates sont passées
+resterait donc visible — défaut **préexistant**, pas introduit ici, et qui mérite sa propre
+décision.
+
+#### Vérifié sur la base réelle, et sur un banc à deux cas
+
+Périmètre mesuré à la main, puis confronté à la route : **3 examinées, 3 préavis** — les deux
+muettes de 50 jours et la conversation silencieuse depuis 40. La relation de 11 jours reste
+dehors.
+
+Banc jetable portant les deux formes, chemin complet par la vraie route :
+
+| | muette (50 j, 0 message) | bavarde (42 j, 2 messages, silence 40 j) |
+|---|---|---|
+| préavis | ✅ « la conversation n'a jamais commencé » | ✅ « s'est arrêtée il y a 40 jours » |
+| expiration (préavis antidaté) | `EXPIRE` ✅ | `EXPIRE` ✅ |
+| trace | `origine: EXPIRATION`, `initiateur: SYSTEME` ✅ | idem ✅ |
+| annonces rendues au fil | 2/2 ✅ | 2/2 ✅ |
+
+Le courrier a été **lu**, pas supposé : une sonde temporaire dans `sendEmail` a journalisé le HTML
+réellement produit (aucune clé Resend en local, donc rien n'est parti), les deux formulations ont
+été vérifiées, puis la sonde a été retirée.
+
+État restauré au bit près : **20 relations, 9 801 traces, 453 notifications** avant comme après,
+mêmes statuts, zéro résidu. Les préavis posés sur les 3 relations réelles pendant l'essai ont été
+défaits — aucun email ne pouvait partir en local, et un préavis tracé sans avertissement reçu
+produirait exactement l'expiration silencieuse que ce mécanisme existe pour empêcher.
+
+#### Conséquence à connaître avant le prochain passage
+
+La relation **Sylviane JEAN-CHARLES ↔ Gaelle ferbal** (1 message, silence 11 jours) entrera dans
+le périmètre **dans un jour**. C'est la plus fraîche du tableau, et son unique message est resté
+sans réponse. Le préavis ne la détruit pas — un seul message la maintient — mais elle n'était pas
+concernée hier et le sera demain.
+
 ### SECTION 280 — `EXPIRE` DEVIENT LE DOMAINE RÉSERVÉ DE L'AUTOMATE (06/10)
 
 Suite directe de la 279, et fermeture de l'arbitrage qu'elle laissait ouvert : fallait-il un

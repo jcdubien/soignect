@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendConversationReminderEmail } from "@/lib/email";
-import { traiterMatchsDormants } from "@/lib/matchsDormants";
+import { traiterMatchsDormants, SEUIL_DORMANCE_JOURS } from "@/lib/matchsDormants";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +20,17 @@ const REMINDER_AFTER_MS = 24 * 60 * 60 * 1000; // 24h
 // payé l'apprentissage qu'une entrée de cron invalide bloque SILENCIEUSEMENT tous les builds.
 //
 // La greffe est de surcroît le bon endroit : les deux traitements partent du même objet — une
-// relation et ses messages — et se répondent exactement. Le rappel s'adresse aux conversations
-// qui ont AU MOINS un message ; l'expiration ne regarde que celles qui n'en ont AUCUN. Aucune
-// relation ne peut donc relever des deux, et aucune ne tombe entre les deux.
+// relation et ses messages.
+//
+// ⚠️ LEUR SÉPARATION N'EST PLUS AUTOMATIQUE. Tant que l'expiration ne visait que les relations
+// SANS aucun message, les deux périmètres étaient disjoints par construction. Depuis
+// l'élargissement au silence (06/10), une conversation ancienne relève des deux : elle a des
+// messages (donc le rappel la voit) et son dernier message est vieux (donc l'expiration aussi).
+// Sans garde, la même personne recevrait dans la même minute « quelqu'un attend votre réponse »
+// et « cette relation prend fin dans 3 jours » — deux courriers qui se contredisent sur le ton.
+//
+// Le rappel CÈDE donc la main au-delà du seuil de dormance : passé ce point, la relation
+// n'appartient plus au registre de la conversation à poursuivre.
 //
 // Les deux blocs sont INDÉPENDANTS À L'ÉCHEC : une erreur sur l'expiration ne doit pas priver
 // les conversations de leur rappel, ni l'inverse.
@@ -47,6 +55,7 @@ export async function GET(req: Request) {
   const simulation = new URL(req.url).searchParams.get("simulation") === "1";
 
   const cutoff = new Date(Date.now() - REMINDER_AFTER_MS);
+  const seuilDormance = new Date(Date.now() - SEUIL_DORMANCE_JOURS * 86_400_000);
 
   const matches = await prisma.match.findMany({
     where: { messages: { some: {} } },
@@ -68,6 +77,8 @@ export async function GET(req: Request) {
   for (const m of matches) {
     const last = m.messages[0];
     if (!last || last.reminderSentAt || last.createdAt >= cutoff) continue;
+    // Au-delà du seuil de dormance, cette relation relève de l'expiration (voir en-tête).
+    if (last.createdAt <= seuilDormance) continue;
 
     // Destinataire = la partie qui n'a PAS envoyé le dernier message (la balle est dans son camp)
     const recipient = last.senderId === m.profileAId ? m.profileB : m.profileA;
