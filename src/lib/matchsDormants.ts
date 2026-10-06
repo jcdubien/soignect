@@ -62,15 +62,22 @@ import { sendPreavisExpirationEmail } from "@/lib/email";
 /**
  * Âge à partir duquel une relation sans un seul message reçoit son préavis.
  *
- * 18 jours, et le chiffre vient de la mesure, pas d'une intuition : le plus long délai observé
- * sur une relation qui a fini par bouger est de 14,9 jours — et elle n'a pas abouti. 18 place
- * donc le préavis au-delà de TOUT ce que la base a vu vivre, expiration effective à 21.
+ * 12 jours, pour une expiration effective à **15** — arbitrage de Jean-Charles du 06/10.
  *
- * Volontairement conservateur pour un premier automate qui ferme des relations : trop court, il
- * coupe une discussion qui allait naître ; trop long, il laisse une annonce gelée. L'erreur qui
- * se répare est la seconde.
+ * CE QUE CE CHOIX ASSUME, ET QU'IL FAUT DIRE. La mesure du 21/09 donne une fourchette de 1,9 à
+ * 14,9 jours pour les relations qui ont fini par bouger — aucune n'a abouti, mais elles ont
+ * bougé. À 18 jours (première version), le préavis tombait au-delà de TOUT ce que la base avait
+ * vu vivre ; à 12, il tombe DEDANS. Ce n'est pas un oubli : le préavis ne détruit rien, il
+ * annonce une échéance et offre de la lever d'un seul message. Le geste qui sauve la relation
+ * est précisément celui qui lui manquait.
+ *
+ * Et l'expiration, elle, reste au-delà du plus long délai observé (15 > 14,9).
+ *
+ * MESURÉ AVANT D'APPLIQUER : sur la base du 06/10, 18 et 12 désignent **exactement les mêmes
+ * deux relations** (50 jours chacune). Le changement ne vaut donc que pour l'avenir — il rend
+ * l'annonce au fil six jours plus tôt, sans rien reclasser de l'existant.
  */
-export const SEUIL_DORMANCE_JOURS = 18;
+export const SEUIL_DORMANCE_JOURS = 12;
 
 /** Délai entre le préavis et l'expiration. Trois jours : assez pour qu'un email soit lu, assez
  *  court pour que l'annonce ne reste pas gelée un mois de plus. */

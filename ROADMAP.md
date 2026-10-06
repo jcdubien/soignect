@@ -116,11 +116,15 @@ coût n'était pas l'encombrement : `EN_ATTENTE` compte comme actif dans
 l'investigation du 21/09 a montré qu'il manque d'offre visible
 (3,7 candidats visibles sur 22 par recherche cabinet).
 
-- **Le seuil vient de la mesure du 21/09, pas d'une intuition** :
-  les 4 relations confirmées se sont formées en moins de 24 h, et
-  celles qui ont traîné (1,9 à 14,9 j) n'ont jamais abouti. Préavis à
-  18 jours, expiration à 21 — au-delà de tout ce que la base a vu
-  vivre.
+- **Préavis à 12 jours, expiration à 15** (arbitrage de Jean-Charles
+  le 06/10, resserré depuis 18/21). La mesure du 21/09 fonde le
+  principe : les 4 relations confirmées se sont formées en moins de
+  24 h, celles qui ont traîné (1,9 à 14,9 j) n'ont jamais abouti.
+  L'expiration reste au-delà du plus long délai observé (15 > 14,9) ;
+  le préavis, lui, tombe désormais dedans — assumé, puisqu'il ne
+  détruit rien et se lève d'un seul message. **Mesuré avant
+  d'appliquer** : sur la base du 06/10, 18 et 12 désignent exactement
+  les mêmes deux relations. Le resserrage ne vaut que pour l'avenir.
 - **Périmètre volontairement étroit** : uniquement les relations
   **sans un seul message**. Celles qui ont échangé puis se sont tues
   ne sont pas touchées — le filtre épargne ainsi, sur la base réelle,

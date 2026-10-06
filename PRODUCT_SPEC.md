@@ -7390,11 +7390,23 @@ Cette forme règle aussi, **sans cas particulier**, le premier passage sur l'exi
 de relations dormantes depuis des mois ne part pas en masse le jour de la mise en ligne. Il reçoit
 son préavis, et expire trois jours plus tard, comme toutes les suivantes.
 
-Préavis à **18 jours**, donc expiration effective à 21. Le chiffre vient de la mesure et non d'une
-intuition : le plus long délai observé sur une relation qui a fini par bouger est de 14,9 jours —
-et elle n'a pas abouti. Le seuil est posé au-delà de tout ce que la base a vu vivre. Les deux
-parties sont prévenues : elles ont dit oui toutes les deux, aucune n'a écrit, et n'en avertir
-qu'une désignerait un coupable que les données ne nomment pas.
+Préavis à **12 jours**, donc expiration effective à **15** — arbitrage de Jean-Charles du 06/10,
+resserré depuis les 18/21 de la première écriture.
+
+**Ce que ce resserrage assume, et qu'il faut dire.** La mesure du 21/09 donne une fourchette de
+1,9 à 14,9 jours pour les relations qui ont fini par bouger — aucune n'a abouti, mais elles ont
+bougé. À 18 jours, le préavis tombait au-delà de tout ce que la base avait vu vivre ; à 12, il
+tombe dedans. Ce n'est pas un oubli : le préavis ne détruit rien, il annonce une échéance et offre
+de la lever d'un seul message — le geste qui manquait précisément à cette relation. L'expiration,
+elle, reste au-delà du plus long délai observé (15 > 14,9).
+
+**Mesuré avant d'appliquer** : sur la base du 06/10, 18 et 12 désignent **exactement les mêmes
+deux relations** (50 jours chacune). La seule relation plus jeune (11 jours) porte déjà un message
+et sort du périmètre par ce critère, pas par l'âge. Le resserrage ne reclasse donc rien de
+l'existant — il rend l'annonce au fil six jours plus tôt, pour les suivantes.
+
+Les deux parties sont prévenues : elles ont dit oui toutes les deux, aucune n'a écrit, et n'en
+avertir qu'une désignerait un coupable que les données ne nomment pas.
 
 Vocabulaire : le courrier ne « relance » pas — mot proscrit, registre du recouvrement. Il annonce
 une échéance et offre de la lever d'un geste.
@@ -7431,13 +7443,14 @@ Périmètre mesuré en lecture seule, puis confronté à la route : **mêmes chi
 
 ```
 20 mises en relation · 4 EN_ATTENTE · 15 CONFIRME · 1 DECLINE
-périmètre (EN_ATTENTE, 0 message, ≥ 18 j)   2   (deux annonces du même couple, 50 j)
-épargnées (ont échangé, ≥ 18 j)             1   (42 j, 6 messages)
+périmètre (EN_ATTENTE, 0 message, ≥ 12 j)   2   (deux annonces du même couple, 50 j)
+épargnées (ont échangé)                     2   (42 j / 6 messages · 11 j / 1 message)
 simulation de la route                      examinees 2 · preavis 2 · expirees 0
 ```
 
 Chemin complet exercé sur un **couple jetable** (match de 50 jours, 0 message, préavis antidaté de
-5 jours), par la vraie route :
+5 jours), par la vraie route — exercé aux seuils 18/21, inchangé par le resserrage puisque les
+deux bornes se comparent de la même façon :
 
 | | |
 |---|---|
