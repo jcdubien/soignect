@@ -33,23 +33,45 @@ export async function PATCH(
 
   const body = await req.json().catch(() => ({}));
 
-  // Mise à jour du statut (item 12)
+  // ── MISE À JOUR DU STATUT — DEUX VALEURS, PAS CINQ (item 12, resserré section 280) ─────────
+  //
+  // Cette route acceptait TOUTE valeur de l'enum, `EXPIRE` comprise, de la part de l'une ou
+  // l'autre partie du match. Aucun écran n'y menait — `MatchStatusActions` n'envoie que
+  // `CONFIRME` ou `DECLINE` — mais la porte était ouverte, et rien ne la surveillait.
+  //
+  // CE QU'ELLE AURAIT RENDU FAUX. L'initiateur se déduisait du STATUT et non de qui agit :
+  // `EXPIRE` ⇒ `SYSTEME`. Vrai tant que l'automate de dormance (section 279) est le seul chemin
+  // vers cette valeur ; faux à la seconde où un humain la poste. Un abandon humain se serait
+  // compté comme une péremption système — c'est-à-dire exactement l'inverse de ce que la trace
+  // sert à mesurer, et la même famille de contradiction que la 279 venait de fermer deux lignes
+  // plus haut (une origine `DECLINE` posée pour un `EXPIRE`).
+  //
+  // `EXPIRE` n'est donc plus atteignable par une requête : il appartient à `lib/matchsDormants`,
+  // qui écrit en base directement et constate que personne n'a agi — un constat que l'intéressé
+  // ne peut pas poser sur lui-même sans se contredire. Le geste humain d'abandon existe déjà et
+  // s'appelle `DECLINE`.
+  //
+  // `EN_ATTENTE` et `DISCUSSION` sortent au passage : le premier est l'état initial, le second
+  // n'est posé par AUCUN code du dépôt (vérifié). Les accepter laissait écrire des états que le
+  // produit ne produit pas.
+  const GESTES_HUMAINS: string[] = [MatchStatus.CONFIRME, MatchStatus.DECLINE];
   const status = (body as { status?: string }).status;
-  if (status && (Object.values(MatchStatus) as string[]).includes(status)) {
-    // Une relation déclinée ou expirée s'arrête là : c'est une annulation, même sans
-    // suppression. Tracée au même titre, pour que la fiabilité du marché se mesure sur tous
-    // les abandons et pas seulement sur ceux qui effacent leurs traces.
-    if (status === MatchStatus.DECLINE || status === MatchStatus.EXPIRE) {
+  if (status !== undefined) {
+    if (!GESTES_HUMAINS.includes(status)) {
+      return NextResponse.json(
+        { error: "Statut non modifiable depuis cette action : seuls « confirmer » et « décliner » sont des gestes humains." },
+        { status: 400 },
+      );
+    }
+    // Une relation déclinée s'arrête là : c'est une annulation, même sans suppression. Tracée au
+    // même titre, pour que la fiabilité du marché se mesure sur tous les abandons et pas
+    // seulement sur ceux qui effacent leurs traces.
+    if (status === MatchStatus.DECLINE) {
       const viewerId = session.user.profileId as string;
       const acteur = viewerId === profileAId ? match.missionA?.profile : match.missionB?.profile;
-      // L'origine suit le statut REELLEMENT posé (section 279) : elle valait « DECLINE » dans
-      // les deux cas, si bien qu'une expiration se comptait comme un refus. L'initiateur, lui,
-      // disait déjà SYSTEME — les deux champs se contredisaient sur la même ligne.
       logMatchCancelled(match, {
-        origine: status === MatchStatus.EXPIRE ? "EXPIRATION" : "DECLINE",
-        initiateur: status === MatchStatus.EXPIRE
-          ? "SYSTEME"
-          : acteur?.type === "TITULAIRE" ? "CABINET" : "CANDIDAT",
+        origine: "DECLINE",
+        initiateur: acteur?.type === "TITULAIRE" ? "CABINET" : "CANDIDAT",
       });
     }
     const updated = await prisma.match.update({ where: { id }, data: { status: status as MatchStatus } });

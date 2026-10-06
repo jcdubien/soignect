@@ -7347,6 +7347,76 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 280 — `EXPIRE` DEVIENT LE DOMAINE RÉSERVÉ DE L'AUTOMATE (06/10)
+
+Suite directe de la 279, et fermeture de l'arbitrage qu'elle laissait ouvert : fallait-il un
+bouton « expirer à la main » ? Non — et la bonne réponse n'était pas d'en ajouter un, mais de
+fermer la porte qui existait déjà sans que personne la surveille.
+
+#### Ce qui était ouvert
+
+`PATCH /api/matches/[id]` acceptait **toute** valeur de `MatchStatus`, `EXPIRE` comprise, de la
+part de l'une ou l'autre partie du match. Aucun écran n'y menait — `MatchStatusActions` n'envoie
+que `CONFIRME` ou `DECLINE`, et les deux autres appelants de cette route passent `targetMissionId`
+ou `rescore`, jamais de statut. La capacité existait donc en pur excédent.
+
+#### Ce qu'un bouton aurait rendu faux
+
+L'initiateur se déduisait du **statut**, pas de qui agit :
+
+```ts
+initiateur: status === MatchStatus.EXPIRE ? "SYSTEME" : (CABINET | CANDIDAT)
+```
+
+Vrai tant que l'automate de dormance est le seul chemin vers cette valeur ; **faux à la seconde où
+un humain la poste**. Un abandon humain se serait compté comme une péremption système — l'inverse
+exact de ce que la trace sert à mesurer, et la même famille de contradiction que la 279 venait de
+fermer deux lignes plus haut (une origine `DECLINE` posée pour un `EXPIRE`).
+
+#### Pourquoi le bouton n'avait pas lieu d'être
+
+`EXPIRE` est le **constat que personne n'a agi**. L'intéressé ne peut pas le poser sur lui-même
+sans se contredire : s'il agit, c'est qu'il n'y a pas eu inaction. Le geste humain d'abandon
+existe déjà et s'appelle `DECLINE`. Ajouter « expirer » à côté de « décliner » aurait été inventer
+un troisième geste que personne n'a demandé, sur un produit qui compte vingt relations.
+
+#### Ce qui est accepté désormais
+
+Deux valeurs, et deux seulement : `CONFIRME` et `DECLINE`. Toute autre reçoit un **400** nommant
+la raison. `EN_ATTENTE` et `DISCUSSION` sortent au passage — le premier est l'état initial, le
+second n'est posé par **aucun code du dépôt** (vérifié). Les accepter laissait écrire des états
+que le produit ne produit pas.
+
+`EXPIRE` appartient maintenant à `lib/matchsDormants` seul, qui écrit en base directement. La
+déduction de l'initiateur n'a plus de branche `EXPIRE` à tenir : la contradiction ne peut plus
+naître, elle n'est pas seulement corrigée.
+
+#### Vérifié à l'écran, sur un banc jetable
+
+Compte et relation créés pour le test, par la vraie route, puis supprimés.
+
+| requête | résultat |
+|---|---|
+| `status: "EXPIRE"` | **400** — « seuls "confirmer" et "décliner" sont des gestes humains » ✅ |
+| `status: "DISCUSSION"` | **400** ✅ |
+| `status: "EN_ATTENTE"` | **400** ✅ |
+| `status: "N_IMPORTE_QUOI"` | **400** ✅ |
+| clic « Décliner » | **DECLINE**, trace `origine: DECLINE`, `initiateur: CABINET` ✅ |
+| `status: "CONFIRME"` | **200**, carte passée dans « Confirmées » ✅ |
+
+La régression qui comptait — les deux gestes légitimes — est donc couverte dans les deux sens.
+État restauré au bit près : 20 relations, mêmes statuts, 9 801 traces avant comme après, zéro
+résidu. Une trace `PLANNING_ACTIVE` orpheline, laissée par la navigation du compte de test, a été
+trouvée et retirée : mon premier filtre de nettoyage ne portait que sur `matchId`.
+
+#### Ce qui reste ouvert
+
+- **Les relations qui ont parlé puis se sont tues** ne sont toujours pas expirées (section 279).
+  C'est l'arbitrage restant, et il demande une décision produit.
+- **Un levier d'administration** (`initiateur: "ADMIN"` existe déjà dans `OrigineAnnulation`)
+  n'est pas construit : il n'ouvrirait aucun bouton aux utilisateurs, mais personne ne l'a
+  demandé.
+
 ### SECTION 279 — UNE MISE EN RELATION PEUT ENFIN PRENDRE FIN (06/10)
 
 Question du 05/10 : « est-ce que les matchs restent indéfiniment, même sans nouvelles depuis

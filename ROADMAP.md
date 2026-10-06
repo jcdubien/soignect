@@ -152,9 +152,16 @@ statuts, zéro résidu.
 **Arbitrages laissés ouverts** :
 - Les relations qui ont parlé puis se sont tues : faut-il les expirer
   aussi, et à quel délai ? Décision produit, pas du code.
-- Aucun écran ne permet d'expirer à la main — `MatchStatusActions`
-  n'offre toujours que Confirmer / Décliner. L'automate est le seul
-  chemin vers `EXPIRE`.
+- ~~Aucun écran ne permet d'expirer à la main.~~ **Tranché le 06/10
+  (section 280)** : pas de bouton, et la porte qui existait côté API
+  est fermée. `PATCH /api/matches/[id]` acceptait toute valeur de
+  l'enum ; il n'accepte plus que `CONFIRME` et `DECLINE`. Motif : un
+  humain postant `EXPIRE` se serait tracé `initiateur: SYSTEME`, donc
+  un abandon humain compté comme une péremption système. Et le geste
+  d'abandon existe déjà — c'est `DECLINE`. `EXPIRE` est le constat que
+  personne n'a agi : l'intéressé ne peut pas le poser sur lui-même.
+  Reste possible si le besoin apparaît : un levier d'administration
+  (`initiateur: "ADMIN"` existe déjà), non construit.
 
 ## ✅ Clos et vérifié — 05/10, ouverture à toutes les professions
 
