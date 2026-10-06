@@ -11,7 +11,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mission, MissionType, Profile } from "@prisma/client";
+import { Mission, Profile } from "@prisma/client";
 import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
 import { fmtDayAuto } from "@/lib/dates";
@@ -19,8 +19,17 @@ import MissionSelector, { TitulaireMission } from "./MissionSelector";
 import { libelleAuteur } from "@/lib/libellesPoste";
 import MissionDetailSheet from "./MissionDetailSheet";
 
-type MissionWithProfile = Mission & { profile: Profile };
-type MissionFilter = "ALL" | "REMPLACEMENT" | "ASSISTANAT" | "COLLABORATION";
+// `convergenceJours` est posé par /api/feed (section 282) UNIQUEMENT devant un remplaçant dont
+// une disponibilité dépasse 30 jours, et seulement sur les postes longue durée dont le début
+// tombe à moins de 30 jours du sien. ABSENT plutôt que `null` quand il n'y a rien à dire : une
+// carte non étiquetée ne porte aucune trace du mécanisme, ce qui permet de mesurer l'écart de
+// conversion entre cartes étiquetées et non étiquetées sans les confondre avec un mécanisme
+// inactif.
+type MissionWithProfile = Mission & { profile: Profile; convergenceJours?: number };
+// `POSTES` n'est pas une valeur de MissionType : c'est l'union de ce qui engage dans la
+// durée, salariat compris (section 282). Le serveur en tient la définition — ici on ne fait
+// que la nommer.
+type MissionFilter = "ALL" | "POSTES" | "REMPLACEMENT" | "ASSISTANAT" | "COLLABORATION";
 
 interface ActiveMissionData {
   id: string;
@@ -62,6 +71,7 @@ const TYPE_CONFIG = {
 
 const FILTER_LABELS: Record<MissionFilter, string> = {
   ALL:           "Tout",
+  POSTES:        "Postes longue durée",
   REMPLACEMENT:  "Remplacement",
   ASSISTANAT:    "Assistanat",
   COLLABORATION: "Collaboration",
@@ -378,6 +388,24 @@ function Card({
           </div>
         )}
 
+        {/* ── Convergence de dates (section 282) ─────────────────────────────────────────
+            Elle ne remonte pas la carte, elle la RENSEIGNE : un remplaçant voit déjà des postes
+            longue durée (46 % de ses swipes) sans jamais lire quand ils démarrent par rapport
+            à lui. La phrase dit un fait vérifiable, jamais une recommandation — « ça pourrait
+            vous intéresser » serait une affirmation que rien ne soutient (sur les 31 paires
+            convergentes vues à ce jour, le taux de « oui » est celui de n'importe quelle
+            carte). */}
+        {mission.convergenceJours !== undefined && (
+          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1.5 shrink-0">
+            <span className="text-sm">🎯</span>
+            <span className="text-amber-800 text-xs font-semibold leading-snug">
+              Poste longue durée · démarre {mission.convergenceJours === 0
+                ? "le jour de votre disponibilité"
+                : `à ${mission.convergenceJours} jour${mission.convergenceJours > 1 ? "s" : ""} de votre disponibilité`}
+            </span>
+          </div>
+        )}
+
         {/* Durée min */}
         {mission.minMonths ? (
           <div className="flex items-center gap-1.5 bg-violet-50 rounded-xl px-2.5 py-1.5 shrink-0">
@@ -555,7 +583,19 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   const [salariatOptIn,    setSalariatOptIn]     = useState(-1);
   const [swiping,          setSwiping]           = useState(false);
   const [match,            setMatch]             = useState<MatchData | null>(null);
-  const [filter,           setFilter]            = useState<MissionFilter>("ALL");
+  // ── PRÉSÉLECTION CÔTÉ ASSISTANT (section 282) ───────────────────────────────────────────
+  //
+  // Mesuré : un profil ASSISTANT consacre 46 % de ses décisions à des annonces de remplacement
+  // et n'en retient qu'UNE SUR 28 (4 %), contre 21 % sur le reste. Il passe donc près de la
+  // moitié de son temps sur ce qu'il refuse à 96 %.
+  //
+  // PRÉSÉLECTION, PAS VERROU : la pastille « Tout » est à un clic, et l'état vide la propose
+  // explicitement quand le filtre ne laisse rien. On oriente, on n'enferme pas.
+  const [filter,           setFilter]            = useState<MissionFilter>(
+    profileType === "ASSISTANT" ? "POSTES" : "ALL",
+  );
+  const [remplacementsMasques, setRemplacementsMasques] = useState(0);
+  const filtreRef = useRef<MissionFilter>(profileType === "ASSISTANT" ? "POSTES" : "ALL");
   // Vue alternative (section 202) — desktop TITULAIRE uniquement. Les cartes restent le défaut :
   // la liste est un complément de comparaison, pas un remplacement du geste de décision.
   const [vue,              setVue]               = useState<"cartes" | "liste">("cartes");
@@ -588,13 +628,11 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   const passOp   = useTransform(x, [-120, -40], [1, 0]);
   const controls = useAnimation();
 
-  // Missions visibles selon le filtre actif
-  const displayMissions = useMemo(
-    () => filter === "ALL"
-      ? missions
-      : missions.filter(m => m.missionType === (filter as unknown as MissionType)),
-    [missions, filter]
-  );
+  // Le filtre est appliqué PAR LE SERVEUR depuis la section 282. Il l'était ici, sur la page
+  // déjà chargée, pendant que le préchargement se déclenchait sur la liste brute : les cartes
+  // visibles s'épuisaient sans jamais redemander la suite, et l'écran se vidait alors que
+  // l'offre existait. `displayMissions` reste pour ne pas renommer trente usages.
+  const displayMissions = missions;
 
   // ActiveMission data for Card compat bar
   const activeMissionData: ActiveMissionData | null = useMemo(() => {
@@ -669,7 +707,11 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       const missionParam = (isTitulaire && currentMissionId)
         ? `&targetMissionId=${encodeURIComponent(currentMissionId)}`
         : "";
-      const r = await fetch(`/api/feed?limit=20${missionParam}`, { signal: controller.signal });
+      // `filtreRef` et non `filter` : `fetchFeed` est un `useCallback` appelé par six chemins,
+      // et capturer la valeur ferait partir la requête avec le filtre d'avant au moindre
+      // changement — exactement le genre d'écart qui se voit comme un fil qui ne suit pas.
+      const typeParam = filtreRef.current === "ALL" ? "" : `&types=${filtreRef.current}`;
+      const r = await fetch(`/api/feed?limit=20${missionParam}${typeParam}`, { signal: controller.signal });
       if (!r.ok) {
         const text = await r.text().catch(() => "");
         console.error("[SwipeStack] feed non-OK", r.status, text);
@@ -682,6 +724,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       if (publieHdr != null) setAPublie(publieHdr === "1");
       const optInHdr = r.headers.get("x-feed-salariat-optin");
       if (optInHdr != null) setSalariatOptIn(parseInt(optInHdr, 10));
+      const masquesHdr = r.headers.get("x-feed-remplacements-masques");
+      if (masquesHdr != null) setRemplacementsMasques(parseInt(masquesHdr, 10) || 0);
       const prioriteHdr = r.headers.get("x-feed-priorite-territoriale");
       if (prioriteHdr != null) setPrioriteTerritoriale(parseInt(prioriteHdr, 10) || 0);
       // B2 (20/08) — institutions à créditer dans la mention. JSON + encodeURIComponent côté
@@ -923,7 +967,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             inexistant — l'icône et le texte doivent le dire, pas rassurer à tort. */}
         <span className="text-6xl">{filter !== "ALL" ? "🔍" : salariatOptIn === 0 ? "💼" : isTitulaire ? (seenAvailable > 0 ? "✅" : "👀") : "🌊"}</span>
         <p className="text-gray-500 font-semibold">
-          {filter !== "ALL"
+          {filter === "POSTES" && remplacementsMasques > 0
+            ? "Aucun poste longue durée pour le moment"
+            : filter !== "ALL"
             ? `Aucune annonce "${FILTER_LABELS[filter]}" pour le moment`
             : salariatOptIn === 0
             ? "Aucun candidat ouvert aux postes salariés pour l'instant"
@@ -934,7 +980,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             : "Plus d'annonces pour le moment"}
         </p>
         <p className="text-gray-400 text-sm max-w-xs">
-          {salariatOptIn === 0
+          {filter === "POSTES" && remplacementsMasques > 0
+            ? `${remplacementsMasques} annonce${remplacementsMasques > 1 ? "s" : ""} de remplacement ${remplacementsMasques > 1 ? "sont" : "est"} masquée${remplacementsMasques > 1 ? "s" : ""} par ce filtre. Les postes longue durée vous sont proposés en premier, mais rien ne vous y oblige.`
+            : salariatOptIn === 0
             ? "Votre annonce est en ligne. Seuls les professionnels ayant coché « ouvert aux postes salariés » dans leur compte peuvent la voir et vous être proposés — aucun ne l'a fait à ce jour. Ils apparaîtront ici dès qu'un premier l'activera."
             : isTitulaire
             ? (seenAvailable > 0
@@ -942,12 +990,32 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
                 : "Votre annonce est bien en ligne et visible. Dès qu'un candidat correspond, il apparaît ici.")
             : "Revenez plus tard, ou publiez vos disponibilités pour être visible des cabinets."}
         </p>
-        {filter !== "ALL" && (
+        {filter !== "ALL" && remplacementsMasques === 0 && (
           <button
-            onClick={() => setFilter("ALL")}
+            onClick={() => {
+              filtreRef.current = "ALL";
+              setFilter("ALL");
+              setMissions([]);
+              setLoading(true);
+              fetchFeed(activeMissionId);
+            }}
             className="px-5 py-2.5 border border-kine-200 text-kine-700 rounded-xl text-sm font-semibold hover:bg-kine-50 transition"
           >
             Voir toutes les annonces
+          </button>
+        )}
+        {filter === "POSTES" && remplacementsMasques > 0 && (
+          <button
+            onClick={() => {
+              filtreRef.current = "ALL";
+              setFilter("ALL");
+              setMissions([]);
+              setLoading(true);
+              fetchFeed(activeMissionId);
+            }}
+            className="px-5 py-2.5 border border-kine-200 text-kine-700 rounded-xl text-sm font-semibold hover:bg-kine-50 transition"
+          >
+            Voir aussi les {remplacementsMasques} remplacement{remplacementsMasques > 1 ? "s" : ""}
           </button>
         )}
         <a
@@ -994,10 +1062,17 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
 
         {/* ── Filter pills ── */}
         <div className="flex items-center gap-2 px-4 pt-2 pb-1 overflow-x-auto shrink-0" style={{ scrollbarWidth: "none" }}>
-          {(["ALL", "REMPLACEMENT", "ASSISTANAT", "COLLABORATION"] as MissionFilter[]).map(f => (
+          {(["ALL", "POSTES", "REMPLACEMENT", "ASSISTANAT", "COLLABORATION"] as MissionFilter[]).map(f => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => {
+                if (f === filter) return;
+                filtreRef.current = f;
+                setFilter(f);
+                setMissions([]);
+                setLoading(true);
+                fetchFeed(activeMissionId);
+              }}
               className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
                 filter === f
                   ? "bg-kine-600 text-white shadow-sm"

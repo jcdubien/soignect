@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ProfileType, TitulaireKind, Prisma } from "@prisma/client";
+import { ProfileType, TitulaireKind, MissionType, Prisma } from "@prisma/client";
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { EST_UNE_OFFRE, NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
@@ -40,6 +40,32 @@ export async function GET(req: NextRequest) {
   const location        = searchParams.get("location");
   const limit           = Math.min(parseInt(searchParams.get("limit") ?? "20"), 50);
   const targetMissionId = searchParams.get("targetMissionId");
+
+  // ── FILTRE DE TYPES — CÔTÉ SERVEUR, ET C'EST LE POINT (section 282) ───────────────────────
+  //
+  // La barre de pastilles filtrait CÔTÉ CLIENT, sur la page déjà chargée. Le préchargement, lui,
+  // se déclenche sur la liste BRUTE (`missions.length < 4`). Un lecteur qui restreignait ses
+  // types épuisait donc ses cartes visibles pendant que la liste brute restait pleine des autres :
+  // écran vide, aucun rechargement, et de l'offre réelle à l'autre bout de la requête.
+  //
+  // Le défaut existait déjà pour les pastilles ASSISTANAT et COLLABORATION. Il devenait le chemin
+  // PAR DÉFAUT de tout assistant avec la présélection — d'où le portage ici plutôt qu'un second
+  // mécanisme à côté du premier.
+  //
+  // `POSTES` n'est pas une valeur de `MissionType` : c'est l'union de ce qui engage dans la
+  // durée, salariat compris. Le salariat n'a pas de valeur d'enum propre (section 262) — un CDI
+  // est stocké COLLABORATION, un CDD REMPLACEMENT — donc un CDD salarié doit être rattrapé par
+  // `estSalariat`, sans quoi il tomberait du mauvais côté de la ligne.
+  const types = searchParams.get("types");
+  const filtreTypes: Prisma.MissionWhereInput =
+    types === "POSTES"
+      ? { OR: [{ missionType: { in: [MissionType.ASSISTANAT, MissionType.COLLABORATION] } }, { estSalariat: true }] }
+      : types === "REMPLACEMENT"
+        // Symétrique : le CDD salarié est un contrat de travail, pas un remplacement libéral.
+        ? { missionType: MissionType.REMPLACEMENT, estSalariat: false }
+        : types === "ASSISTANAT" || types === "COLLABORATION"
+          ? { missionType: types as MissionType }
+          : {};
 
   // ── FILTRE DE DATES QUAND LE CABINET CIBLE UNE DE SES ANNONCES (section 256) ───────────────
   //
@@ -146,6 +172,7 @@ export async function GET(req: NextRequest) {
       profile: profileWhere,
       ...(location ? { location } : {}),
       ...dateFilter,
+      ...filtreTypes,
     },
     include: { profile: true },
     orderBy: [
@@ -314,14 +341,97 @@ export async function GET(req: NextRequest) {
     take: 1,
   });
 
+  // ── CONVERGENCE DE DATES — UN ÉTIQUETAGE, PAS UN CLASSEMENT (section 282) ─────────────────
+  //
+  // Un remplaçant dont la disponibilité dépasse 30 jours se voit DÉJÀ proposer des postes long
+  // terme : mesuré, 46 % de ses swipes portent dessus, avec un taux de « oui » de 12 % contre
+  // 13 % sur les remplacements — il les traite exactement pareil. Ce qu'il ne voit pas, c'est
+  // QUAND le poste démarre par rapport à sa propre disponibilité.
+  //
+  // CE QUE CETTE ÉTIQUETTE N'EST PAS. Elle ne touche pas à l'ordre. Le tri du fil est une somme
+  // de points où vit le levier territorial — le seul adossé à une relation client payante — et
+  // y ajouter la convergence de dates reviendrait à distribuer gratuitement ce que le produit
+  // vend. La doctrine le dit : « jamais une option ambiante ».
+  //
+  // ET SURTOUT, RIEN NE DIT ENCORE QU'ELLE CONVERTIT. Sur les 31 paires convergentes réellement
+  // vues à ce jour, le taux de « oui » est de 13 % — exactement le taux de base. 31 observations
+  // ne peuvent ni montrer ni exclure un gain modeste. L'étiquette est donc posée D'ABORD comme
+  // instrument de mesure : elle rend comparables les cartes étiquetées et les autres. Si l'écart
+  // apparaît, la remontée dans l'ordre se discutera avec un chiffre ; sinon elle ne se fera pas.
+  // Combien de remplacements la présélection écarte-t-elle ? Mesuré AVANT de livrer : retirer
+  // les remplacements fait passer un assistant de 15 cartes à 7 — mais DEUX des huit tombent à
+  // 1 et à 0. Un filtre par défaut qui vide un fil est pire que le défaut qu'il corrige.
+  //
+  // Le produit ne réintègre pas les remplacements en douce pour autant : il DIT ce qu'il a
+  // masqué et laisse le geste à l'utilisateur. C'est la règle de l'état vide filtré (section 7),
+  // et elle vaut d'autant plus ici que le masquage n'a pas été demandé — il est présélectionné.
+  const remplacementsMasques = types === "POSTES"
+    ? await prisma.mission.count({
+        where: {
+          ...EST_UNE_OFFRE,
+          id: { notIn: excludeMissionIds },
+          ...NO_ACTIVE_MATCH_FILTER,
+          profile: profileWhere,
+          ...(location ? { location } : {}),
+          missionType: MissionType.REMPLACEMENT,
+          estSalariat: false,
+        },
+      })
+    : 0;
+
+  const DUREE_LONGUE_JOURS = 30;
+  const ECART_CONVERGENCE_JOURS = 30;
+  const estLecteurRemplacant = myProfile.type === ProfileType.REMPLACANT;
+  const convergences = new Map<string, number>();
+  if (estLecteurRemplacant) {
+    // Mes disponibilités LONGUES. Le seuil ne discrimine presque pas (27 des 29 disponibilités
+    // actives le franchissent) — il est conservé parce qu'il nomme l'intention, pas parce qu'il
+    // trie : annoncer un poste de douze mois à quelqu'un qui se libère une semaine serait faux.
+    const mesDispos = await prisma.mission.findMany({
+      where: { ...EST_UNE_OFFRE, profileId: myProfile.id, missionType: MissionType.REMPLACEMENT },
+      select: { startDate: true, endDate: true },
+    });
+    const debutsLongs = mesDispos
+      .filter((d) => d.startDate && d.endDate
+        && (d.endDate.getTime() - d.startDate.getTime()) / 86_400_000 > DUREE_LONGUE_JOURS)
+      .map((d) => d.startDate!.getTime());
+
+    if (debutsLongs.length > 0) {
+      for (const m of missions) {
+        const estPosteLongTerme =
+          m.missionType === MissionType.ASSISTANAT
+          || m.missionType === MissionType.COLLABORATION
+          || m.estSalariat;
+        if (!estPosteLongTerme || !m.startDate) continue;
+        // L'écart le plus FAVORABLE parmi mes disponibilités : c'est celui que l'utilisateur
+        // vérifierait lui-même, et en retenir un autre rendrait l'étiquette incompréhensible.
+        const ecart = Math.min(
+          ...debutsLongs.map((t) => Math.abs(m.startDate!.getTime() - t) / 86_400_000),
+        );
+        if (ecart <= ECART_CONVERGENCE_JOURS) convergences.set(m.id, Math.round(ecart));
+      }
+    }
+  }
+
   // Expurge les champs sensibles du profil de chaque annonce (audit permissions, section 165) :
   // le feed ne doit exposer que les champs d'affichage (nom/photo/bio/région/note…).
-  return NextResponse.json(stripMissionProfiles(missions), {
+  const charge = stripMissionProfiles(missions).map((m) => {
+    const ecart = convergences.get((m as { id: string }).id);
+    // Champ ABSENT plutôt que `null` quand il n'y a rien à dire : une carte non étiquetée ne
+    // porte aucune trace de l'étiquetage, et la mesure ne peut pas confondre « pas de
+    // convergence » avec « mécanisme inactif ».
+    return ecart === undefined ? m : { ...m, convergenceJours: ecart };
+  });
+
+  return NextResponse.json(charge, {
     headers: {
       "x-feed-seen-available": String(seenAvailable),
       // 1 = le lecteur a une publication active, 0 = il n'apparaît dans aucun fil.
       "x-feed-a-publie": aPublie > 0 ? "1" : "0",
       "x-feed-salariat-optin": String(candidatsOptes),
+      // Ce que la présélection de types écarte. Zéro hors présélection — l'en-tête ne décrit
+      // jamais un masquage qui n'a pas eu lieu.
+      "x-feed-remplacements-masques": String(remplacementsMasques),
       // Combien d'annonces de CE feed sont réellement remontées par une priorité territoriale.
       // Sert uniquement à la mention de transparence : elle ne doit annoncer « zones
       // prioritaires » que lorsque c'est vrai POUR CE LECTEUR, et se taire sinon. C'est ce qui

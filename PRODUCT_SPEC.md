@@ -7347,6 +7347,107 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 282 — PRÉSÉLECTION CÔTÉ ASSISTANT, ÉTIQUETAGE CÔTÉ REMPLAÇANT (06/10)
+
+Deux des quatre options proposées après la mesure des paires convergentes : A1 (présélection) et
+R1 (étiquetage). Les deux autres — remontée dans l'ordre et champ « j'accepte aussi un poste » —
+ne sont pas faites.
+
+#### A1 — ce que mesure le choix
+
+```
+profils ASSISTANT                8
+swipes émis                     61
+  sur des offres REMPLACEMENT   28  (46 %)
+  taux de « oui » global        21 %
+  taux de « oui » sur REMPLACEMENT   1/28  (4 %)
+```
+
+Un assistant consacre près de la moitié de ses décisions à ce qu'il refuse à 96 %. Le 1/24 relevé
+le 29/09 est confirmé avec quatre observations de plus : **1/28**.
+
+Le symétrique ne justifie rien de tel : un remplaçant consacre aussi 46 % de ses swipes au long
+terme, mais y dit « oui » à **12 %** contre 13 % sur les remplacements. Il les traite pareil.
+L'asymétrie ne va que dans un sens, et la présélection non plus.
+
+#### A1 — et le défaut que la mesure a forcé à corriger
+
+Mesuré **avant** de livrer : retirer les remplacements fait passer un assistant de 15 cartes à 7.
+Mais sur les huit, **deux tombent à 1 et à 0**. Un filtre par défaut qui vide un fil est pire que
+le défaut qu'il corrige.
+
+En cherchant la sortie de secours, un défaut plus profond est apparu : **la barre de pastilles
+filtrait côté CLIENT**, sur la page déjà chargée, pendant que le préchargement se déclenche sur la
+liste BRUTE (`missions.length < 4`). Un lecteur qui restreignait ses types épuisait ses cartes
+visibles sans jamais redemander la suite : écran vide, et de l'offre réelle à l'autre bout de la
+requête. Le défaut existait déjà pour les pastilles `ASSISTANAT` et `COLLABORATION` — il devenait
+le chemin **par défaut** de tout assistant.
+
+Le filtre est donc porté **côté serveur** (`/api/feed?types=…`), pour tous les boutons et non
+pour le seul nouveau : deux mécanismes pour une même barre auraient divergé.
+
+`POSTES` n'est pas une valeur de `MissionType` : c'est l'union de ce qui engage dans la durée,
+salariat compris. Le salariat n'ayant pas de valeur d'enum propre (section 262 — un CDI est stocké
+`COLLABORATION`, un CDD `REMPLACEMENT`), un CDD salarié est rattrapé par `estSalariat`, faute de
+quoi il tomberait du mauvais côté de la ligne.
+
+**Présélection, pas verrou.** La pastille « Tout » est à un clic, et quand le filtre ne laisse
+rien, l'écran **nomme ce qu'il masque** : « 6 annonces de remplacement sont masquées par ce
+filtre » + un bouton « Voir aussi les 6 remplacements ». Règle de l'état vide filtré (section 7),
+qui vaut d'autant plus ici que le masquage n'a pas été demandé.
+
+#### R1 — une étiquette, et pourquoi surtout pas un classement
+
+Sur une carte de poste longue durée présentée à un remplaçant dont une disponibilité dépasse
+30 jours, et dont le début tombe à moins de 30 jours du sien :
+
+> 🎯 Poste longue durée · démarre à 28 jours de votre disponibilité
+
+**Elle ne touche pas à l'ordre, et c'est délibéré.** Le tri du fil est une somme de points où vit
+le levier territorial — le seul adossé à une relation client payante. Y ajouter la convergence de
+dates reviendrait à distribuer gratuitement ce que le produit vend, ce que la doctrine interdit
+(« jamais une option ambiante »).
+
+**Et rien ne dit encore qu'elle convertit.** Sur les 31 paires convergentes réellement vues à ce
+jour, le taux de « oui » est de **13 %** — exactement le taux de base. 31 observations ne peuvent
+ni montrer ni exclure un gain modeste. L'étiquette est donc posée D'ABORD comme instrument : le
+champ `convergenceJours` est **absent** plutôt que `null` quand il n'y a rien à dire, si bien
+qu'une carte non étiquetée ne porte aucune trace du mécanisme et que la comparaison étiquetées /
+non étiquetées reste possible. Si l'écart apparaît, la remontée se discutera avec un chiffre.
+
+La phrase dit un **fait vérifiable**, jamais une recommandation : « ça pourrait vous intéresser »
+serait une affirmation que rien ne soutient.
+
+#### Ce que la mesure a aussi montré, et qui n'est pas traité ici
+
+- **31 des 50 paires « jamais vues » portent sur une offre déjà engagée** dans une relation
+  active, donc invisible pour tous. Aucune règle de classement ne les atteint — c'est l'expiration
+  des dormantes (sections 279-281) qui en libérera une partie.
+- **8 disponibilités sur 29 (28 %) déclarent une double intention en texte libre** (« Recherche
+  remplacement ou CDD », « remplaçant/assistant »), faute de champ pour la dire.
+- **La bannière des sections 271-272**, qui invite à publier une seconde annonce, totalise
+  **5 affichages, 0 clic, 0 écartement** — et le chemin qu'elle propose est emprunté par **1
+  candidat sur 30**. Demander une seconde publication ne fonctionne pas.
+- **Aucun CDD salarié n'existe en base** : la branche `estSalariat` du filtre est écrite pour un
+  type que personne ne publie encore.
+- **« Jamais swipée » n'est pas « jamais affichée »** : le produit trace `SWIPE_RIGHT` et
+  `CARD_CONSULTED`, pas les impressions du carrousel. L'imputation au classement reste donc une
+  hypothèse, pas un fait.
+
+#### Vérifié à l'écran, banc jetable à deux profils
+
+| | |
+|---|---|
+| remplaçant, pastille par défaut | « Tout » ✅ |
+| remplaçant, pastille « Postes longue durée » | rechargement serveur, postes seuls ✅ |
+| étiquette de convergence | « démarre à **28 jours** de votre disponibilité » sur un poste au 30 nov pour une dispo au 2 nov ✅ |
+| assistant, pastille par défaut | **« Postes longue durée »** ✅ |
+| assistant, carte servie | assistanat, **sans** étiquette (réservée au remplaçant) ✅ |
+| assistant, postes épuisés | « Aucun poste longue durée… 6 annonces de remplacement sont masquées » + bouton ✅ |
+| clic sur le bouton de secours | les remplacements réapparaissent ✅ |
+
+État restauré : 85 comptes, 79 missions, 9 847 traces avant comme après, zéro résidu.
+
 ### SECTION 281 — LE CRITÈRE N'EST PLUS « A PARLÉ », C'EST « EST SILENCIEUSE » (06/10)
 
 Dernier arbitrage ouvert de la 279, tranché par Jean-Charles : les relations qui ont échangé puis

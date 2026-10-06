@@ -102,6 +102,55 @@ depuis l'étendent concrètement.
 
 ---
 
+## ✅ Clos et vérifié — 06/10, paires convergentes remplaçant → poste
+
+> Entrée rédigée par Opus à la demande de Jean-Charles. Mesure
+> complète et conception dans PRODUCT_SPEC.md section 282.
+
+**Pas de fusion des chercheurs** — le principe fondateur (« le match
+porte sur des disponibilités, jamais sur des profils ») l'interdit.
+Deux options livrées sur les quatre proposées.
+
+- **A1 — présélection côté assistant.** Un profil ASSISTANT démarre
+  sur « Postes longue durée ». Fondé sur du mesuré : 46 % de ses
+  décisions portent sur des remplacements, qu'il retient à **1/28**
+  (4 %) contre 21 % ailleurs. Le 1/24 du 29/09 est confirmé.
+- **R1 — étiquetage côté remplaçant.** « Poste longue durée · démarre
+  à N jours de votre disponibilité ». **Aucun effet sur l'ordre** :
+  le tri porte le levier territorial, seul levier vendu, et y ajouter
+  la convergence reviendrait à le distribuer gratuitement.
+
+**Un défaut plus profond trouvé en cherchant la sortie de secours** :
+les pastilles filtraient côté CLIENT pendant que le préchargement se
+déclenche sur la liste BRUTE — un lecteur qui restreignait ses types
+vidait son écran sans jamais redemander la suite. Vrai depuis
+toujours pour ASSISTANAT et COLLABORATION ; ça devenait le chemin par
+défaut de tout assistant. Filtre porté côté serveur, pour toute la
+barre.
+
+**Réserve levée par la mesure, pas par l'intuition** : retirer les
+remplacements fait passer un assistant de 15 cartes à 7, mais DEUX
+des huit tombent à 1 et 0. D'où l'état vide qui NOMME ce qu'il masque
+et propose le retour en un clic, plutôt qu'un fil vide.
+
+**Ce que la mesure dit et qu'il faut garder en tête** :
+- La convergence de dates **ne prédit aucun surcroît d'intérêt** dans
+  les données actuelles (13 % sur les paires vues, soit le taux de
+  base). 31 observations ne tranchent pas. L'étiquette est posée
+  d'abord comme instrument de mesure.
+- 31 des 50 paires « jamais vues » portent sur une offre **gelée par
+  une relation dormante** — l'expiration livrée ce matin pèse plus
+  lourd que n'importe quelle règle de classement.
+- 28 % des disponibilités déclarent une double intention **en texte
+  libre**, faute de champ.
+- La bannière « publiez aussi du long terme » : **5 affichages,
+  0 clic**, et 1 candidat sur 30 emprunte ce chemin.
+
+**Non fait, et à arbitrer** : la remontée dans l'ordre (R2), et le
+champ « j'accepte aussi un poste long terme » sur la disponibilité —
+qui rendrait la MÊME mission éligible aux deux fils sans seconde
+publication.
+
 ## ✅ Clos et vérifié — 06/10, expiration des mises en relation dormantes
 
 > Entrée rédigée par Opus à la demande de Jean-Charles, ce fichier
