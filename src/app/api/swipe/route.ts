@@ -139,17 +139,13 @@ export async function POST(req: NextRequest) {
     // deux lectures de la même paire à 25/25 et 6/25 en géographie selon le sens du swipe.
     // On applique ici le classement qui sert déjà à l'appariement — même règle, même résultat.
     //
-    // ⚠️ UNE DIVERGENCE SUBSISTE DEPUIS LA SECTION 269, et elle est nommée plutôt que tue. Quand
-    // une puce est sélectionnée, le score se calcule contre CETTE annonce, alors que la mise en
-    // relation s'attache désormais à celle que le candidat a réellement retenue — qui peut être
-    // une autre. `Swipe.affinityScore`, et donc `Match.aiScore` qui en est l'instantané,
-    // décrivent alors le couple de la puce, pas celui du match.
-    //
-    // Non corrigé ici : aligner les deux demande de résoudre la réciprocité AVANT le scoring,
-    // donc de réordonner une route qui enchaîne budget DeepSeek, appel modèle et upsert. Le prix
-    // de ce réordonnancement est plus élevé que celui de l'écart, qui ne porte que sur les cas où
-    // le candidat a retenu une autre annonce que celle affichée. À reprendre si la mesure montre
-    // que ces cas sont fréquents.
+    // LA DIVERGENCE QUE LA 269 AVAIT LAISSÉE EST FERMÉE (section 270). Elle disait : quand une puce
+    // est sélectionnée, le score se calcule contre CETTE annonce alors que la mise en relation
+    // s'attache à celle que le candidat a réellement retenue. Le bloc ci-dessus résout désormais la
+    // réciprocité AVANT d'arriver ici, et `swiperMission` prend l'annonce appariée : `Swipe.
+    // affinityScore` et `Match.aiScore`, qui en est l'instantané, décrivent le même couple.
+    // Ce commentaire a survécu six jours à sa correction en annonçant un défaut réparé — motif
+    // suffisant pour le réécrire plutôt que le supprimer.
     const [swiperProfile, swiperMission] = await Promise.all([
       prisma.profile.findUnique({ where: { id: swiperId } }),
       // L'annonce APPARIÉE d'abord : c'est elle que le match portera, donc elle que le score
@@ -351,7 +347,7 @@ export async function POST(req: NextRequest) {
             userId: recipient.user.id,
             type: "match",
             message: `${actorLabel} a retenu votre profil — nouvelle mise en relation !`,
-            linkUrl: `/matches?matchId=${match.id}`,
+            linkUrl: `/match/${match.id}`,
           });
           await sendNewRelationEmail(recipient.user.email, {
             actorLabel,

@@ -148,7 +148,7 @@ export default function MissionDetailSheet({
             <p className="text-emerald-500 text-xs mt-0.5">Poursuivez la conversation.</p>
           </div>
           <Link
-            href={`/matches?matchId=${relation.matchId}`}
+            href={`/match/${relation.matchId}?chat=1`}
             className="shrink-0 px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition"
           >
             Ouvrir →

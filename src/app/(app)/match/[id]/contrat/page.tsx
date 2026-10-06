@@ -567,7 +567,7 @@ export default function ContratPage() {
         <p className="text-gray-400 text-xs">
           Poursuivez la discussion dans la messagerie pour convenir des modalités.
         </p>
-        <Link href={`/matches?matchId=${id}`} className="w-full max-w-xs py-3 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition">
+        <Link href={`/match/${id}?chat=1`} className="w-full max-w-xs py-3 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition">
           Ouvrir la conversation →
         </Link>
         <Link href={`/match/${id}`} className="text-kine-600 text-sm underline">← Retour à la mise en relation</Link>
