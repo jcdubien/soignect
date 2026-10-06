@@ -7347,6 +7347,120 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 278 — L'INSCRIPTION DEMANDE ENFIN LA PROFESSION (05/10)
+
+Le blocage dur du 30/09, levé. `Profile.profession` existait depuis le 17/08, le feed s'en
+servait pour cloisonner, les gabarits infirmiers étaient écrits — et **aucun écran ne posait la
+question**. Les 85 profils en base sont donc tous `KINESITHERAPEUTE`, non parce qu'ils le sont
+tous, mais parce que la colonne tombait sur son défaut.
+
+#### L'enum, et ce qui s'en dérive
+
+`DENTISTE` et `ORTHOPTISTE` entrent dans `Profession`, qui compte désormais **seize** valeurs.
+Migration manuelle appliquée (`prisma/migration-278-dentiste-orthoptiste.sql`, `ADD VALUE IF NOT
+EXISTS` — rejouable), vérifiée en base.
+
+Même discipline que la 277 : ce qui leur est propre s'écrit, ce qui leur est commun se dérive.
+Deux faits méritaient d'être écrits plutôt que supposés — **les orthoptistes n'ont pas d'ordre
+professionnel** (c'est ADELI qui les enregistre, d'où `N° ADELI` et une formule neutre pour
+l'autorité), et aucun gabarit n'étant transcrit pour ces deux professions,
+`ARTICLE_NON_INSTALLATION` y vaut `null` plutôt qu'un numéro d'article inventé.
+
+#### La liste déroulante, et la garde qui la protège
+
+Groupée en trois familles (`GROUPES_PROFESSION`) — seize entrées à plat se lisent mal, et le
+groupe dit ce que l'enum ne peut pas dire : les dix marchés médicaux relèvent du même ordre.
+
+**Une garde d'exhaustivité à la compilation** a été ajoutée, et elle n'est pas décorative. Tout
+le reste de `lib/professions.ts` est protégé par `Record<Profession, …>` : ajouter une valeur
+casse la compilation tant que son libellé manque. La liste de groupes, elle, n'était qu'un
+tableau — une profession absente de tout groupe serait restée **invisible dans l'inscription**,
+sans que rien le signale. C'est le défaut même qu'on vient de corriger à l'échelle du produit ;
+le laisser revenir dans le code qui le corrige aurait été le reproduire un étage plus bas.
+
+#### Les huit phrases kiné, dont la plus coûteuse
+
+`lib/exemplesPublication.ts` : la structure est commune (deux contextes × trois champs), le
+contenu est écrit pour kiné et infirmier, et retombe sur une forme neutre construite depuis le
+libellé pour les quatorze autres. Pas de gabarit à trous — il aurait aplati la seule chose qui
+rend un exemple utile, nommer un geste du métier.
+
+Sept phrases vivaient dans les deux formulaires de publication. **La huitième a été trouvée en
+parcourant l'inscription à l'écran**, et c'est la pire : à l'étape 2, juste après avoir choisi
+« Infirmier·ère », le champ d'accroche proposait *« Kiné passionné de sport »*. Une lecture du
+code ne l'aurait pas donnée — elle vit dans `register/page.tsx`, pas dans les formulaires de
+publication que la factorisation visait.
+
+#### Le cloisonnement, sur les surfaces qui ne l'avaient pas
+
+Le feed borne le fil à la profession du lecteur depuis le 17/08 : un swipe inter-profession ne
+peut plus **naître**. Mais il peut **survivre** — `/compte` laisse changer de profession, et les
+gestes passés restent en base. C'est mot pour mot l'invariant de la section 226 sur le camp, et
+le filtre est donc à la LECTURE, pour la même raison : purger à l'écriture ne réparerait que les
+bascules futures.
+
+| Surface | Camp | Profession |
+|---|---|---|
+| `api/feed` | ✅ (déjà) | ✅ (déjà, 17/08) |
+| `api/tray` — « Vos choix » | ✅ (déjà, 226) | ✅ **ajouté** |
+| `api/missions/[id]/interesses` | ✅ (déjà, 226) | ✅ **ajouté** |
+| `api/interets-recus` — « Vous attendent » | ❌ **ajouté** | ✅ **ajouté** |
+| Territoire (`annoncesTerritoire`) | ✅ (déjà) | ✅ (déjà) |
+| Recommandations | n/a — bornées par le match | n/a |
+
+`api/interets-recus` est né **après** la section 226 et ne l'avait jamais appliquée : une
+personne inscrite d'abord comme candidate puis devenue titulaire y figurait parmi celles qui
+attendent une réponse, avec un bouton « Mettre en relation » en face.
+
+#### Ce que voyait une profession sans modèle de contrat, et ce qu'elle voit maintenant
+
+L'écran cabinet annonçait déjà « la publication est donc suspendue ». **L'énoncé était faux.**
+Le formulaire filtrait ses trois types libéraux sur les gabarits mais laissait passer le salariat
+sans condition — délibérément, ses modèles vivant dans un registre séparé. Tant que seuls des
+kinés et des infirmiers existaient, « pas de gabarit libéral » et « pas de gabarit du tout »
+coïncidaient. Un cabinet dentaire lisait donc la suspension **et gardait une tuile « Salariat »
+cliquable**. Le salariat se filtre désormais sur son propre registre (`aDesGabaritsSalarie`).
+
+Deuxième porte au même garde : `?needType=` préréglait un type sans vérifier qu'un gabarit
+existe, contournant l'écran entier. Fermée.
+
+**Côté candidat il n'y avait aucun garde — ni blocage, ni énoncé.** Il reste **sans blocage**, et
+c'est un choix : une recherche publiée n'est pas un contrat, et interdire le seul geste qu'une
+profession nouvelle peut faire le jour de son ouverture reviendrait à ouvrir l'inscription pour
+rien. Le silence, lui, n'était pas tenable — un bandeau dit que les modèles ne sont pas intégrés,
+que les cabinets de cette profession ne peuvent pas encore publier, et qu'aucune republication ne
+sera nécessaire le jour venu.
+
+#### Une phrase fausse dans le premier message reçu
+
+`cibleVisibilitePour` écrivait « kinésithérapeutes en recherche de poste » **en dur**. Elle part
+dans l'email de bienvenue et dans le courrier aux inscrits sans publication. À l'ouverture, elle
+aurait annoncé à un chirurgien-dentiste qu'il serait vu par des kinésithérapeutes — faux, et faux
+sur le point précis qui décide s'il publie. Elle prend maintenant la profession en paramètre.
+
+#### Vérifié à l'écran, sur la route réelle
+
+Deux comptes jetables créés par le formulaire d'inscription, puis supprimés — base et bucket
+vérifiés à zéro, 85 profils avant comme après.
+
+| | infirmier | chirurgien-dentiste |
+|---|---|---|
+| inscription | ✅ 16 professions groupées, valeur enregistrée | ✅ |
+| accroche à l'inscription | ✅ exemple infirmier | ✅ « Chirurgien-dentiste, expérience 5 ans… » |
+| publication candidat | ✅ aucun bandeau, exemples infirmiers (« tournées à domicile, pansements complexes ») | ✅ bandeau ambre nommant l'Ordre des chirurgiens-dentistes, exemple neutre |
+| publication cabinet | n/a | ✅ **aucune tuile**, salariat compris ; « il reste à renseigner : le type de poste » |
+
+#### Ce qui n'est PAS fait
+
+- **`VOCABULAIRE_PROFESSION` reste partiel** (kiné seul) : les écrans admin affichent donc
+  `DENTISTE`, `MEDECIN_ORL` en brut. C'est la décision du 14/08 — « ce qui n'a pas été décidé
+  doit se voir » — et elle est conservée, mais elle devient visible sur quinze valeurs au lieu de
+  quatre.
+- **Aucun gabarit de contrat** pour dentiste, orthoptiste et les dix marchés médicaux. L'ouverture
+  rend l'inscription possible, pas la contractualisation.
+- **Les 85 profils existants ne sont pas touchés**, conformément à la décision du 30/09. Ils
+  restent `KINESITHERAPEUTE`, ce qui est leur valeur réelle.
+
 ### SECTION 276 — METTRE FIN À UNE OCCUPATION SANS SUPPRIMER LE POSTE (01/10)
 
 Signalé le 30/09 sur le poste JP, tenu par Camille du 19/10/26 au 18/04/27 : aucune action ne
@@ -7996,6 +8110,14 @@ en toutes circonstances, et ne garder `targetMissionId` que comme *préférence*
 sémantique du matching pour tout le monde, crée des `Match` et déclenche des emails : c'est un
 arbitrage, pas un correctif de rendu. Les 2 paires déjà perdues demanderaient en plus une reprise
 séparée, qui enverrait 4 emails.
+
+> ✅ **APPLIQUÉ DEPUIS — ne pas lire ce paragraphe seul.** Jean-Charles a tranché le 25/09 ; le
+> correctif est en ligne (`c690ae9`, **section 269** : la puce préfère au lieu de filtrer, avec le
+> resserrage sur `EST_UNE_OFFRE` qui rend l'élargissement sûr), et la **section 270** ferme la
+> divergence de score qu'il avait ouverte. Les 2 paires perdues n'ont demandé **aucune** reprise :
+> la route normale les a créées d'elle-même le 27/09. Mesure finale : **15 paires réciproques,
+> 15 mises en relation, zéro perdue.** Le 03/10, ce paragraphe a fait conclure à tort que le
+> défaut était encore ouvert — d'où ce renvoi.
 
 #### Vérifié à l'écran
 

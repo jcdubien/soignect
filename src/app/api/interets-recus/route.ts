@@ -44,6 +44,23 @@ export async function GET() {
   const auj = new Date();
   auj.setHours(0, 0, 0, 0);
 
+  // Ma profession borne cette liste (section 278). Le fil est cloisonné depuis le 17/08, donc un
+  // intérêt d'une autre profession ne peut plus ARRIVER — mais `/compte` laisse changer de
+  // profession, et les swipes posés avant restent en base. Sans ce filtre, un cabinet de kiné
+  // verrait dans « Vous attendent » quelqu'un qui exerce maintenant un autre métier, avec un
+  // bouton « Mettre en relation » qui créerait une relation inter-profession : exactement ce que
+  // le feed interdit par ailleurs.
+  //
+  // Le camp passe au même endroit, et c'est l'invariant de la section 226 : un swipe de même camp
+  // est une affirmation fausse, pas une candidature. Cette surface est née après la 226 et ne l'a
+  // jamais appliqué — une personne inscrite d'abord comme candidate puis devenue titulaire
+  // figurait ici parmi ceux qui attendent une réponse.
+  const moi = await prisma.profile.findUnique({
+    where: { id: profileId },
+    select: { profession: true },
+  });
+  if (!moi) return NextResponse.json({ items: [], sansPublication: 0 });
+
   // MES annonces réellement proposables. Le prédicat partagé (section 265) plus l'exclusion des
   // périodes écoulées : un intérêt sur une annonce morte n'appelle plus d'action.
   const mesAnnonces = await prisma.mission.findMany({
@@ -62,6 +79,13 @@ export async function GET() {
     where: {
       direction: SwipeDirection.RIGHT,
       swipedMissionId: { in: mesAnnonces.map((a) => a.id) },
+      // Les deux axes de cloisonnement, posés dans la requête : même profession, camp opposé.
+      // Écartés AVANT le comptage, pour que `sansPublication` ne gonfle pas de gens qui n'ont
+      // rien à faire dans cette liste.
+      swiper: {
+        profession: moi.profession,
+        type: { not: ProfileType.TITULAIRE },
+      },
     },
     select: { swiperId: true, swipedMissionId: true, createdAt: true, affinityScore: true },
     orderBy: { createdAt: "asc" },

@@ -115,6 +115,17 @@ export function gabaritsSalariePour(
   return GABARITS_SALARIE.filter((g) => g.profession === profession && g.nature === nature);
 }
 
+/** Cette profession a-t-elle AU MOINS UN modèle de contrat de travail ? (section 278)
+ *
+ *  Le formulaire de publication filtrait ses trois types libéraux sur les gabarits, mais laissait
+ *  passer le salariat sans condition — délibérément, ses modèles vivant dans ce registre séparé.
+ *  Tant que seuls des kinés et des infirmiers existaient, les deux coïncidaient. À l'ouverture,
+ *  plus du tout : un cabinet dentaire lisait « la publication est donc suspendue » et gardait une
+ *  tuile « Salariat » cliquable. L'énoncé était faux sur le même écran que l'option. */
+export function aDesGabaritsSalarie(profession: Profession): boolean {
+  return GABARITS_SALARIE.some((g) => g.profession === profession);
+}
+
 export function gabaritSalarieParId(id: string): GabaritSalarie | undefined {
   return GABARITS_SALARIE.find((g) => g.id === id);
 }

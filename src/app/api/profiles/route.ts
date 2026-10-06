@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { z } from "zod";
-import { ProfileType, TitulaireKind } from "@prisma/client";
+import { ProfileType, TitulaireKind, Profession } from "@prisma/client";
 import { sendWelcomeEmail } from "@/lib/email";
 import { publicationPour, cibleVisibilitePour } from "@/lib/camp";
 import { logTraceEvent } from "@/lib/trace";
@@ -13,6 +13,9 @@ const createProfileSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   type: z.nativeEnum(ProfileType),
+  // Profession déclarée à l'inscription (section 278). Optionnelle : le défaut de la colonne
+  // reste KINESITHERAPEUTE, ce qui garde intact tout appelant antérieur à l'ouverture.
+  profession: z.nativeEnum(Profession).optional(),
   // Nature du titulaire (Cabinet libéral vs Structure privée) posée dès l'inscription
   // pour l'entrée « Établissement ». Ignoré pour les remplaçants (défaut CABINET).
   titulaireKind: z.nativeEnum(TitulaireKind).optional(),
@@ -37,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email: rawEmail, password, type, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, acceptedTerms, inviteToken, src } = parsed.data;
+  const { email: rawEmail, password, type, profession, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, acceptedTerms, inviteToken, src } = parsed.data;
   // Email normalisé à la source : la connexion, check-email et forgot-password comparent tous
   // en minuscules. Enregistrer une saisie capitalisée créait un compte que son propriétaire ne
   // pouvait plus retrouver — et un doublon possible face à un compte déjà existant.
@@ -62,7 +65,7 @@ export async function POST(req: NextRequest) {
       emailOptIn: optIn,
       acceptedTermsAt: acceptedTerms ? new Date() : null,
       profile: {
-        create: { type, name, bio, bioTinder, photoUrl, ...(kind ? { titulaireKind: kind } : {}) },
+        create: { type, name, bio, bioTinder, photoUrl, ...(profession ? { profession } : {}), ...(kind ? { titulaireKind: kind } : {}) },
       },
     },
     include: { profile: true },
@@ -102,7 +105,10 @@ export async function POST(req: NextRequest) {
   // « visible par les remplaçants » disait faux a un etablissement, qui recrute des salaries ;
   // et « visible par les cabinets » disait a un candidat qu'il ne s'expose qu'aux liberaux,
   // alors que les etablissements recrutent aussi. C'est le tout premier message recu.
-  const cibleLabel = cibleVisibilitePour(type);
+  // La profession part avec le camp (section 278) : un cabinet dentaire ne doit pas lire
+  // qu'il sera vu par des kinésithérapeutes. On relit celle RÉELLEMENT enregistrée plutôt que
+  // la valeur reçue — elle peut être absente, et la colonne a son propre défaut.
+  const cibleLabel = cibleVisibilitePour(type, user.profile?.profession);
   // Création de compte tracée (section 86) — aucun événement ne la capturait, si bien qu'on ne
   // pouvait pas relier une inscription à la page qui l'avait amenée. `src` vient d'un paramètre
   // d'URL : il documente une provenance, il n'accorde aucun droit.

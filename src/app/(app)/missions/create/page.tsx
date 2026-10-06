@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
+import { aDesGabaritsSalarie } from "@/lib/contrats/gabaritsSalarie";
+import { exemplesPour } from "@/lib/exemplesPublication";
 import CreateMissionClient from "./CreateMissionClient";
 
 export const dynamic = "force-dynamic";
@@ -31,5 +33,13 @@ export default async function CreateMissionPage() {
   });
   if (!profil) redirect("/login");
 
-  return <CreateMissionClient typesContractualisables={missionTypesPour(profil.profession)} />;
+  // Les exemples suivent la profession (section 278) : la page la charge déjà, il n'y a rien
+  // de plus à interroger.
+  return (
+    <CreateMissionClient
+      typesContractualisables={missionTypesPour(profil.profession)}
+      salariatContractualisable={aDesGabaritsSalarie(profil.profession)}
+      exemples={exemplesPour(profil.profession)}
+    />
+  );
 }

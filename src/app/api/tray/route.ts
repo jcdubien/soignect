@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { swipeExploitable } from "@/lib/camp";
+import { memeMarche } from "@/lib/professions";
 import { etatNouveauSignal } from "@/lib/interetSignale";
 import { contratConfirme } from "@/lib/matchEtat";
 
@@ -36,9 +37,21 @@ export async function GET(req: Request) {
   // passés : sans ce filtre, un cabinet anciennement candidat voyait dans « Vos choix » des
   // annonces de cabinets, indéfiniment « en attente de réponse » alors qu'aucun match ne peut
   // s'y produire. Le geste a bien eu lieu ; il ne veut simplement plus rien dire.
-  const moi = await prisma.profile.findUnique({ where: { id: swiperId }, select: { type: true } });
+  //
+  // MÊME MOTIF SUR LA PROFESSION (section 278). `/compte` laisse changer de profession comme il
+  // laissait changer de camp : un kiné devenu infirmier gardait ici ses choix sur des annonces de
+  // cabinets de kiné, que le feed ne lui montre plus et avec lesquelles aucun match ne peut
+  // naître. Les deux axes se filtrent au même endroit et pour la même raison.
+  const moi = await prisma.profile.findUnique({
+    where: { id: swiperId },
+    select: { type: true, profession: true },
+  });
   const swipes = moi
-    ? swipesBruts.filter((s) => swipeExploitable(moi.type, s.swipedMission.profile.type))
+    ? swipesBruts.filter(
+        (s) =>
+          swipeExploitable(moi.type, s.swipedMission.profile.type) &&
+          memeMarche(moi.profession, s.swipedMission.profile.profession),
+      )
     : swipesBruts;
 
   const missionIds = swipes.map((s) => s.swipedMissionId);

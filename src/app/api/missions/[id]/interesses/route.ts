@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { swipeExploitable } from "@/lib/camp";
+import { memeMarche } from "@/lib/professions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const mission = await prisma.mission.findUnique({
     where: { id },
     // `profile.type` sert au filtre de camp ci-dessous : un swipe de même camp est une
-    // affirmation fausse, pas une candidature.
-    select: { profileId: true, profile: { select: { type: true } } },
+    // affirmation fausse, pas une candidature. `profession` y ajoute le second axe (section 278) :
+    // un swipe d'une autre profession ne peut plus naître depuis le 17/08, mais il SURVIT à un
+    // changement de profession dans /compte — et exposerait ici le profil de quelqu'un qui
+    // n'exerce plus le métier recherché.
+    select: { profileId: true, profile: { select: { type: true, profession: true } } },
   });
   if (!mission) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   if (mission.profileId !== session.user.profileId) {
@@ -40,7 +44,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       createdAt: true,
       swiper: {
         select: {
-          id: true, name: true, type: true, bioTinder: true,
+          id: true, name: true, type: true, profession: true, bioTinder: true,
           // Une seule suffit à trancher : a-t-il quelque chose de swipable en face ?
           missions: { where: { isActive: true }, select: { id: true }, take: 1 },
         },
@@ -61,6 +65,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // inscrit comme candidat restait listé ici comme « personne intéressée » — son accroche
     // étant en réalité son offre de recrutement.
     .filter((s) => swipeExploitable(s.swiper.type, mission.profile.type))
+    .filter((s) => memeMarche(s.swiper.profession, mission.profile.profession))
     .filter((s) => !enRelation.has(s.swiper.id))
     .map((s) => ({
       profileId: s.swiper.id,

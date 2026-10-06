@@ -3,6 +3,9 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import type { Profession } from "@prisma/client";
+import { PROFESSION_LABELS, GROUPES_PROFESSION } from "@/lib/professions";
+import { accrocheProfilExemple } from "@/lib/exemplesPublication";
 import { signIn, getSession } from "next-auth/react";
 import Image from "next/image";
 import { bioLimitFor } from "@/lib/bio";
@@ -130,6 +133,11 @@ function RegisterForm() {
   }
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  // Profession déclarée (section 278). Jusqu'ici, AUCUN écran ne la demandait : la colonne
+  // tombait sur son défaut et les 82 premiers comptes étaient tous kinés sans l'avoir dit.
+  // Défaut conservé à kiné — c'est la profession du marché d'origine, et le changer aurait
+  // obligé chaque inscrit historique à un geste pour revenir au même point.
+  const [profession, setProfession] = useState<string>("KINESITHERAPEUTE");
   // Notifications (section 50-51)
   const [phoneCountry, setPhoneCountry] = useState("GP");
   const [phone, setPhone] = useState("");
@@ -165,6 +173,7 @@ function RegisterForm() {
         email: email.toLowerCase().trim(),
         password,
         type: profileType,
+        profession,
         titulaireKind: profileType === "TITULAIRE" && structure ? "STRUCTURE" : undefined,
         name: name.trim() || undefined,
         bioTinder: bioFull || undefined,
@@ -425,6 +434,39 @@ function RegisterForm() {
                   />
                 </div>
 
+                {/* ── PROFESSION (section 278) ────────────────────────────────────────────
+                    Le seul blocage dur de l'ouverture : la colonne existait, l'enum aussi, les
+                    gabarits de contrat infirmier aussi — mais aucun écran ne posait la question,
+                    si bien que tout nouveau compte devenait kiné en silence.
+
+                    GROUPÉ PAR FAMILLE, parce que quatorze entrées à plat se lisent mal et que
+                    les dix marchés médicaux relèvent du même ordre : le groupe dit ce que l'enum
+                    ne peut pas dire. Un cabinet le déclare aussi — c'est la profession qu'il
+                    RECHERCHE, et c'est elle qui cloisonne le fil des deux côtés. */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {profileType === "TITULAIRE" ? "Profession recherchée" : "Votre profession"}
+                  </label>
+                  <select
+                    value={profession}
+                    onChange={(e) => setProfession(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm bg-white"
+                    required
+                  >
+                    {GROUPES_PROFESSION.map((g) => (
+                      <optgroup key={g.titre} label={g.titre}>
+                        {g.valeurs.map((v) => (
+                          <option key={v} value={v}>{PROFESSION_LABELS[v]}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-gray-400 mt-1 leading-snug">
+                    Elle détermine qui vous voyez et qui vous voit : chaque profession a son
+                    propre fil.
+                  </p>
+                </div>
+
                 {/* « Commune principale » et « N° RPPS » se trouvaient ici. Tous deux SAISIS PUIS
                     JETÉS : jamais transmis à /api/profiles, absents du schéma serveur, et
                     Profile n'a même pas de colonne `commune`. Ils coûtaient de la friction sur
@@ -560,7 +602,10 @@ function RegisterForm() {
                       ? "…complétez en quelques mots"
                       : profileType === "TITULAIRE"
                       ? "Cabinet dynamique à Pointe-à-Pitre, patientèle sport et gériatrique, plateau technique complet, logement possible…"
-                      : "Kiné passionné de sport, expérience 5 ans, disponible été et Noël, mobile sur toute la Guadeloupe…"
+                      // Suit la profession choisie à l'écran PRÉCÉDENT (section 278) : elle était
+                      // en dur sur « Kiné passionné de sport », servie telle quelle à l'infirmière
+                      // qui venait de se déclarer infirmière.
+                      : accrocheProfilExemple(profession as Profession)
                   }
                 />
               </div>

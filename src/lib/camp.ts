@@ -1,4 +1,5 @@
 import { ProfileType } from "@prisma/client";
+import { professionPluriel } from "@/lib/professions";
 
 // Le CAMP d'un profil : ce que le produit montre, là où `ProfileType` est ce qu'il stocke.
 //
@@ -69,9 +70,24 @@ export function publicationPour(type: ProfileType | string): Publication {
     : { mot: "recherche", avecArticle: "la recherche", label: "Publier ma recherche", path: "/disponibilites/create" };
 }
 
-/** À qui l'on devient visible en publiant. Même découpage que la publication elle-même. */
-export function cibleVisibilitePour(type: ProfileType | string): string {
+/**
+ * À qui l'on devient visible en publiant. Même découpage que la publication elle-même.
+ *
+ * LA PROFESSION EST UN PARAMÈTRE DEPUIS L'OUVERTURE (section 278), et non plus « kinésithérapeutes »
+ * en dur. Cette phrase part dans l'email de bienvenue — le tout premier message reçu — et dans le
+ * courrier aux inscrits restés sans publication. À un chirurgien-dentiste qui s'inscrit, elle
+ * annonçait qu'il serait vu par des kinésithérapeutes : faux, et faux sur le seul point qui
+ * décide s'il publie.
+ *
+ * Elle n'est demandée QUE du côté titulaire : un candidat devient visible des « cabinets et
+ * établissements qui recrutent », phrase vraie dans toutes les professions. La rendre
+ * obligatoire des deux côtés aurait fait écrire un argument que l'appelant n'a pas à fournir.
+ */
+export function cibleVisibilitePour(
+  type: ProfileType | string,
+  profession?: string | null,
+): string {
   return campDe(type as ProfileType) === "TITULAIRE"
-    ? "kinésithérapeutes en recherche de poste"
+    ? `${professionPluriel(profession)} en recherche de poste`
     : "cabinets et établissements qui recrutent";
 }

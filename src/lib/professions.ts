@@ -51,6 +51,8 @@ export const PROFESSION_LABELS: Record<Profession, string> = {
   INFIRMIER:        "Infirmier·ère",
   ORTHOPHONISTE:    "Orthophoniste",
   SAGE_FEMME:       "Sage-femme",
+  DENTISTE:         "Chirurgien-dentiste",
+  ORTHOPTISTE:      "Orthoptiste",
   // Le libellé du MARCHÉ : c'est lui qui distingue, donc il s'écrit.
   MEDECIN_GENERALISTE:    "Médecin généraliste",
   MEDECIN_CARDIOLOGIE:    "Cardiologue",
@@ -73,6 +75,8 @@ export const PROFESSION_LABELS_CONTRAT: Record<Profession, string> = {
   INFIRMIER:        "Infirmier diplômé d'État",
   ORTHOPHONISTE:    "Orthophoniste",
   SAGE_FEMME:       "Sage-femme",
+  DENTISTE:         "Chirurgien-dentiste",
+  ORTHOPTISTE:      "Orthoptiste",
   // NON VÉRIFIÉ AUPRÈS DU CNOM : aucun gabarit médecin n'est transcrit, donc aucune de ces
   // valeurs n'est imprimée nulle part aujourd'hui. Forme descriptive, à confronter au modèle
   // de l'Ordre le jour où le premier contrat médecin sera écrit.
@@ -101,6 +105,8 @@ export const LIBELLE_NUMERO_ORDRE: Record<Profession, string> = {
   INFIRMIER:        "N° ordinal",    // vocabulaire du CNOI, relevé sur ses modèles de contrat
   ORTHOPHONISTE:    "N° Ordre",
   SAGE_FEMME:       "N° Ordre",
+  DENTISTE:         "N° Ordre",
+  ORTHOPTISTE:      "N° ADELI",   // les orthoptistes n'ont pas d'ordre : c'est ADELI qui les enregistre
   // Dérivé : un seul ordre pour les dix marchés, donc un seul vocabulaire.
   ...pourTousLesMedecins("N° Ordre"),
 };
@@ -122,6 +128,10 @@ export const LIBELLE_ORDRE: Record<Profession, string> = {
   INFIRMIER:        "l'Ordre des infirmiers",
   ORTHOPHONISTE:    "votre ordre professionnel",  // pas de gabarit à ce jour
   SAGE_FEMME:       "l'Ordre des sages-femmes",
+  DENTISTE:         "l'Ordre des chirurgiens-dentistes",
+  // Pas d'ordre professionnel pour les orthoptistes — la formule neutre n'est pas un repli
+  // paresseux ici, c'est le fait.
+  ORTHOPTISTE:      "votre autorité d'enregistrement",
   // Dérivé : c'est exactement ce que la scission ne doit PAS recopier dix fois.
   ...pourTousLesMedecins("l'Ordre des médecins"),
 };
@@ -144,6 +154,8 @@ export const ARTICLE_NON_INSTALLATION: Record<Profession, string | null> = {
   INFIRMIER:        "R.4312-87",    // relevé sur le modèle CNOI transcrit
   ORTHOPHONISTE:    null,
   SAGE_FEMME:       null,
+  DENTISTE:         null,   // aucun gabarit transcrit, donc aucune référence vérifiée
+  ORTHOPTISTE:      null,
   // Dérivé à `null`, et c'est la règle du fichier : pas de gabarit médecin transcrit, donc
   // aucune référence vérifiée. Inventer un numéro d'article serait le défaut qu'on corrige ici.
   ...pourTousLesMedecins(null),
@@ -159,3 +171,96 @@ export function professionLabel(p: string, registre: "usuel" | "contrat" = "usue
   const table = registre === "contrat" ? PROFESSION_LABELS_CONTRAT : PROFESSION_LABELS;
   return table[p as Profession] ?? p;
 }
+
+// Forme PLURIELLE, pour les phrases qui nomment une population — « visible par les
+// kinésithérapeutes en recherche de poste », le tout premier message qu'un inscrit reçoit.
+//
+// Cette phrase était codée en dur sur « kinésithérapeutes » dans `lib/camp.ts`. Elle part à
+// l'inscription ET dans le courrier de rappel aux inscrits sans publication : à l'ouverture,
+// elle aurait annoncé à un chirurgien-dentiste qu'il serait vu par des kinésithérapeutes.
+//
+// Écrite à la main et NON dérivée de `PROFESSION_LABELS` : « Infirmier·ère » ne se met pas au
+// pluriel par concaténation, et « sage-femme » encore moins (« sages-femmes », les deux mots).
+// `Record<Profession, string>` impose l'exhaustivité, comme partout ailleurs dans ce fichier.
+// Aucun pluriel médical n'est dérivé de MEDECINS : « cardiologues » et « médecins généralistes »
+// ne suivent pas la même forme, c'est du contenu, pas de la structure.
+export const PROFESSION_PLURIEL: Record<Profession, string> = {
+  KINESITHERAPEUTE: "kinésithérapeutes",
+  INFIRMIER:        "infirmiers",
+  ORTHOPHONISTE:    "orthophonistes",
+  SAGE_FEMME:       "sages-femmes",
+  DENTISTE:         "chirurgiens-dentistes",
+  ORTHOPTISTE:      "orthoptistes",
+  MEDECIN_GENERALISTE:    "médecins généralistes",
+  MEDECIN_CARDIOLOGIE:    "cardiologues",
+  MEDECIN_DERMATOLOGIE:   "dermatologues",
+  MEDECIN_ENDOCRINOLOGIE: "endocrinologues",
+  MEDECIN_GYNECOLOGIE:    "gynécologues médicaux",
+  MEDECIN_OPHTALMOLOGIE:  "ophtalmologues",
+  MEDECIN_ORL:            "ORL",
+  MEDECIN_PEDIATRIE:      "pédiatres",
+  MEDECIN_PSYCHIATRIE:    "psychiatres",
+  MEDECIN_RHUMATOLOGIE:   "rhumatologues",
+};
+
+export function professionPluriel(p?: string | null): string {
+  return PROFESSION_PLURIEL[p as Profession] ?? "professionnels de santé";
+}
+
+/**
+ * DEUX PROFILS RELÈVENT-ILS DU MÊME MARCHÉ ? (section 278)
+ *
+ * Pendant de `swipeExploitable` (section 226) sur le second axe de cloisonnement. Le feed borne
+ * déjà le fil à la profession du lecteur depuis le 17/08 : un swipe inter-profession ne peut donc
+ * plus NAÎTRE. Mais il peut SURVIVRE — `/compte` laisse changer de profession, exactement comme
+ * il laissait changer de camp, et les gestes passés restent en base.
+ *
+ * Le filtre est donc à la LECTURE, pour la même raison qu'en 226 : purger à l'écriture ne
+ * réparerait que les bascules futures, et ne détruit rien de ce qui est déjà faux.
+ *
+ * Sans occurrence à ce jour — les 82 profils sont kinés — et c'est précisément pourquoi il
+ * s'écrit maintenant : l'ouverture rend le cas atteignable dès le premier inscrit d'une autre
+ * profession, et le défaut n'apparaîtrait qu'au moment où quelqu'un lirait une liste fausse.
+ */
+export function memeMarche(a?: string | null, b?: string | null): boolean {
+  return a === b;
+}
+
+// ── GROUPES D'AFFICHAGE (section 278) ────────────────────────────────────────────────────────
+//
+// Seize entrées à plat dans une liste déroulante se lisent mal, et surtout elles perdent ce
+// que l'enum ne peut pas dire : les dix marchés médicaux relèvent du même ordre. Le groupe le
+// rend visible sans que l'enum ait à le porter.
+//
+// Dérivé de MEDECINS pour le groupe médical — ajouter une spécialité la fera apparaître dans la
+// liste sans qu'on y pense. Les autres sont énumérés à la main : leur ordre d'affichage est un
+// choix (kiné et infirmier d'abord, ce sont les deux professions réellement ouvertes), pas une
+// propriété de l'enum.
+const GROUPES = [
+  { titre: "Rééducation et soins", valeurs: ["KINESITHERAPEUTE", "INFIRMIER", "ORTHOPHONISTE", "ORTHOPTISTE", "SAGE_FEMME"] },
+  { titre: "Médecine de ville",    valeurs: MEDECINS },
+  { titre: "Dentaire",             valeurs: ["DENTISTE"] },
+] as const satisfies readonly { titre: string; valeurs: readonly Profession[] }[];
+
+// ── POURQUOI CETTE GARDE, ET CE QU'ELLE RATTRAPE ────────────────────────────────────────────
+//
+// Tout le reste de ce fichier est protégé par `Record<Profession, …>` : ajouter une valeur à
+// l'enum CASSE la compilation tant que son libellé n'est pas écrit. La liste de groupes, elle,
+// n'est qu'un tableau — elle acceptait sans broncher qu'une profession ne figure dans AUCUN
+// groupe. Conséquence précise : la profession existe en base, se contractualise peut-être, et
+// reste invisible dans la liste déroulante de l'inscription. Personne ne peut la choisir, et
+// rien ne le signale.
+//
+// C'est le défaut que l'ouverture elle-même vient de corriger à l'échelle du produit (une
+// colonne qu'aucun écran ne demandait) ; le laisser revenir dans le code qui la demande aurait
+// été le reproduire un étage plus bas.
+type ProfessionGroupee = (typeof GROUPES)[number]["valeurs"][number];
+type ProfessionsOubliees = Exclude<Profession, ProfessionGroupee>;
+// Si une profession manque, le type attendu devient un tuple et l'affectation échoue en nommant
+// la valeur absente. Pas d'exécution : la garde vit entièrement à la compilation.
+const _TOUTES_LES_PROFESSIONS_SONT_GROUPEES: [ProfessionsOubliees] extends [never]
+  ? true
+  : ["Profession absente de GROUPES_PROFESSION", ProfessionsOubliees] = true;
+void _TOUTES_LES_PROFESSIONS_SONT_GROUPEES;
+
+export const GROUPES_PROFESSION: readonly { titre: string; valeurs: readonly Profession[] }[] = GROUPES;

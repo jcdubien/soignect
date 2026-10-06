@@ -37,6 +37,9 @@ export interface CibleRelance {
   emailOptIn: boolean;
   prenom: string;
   type: string;
+  /** Profession déclarée — elle nomme la population qui verra la publication (section 278).
+   *  Sans elle, le courrier promettait des kinésithérapeutes à tout le monde. */
+  profession: string;
   nom: string | null;
   joursDepuisInscription: number;
 }
@@ -65,7 +68,7 @@ export async function inscritsSansPublication(plusVieuxQue: Date): Promise<Cible
     },
     select: {
       id: true, email: true, emailOptIn: true, createdAt: true,
-      profile: { select: { id: true, name: true, type: true } },
+      profile: { select: { id: true, name: true, type: true, profession: true } },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -87,6 +90,7 @@ export async function inscritsSansPublication(plusVieuxQue: Date): Promise<Cible
       emailOptIn: u.emailOptIn,
       prenom: (u.profile!.name ?? "").trim().split(" ")[0] || "à vous",
       type: u.profile!.type,
+      profession: u.profile!.profession,
       nom: u.profile!.name,
       joursDepuisInscription: Math.floor((Date.now() - u.createdAt.getTime()) / 86_400_000),
       profileId: u.profile!.id,
@@ -122,7 +126,7 @@ export async function envoyerRelances(
     if (c.emailOptIn && joignable) {
       await sendRelancePublicationEmail(c.email, {
         firstName: c.prenom,
-        cibleLabel: cibleVisibilitePour(c.type),
+        cibleLabel: cibleVisibilitePour(c.type, c.profession),
         optIn: c.emailOptIn,
         joursDepuisInscription: c.joursDepuisInscription,
         publication: publicationPour(c.type),

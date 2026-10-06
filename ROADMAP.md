@@ -102,6 +102,69 @@ depuis l'étendent concrètement.
 
 ---
 
+## ✅ Clos et vérifié — 05/10, ouverture à toutes les professions
+
+> Entrée rédigée par Opus à la demande explicite de Jean-Charles
+> (05/10), ce fichier étant normalement tenu par Sonnet. Les faits et
+> la vérification viennent de la session ; les arbitrages produit qui
+> en découlent restent à trancher par Sonnet et Jean-Charles. Détail
+> complet : PRODUCT_SPEC.md section 278.
+
+**Le blocage dur du 30/09 est levé.** L'inscription demande la
+profession. `Profile.profession` existait depuis le 17/08 et le feed
+cloisonnait déjà dessus, mais aucun écran ne posait la question : les
+85 profils en base sont tous `KINESITHERAPEUTE` par DÉFAUT de colonne,
+pas par constat.
+
+- `DENTISTE` et `ORTHOPTISTE` ajoutés à l'enum (16 valeurs),
+  migration manuelle appliquée et vérifiée en base. Dérivation via
+  les tables `Record<Profession,…>`, aucune recopie — même discipline
+  que la scission médecins (277).
+- Liste déroulante groupée en trois familles, **avec une garde
+  d'exhaustivité à la compilation** : une profession absente de tout
+  groupe serait restée invisible à l'inscription, soit exactement le
+  défaut qu'on vient de corriger, reproduit un étage plus bas.
+- Exemples de publication factorisés par profession
+  (`lib/exemplesPublication.ts`) : structure commune, contenu écrit
+  pour kiné et infirmier, forme neutre dérivée du libellé sinon.
+  Applique la règle du principe de factorisation ci-dessus —
+  factoriser la structure, jamais le contenu au prix du sens.
+- Cloisonnement complété sur les surfaces qui ne l'avaient pas
+  (`tray`, `interesses`, `interets-recus`). `interets-recus` est né
+  après la section 226 et n'appliquait **même pas le filtre de camp**.
+- `cibleVisibilitePour` ne dit plus « kinésithérapeutes » en dur :
+  cette phrase part dans l'email de bienvenue.
+
+**Trois énoncés faux fermés au passage**, tous de la famille que ce
+dépôt traque depuis la section 237 :
+1. « La publication est donc suspendue » s'affichait côté cabinet
+   pendant que la tuile « Salariat » restait cliquable — le salariat
+   échappait au filtre des gabarits.
+2. `?needType=` contournait ce même garde par l'URL.
+3. L'écran d'accroche de l'INSCRIPTION proposait « Kiné passionné de
+   sport » à qui venait de se déclarer infirmier. **Trouvée à
+   l'écran, pas dans le code** : elle vit dans `register/page.tsx`,
+   hors des formulaires que la factorisation visait.
+
+**Vérifié à l'écran** sur deux comptes jetables (infirmier,
+chirurgien-dentiste), créés par le vrai formulaire puis supprimés —
+base et bucket à zéro, 85 profils avant comme après. L'infirmier
+s'inscrit et publie le jour même ; le dentiste s'inscrit, et côté
+cabinet aucune tuile n'est proposée.
+
+**Ce que ça n'ouvre PAS, et qui reste à arbitrer** :
+- Aucun gabarit de contrat pour dentiste, orthoptiste et les dix
+  marchés médicaux. L'inscription est ouverte, pas la
+  contractualisation.
+- Côté CANDIDAT, la publication reste possible sans modèle de
+  contrat, avec un bandeau qui le dit. Choix assumé (sinon
+  l'inscription d'une profession nouvelle n'ouvre rien), mais c'est
+  un arbitrage produit, pas un fait technique — à confirmer.
+- `VOCABULAIRE_PROFESSION` reste partiel : les écrans admin affichent
+  `DENTISTE`/`MEDECIN_ORL` en brut. Décision du 14/08 conservée
+  (« ce qui n'a pas été décidé doit se voir »), mais elle porte
+  désormais sur quinze valeurs au lieu de quatre.
+
 ## ✅ Clos et vérifié — session du 11-12/08
 
 - Édition complète des annonces publiées, réutilisation du

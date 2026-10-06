@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import type { ExemplesPublication } from "@/lib/exemplesPublication";
 import { marquerSaisieEnCours } from "@/lib/saisieEnCours";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -53,8 +54,9 @@ const CONFIG = {
     communeLabel:     "Commune ou zone souhaitée",
     specialtiesLabel: "Mes spécialités",
     pitchTitle:       "En une phrase, qui vous êtes",
-    rawPlaceholder:   "Ex : Kiné diplômé, disponible du 1er au 30 septembre sur le Sud Grande-Terre. Mobile, méthode Mézières et respiratoire. Je recherche un logement.",
-    pitchPlaceholder: "Ex : Kiné mobile, méthodes Mézières et respiratoire, patientèle variée appréciée.",
+    // Les exemples ne vivent plus ici : ils dépendent de la PROFESSION, pas du camp
+    // (section 278). `exemplesCle` dit lequel des deux jeux lire.
+    exemplesCle:      "remplacement" as const,
     submitLabel:      "Publier ma disponibilité →",
   },
   ASSISTANT: {
@@ -67,8 +69,7 @@ const CONFIG = {
     communeLabel:     "Commune ou zone souhaitée",
     specialtiesLabel: "Mes spécialités",
     pitchTitle:       "En une phrase, votre projet",
-    rawPlaceholder:   "Ex : Kiné diplômé, je recherche un assistanat longue durée sur Grande-Terre à partir de septembre, minimum 12 mois. Formé en thérapie manuelle et sport. Je cherche un logement.",
-    pitchPlaceholder: "Ex : Kiné formé en thérapie manuelle et sport, je cherche un poste durable en équipe.",
+    exemplesCle:      "longTerme" as const,
     submitLabel:      "Publier ma recherche →",
   },
 } as const;
@@ -110,7 +111,7 @@ const MISSION_TYPE_PAR_BESOIN: Record<Exclude<NeedType, "">, string> = {
   collaboration: "COLLABORATION",
 };
 
-export default function CreateMissionClient({ typesContractualisables }: { typesContractualisables: string[] }) {
+export default function CreateMissionClient({ typesContractualisables, salariatContractualisable, exemples }: { typesContractualisables: string[]; salariatContractualisable: boolean; exemples: ExemplesPublication }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -145,6 +146,12 @@ export default function CreateMissionClient({ typesContractualisables }: { types
     : profileType;
   const cfg = CONFIG[cfgKey] ?? CONFIG.REMPLACANT;
 
+  // Les exemples CÔTÉ CANDIDAT dépendent de la profession et viennent du module (section 278) ;
+  // ceux du cabinet restent dans CONFIG — ils parlent de rétrocession et de patientèle, pas d'un
+  // métier, et sont donc déjà vrais pour tout le monde.
+  const rawPlaceholder = "exemplesCle" in cfg ? exemples[cfg.exemplesCle].brut : cfg.rawPlaceholder;
+  const pitchPlaceholder = "exemplesCle" in cfg ? exemples[cfg.exemplesCle].accroche : cfg.pitchPlaceholder;
+
   // Type de profil pour la MISE EN FORME (champs affichés, mise en page). Le mode couverture
   // n'était appliqué qu'à cfgKey, c'est-à-dire au vocabulaire : les drapeaux ci-dessous
   // lisaient le type brut du profil, si bien qu'un ASSISTANT n'obtenait ni les dates ni la
@@ -167,10 +174,19 @@ export default function CreateMissionClient({ typesContractualisables }: { types
   // (section 92) via ?needType=… selon le postType du CabinetPost cliqué.
   const initialNeedType: NeedType = (() => {
     const n = searchParams.get("needType");
-    if (n === "assistant" || n === "collaboration" || n === "remplacement") return n;
+    // LE PRÉRÉGLAGE PASSE PAR LE MÊME GARDE QUE LES TUILES (section 278). Il ne le passait pas :
+    // une URL `?needType=remplacement` posait le type sans vérifier qu'un gabarit existe, et
+    // contournait donc l'écran qui annonce la publication suspendue. Sans conséquence tant que
+    // tout le monde était kiné ; dès l'ouverture, c'est le chemin par lequel un dentiste
+    // publierait un poste dont aucun contrat ne peut sortir.
+    const contractualisable = (v: Exclude<NeedType, "">) => {
+      const t = MISSION_TYPE_PAR_BESOIN[v];
+      return t !== undefined && typesContractualisables.includes(t);
+    };
+    if ((n === "assistant" || n === "collaboration" || n === "remplacement") && contractualisable(n)) return n;
     // Mode couverture : un assistant rattaché ne peut publier QU'UN remplacement (garde côté
     // API). Sans ce repli, arriver sans ?needType laissait le formulaire sans dates de fin.
-    return coverMode ? "remplacement" : "";
+    return coverMode && contractualisable("remplacement") ? "remplacement" : "";
   })();
   const [needType, setNeedType] = useState<NeedType>(initialNeedType);
   // Nature du contrat salarié — n'a de sens que si `needType === "salariat"`. Pas de valeur par
@@ -714,7 +730,7 @@ export default function CreateMissionClient({ typesContractualisables }: { types
               rows={6}
               maxLength={8000}
               className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800"
-              placeholder={cfg.rawPlaceholder}
+              placeholder={rawPlaceholder}
             />
             {/* Reprendre un texte précédent (section 243) — le TEXTE seul, jamais les dates ni
                 les montants d'une annonce passée. Posé sous le champ qu'il remplit. */}
@@ -859,7 +875,7 @@ export default function CreateMissionClient({ typesContractualisables }: { types
                 aucun compte — les 22 profils sont kiné — mais il devient atteignable dès qu'on
                 change sa profession dans /compte, et un blocage muet y serait pire que le défaut
                 qu'on vient de fermer. */}
-            {typesContractualisables.length === 0 && (
+            {typesContractualisables.length === 0 && !salariatContractualisable && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 leading-relaxed">
                 Aucun modèle de contrat n&apos;est encore disponible pour votre profession. Publier une
                 annonce mènerait à une mise en relation dont le contrat ne pourrait pas être généré :
@@ -880,11 +896,15 @@ export default function CreateMissionClient({ typesContractualisables }: { types
                 // à publier un poste dont aucun contrat ne pourrait sortir, et l'échec
                 // n'apparaîtrait qu'à la génération, une fois les deux parties engagées.
                 .filter((opt) => {
-                  // Le salariat ne se filtre PAS sur les gabarits libéraux : ses modèles vivent
+                  // Le salariat ne se filtre pas sur les gabarits LIBÉRAUX : ses modèles vivent
                   // dans un registre séparé (gabaritsSalarie), et les quatre existent depuis le
                   // 23/09. Le passer dans le filtre ci-dessous l'aurait masqué chez l'infirmier,
                   // dont l'assistanat libéral n'existe pas.
-                  if (opt.value === "salariat") return true;
+                  //
+                  // Il se filtre en revanche sur SON PROPRE registre depuis l'ouverture (section
+                  // 278) : « pas de gabarit libéral » et « pas de gabarit du tout » ont cessé de
+                  // coïncider le jour où une profession est entrée sans aucun des deux.
+                  if (opt.value === "salariat") return salariatContractualisable;
                   const t = MISSION_TYPE_PAR_BESOIN[opt.value as Exclude<NeedType, "">];
                   return t !== undefined && typesContractualisables.includes(t);
                 })
@@ -980,7 +1000,7 @@ export default function CreateMissionClient({ typesContractualisables }: { types
             onBlur={() => setAccrocheFocused(false)}
             rows={3}
             className="w-full py-2.5 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800 not-italic break-words whitespace-pre-wrap placeholder:text-gray-400 placeholder:italic"
-            placeholder={cfg.pitchPlaceholder}
+            placeholder={pitchPlaceholder}
           />
           <div className="flex justify-end items-center min-h-[16px]">
             {!accrocheValid ? (
