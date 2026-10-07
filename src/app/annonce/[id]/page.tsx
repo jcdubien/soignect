@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { urlVignette } from "@/lib/vignetteStockage";
 import { cheminPartageAnnonce } from "@/lib/partageAnnonce";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -43,7 +44,7 @@ async function getMission(id: string) {
       id: true, title: true, location: true, startDate: true, endDate: true,
       minMonths: true, missionType: true, pitch: true, bioTinder: true,
       demiJourneesLibres: true, caMensuelEstime: true, remunerationBrute: true, // feature terrain
-      createdAt: true, updatedAt: true,
+      createdAt: true, updatedAt: true, vignetteAt: true,
       profile: { select: { profession: true, name: true, region: true, titulaireKind: true, type: true } },
     },
   });
@@ -94,6 +95,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const type = TYPE_LABEL[m.missionType] ?? m.missionType;
   const title = `${m.title} · ${m.location}`;
   const description = `${type} · ${m.location} · ${periodLabel(m)} — sur Soignect`;
+  // `vignetteAt` fait foi : il n'est posé qu'APRÈS un téléversement réussi, donc une URL de
+  // stockage servie ici désigne toujours un fichier qui existe.
+  const vignette = m.vignetteAt ? urlVignette(id, m.vignetteAt) : null;
   return {
     title: `${title} — Soignect`,
     description,
@@ -107,8 +111,17 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       // comptait « /annonce/x », « /annonce/x?fbclid=… » et le lien copié depuis l'app comme
       // trois pages différentes. C'est la page la plus partagée du produit.
       url: `/annonce/${id}`,
-      // og:image généré dynamiquement par annonce (opengraph-image.tsx, section 158) —
-      // 1200×630 avec titre + lieu sur un visuel de marque. Next l'ajoute automatiquement.
+      // ── og:image : stockage si disponible, route dynamique sinon (section 285) ───────────
+      //
+      // Vérifié à l'écran avant d'en dépendre : `openGraph.images` posé ici GAGNE sur le
+      // fichier `opengraph-image.tsx`, contrairement à ce que laisse craindre la règle « le
+      // fichier l'emporte sur la configuration ». En l'OMETTANT, on laisse donc Next servir la
+      // route dynamique — ce qui donne exactement le comportement d'avant.
+      //
+      // La bascule est donc ANNONCE PAR ANNONCE, sans date de coupure : celles qui ont leur
+      // vignette passent au stockage, les autres gardent le repli. Une génération en échec ne
+      // casse rien, elle laisse simplement l'annonce sur l'ancien chemin.
+      ...(vignette ? { images: [{ url: vignette, width: 1200, height: 630 }] } : {}),
     },
   };
 }

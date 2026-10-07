@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { genererEtStockerVignette, effacerVignette } from "@/lib/vignetteStockage";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_MATCH_STATUSES } from "@/lib/feedFilters";
@@ -163,6 +164,12 @@ export async function PATCH(
     },
   });
 
+  // La vignette porte le titre, les dates, le lieu et le type : une modification la périme.
+  // On régénère, et le `?v=` de l'URL publique (horodatage) rend l'ancienne inatteignable
+  // plutôt que périmée — les caches sociaux retiennent trop longtemps pour qu'on s'en remette
+  // à une expiration (section 285).
+  await genererEtStockerVignette(id);
+
   return NextResponse.json(updated);
 }
 
@@ -256,6 +263,11 @@ export async function DELETE(
   // (Swipe.swipedMission, Match.missionA/B — sans onDelete cascade) font échouer le delete :
   // on retire les swipes reçus et les mises en relation non confirmées liées à cette annonce
   // (les Message des matchs supprimés partent en cascade au niveau base).
+  // La vignette AVANT la suppression : après, `effacerVignette` ne pourrait plus dater quoi que
+  // ce soit, et le fichier resterait indéfiniment dans le bucket. Sur la rémanence du CDN, qui
+  // survit à l'effacement, voir l'avertissement porté par `effacerVignette` (section 285).
+  await effacerVignette(id);
+
   await prisma.$transaction([
     prisma.swipe.deleteMany({ where: { swipedMissionId: id } }),
     prisma.match.deleteMany({ where: { OR: [{ missionAId: id }, { missionBId: id }] } }),

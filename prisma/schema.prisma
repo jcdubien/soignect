@@ -448,6 +448,14 @@ model Mission {
   // Planning Board section 43 — déclaration de vacance titulaire
   isSelfPresence Boolean @default(false)
 
+  // Horodatage de la VIGNETTE DE PARTAGE stockée (section 285). `null` = pas encore générée,
+  // et la métadonnée retombe alors sur la route dynamique `opengraph-image`.
+  //
+  // Une date plutôt qu'un booléen : elle sert aussi de VERSION dans l'URL publique (`?v=`).
+  // Les caches sociaux retiennent longtemps ; sans version, une annonce modifiée garderait
+  // son ancienne image. Et une date dit quand, là où un booléen aurait seulement dit si.
+  vignetteAt DateTime?
+
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

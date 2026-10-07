@@ -7347,6 +7347,145 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 285 — LA VIGNETTE DE PARTAGE SE CALCULE UNE FOIS, PAS À CHAQUE SCRAPE (07/10)
+
+Le compte Vercel affichait **« Exceeded free resources — Fluid Active CPU : 8 h 52 / 4 h »**,
+222 % du quota gratuit. Sur un plan Hobby, c'est ce dépassement — et non un build en échec — qui
+finit par suspendre un projet.
+
+#### La mesure, et sa concentration
+
+Observabilité Vercel, production, 12 heures :
+
+```
+/annonce/[id]/opengraph-image   246 invocations    6 min      ← ~80 % du total
+/api/notifications              787                41 s
+/                               778                23 s
+/api/matches/[id]/messages      383                15 s
+/annonce/[id]                    30               2,9 s
+tout le reste (40 routes)                       < 1 s chacune
+```
+
+**1,47 s de CPU par vignette**, et le reste du produit ne pèse rien à côté.
+
+#### Ce qui n'était PAS la cause
+
+Trois pistes mesurées puis écartées, dont deux que j'ai d'abord crues bonnes.
+
+**L'en-tête de cache n'est pas cassé.** Deux appels successifs donnent `MISS` puis `HIT` : il
+fonctionne. L'en-tête SERVI est `public, max-age=3600` — j'ai failli y voir la preuve d'un cache
+court, à tort : Vercel **consomme** `s-maxage` et ne le réémet pas. Cet en-tête ne dit donc rien
+du TTL réel.
+
+**Le coût unitaire n'est pas le levier.** Chronométré en local sur une image 1200×630 :
+
+| | temps | poids |
+|---|---|---|
+| JPEG q82 + `mozjpeg` (en place) | **54 ms** | 93 ko |
+| JPEG q82 sans `mozjpeg` | 7 ms | 125 ko |
+
+`mozjpeg` coûte 8× le temps d'encodage — mais 54 ms sur 1 470, soit 4 %. Le retirer aurait
+alourdi l'aperçu WhatsApp pour un gain négligeable. **Non fait.**
+
+**La vraie cause est la FRÉQUENCE** : **251 requêtes CDN pour 246 invocations**. Le cache ne sert
+quasiment jamais, parce que les robots de Facebook et WhatsApp scrapent depuis des points de
+présence distincts, chacun avec son propre cache. Allonger l'en-tête n'y change rien : le travail
+est refait à chaque PoP. (Le détail par robot est réservé au plan Pro — cette explication reste
+donc la plus probable, pas une certitude.)
+
+#### Le raisonnement
+
+Une vignette ne dépend QUE de l'annonce : même titre, mêmes dates, même photo donnent exactement
+la même image. La régénérer à chaque scrape, c'est refaire un calcul dont le résultat était déjà
+connu. Elle se calcule donc **à la publication**, une fois, et se stocke.
+
+Mesuré avant de construire — c'est le rapport qui décide :
+
+```
+régime actuel     ~15 000 générations / mois     ≈ 6 h 10 de CPU
+régime livré            55 générations / mois     ≈ 81 s
+                  (créations + modifications réelles d'annonces sur 30 jours)
+rattrapage              61 vignettes, une fois    ≈ 92 s
+```
+
+#### Ce qui rend la bascule sûre
+
+**Vérifié à l'écran avant d'en dépendre, et j'avais tort** : je croyais que le fichier
+`opengraph-image.tsx` écrasait `openGraph.images` (règle « le fichier l'emporte sur la
+configuration »). Sonde posée sur la vraie page : **`openGraph.images` gagne**. La conséquence
+est heureuse — en OMETTANT le champ, on laisse Next servir la route dynamique, c'est-à-dire
+exactement le comportement d'avant.
+
+La route dynamique est donc **conservée**, et ce n'est pas une précaution de style :
+
+1. les aperçus **déjà scrapés** par Facebook pointent sur son URL ; la supprimer casserait ce qui
+   circule déjà, sur la page la plus partagée du produit ;
+2. une annonce dont la génération échoue garde `vignetteAt` à `null`, la métadonnée ne bascule
+   pas, et le repli sert l'image comme avant.
+
+La bascule est donc **annonce par annonce, sans date de coupure**, et un échec ne dégrade rien.
+
+#### Les pièces
+
+| | |
+|---|---|
+| `lib/vignetteAnnonce.tsx` | le rendu, extrait de la route pour être appelable hors HTTP |
+| `lib/vignetteStockage.ts` | génération + téléversement + datation ; **ne lève jamais** |
+| `Mission.vignetteAt` | `null` = repli. Une DATE et non un booléen : elle sert aussi de version |
+| bucket `vignettes` | public, JPEG, 2 Mo max — séparé d'`avatars` : un dérivé calculé, purgeable en entier |
+| `api/admin/vignette` | régénère UNE annonce ; clé d'infrastructure ou session admin |
+| `scripts/rattrapage-vignettes.mjs` | à blanc par défaut, `--ecrire` pour agir ; reprenable |
+
+**La date est posée EN DERNIER**, après le téléversement : un envoi à moitié fait ne peut pas
+produire un `og:image` qui pointe vers un fichier absent.
+
+**L'URL est versionnée** (`?v=<horodatage>`). Les caches sociaux retiennent trop longtemps pour
+qu'on s'en remette à une expiration : une annonce modifiée obtient une URL neuve, et l'ancienne
+devient inatteignable plutôt que périmée. C'est ce qui autorise un `cacheControl` d'un an sur
+l'objet.
+
+**`await`, pas fire-and-forget.** Sur une plateforme serverless, une promesse non attendue est
+tuée quand la réponse part : un `void` aurait produit une génération qui n'aboutit qu'une fois
+sur deux, et un défaut intermittent se diagnostique dix fois plus mal qu'une seconde d'attente.
+
+#### Une limite mesurée, écrite plutôt que tue
+
+`effacerVignette` supprime bien l'objet du bucket — mais **le CDN de Supabase continue de servir
+sa copie** jusqu'à expiration (un an). Vérifié : après suppression de l'annonce, l'URL répond
+encore 200.
+
+Conservé ainsi, et c'est un arbitrage : l'URL étant versionnée, son contenu est immuable, et un an
+est la durée juste ; la raccourcir ferait payer à toutes les annonces vivantes le cas rare de la
+suppression. L'impact réel est faible — `/annonce/[id]` renvoie 404, donc aucun aperçu NEUF ne
+peut être construit. Mon premier commentaire promettait davantage ; il a été corrigé pour dire ce
+qui est vrai.
+
+#### Vérifié de bout en bout, sur les deux chemins
+
+Bancs jetables, par les vraies routes authentifiées :
+
+| | création (`POST /api/missions`) | modification (`PATCH`) | suppression (`DELETE`) |
+|---|---|---|---|
+| `vignetteAt` | posé ✅ | posé ✅ | remis à `null` ✅ |
+| fichier stocké | 31 ko ✅ | 33 ko ✅ | retiré du bucket ✅ |
+| `og:image` | URL de stockage + `?v=` ✅ | idem ✅ | — |
+
+Image téléchargée et relue : **1200×630 JPEG**, titre, dates, lieu et badge d'intention corrects —
+identique à ce que produisait la route. Avant génération, `og:image` pointe bien vers la route
+dynamique ; après, vers le stockage. URL publique : `HTTP 200`, `cache-control: max-age=31536000`.
+
+Bancs démontés : 85 comptes, 79 missions, 0 fichier dans le bucket, 0 `vignetteAt` posé — l'état
+d'avant.
+
+#### Appliqué en production, et ce qui reste à faire
+
+- **Migration jouée** (`ALTER TABLE "Mission" ADD COLUMN IF NOT EXISTS "vignetteAt"`), colonne
+  vérifiée en base : nullable, aucune annonce affectée.
+- **Bucket `vignettes` créé** (public, JPEG, 2 Mo).
+- **Le rattrapage des 61 annonces n'est PAS lancé.** Passage à blanc fait — 61 annonces, ~92 s —
+  et il attend l'accord de Jean-Charles. Tant qu'il n'est pas lancé, rien ne change : toutes les
+  annonces restent sur le repli dynamique.
+
 ### SECTION 284 — LE FIL NE PROMET PLUS CE QU'IL NE PEUT PAS TENIR, ET L'OUVERTURE SE MESURE (07/10)
 
 Les deux propositions de la 283, approuvées par Jean-Charles.

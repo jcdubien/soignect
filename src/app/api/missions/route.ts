@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { genererEtStockerVignette } from "@/lib/vignetteStockage";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -410,6 +411,18 @@ export async function POST(req: NextRequest) {
   //
   // Fire-and-forget : une publication ne doit jamais échouer parce qu'un email part mal.
   void rattraperInteretsDifferes(ownerProfileId);
+
+  // ── VIGNETTE DE PARTAGE, CALCULÉE ICI PLUTÔT QU'À CHAQUE SCRAPE (section 285) ─────────────
+  //
+  // `await`, pas fire-and-forget, et c'est délibéré : sur une plateforme serverless, une
+  // promesse non attendue est tuée quand la réponse part. Un `void` aurait produit une
+  // génération qui n'aboutit qu'une fois sur deux, et un défaut intermittent se diagnostique
+  // dix fois plus mal qu'une seconde d'attente.
+  //
+  // Le coût est borné et connu : ~1,5 s, une fois par publication (~55 par mois, mesuré). La
+  // fonction NE LÈVE JAMAIS — un échec laisse `vignetteAt` à null, la métadonnée retombe sur la
+  // route dynamique, et la publication aboutit quand même.
+  await genererEtStockerVignette(mission.id);
 
   return NextResponse.json(mission, { status: 201 });
 }
