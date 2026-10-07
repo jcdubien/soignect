@@ -38,8 +38,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
-      profileA: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, profession: true, ...IDENTITY_SELECT } },
-      profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, profession: true, ...IDENTITY_SELECT } },
+      // `profession` était listée ici à la main ; elle est entrée dans `CONTRACT_IDENTITY_SELECT`
+      // avec la section 287, et la garder en double la faisait écraser par le spread. Une liste
+      // de champs recopiée est une liste qui divergera — c'est le motif même de cette constante.
+      profileA: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
+      profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
       // `startDate`/`endDate` : l'écran doit pré-remplir la période ET pouvoir dire d'où elle
       // vient quand les deux annonces divergent (section 237).
       missionA: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true, location: true, minMonths: true } },

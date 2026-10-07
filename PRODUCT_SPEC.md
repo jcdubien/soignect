@@ -7347,6 +7347,81 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 287 — LE PRODUIT DEMANDAIT UN NUMÉRO ET EN IMPRIMAIT UN AUTRE (07/10)
+
+Trouvé en parcourant le produit **en infirmier**, pas en relisant du code.
+
+#### Le défaut
+
+L'écran qui bloque la génération d'un contrat réclamait un « **N° d'inscription à l'Ordre** ».
+Le PDF, lui, imprime ce même champ via `libelleNumeroOrdre` — qui rend « **N° ordinal** » pour un
+infirmier, vocabulaire relevé sur les modèles du CNOI.
+
+Même donnée, deux noms : le produit demandait une chose et en imprimait une autre. Invisible tant
+que tout le monde était kiné, où les deux formulations se confondent.
+
+C'est exactement la famille que la section 240 a fermée — un texte d'écran resté kiné pendant que
+les gabarits PDF, eux, étaient corrects. **Ce morceau-là y avait survécu.**
+
+#### La cause racine n'était pas le libellé
+
+`CONTRACT_IDENTITY_SELECT` — la liste de champs partagée par tous les gardes d'identité — **ne
+chargeait pas `profession`**. La fonction qui nomme les champs ne *pouvait donc pas* connaître le
+métier ; coder une formule générique en dur était la seule issue. Le libellé était le symptôme,
+la colonne absente était la cause.
+
+#### Ce qui change
+
+| | avant | après |
+|---|---|---|
+| libellé réclamé, infirmier | « N° d'inscription à l'Ordre » | « **N° ordinal** » |
+| libellé réclamé, kiné | « N° d'inscription à l'Ordre » | « **N° Ordre** » |
+| libellé imprimé au PDF | « N° ordinal » / « N° Ordre » | inchangé — **et désormais le même** |
+
+`contractFieldLabel(champ, identité)` résout le libellé pour une identité donnée, et emprunte
+`libelleNumeroOrdre` : l'écran et le PDF lisent la MÊME déclaration, celle de `lib/professions`.
+
+**Une fonction, pas une seconde table.** Un seul champ varie selon la profession ; dupliquer les
+cinq libellés par métier aurait fait diverger les quatre qui ne bougent pas.
+
+**Repli explicite.** Sans profession connue, on garde la formule générique plutôt que le repli de
+`libelleNumeroOrdre` (« N° Ordre »), qui est le vocabulaire du CNOMK et parlerait kiné à quelqu'un
+dont on ignore le métier.
+
+#### Deux recopies retirées au passage
+
+- `contrat-info/route.ts` listait `profession: true` à la main **en plus** du select partagé : le
+  doublon se faisait écraser par le spread. Retirée — c'est le motif même de cette constante.
+- `CompteForm` construit son identité à la main sur l'état du formulaire. Elle transmet désormais
+  la profession **courante** et non la valeur enregistrée : quelqu'un qui change de métier dans
+  ce formulaire voit le libellé suivre, comme c'est déjà le cas des autres champs.
+
+#### Vérifié à l'écran, deux professions côte à côte
+
+```
+API contrat-info, libellés réclamés
+  INFIRMIER          Adresse professionnelle · N° RPPS · « N° ordinal »
+  KINESITHERAPEUTE   Adresse professionnelle · N° RPPS · « N° Ordre »
+```
+
+Et sur l'écran lui-même, pour l'infirmier : « N° ordinal » dans la liste de ses champs manquants
+**et** dans la phrase qui nomme ceux de l'autre partie.
+
+Banc de quatre comptes jetables (deux infirmiers, deux kinés) et deux mises en relation, démonté :
+85 comptes, 79 missions, 20 matchs, 61 vignettes — l'état d'avant.
+
+#### Trouvé pendant le même parcours, NON corrigé
+
+Un clic « Intéressé » qui **anime la carte sans envoyer de requête** : vu trois fois, par deux
+entrées différentes (bouton du carrousel, puis bouton de la fiche détaillée en modale stabilisée).
+La carte s'envole avec le tampon « OUI ! », quitte la pile, et le journal du serveur ne compte
+aucun `POST /api/swipe` — la base garde l'état d'avant. Le même geste via l'API répond 200 et crée
+la mise en relation normalement.
+
+Je ne peux pas exclure que l'automatisation produise une séquence d'événements de pointeur
+différente d'une main réelle : c'est signalé **à confirmer**, pas établi. Si c'est réel, c'est
+grave — l'utilisateur croit avoir dit « intéressé » et rien n'est enregistré.
+
 ### SECTION 286 — MA PRÉVISION ÉTAIT FAUSSE, ET LA MESURE DIT POURQUOI (07/10)
 
 La section 285 se terminait sur une prévision : « les invocations devraient tomber de ~246 à

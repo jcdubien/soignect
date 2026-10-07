@@ -89,8 +89,15 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   // que l'invitation disparaisse à mesure que l'utilisateur complète, sans attendre la
   // sauvegarde. Le mur du contrat ne doit pas être la première fois qu'on entend parler
   // de ces champs.
+  // `profession` transmise (section 287) : c'est elle qui fait écrire « N° ordinal » à un
+  // infirmier plutôt que la formule générique. On passe l'ÉTAT du formulaire et non la valeur
+  // enregistrée, pour la même raison que les autres champs ci-dessus : quelqu'un qui change de
+  // profession ici doit voir le libellé suivre, sans attendre la sauvegarde.
+  //
+  // Cet objet est construit à la main — il ne passe pas par `CONTRACT_IDENTITY_SELECT`, donc
+  // l'oubli d'un champ y serait silencieux.
   const identiteManquante = missingContractLabels({
-    name, adresse, rpps, numeroOrdre, siret, titulaireKind: kind,
+    name, adresse, rpps, numeroOrdre, siret, titulaireKind: kind, profession,
   });
 
   const [saving, setSaving]         = useState(false);
