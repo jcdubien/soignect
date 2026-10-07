@@ -7347,6 +7347,96 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 284 — LE FIL NE PROMET PLUS CE QU'IL NE PEUT PAS TENIR, ET L'OUVERTURE SE MESURE (07/10)
+
+Les deux propositions de la 283, approuvées par Jean-Charles.
+
+#### Le message qui mentait
+
+L'état vide du fil disait à **tout** candidat : « Plus d'annonces pour le moment — Revenez plus
+tard, ou publiez vos disponibilités pour être visible des cabinets. »
+
+Pour un chirurgien-dentiste, les deux moitiés sont fausses : il n'y aura pas d'annonces à son
+prochain passage — aucun cabinet de sa profession ne peut publier, faute de modèle de contrat —
+et publier ne le rend visible d'aucun cabinet. Un message rassurant qui ment est pire qu'un écran
+vide, et c'est l'écran où un inscrit passe son temps.
+
+Le prédicat est **le même** que celui de l'écran de publication (section 278) : deux définitions
+de « profession sans gabarit » finiraient par diverger, et les deux écrans doivent dire la même
+chose.
+
+**Côté titulaire, on se tait** : il ne peut même pas publier, l'écran de publication le lui a déjà
+dit, et lui annoncer qu'aucun cabinet de sa profession n'existe n'aurait aucun sens — c'est lui,
+le cabinet.
+
+#### La phrase, et ce qu'elle a coûté à écrire
+
+> 🚧 **Aucun cabinet de votre profession n'est encore sur Soignect**
+> Les modèles de contrat ne sont pas encore intégrés — sans eux, un cabinet ne peut pas publier
+> d'annonce pour des chirurgiens-dentistes. Votre recherche reste visible et vous serez prévenu
+> dès qu'ils arriveront : vous n'aurez rien à republier.
+
+Elle dit la **cause**, ne promet **pas** de retour prochain, et conserve la seule chose vraie — la
+publication est gardée.
+
+**Première version rejetée après l'avoir lue.** Elle nommait l'Ordre (« les modèles de contrat de
+l'Ordre des chirurgiens-dentistes »), ce qui imposait une branche pour les professions qui n'en
+ont pas — orthoptiste, orthophoniste. Cette branche produisait : « Les modèles de contrat **de
+votre profession** ne sont pas encore intégrés : les cabinets **de votre profession** ne peuvent
+donc pas publier. » La redite dans une seule phrase. Nommer la profession **une fois**, par son
+pluriel, dit la même chose sans cas particulier — et l'en-tête n'a plus qu'un champ au lieu de
+deux.
+
+L'icône passe de 🌊 (« revenez plus tard ») à 🚧. Une vague qui invite à patienter serait un
+contresens sur un marché qui n'existe pas encore.
+
+#### Le comptage par profession
+
+Rien ne le mesurait. `/admin/profiles` **chargeait** la colonne et la déclarait dans son type sans
+jamais l'afficher ; `/admin/stats` n'agrégeait que par `type`. Impossible, donc, de répondre à
+« l'ouverture produit-elle des inscriptions ? » — la seule question qui compte une fois la porte
+ouverte, et elle se pose depuis le 05/10.
+
+- `/admin/stats` : bloc « Profils par profession », trié par **effectif décroissant** (l'ordre de
+  l'enum ne répond pas à « qui s'inscrit ? »), avec le compte des professions représentées **sur
+  16** — qui permet de voir d'un coup d'œil ce qui manque sans afficher quinze lignes à zéro.
+- `/admin/profiles` : la colonne existante est affichée. Les `colSpan` des lignes dépliées et de
+  l'état vide ont suivi, sinon le tableau se décale d'une case.
+
+#### Vérifié — et pourquoi pas au navigateur cette fois
+
+**L'extension Chrome s'est déconnectée en cours de session.** Le rendu a donc été lu autrement :
+session authentifiée réelle par `curl` (jeton CSRF + `callback/credentials`), puis lecture du HTML
+rendu par le serveur. C'est moins qu'une capture, et c'est dit plutôt que tu.
+
+```
+en-tête x-feed-marche-ferme
+  dentiste (sans gabarit)       → « chirurgiens-dentistes »   ✅
+  orthoptiste (sans gabarit)    → « orthoptistes »            ✅
+  témoin kiné (gabarits)        → VIDE, marché ouvert         ✅
+```
+
+```
+/admin/stats    Profils par profession (3 professions représentées sur 16)
+                Kinésithérapeute — 86 · Chirurgien-dentiste — 1 · Orthoptiste — 1   ✅
+/admin/profiles colonnes : Email/Nom | Type | PROFESSION | Plan | Désir. | Annonces | Flags | Action
+                ligne : Banc284 orthoptiste · Remplaçant · Orthoptiste · FREE        ✅
+```
+
+La phrase elle-même a été **imprimée pour les seize professions** et relue, pas seulement typée.
+
+Trois comptes jetables (`@example.com`, RFC 2606, non délivrable), dont un passé `ADMIN` le temps
+de lire les écrans d'administration, tous supprimés : 85 comptes, 85 profils, tous
+`KINESITHERAPEUTE`, un seul compte `ADMIN` — l'état d'avant.
+
+#### ⚠️ Rien de tout ceci n'est en production
+
+Cette section rejoint une file de **sept commits poussés et non déployés** depuis `642abb3`
+(05/10, 22:34 UTC). Voir le constat en tête de la section 283 : le chunk de `500ae18` renvoie 404
+sur soignect.fr tandis qu'un chunk de `642abb3` renvoie 200, et le passage de cron du 06/10 à
+09:30 n'a produit aucun préavis alors que trois étaient dus. Tant que le déploiement n'est pas
+rétabli, tout ce qui a été écrit depuis hier soir est inerte.
+
 ### SECTION 283 — LA PROFESSION NE TOMBE PLUS PAR DÉFAUT (07/10)
 
 #### Le défaut que la 278 avait laissé derrière elle

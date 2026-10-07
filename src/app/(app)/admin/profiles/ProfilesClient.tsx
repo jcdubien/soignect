@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { professionLabel } from "@/lib/professions";
 
 interface Profile {
   id: string;
@@ -115,6 +116,10 @@ export default function ProfilesClient({ initialProfiles }: { initialProfiles: P
             <tr>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Email / Nom</th>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Type</th>
+              {/* La colonne était CHARGÉE sans être affichée (section 284) : la requête la
+                  sélectionnait, le type la déclarait, et rien ne la montrait. Depuis l'ouverture
+                  aux seize professions, c'est la donnée qui dit à qui on a affaire. */}
+              <th className="px-3 py-3 text-left text-gray-500 font-medium">Profession</th>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Plan</th>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Désir.</th>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Annonces</th>
@@ -145,6 +150,7 @@ export default function ProfilesClient({ initialProfiles }: { initialProfiles: P
                       {TYPE_LABEL[p.type] ?? p.type}
                     </span>
                   </td>
+                  <td className="px-3 py-3 text-gray-600">{professionLabel(p.profession)}</td>
                   <td className="px-3 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_COLORS[p.subscriptionPlan]}`}>
                       {p.subscriptionPlan}
@@ -190,7 +196,7 @@ export default function ProfilesClient({ initialProfiles }: { initialProfiles: P
 
                 {editing === p.id && (
                   <tr key={`${p.id}-edit`} className="bg-gray-50 border-b border-gray-200">
-                    <td colSpan={7} className="px-4 py-4">
+                    <td colSpan={8} className="px-4 py-4">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <label className="space-y-1">
                           <span className="text-xs font-medium text-gray-500">Type</span>
@@ -326,7 +332,7 @@ export default function ProfilesClient({ initialProfiles }: { initialProfiles: P
             ))}
             {profiles.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
                   Aucun profil
                 </td>
               </tr>

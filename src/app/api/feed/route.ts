@@ -6,6 +6,9 @@ import { stripMissionProfiles } from "@/lib/publicProfile";
 import { EST_UNE_OFFRE, NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
+import { missionTypesPour } from "@/lib/contrats/gabarits";
+import { aDesGabaritsSalarie } from "@/lib/contrats/gabaritsSalarie";
+import { professionPluriel } from "@/lib/professions";
 import { logTraceEvent } from "@/lib/trace";
 import { TOLERANCE_DATES_MAX_JOURS } from "@/lib/compatibilite";
 
@@ -379,6 +382,27 @@ export async function GET(req: NextRequest) {
       })
     : 0;
 
+  // ── MARCHÉ PAS ENCORE OUVERT POUR CETTE PROFESSION (section 284) ──────────────────────────
+  //
+  // L'état vide du fil disait à TOUT candidat : « Revenez plus tard, ou publiez vos
+  // disponibilités pour être visible des cabinets. » Pour un chirurgien-dentiste, les deux
+  // moitiés sont fausses — il n'y aura pas d'annonces à son prochain passage (aucun cabinet de
+  // sa profession ne peut publier, faute de modèle de contrat), et publier ne le rend visible
+  // d'aucun cabinet. Un message rassurant qui ment est pire qu'un écran vide.
+  //
+  // MÊME PRÉDICAT QUE L'ÉCRAN DE PUBLICATION (section 278), et volontairement : les deux
+  // phrases décrivent le même fait, et deux définitions de « profession sans gabarit »
+  // finiraient par diverger. Le bandeau de `/disponibilites/create` et celui-ci diront donc
+  // toujours la même chose.
+  //
+  // Côté TITULAIRE, on se tait : il ne peut même pas publier, et l'écran de publication le lui
+  // a déjà dit. Lui répéter ici qu'aucun cabinet n'existe n'aurait aucun sens — c'est lui, le
+  // cabinet.
+  const marcheFerme =
+    isCandidateViewer
+    && missionTypesPour(myProfile.profession).length === 0
+    && !aDesGabaritsSalarie(myProfile.profession);
+
   const DUREE_LONGUE_JOURS = 30;
   const ECART_CONVERGENCE_JOURS = 30;
   const estLecteurRemplacant = myProfile.type === ProfileType.REMPLACANT;
@@ -432,6 +456,19 @@ export async function GET(req: NextRequest) {
       // Ce que la présélection de types écarte. Zéro hors présélection — l'en-tête ne décrit
       // jamais un masquage qui n'a pas eu lieu.
       "x-feed-remplacements-masques": String(remplacementsMasques),
+      // Vide = marché ouvert. Sinon, le PLURIEL de la profession, encodé : un en-tête HTTP est
+      // du latin-1 et un libellé accentué le casserait. Même précaution que pour les
+      // institutions ci-dessous, et même repli — une lecture qui échoue retombe sur le message
+      // générique plutôt que sur une phrase tronquée.
+      //
+      // Le nom de l'ORDRE a été retiré après lecture de la phrase produite : il obligeait à une
+      // branche pour les professions sans ordre (orthoptiste, orthophoniste), et cette branche
+      // écrivait « Les modèles de contrat DE VOTRE PROFESSION […] les cabinets DE VOTRE
+      // PROFESSION ». Nommer la profession une seule fois, par son pluriel, dit la même chose
+      // sans la redite et sans cas particulier.
+      "x-feed-marche-ferme": marcheFerme
+        ? encodeURIComponent(professionPluriel(myProfile.profession))
+        : "",
       // Combien d'annonces de CE feed sont réellement remontées par une priorité territoriale.
       // Sert uniquement à la mention de transparence : elle ne doit annoncer « zones
       // prioritaires » que lorsque c'est vrai POUR CE LECTEUR, et se taire sinon. C'est ce qui

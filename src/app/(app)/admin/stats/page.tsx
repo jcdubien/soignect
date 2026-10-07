@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { PROFESSION_LABELS } from "@/lib/professions";
+import type { Profession } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ export default async function AdminStatsPage() {
     totalMatches,
     pendingRatings,
     profilesByType,
+    profilesByProfession,
     recentUsers,
   ] = await Promise.all([
     prisma.user.count(),
@@ -34,6 +37,13 @@ export default async function AdminStatsPage() {
     prisma.match.count(),
     prisma.cabinetRating.count({ where: { isPublished: false } }),
     prisma.profile.groupBy({ by: ["type"], _count: { id: true } }),
+    // ── RÉPARTITION PAR PROFESSION (section 284) ───────────────────────────────────────────
+    //
+    // Rien ne la mesurait. L'ouverture aux seize professions a été livrée le 05/10 et personne
+    // ne pouvait répondre à « produit-elle des inscriptions ? » — la seule question qui compte
+    // une fois la porte ouverte. `/admin/profiles` chargeait déjà la colonne sans l'afficher,
+    // `/admin/stats` n'agrégeait que par type.
+    prisma.profile.groupBy({ by: ["profession"], _count: { id: true } }),
     prisma.user.findMany({
       take: 10,
       orderBy: { createdAt: "desc" },
@@ -99,6 +109,32 @@ export default async function AdminStatsPage() {
               </span>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Profils par PROFESSION (section 284). Trié par effectif décroissant : la question posée
+          à cet écran est « qui s'inscrit ? », et l'ordre de l'enum n'y répond pas.
+          Les professions à ZÉRO ne sont pas inventées — `groupBy` ne rend que ce qui existe, et
+          afficher quinze lignes à 0 noierait la seule qui compte. Le compte total permet de
+          vérifier d'un coup d'œil qu'aucune n'a été oubliée. */}
+      <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <h2 className="text-sm font-semibold text-gray-600 mb-3">
+          Profils par profession{" "}
+          <span className="font-normal text-gray-400">
+            ({profilesByProfession.length} profession{profilesByProfession.length > 1 ? "s" : ""} représentée{profilesByProfession.length > 1 ? "s" : ""} sur 16)
+          </span>
+        </h2>
+        <div className="flex gap-4 flex-wrap">
+          {[...profilesByProfession]
+            .sort((a, b) => b._count.id - a._count.id)
+            .map((g) => (
+              <div key={g.profession} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-kine-400" />
+                <span className="text-sm text-gray-700">
+                  {PROFESSION_LABELS[g.profession as Profession] ?? g.profession} — {g._count.id}
+                </span>
+              </div>
+            ))}
         </div>
       </div>
 

@@ -595,6 +595,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
     profileType === "ASSISTANT" ? "POSTES" : "ALL",
   );
   const [remplacementsMasques, setRemplacementsMasques] = useState(0);
+  // Pluriel de la profession dont aucun cabinet ne peut encore publier (section 284).
+  // `null` = marché ouvert.
+  const [marcheFerme, setMarcheFerme] = useState<string | null>(null);
   const filtreRef = useRef<MissionFilter>(profileType === "ASSISTANT" ? "POSTES" : "ALL");
   // Vue alternative (section 202) — desktop TITULAIRE uniquement. Les cartes restent le défaut :
   // la liste est un complément de comparaison, pas un remplacement du geste de décision.
@@ -726,6 +729,13 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       if (optInHdr != null) setSalariatOptIn(parseInt(optInHdr, 10));
       const masquesHdr = r.headers.get("x-feed-remplacements-masques");
       if (masquesHdr != null) setRemplacementsMasques(parseInt(masquesHdr, 10) || 0);
+      // Toute lecture qui échoue retombe sur le message générique — jamais sur une phrase
+      // tronquée, qui serait pire que la phrase imprécise qu'elle remplace.
+      const fermeHdr = r.headers.get("x-feed-marche-ferme");
+      if (fermeHdr != null) {
+        try { setMarcheFerme(fermeHdr ? decodeURIComponent(fermeHdr) : null); }
+        catch { setMarcheFerme(null); }
+      }
       const prioriteHdr = r.headers.get("x-feed-priorite-territoriale");
       if (prioriteHdr != null) setPrioriteTerritoriale(parseInt(prioriteHdr, 10) || 0);
       // B2 (20/08) — institutions à créditer dans la mention. JSON + encodeURIComponent côté
@@ -965,9 +975,11 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-10">
         {/* Établissement sans aucun candidat opté : ce n'est pas une attente, c'est un vivier
             inexistant — l'icône et le texte doivent le dire, pas rassurer à tort. */}
-        <span className="text-6xl">{filter !== "ALL" ? "🔍" : salariatOptIn === 0 ? "💼" : isTitulaire ? (seenAvailable > 0 ? "✅" : "👀") : "🌊"}</span>
+        <span className="text-6xl">{marcheFerme ? "🚧" : filter !== "ALL" ? "🔍" : salariatOptIn === 0 ? "💼" : isTitulaire ? (seenAvailable > 0 ? "✅" : "👀") : "🌊"}</span>
         <p className="text-gray-500 font-semibold">
-          {filter === "POSTES" && remplacementsMasques > 0
+          {marcheFerme
+            ? `Aucun cabinet de votre profession n'est encore sur Soignect`
+            : filter === "POSTES" && remplacementsMasques > 0
             ? "Aucun poste longue durée pour le moment"
             : filter !== "ALL"
             ? `Aucune annonce "${FILTER_LABELS[filter]}" pour le moment`
@@ -980,7 +992,13 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             : "Plus d'annonces pour le moment"}
         </p>
         <p className="text-gray-400 text-sm max-w-xs">
-          {filter === "POSTES" && remplacementsMasques > 0
+          {/* Profession sans modèle de contrat (section 284) : le message générique promettait
+              des annonces qui ne peuvent pas exister et une visibilité auprès de cabinets qui ne
+              peuvent pas publier. On dit la CAUSE, on ne promet PAS de retour prochain, et on
+              garde la seule chose vraie — la publication est conservée. */}
+          {marcheFerme
+            ? `Les modèles de contrat ne sont pas encore intégrés — sans eux, un cabinet ne peut pas publier d'annonce pour des ${marcheFerme}. Votre recherche reste visible et vous serez prévenu dès qu'ils arriveront : vous n'aurez rien à republier.`
+            : filter === "POSTES" && remplacementsMasques > 0
             ? `${remplacementsMasques} annonce${remplacementsMasques > 1 ? "s" : ""} de remplacement ${remplacementsMasques > 1 ? "sont" : "est"} masquée${remplacementsMasques > 1 ? "s" : ""} par ce filtre. Les postes longue durée vous sont proposés en premier, mais rien ne vous y oblige.`
             : salariatOptIn === 0
             ? "Votre annonce est en ligne. Seuls les professionnels ayant coché « ouvert aux postes salariés » dans leur compte peuvent la voir et vous être proposés — aucun ne l'a fait à ce jour. Ils apparaîtront ici dès qu'un premier l'activera."
