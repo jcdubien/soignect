@@ -30,3 +30,7 @@ prisma/dev.db
 /Contrat salarié à durée*.pdf
 /Convention de partage de rémunération*.pdf
 /CESSION TOTALE OU PARTIELLE*.pdf
+
+# Échafaudages de vérification (bancs jetables) — jamais versionnés
+_tmp-*
+.banc*.json
