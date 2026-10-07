@@ -7482,9 +7482,23 @@ d'avant.
 - **Migration jouée** (`ALTER TABLE "Mission" ADD COLUMN IF NOT EXISTS "vignetteAt"`), colonne
   vérifiée en base : nullable, aucune annonce affectée.
 - **Bucket `vignettes` créé** (public, JPEG, 2 Mo).
-- **Le rattrapage des 61 annonces n'est PAS lancé.** Passage à blanc fait — 61 annonces, ~92 s —
-  et il attend l'accord de Jean-Charles. Tant qu'il n'est pas lancé, rien ne change : toutes les
-  annonces restent sur le repli dynamique.
+- **Rattrapage lancé le 07/10 sur accord de Jean-Charles** : **61 générées, 0 sans objet,
+  0 échec**, en 278 s (développement, plus lent que la production).
+
+```
+base     61 missions datées · 61 proposables · 0 sans vignette
+bucket   61 fichiers · 3,7 Mo · 62 ko en moyenne
+         0 fichier orphelin · 0 datation sans fichier  → concordance stricte
+URLs     5/5 répondent 200 image/jpeg
+```
+
+  Contrôle visuel sur une vignette réelle (cabinet de Pointe-Noire, photo en fond) : 1200×630,
+  voile sombre, titre sur deux lignes, dates et lieu lisibles — identique à ce que produisait la
+  route.
+
+  **L'effet n'apparaîtra qu'au déploiement** : la production sert encore un code qui ignore
+  `vignetteAt`, donc toutes les annonces restent momentanément sur le repli dynamique. La bascule
+  sera immédiate et complète dès la mise en ligne, les 61 vignettes étant déjà en place.
 
 ### SECTION 284 — LE FIL NE PROMET PLUS CE QU'IL NE PEUT PAS TENIR, ET L'OUVERTURE SE MESURE (07/10)
 
