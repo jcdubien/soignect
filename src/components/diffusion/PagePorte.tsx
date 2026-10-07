@@ -58,7 +58,11 @@ export default async function PagePorte({
           <p className="text-kine-100 text-sm">{porte.ctaSous}</p>
         </div>
         <Link
-          href="/register"
+          // La profession de CETTE page de diffusion voyage jusqu'à l'inscription (section 283) :
+          // quelqu'un qui arrive par « remplacement kiné Guadeloupe » a déjà dit ce qu'il
+          // exerce, et le lui redemander serait une friction gratuite. C'est le SEUL cas de
+          // présélection — ailleurs, le champ reste vide.
+          href={`/register?profession=${profession.enumBase}`}
           className="flex-shrink-0 px-5 py-3 bg-white text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition"
         >
           {porte.cta}
@@ -100,7 +104,7 @@ export default async function PagePorte({
       )}
 
       <div className="mt-8 text-center">
-        <Link href="/register" className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition">
+        <Link href={`/register?profession=${profession.enumBase}`} className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition">
           {porte.cta}
         </Link>
       </div>

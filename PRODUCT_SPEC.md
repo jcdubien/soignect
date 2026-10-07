@@ -7347,6 +7347,107 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 283 — LA PROFESSION NE TOMBE PLUS PAR DÉFAUT (07/10)
+
+#### Le défaut que la 278 avait laissé derrière elle
+
+Le champ existait, mais **présélectionné sur « Kinésithérapeute »**. Avec une valeur déjà choisie,
+`required` ne force rien : un infirmier qui ne touche pas à la liste devenait kiné **en silence**,
+et le cloisonnement ne lui montrait ensuite que des annonces de kinés, sans qu'aucun écran ne lui
+dise pourquoi.
+
+C'est exactement le défaut que la 278 corrigeait — une valeur qui tombe au lieu d'être déclarée —
+survivant en plus petit, un étage plus bas. Il était sans conséquence tant que 100 % des inscrits
+étaient kinés ; il devenait un piège au premier inscrit d'une autre profession.
+
+#### Ce qui change
+
+| | avant | après |
+|---|---|---|
+| valeur initiale du select | `KINESITHERAPEUTE` | **vide** — « Choisissez votre profession… » |
+| `required` | inopérant | effectif |
+| bouton « Continuer » | actif sans choix | **grisé** tant que rien n'est choisi |
+| `POST /api/profiles` | `profession` optionnelle, repli sur le défaut de colonne | **obligatoire**, `400` si absente ou inconnue |
+
+Le bouton grisé n'est pas une ceinture redondante : `required` ne parle qu'**après** le clic, là
+où le bouton dit avant qu'il manque quelque chose. Les autres champs obligatoires de cet écran
+sont traités ainsi ; la profession ne devait pas faire exception.
+
+**Les 85 profils existants ne sont pas touchés** : la contrainte porte sur la création, pas sur
+la colonne. Leur `KINESITHERAPEUTE` reste, et il est vrai.
+
+#### Une seule présélection : celle que le visiteur a déjà faite
+
+Les pages de diffusion sont propres à une profession (`PagePorte` reçoit son vocabulaire). Qui
+arrive par « remplacement kiné Guadeloupe » a déjà dit ce qu'il exerce en cliquant ; le lui
+redemander serait une friction gratuite. Les deux liens vers l'inscription portent donc
+`?profession=<enumBase>`.
+
+**Le paramètre est validé contre l'enum avant d'être retenu.** Une URL documente une provenance,
+elle n'autorise rien : `?profession=VETERINAIRE` retombe sur le champ vide, vérifié à l'écran.
+
+#### `POST /api/profiles` est le seul chemin de création
+
+Vérifié plutôt que supposé : un balayage du dépôt ne trouve **aucune autre** création de
+`Profile` — ni `prisma.profile.create`, ni `upsert`, ni second `profile: { create }`. La garde
+posée là couvre donc tout le produit.
+
+#### Vérifié à l'écran, compte jetable supprimé
+
+Adresse en `@example.com` (RFC 2606, non délivrable) : aucun courrier ne pouvait partir vers une
+vraie adresse.
+
+| | |
+|---|---|
+| select par défaut | « Choisissez votre profession… », « Continuer » grisé ✅ |
+| `?profession=KINESITHERAPEUTE` | présélectionné ✅ |
+| `?profession=VETERINAIRE` | **ignoré**, champ vide ✅ |
+| API sans `profession` | `400 · {"profession":["Required"]}` ✅ |
+| API avec `VETERINAIRE` | `400 · Invalid enum value` ✅ |
+| inscription complète en DENTISTE | `profession: DENTISTE` en base ✅ |
+
+Base restaurée : 85 profils, tous `KINESITHERAPEUTE`, zéro résidu, photo du bucket supprimée.
+
+#### CE QUE VOIT UNE PROFESSION SANS GABARIT, ET LE SEUL ÉNONCÉ QUI RESTE FAUX
+
+Parcouru avec le compte dentiste jetable :
+
+1. **Pendant l'inscription — rien.** Aucun écran n'indique que le marché n'est pas ouvert pour sa
+   profession. Le texte d'aide dit « chaque profession a son propre fil », ce qui est vrai mais
+   ne dit pas que le sien est vide.
+2. **Juste après — l'atterrissage prévient.** Un compte neuf arrive sur `/disponibilites/create`
+   (section 225) et le bandeau ambre s'y affiche **immédiatement** : « Chirurgien-dentiste : les
+   modèles de contrat ne sont pas encore intégrés […] une mise en relation n'est donc pas
+   possible aujourd'hui. » Il l'apprend donc au premier écran, avant d'avoir rempli quoi que ce
+   soit.
+3. **Mais le fil le contredit.** Sur `/annonces`, l'état vide affiche : « Plus d'annonces pour le
+   moment — Revenez plus tard, ou publiez vos disponibilités pour être visible des cabinets. »
+   Les deux moitiés sont fausses pour lui : il n'y aura pas d'annonces à son prochain passage
+   (aucun cabinet de sa profession ne peut publier), et publier ne le rendra visible d'aucun
+   cabinet. C'est un message rassurant, et il ment.
+
+**Message proposé, non codé** (attend l'accord de Jean-Charles) — pour un lecteur dont la
+profession n'a aucun gabarit, en remplacement de l'état vide générique :
+
+> **Aucun cabinet de votre profession n'est encore sur Soignect.**
+> Les modèles de contrat des chirurgiens-dentistes ne sont pas encore intégrés : les cabinets de
+> votre profession ne peuvent donc pas publier d'annonce. Votre recherche reste visible et vous
+> serez prévenu dès qu'ils arriveront — vous n'aurez rien à republier.
+
+Il dit la cause, ne promet pas de retour prochain, et conserve la seule chose vraie : la
+publication reste utile parce qu'elle est conservée.
+
+#### Comptage par profession en admin : il n'existe pas
+
+Vérifié : `/admin/profiles` **charge** `profession` et la déclare dans son type, mais ne
+l'affiche nulle part ; `/admin/stats` agrège par `type` (`groupBy(["type"])`), jamais par
+profession. Rien ne permet donc de mesurer l'ouverture qu'on vient de livrer.
+
+**Proposé, non codé** : ajouter `prisma.profile.groupBy({ by: ["profession"] })` au tableau de
+`/admin/stats`, à côté du comptage par type, et afficher la colonne déjà chargée dans
+`/admin/profiles`. Deux lignes et une colonne — mais c'est le seul moyen de répondre à
+« l'ouverture produit-elle des inscriptions ? », qui est la question du moment.
+
 ### SECTION 282 — PRÉSÉLECTION CÔTÉ ASSISTANT, ÉTIQUETAGE CÔTÉ REMPLAÇANT (06/10)
 
 Deux des quatre options proposées après la mesure des paires convergentes : A1 (présélection) et

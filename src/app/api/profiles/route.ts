@@ -13,9 +13,21 @@ const createProfileSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   type: z.nativeEnum(ProfileType),
-  // Profession déclarée à l'inscription (section 278). Optionnelle : le défaut de la colonne
-  // reste KINESITHERAPEUTE, ce qui garde intact tout appelant antérieur à l'ouverture.
-  profession: z.nativeEnum(Profession).optional(),
+  // ── PROFESSION OBLIGATOIRE (section 283) ─────────────────────────────────────────────────
+  //
+  // Elle était optionnelle, et le défaut de colonne (`KINESITHERAPEUTE`) faisait le reste. Ça se
+  // tenait quand 100 % des inscrits étaient kinés ; à l'ouverture, c'est un piège : un infirmier
+  // qui ne touche pas à la liste devient kiné EN SILENCE, et le cloisonnement ne lui montre
+  // plus que des annonces de kinés — sans qu'aucun écran ne lui dise pourquoi.
+  //
+  // C'est exactement le défaut que la 278 corrigeait (une colonne qu'aucun écran ne demandait),
+  // en plus petit : une valeur qui tombe au lieu d'être déclarée. `z.nativeEnum` refuse aussi
+  // bien l'absence qu'une valeur inconnue — le défaut de colonne n'est plus atteignable par
+  // cette route.
+  //
+  // LES 85 PROFILS EXISTANTS NE SONT PAS TOUCHÉS : la contrainte porte sur la CRÉATION, pas sur
+  // la colonne. Leur `KINESITHERAPEUTE` reste, et il est vrai.
+  profession: z.nativeEnum(Profession),
   // Nature du titulaire (Cabinet libéral vs Structure privée) posée dès l'inscription
   // pour l'entrée « Établissement ». Ignoré pour les remplaçants (défaut CABINET).
   titulaireKind: z.nativeEnum(TitulaireKind).optional(),
@@ -65,7 +77,9 @@ export async function POST(req: NextRequest) {
       emailOptIn: optIn,
       acceptedTermsAt: acceptedTerms ? new Date() : null,
       profile: {
-        create: { type, name, bio, bioTinder, photoUrl, ...(profession ? { profession } : {}), ...(kind ? { titulaireKind: kind } : {}) },
+        // `profession` est désormais garantie par le schéma : plus de repli conditionnel, qui
+        // n'aurait fait que masquer un jour une validation devenue inopérante.
+        create: { type, name, bio, bioTinder, photoUrl, profession, ...(kind ? { titulaireKind: kind } : {}) },
       },
     },
     include: { profile: true },

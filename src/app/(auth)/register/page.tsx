@@ -133,11 +133,26 @@ function RegisterForm() {
   }
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  // Profession déclarée (section 278). Jusqu'ici, AUCUN écran ne la demandait : la colonne
-  // tombait sur son défaut et les 82 premiers comptes étaient tous kinés sans l'avoir dit.
-  // Défaut conservé à kiné — c'est la profession du marché d'origine, et le changer aurait
-  // obligé chaque inscrit historique à un geste pour revenir au même point.
-  const [profession, setProfession] = useState<string>("KINESITHERAPEUTE");
+  // ── PROFESSION : PLUS DE DÉFAUT SILENCIEUX (section 283) ──────────────────────────────────
+  //
+  // La 278 avait posé le champ, mais présélectionné sur « Kinésithérapeute ». Avec une valeur
+  // déjà choisie, `required` ne force rien : un infirmier qui ne touche pas à la liste devient
+  // kiné sans le savoir, et le cloisonnement ne lui montre ensuite que des annonces de kinés.
+  // Le défaut que la 278 corrigeait survivait donc, en plus petit.
+  //
+  // Valeur initiale vide → l'option « Choisissez votre profession » est sélectionnée, et
+  // `required` redevient effectif. Le coût est un clic de plus pour les kinés — exactement ce
+  // que le formulaire demande déjà pour tout le reste.
+  //
+  // UNE SEULE EXCEPTION : le visiteur venu d'une page de diffusion PROPRE à une profession
+  // (`?profession=…`, posé par PagePorte). Il a déjà dit ce qu'il exerce en cliquant ; le lui
+  // redemander serait une friction gratuite. La valeur est validée contre l'enum avant d'être
+  // retenue — un paramètre d'URL documente une provenance, il n'autorise rien.
+  const professionInitiale = (() => {
+    const p = searchParams.get("profession");
+    return p && p in PROFESSION_LABELS ? p : "";
+  })();
+  const [profession, setProfession] = useState<string>(professionInitiale);
   // Notifications (section 50-51)
   const [phoneCountry, setPhoneCountry] = useState("GP");
   const [phone, setPhone] = useState("");
@@ -453,6 +468,9 @@ function RegisterForm() {
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm bg-white"
                     required
                   >
+                    {/* L'option vide est ce qui rend `required` opérant. Sans elle, le champ
+                        répond toujours — avec la première valeur de la liste. */}
+                    <option value="">Choisissez votre profession…</option>
                     {GROUPES_PROFESSION.map((g) => (
                       <optgroup key={g.titre} label={g.titre}>
                         {g.valeurs.map((v) => (
@@ -546,7 +564,12 @@ function RegisterForm() {
                   </button>
                   <button
                     type="submit"
-                    disabled={!email || !password || !name || emailAvailable === false || !pendingPhotoBlob}
+                    // `!profession` rejoint la liste (section 283) : `required` sur le select
+                    // suffirait à bloquer la soumission, mais le bouton grisé DIT qu'il manque
+                    // quelque chose, là où la validation native ne parle qu'après le clic. Les
+                    // autres champs obligatoires de cet écran sont traités ainsi ; la profession
+                    // ne doit pas faire exception.
+                    disabled={!email || !password || !name || !profession || emailAvailable === false || !pendingPhotoBlob}
                     className="md3-ripple flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
                   >
                     Continuer →
