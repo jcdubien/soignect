@@ -7347,6 +7347,82 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 286 — MA PRÉVISION ÉTAIT FAUSSE, ET LA MESURE DIT POURQUOI (07/10)
+
+La section 285 se terminait sur une prévision : « les invocations devraient tomber de ~246 à
+quelques unités ». **Remesuré après déploiement : elles ont doublé.**
+
+#### Le chiffre
+
+| fenêtre | invocations | CPU |
+|---|---|---|
+| 12 h avant bascule | 246 | 6 min |
+| **6 h après bascule** | **187** | **6 min** |
+
+En six heures, la route consommait ce qu'elle consommait en douze.
+
+La bascule fonctionnait pourtant : vérifié sur la production, `og:image` **et** `twitter:image`
+pointent vers le stockage, et le HTML ne référence la route **nulle part**.
+
+#### La cause, lue dans les journaux Vercel
+
+```
+User Agent     facebookexternalhit/1.1
+Path           /annonce/<id>/opengraph-image
+Search Params  f867dce05889de97        ← l'ANCIEN hachage d'URL
+```
+
+Facebook **ne scrape pas la page** : il revalide les URL d'images qu'il garde en cache,
+publication par publication. Ces URL ne figurent plus nulle part dans le HTML, mais elles vivent
+dans ses propres enregistrements — et le produit totalise 6 349 clics venus de ses groupes.
+
+**L'erreur de raisonnement est nommable** : j'ai supposé que les appels venaient de scrapes de
+PAGES, alors qu'ils viennent de revalidations d'IMAGES. La 285 avait pourtant identifié le bon
+mécanisme — garder la route vivante « parce que les aperçus déjà scrapés pointent sur son URL ».
+Elle n'en a pas tiré la conséquence : si ces URL sont encore demandées, elles le resteront.
+
+#### Ce que la route n'a plus de raison de faire
+
+Recalculer. La vignette existe déjà : elle est relayée.
+
+| | avant | après |
+|---|---|---|
+| coût par appel | ~1,47 s (Satori + sharp) | une lecture base + un transfert |
+| 187 appels / 6 h | **6 min** | **~10 s** |
+
+#### Relayer plutôt que rediriger — et pourquoi j'ai changé d'avis
+
+La proposition initiale était une redirection 308 vers le fichier stocké : plus économe encore,
+puisque les octets ne transiteraient plus par Vercel. **Écartée.** Elle suppose que chaque robot
+suive une redirection sur une image, et je ne peux pas le vérifier sans forcer un re-scrape
+depuis un vrai compte Facebook.
+
+C'est exactement le type de supposition qui a rendu la prévision précédente fausse. Le relais ne
+suppose rien : la réponse reste une image, octet pour octet celle d'avant. Et la bande passante
+ne change pas — ces octets transitent déjà par Vercel aujourd'hui, c'est le CPU qu'on visait.
+
+**Repli silencieux** : si le stockage ne répond pas en 3 s, on rend. Mieux vaut payer le rendu
+que servir une image cassée sur la page la plus partagée du produit.
+
+#### Vérifié
+
+```
+fichier stocké   46 ko · sha 3c0c15241fe74381
+route (relais)   46 ko · sha 3c0c15241fe74381 · 751 ms · image/jpeg   → IDENTIQUE
+repli (annonce sans vignette)   HTTP 200 · 1200×630 · 32 ko · 2 549 ms
+```
+
+Le repli a demandé une annonce jetable créée **directement en base** — toutes les annonces
+réelles ayant désormais leur vignette, il n'était plus exerçable autrement. Banc démonté :
+85 comptes, 79 missions, 61 fichiers, 61 datations.
+
+#### Ce qui reste à mesurer, et que je ne prédis pas cette fois
+
+L'effet attendu est une chute du CPU de la route d'un facteur ~30 **à nombre d'invocations
+constant** — les invocations, elles, ne baisseront que lorsque Facebook renouvellera ses URL en
+cache, à un rythme qu'il décide seul. La prochaine mesure dira si le facteur est au rendez-vous.
+Elle se fait sur `Active CPU` de `/annonce/[id]/opengraph-image`, pas sur le compte d'appels.
+
 ### SECTION 285 — LA VIGNETTE DE PARTAGE SE CALCULE UNE FOIS, PAS À CHAQUE SCRAPE (07/10)
 
 Le compte Vercel affichait **« Exceeded free resources — Fluid Active CPU : 8 h 52 / 4 h »**,

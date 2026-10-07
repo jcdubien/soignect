@@ -1,4 +1,7 @@
+import { prisma } from "@/lib/prisma";
+import { BriqueStatus } from "@prisma/client";
 import { rendreVignetteJpeg, ErreurRenduVignette, TAILLE_VIGNETTE } from "@/lib/vignetteAnnonce";
+import { urlVignette } from "@/lib/vignetteStockage";
 
 // ── REPLI DE LA VIGNETTE DE PARTAGE (section 285) ────────────────────────────────────────────
 //
@@ -19,6 +22,58 @@ export const alt = "Annonce Soignect";
 
 export default async function OgImage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  // ── RELAIS DU FICHIER DÉJÀ STOCKÉ (section 286) ─────────────────────────────────────────
+  //
+  // MESURÉ APRÈS LA BASCULE, et le résultat a démenti ma prévision : 187 invocations en 6 h
+  // contre 246 en 12 h avant — le taux avait DOUBLÉ, pas baissé. Les journaux ont donné la
+  // cause en une ligne :
+  //
+  //     User Agent     facebookexternalhit/1.1
+  //     Search Params  f867dce05889de97        ← l'ANCIEN hachage d'URL
+  //
+  // Facebook ne scrape pas la page : il REVALIDE les URL d'images qu'il garde en cache,
+  // publication par publication. Ces URL ne figurent plus nulle part dans le HTML, mais elles
+  // vivent dans ses enregistrements — et le produit totalise 6 349 clics venus de ses groupes.
+  //
+  // J'avais prévu que ces appels tomberaient « à quelques unités ». Faux : j'avais supposé
+  // qu'ils venaient de scrapes de PAGES, alors qu'ils viennent de revalidations d'IMAGES. La
+  // route reste donc appelée au même rythme, indéfiniment.
+  //
+  // Elle n'a pourtant plus aucune raison de RECALCULER : la vignette existe déjà. On relaie le
+  // fichier stocké, et le coût passe de ~1,47 s (Satori + sharp) à une lecture de base plus un
+  // transfert — ~30 fois moins.
+  //
+  // POURQUOI RELAYER PLUTÔT QUE REDIRIGER. Une redirection 308 économiserait aussi les octets,
+  // mais elle suppose que chaque robot la suive sur une image. Je ne peux pas le vérifier sans
+  // forcer un re-scrape depuis un vrai compte Facebook, et c'est exactement le type de
+  // supposition qui a rendu la prévision précédente fausse. Le relais ne suppose rien : la
+  // réponse reste une image, octet pour octet celle d'avant. La bande passante, elle, ne change
+  // pas — ces octets transitent déjà par Vercel aujourd'hui.
+  const stockee = await prisma.mission
+    .findFirst({
+      where: { id, isActive: true, briqueStatus: BriqueStatus.RECHERCHE },
+      select: { vignetteAt: true },
+    })
+    .catch(() => null);
+
+  if (stockee?.vignetteAt) {
+    const url = urlVignette(id, stockee.vignetteAt);
+    if (url) {
+      // Délai court et repli silencieux : si le stockage ne répond pas, on REND. Mieux vaut
+      // payer le rendu que servir une image cassée sur la page la plus partagée du produit.
+      const amont = await fetch(url, { signal: AbortSignal.timeout(3000) }).catch(() => null);
+      if (amont?.ok && amont.body) {
+        return new Response(amont.body, {
+          headers: {
+            "Content-Type": "image/jpeg",
+            "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+          },
+        });
+      }
+    }
+  }
+
   let jpeg;
   try {
     jpeg = await rendreVignetteJpeg(id);
