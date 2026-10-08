@@ -7407,6 +7407,20 @@ Le marqueur `INTERET_SOUFFRANCE_RAPPEL` est écrit une fois par destinataire, ap
 fenêtre de silence de sept jours regarde AUSSI `RELANCE_PUBLICATION` (section 229) : elle protège
 la personne, pas la campagne.
 
+#### Le compte d'essai de l'exploitant est écarté par une règle, pas par une adresse en dur
+
+La première liste comptait huit destinataires, dont `jcdubien+test@gmail.com` — le compte d'essai
+de l'exploitant, qui aurait reçu un vrai courrier de campagne dans sa propre boîte et gonflé d'une
+unité le nombre soumis à validation.
+
+Mettre l'adresse en dur l'aurait figée et n'aurait couvert que ce cas. La règle retenue décrit ce
+qu'EST un compte d'essai : **une sous-adresse `+` dont l'adresse de base a déjà un compte**.
+Vérifié sur toute la base le 08/10 — un seul compte y répond, et c'est bien celui-là. Une
+sous-adresse dont la base n'a pas de compte reste un destinataire normal.
+
+**Sept destinataires** : Simoni (3 cabinets), Iturralde Alzua (2), MILOVANOVIC Flora, Hippolyte
+JUE, Frédérique Hallpike, Ferreira, Amarante Domarle (1 chacun).
+
 #### Vérifié à l'écran, banc jetable purgé
 
 ```

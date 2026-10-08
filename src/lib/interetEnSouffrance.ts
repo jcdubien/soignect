@@ -24,6 +24,27 @@ export const EVENT_SOUFFRANCE = "INTERET_SOUFFRANCE_RAPPEL";
 /** Fenêtre de silence entre deux courriers Soignect de cette famille, quel que soit lequel. */
 export const FENETRE_SILENCE_JOURS = 7;
 
+/**
+ * Cette adresse est-elle une sous-adresse d'un autre compte de la base ?
+ *
+ * `jcdubien+test@gmail.com` est le compte d'essai que l'exploitant s'est créé : sa base,
+ * `jcdubien@gmail.com`, a son propre compte. Lui écrire reviendrait à envoyer un vrai courrier de
+ * campagne dans sa propre boîte, et surtout à gonfler d'une unité un nombre qu'il valide avant
+ * l'envoi.
+ *
+ * RÈGLE GÉNÉRALE, PAS UNE ADRESSE EN DUR. Mettre un email personnel dans le dépôt le figerait et
+ * ne couvrirait que ce cas-là ; la règle « sous-adresse dont la base existe déjà » décrit ce
+ * qu'EST un compte d'essai et vaudra pour le suivant. Vérifié le 08/10 : un seul compte de toute
+ * la base y répond, et c'est bien celui-là.
+ *
+ * Une sous-adresse dont la base n'a PAS de compte reste un destinataire normal — quelqu'un peut
+ * parfaitement s'inscrire avec un alias sans avoir d'autre compte ici.
+ */
+function estSousAdresseDUnAutreCompte(email: string, toutesLesAdresses: Set<string>): boolean {
+  const m = email.toLowerCase().match(/^([^+@]+)\+[^@]*@(.+)$/);
+  return m ? toutesLesAdresses.has(`${m[1]}@${m[2]}`) : false;
+}
+
 export interface CibleSouffrance {
   profileId: string;
   userId: string;
@@ -116,6 +137,12 @@ export async function ciblesInteretEnSouffrance(): Promise<{
     if (!d || t.occurredAt > d) dernierEmail.set(t.profileId, t.occurredAt);
   }
 
+  // Toutes les adresses de la base, pour reconnaître les sous-adresses (voir ci-dessus). Une
+  // seule requête, en lecture seule, sur une colonne.
+  const toutesLesAdresses = new Set(
+    (await prisma.user.findMany({ select: { email: true } })).map((u) => u.email.toLowerCase()),
+  );
+
   const maintenant = Date.now();
   const cibles: CibleSouffrance[] = [];
   const exclus: MotifExclusion[] = [];
@@ -133,6 +160,10 @@ export async function ciblesInteretEnSouffrance(): Promise<{
     // ne la marque pas non plus — rien n'a été fait pour cette personne.
     if (!adresseEnvoyable(email)) { exclus.push({ nom: pr.name, motif: `adresse non envoyable (${email})` }); continue; }
     if (dejaTraite.has(pr.id))  { exclus.push({ nom: pr.name, motif: "déjà destinataire de ce courrier" }); continue; }
+    if (estSousAdresseDUnAutreCompte(email, toutesLesAdresses)) {
+      exclus.push({ nom: pr.name, motif: "compte d'essai (sous-adresse d'un compte existant)" });
+      continue;
+    }
 
     const prec = dernierEmail.get(pr.id);
     if (prec) {
