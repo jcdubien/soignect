@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileType, TitulaireKind, MissionType, Prisma } from "@prisma/client";
 import { stripMissionProfiles } from "@/lib/publicProfile";
-import { EST_UNE_OFFRE, NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
+import { EST_UNE_OFFRE, NO_ACTIVE_MATCH_FILTER, offreOuverteLe } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
@@ -363,19 +363,16 @@ export async function GET(req: NextRequest) {
   // personnes qui pourraient répondre qui mesure l'enjeu, pas le nombre de cartes swipées.
   let cabinetsEnAttente = 0;
   if (aPublie === 0) {
-    const aujourdhui = new Date();
-    aujourdhui.setHours(0, 0, 0, 0);
     const interets = await prisma.swipe.findMany({
       where: {
         swiperId: myProfile.id,
         direction: "RIGHT",
-        // Une annonce retirée ou dont la période est passée n'attend plus rien : la compter
-        // promettrait une réponse que personne ne peut plus donner.
-        swipedMission: {
-          ...EST_UNE_OFFRE,
-          OR: [{ endDate: null }, { endDate: { gte: aujourdhui } }],
-          ...NO_ACTIVE_MATCH_FILTER,
-        },
+        // LE MÊME OBJET que celui du rattrapage (section 289), pas une recomposition : ce
+        // nombre est annoncé à la personne (« 3 cabinets attendent vos dates »), et le
+        // rattrapage décide ensuite qui reçoit un email. Deux prédicats écrits séparément
+        // auraient fini par ne plus désigner les mêmes annonces — la promesse et l'envoi
+        // auraient divergé sans que rien ne le signale.
+        swipedMission: offreOuverteLe(new Date()),
       },
       select: { swipedMission: { select: { profileId: true } } },
     });

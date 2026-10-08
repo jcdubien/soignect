@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { createNotification } from "@/lib/notifications";
 import { sendInteretEmail } from "@/lib/email";
+import { offreOuverteLe } from "@/lib/feedFilters";
 
 // Signal « quelqu'un s'intéresse à votre annonce » (sections 223-224, différé le 15/09).
 //
@@ -244,8 +245,21 @@ export async function rattraperInteretsDifferes(swiperId: string): Promise<numbe
     const moi = await prisma.profile.findUnique({ where: { id: swiperId }, select: { type: true } });
     const swiperType = moi?.type;
 
+    // LE MÊME PRÉDICAT QUE LE FIL, PAS UNE APPROXIMATION (section 289). `isActive: true` seul
+    // laissait passer trois familles d'annonces sur lesquelles le destinataire ne peut plus
+    // rien : un poste pourvu, une période close, une annonce déjà engagée avec quelqu'un
+    // d'autre. Mesuré le 08/10 : 11 annonces auraient été notifiées à tort, dont les briques
+    // d'occupation « Assistant 1 » et « Christelle » que la section 265 avait précisément
+    // sorties du fil. Les deux exclusions décrites ci-dessus étaient donc ÉCRITES sans être
+    // appliquées — et c'est aussi ce qui aurait fait diverger le nombre annoncé à la personne
+    // (« 3 cabinets attendent vos dates », calculé avec ce prédicat) du nombre d'emails
+    // réellement partis.
     const swipes = await prisma.swipe.findMany({
-      where: { swiperId, direction: SwipeDirection.RIGHT, swipedMission: { isActive: true } },
+      where: {
+        swiperId,
+        direction: SwipeDirection.RIGHT,
+        swipedMission: offreOuverteLe(new Date()),
+      },
       select: { swipedMission: { select: { id: true, title: true, profileId: true } } },
       orderBy: { createdAt: "asc" },
     });

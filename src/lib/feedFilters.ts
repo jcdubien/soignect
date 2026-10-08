@@ -1,4 +1,4 @@
-import { BriqueStatus, MatchStatus } from "@prisma/client";
+import { BriqueStatus, MatchStatus, type Prisma } from "@prisma/client";
 
 // ── CE QUI EST UNE OFFRE (section 265) ───────────────────────────────────────────────────────
 //
@@ -45,3 +45,34 @@ export const NO_ACTIVE_MATCH_FILTER = {
   matchesA: { none: { status: { in: ACTIVE_MATCH_STATUSES } } },
   matchesB: { none: { status: { in: ACTIVE_MATCH_STATUSES } } },
 } as const;
+
+// ── UNE OFFRE SUR LAQUELLE ON PEUT ENCORE AGIR AUJOURD'HUI (section 289) ─────────────────────
+//
+// Trois conditions vivaient côte à côte sans jamais être nommées ensemble : être une offre
+// (`EST_UNE_OFFRE`), ne pas être déjà engagée (`NO_ACTIVE_MATCH_FILTER`), et ne pas avoir une
+// période écoulée. Chaque surface les recomposait à la main — et le rattrapage des intérêts
+// différés, lui, n'en appliquait AUCUNE hormis `isActive`.
+//
+// CE QUE ÇA PRODUISAIT, mesuré le 08/10 sur les candidats sans publication : à la première
+// publication, `rattraperInteretsDifferes` aurait notifié **11 annonces sur lesquelles personne
+// ne peut plus rien** — 2 postes pourvus (dont les briques d'OCCUPATION « Assistant 1 » et
+// « Christelle », exactement ce que la section 265 avait écarté du fil), 2 périodes closes depuis
+// août et septembre, et 7 annonces déjà engagées dans une mise en relation avec quelqu'un d'autre.
+//
+// La docstring de `rattraperInteretsDifferes` ANNONÇAIT pourtant ces exclusions. L'écart n'était
+// pas une omission de pensée mais de code : le commentaire disait le produit, la requête disait
+// autre chose. C'est le genre de divergence qui ne se voit qu'en comptant.
+//
+// Fonction et non constante : la borne du jour se calcule à l'appel. Une constante de module
+// figerait « aujourd'hui » à l'instant du premier import — sur un serveur de longue durée, elle
+// vieillirait sans bruit.
+export function offreOuverteLe(jour: Date): Prisma.MissionWhereInput {
+  const minuit = new Date(jour);
+  minuit.setHours(0, 0, 0, 0);
+  return {
+    ...EST_UNE_OFFRE,
+    ...NO_ACTIVE_MATCH_FILTER,
+    // `endDate: null` = poste durable sans terme (section 179) : il reste ouvert indéfiniment.
+    OR: [{ endDate: null }, { endDate: { gte: minuit } }],
+  };
+}
