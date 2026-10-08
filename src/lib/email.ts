@@ -631,3 +631,52 @@ export async function sendInteretEnSouffranceEmail(
     : `${opts.nbCabinets} cabinets attendent vos dates`;
   return (await sendEmail(to, sujet, html)) ? "envoye" : "refuse";
 }
+
+// ── r) Adresse de connexion corrigée (section 291) ─────────────────────────────
+//
+// COURRIER NOMINATIF, PAS UNE CAMPAGNE. Il s'adresse à quelqu'un dont l'adresse de connexion
+// vient d'être modifiée SANS qu'il l'ait demandé. Une modification silencieuse d'un identifiant
+// est exactement ce qu'un produit ne doit jamais faire : la personne découvrirait, un jour, que
+// ses identifiants ne fonctionnent plus, sans savoir pourquoi.
+//
+// PAS D'`optIn`. Ce n'est pas une communication, c'est la notification d'un changement sur le
+// compte — la même logique que l'alarme d'exploitation plus haut. Quelqu'un qui a coupé les
+// emails de mise en relation n'a pas consenti à ignorer qu'on a touché à son identifiant.
+//
+// CE QU'IL NE FAIT PAS, ET C'EST DÉLIBÉRÉ. Aucun lien ne demande de saisir quoi que ce soit, et
+// le mot de passe n'est ni évoqué comme à changer ni réinitialisé : un courrier qui annonce une
+// modification de compte ET pousse vers un formulaire est la forme même de l'hameçonnage. Il
+// énonce le fait, nomme les deux adresses pour que la personne reconnaisse la sienne, et laisse
+// une voie de recours humaine.
+//
+// PAS DE « RÉPONDEZ À CE MESSAGE » : l'expéditeur est un sous-domaine d'envoi, dont la boîte de
+// réception n'est pas relevée. Proposer une voie de recours qui n'aboutit pas serait pire que
+// n'en proposer aucune — d'où l'adresse explicite, passée par l'appelant.
+export async function sendAdresseCorrigeeEmail(
+  to: string,
+  opts: { firstName: string | null; ancienneAdresse: string; nouvelleAdresse: string; contact: string }
+): Promise<ResultatEnvoi> {
+  const salutation = opts.firstName ? `Bonjour ${escapeHtml(opts.firstName)},` : "Bonjour,";
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">${salutation}</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       Votre compte Soignect était enregistré avec l&rsquo;adresse
+       <strong>${escapeHtml(opts.ancienneAdresse)}</strong>. Ce domaine n&rsquo;existe pas :
+       aucun de nos messages n&rsquo;a pu vous parvenir depuis votre inscription.
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       Nous l&rsquo;avons corrigée en <strong>${escapeHtml(opts.nouvelleAdresse)}</strong>, celle
+       qui reçoit ce message. C&rsquo;est désormais l&rsquo;adresse à utiliser pour vous
+       connecter. <strong>Votre mot de passe n&rsquo;a pas changé</strong>, et rien d&rsquo;autre
+       n&rsquo;a été modifié sur votre compte.
+     </p>
+     <p style="font-size:14px;line-height:1.5;margin:0;color:#4b5563">
+       Si cette adresse n&rsquo;est pas la vôtre, écrivez à ${escapeHtml(opts.contact)} :
+       nous rétablirons ce que vous souhaitez.
+     </p>`,
+    { label: "Me connecter", path: "/login" }
+  );
+  return (await sendEmail(to, "Votre adresse de connexion Soignect a été corrigée", html))
+    ? "envoye"
+    : "refuse";
+}
