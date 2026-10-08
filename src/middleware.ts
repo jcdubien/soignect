@@ -25,6 +25,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // rien du tout.
 export const config = {
   matcher: [
+    "/admin/:path*",
     "/annonces/:path*",
     "/disponibilites/:path*",
     "/planning/:path*",

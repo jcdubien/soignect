@@ -33,6 +33,7 @@ const updateSchema = z.object({
   // Champs notifications (portés par User, section 50-51)
   phone: z.string().max(20).nullable().optional(),
   phoneCountry: z.string().max(4).optional(),
+  whatsappOptIn: z.boolean().optional(),
   emailOptIn: z.boolean().optional(),
   notifyConsultation: z.boolean().optional(),
 });
@@ -85,7 +86,7 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { phone, phoneCountry, emailOptIn, notifyConsultation, titulaireKind, ...profileData } = parsed.data;
+  const { phone, phoneCountry, emailOptIn, notifyConsultation, whatsappOptIn, titulaireKind, ...profileData } = parsed.data;
 
   const updated = await prisma.profile.update({
     where: { id },
@@ -99,12 +100,13 @@ export async function PATCH(
   });
 
   // Champs notifications → portés par le User lié
-  if (phone !== undefined || phoneCountry !== undefined || emailOptIn !== undefined || notifyConsultation !== undefined) {
+  if (phone !== undefined || phoneCountry !== undefined || emailOptIn !== undefined || notifyConsultation !== undefined || whatsappOptIn !== undefined) {
     await prisma.user.update({
       where: { id: profile.userId },
       data: {
         ...(phone !== undefined ? { phone } : {}),
         ...(phoneCountry !== undefined ? { phoneCountry } : {}),
+        ...(whatsappOptIn !== undefined ? { whatsappOptIn } : {}),
         ...(emailOptIn !== undefined ? { emailOptIn } : {}),
         ...(notifyConsultation !== undefined ? { notifyConsultation } : {}),
       },

@@ -7347,6 +7347,134 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 292 — LES NUMÉROS FUIENT AVANT LE CONTRAT, PAS APRÈS (08/10)
+
+#### La mesure, et ce qu'elle renverse
+
+```
+messages de chat contenant un numéro     7 / 100   (7 %)
+conversations concernées                 6 / 17    (35 %)
+personnes                                6
+textes de profil                         0 / 88
+textes d'annonce                         0 / 80
+postérieurs à une signature de contrat   0
+```
+
+Deux faits commandent toute la section. La fuite est **exclusivement conversationnelle** :
+personne ne met son numéro dans son annonce ou son profil. Et **aucun de ces échanges ne suit un
+contrat signé**.
+
+L'hypothèse de départ était qu'on s'échange un numéro une fois la relation scellée, pour
+s'organiser. C'est l'inverse : **on s'échange un numéro AU LIEU de contractualiser.** Un tiers des
+conversations sort de la plateforme avant qu'elle n'ait servi à quoi que ce soit.
+
+Réserve de taille : 100 messages, 17 conversations. 7 % ± beaucoup.
+
+#### Le téléphone était déjà là, et le consentement aussi
+
+```
+User.phone          79 / 88 comptes renseignés (90 %)   GP 31 · FR 48
+User.whatsappOptIn  0 à true — ZÉRO occurrence dans src/
+```
+
+`whatsappOptIn` existe depuis la section 50-51 et n'était **ni lue ni écrite nulle part** : zéro
+compte à `true`, non par refus mais parce qu'aucun écran ne permettait de cocher. Le consentement
+n'était pas à inventer, il était à brancher. Et le numéro n'a jamais été exposé à l'autre partie —
+il vit sur `User`, que `stripSensitiveProfile` ne touche pas, mais qu'aucune route ne sert à un
+tiers.
+
+#### La règle de détection, et pourquoi elle est plus étroite qu'au départ
+
+La première passe cherchait aussi les suites de dix chiffres sans préfixe. Sur les sept
+trouvailles elle n'a rien apporté — les sept commençaient par `+` ou `0` :
+
+```
+international  +590…  × 3        dix chiffres nus  × 0
+mobile 06/07          × 4
+```
+
+Elle n'aurait ramassé que des faux positifs. `lib/numeroTelephone.ts` exige donc le préfixe :
+**7 vrais sur 7, zéro faux** sur ce corpus. Contrôles négatifs qui doivent rester muets, et le
+restent : SIRET à 14 chiffres, RPPS à 11, `3500 2026`, `01.02.2026`, `97139 2026`.
+
+(Une première lecture avait annoncé « 4 faux positifs probables » : l'erreur était dans l'analyse,
+pas dans les données — le `0` initial était masqué comme les autres chiffres dans les silhouettes.)
+
+#### Avertir, jamais bloquer
+
+Partager un numéro est légitime : celui du cabinet pour une visite, une référence, un numéro mal
+recopié. Et un blocage se contourne en trois secondes (« zéro six point… ») : il ne retiendrait
+que les gens honnêtes.
+
+Le panneau s'interpose **une fois par conversation et par visite**, au-dessus du champ et non en
+modale assombrie — ce n'est pas un geste à arrêter, c'est une information à donner. L'ordre des
+boutons porte la décision : **« Envoyer quand même » d'abord et en plein**, « Modifier » ensuite
+et en retrait.
+
+> 📱 **Vous partagez un numéro.** C'est votre droit — mais hors de Soignect, vous perdez la trace
+> écrite de vos échanges, le contrat type et le rappel des dates.
+
+#### Le comptage se rejoue tout seul
+
+La mesure du 08/10 a demandé de relire TOUS les messages en base et d'y passer un motif. Faisable
+à 100 messages, plus longtemps ensuite — et il faut toucher au contenu des conversations à chaque
+fois qu'on veut savoir si le chiffre a bougé.
+
+La trace `NUMERO_PARTAGE` déplace la mesure au moment de l'écriture. Elle ne porte **ni le
+contenu, ni le numéro** : seulement « un message de cette conversation en contenait un ». Posée
+côté serveur et non sur le clic de l'avertissement — on compte ce qui est RÉELLEMENT parti, pas ce
+que l'écran a montré.
+
+#### wa.me : administration seulement, et ce n'est pas une étape
+
+Un lien `wa.me` ouvre la conversation **chez l'expéditeur, numéro en clair**. Donner ce bouton aux
+cabinets livrerait le numéro du candidat ET institutionnaliserait la sortie que la mesure vient de
+constater. Le bouton vit donc dans `/admin/users`, et nulle part ailleurs.
+
+Le numéro ne descend jamais au navigateur avec la liste : la page ne reçoit qu'un drapeau
+`joignableWhatsapp`. Il ne sort qu'au moment du clic, pour une personne, via
+`/api/admin/whatsapp` — qui **revérifie le consentement**, car la page peut avoir dix minutes.
+Pas de bouton grisé pour les non-consentants : un bouton désactivé divulguerait une préférence.
+
+Le message pré-rempli ne contient **aucune donnée de l'autre partie** — ni nom de cabinet, ni
+titre d'annonce, ni dates. Un message WhatsApp se transfère et se capture ; le contenu reste
+derrière la connexion.
+
+> Bonjour, vous avez une activité en attente sur Soignect. https://www.soignect.fr/annonces
+
+`WHATSAPP_OUVERT` journalise qu'un canal a été **ouvert**, par qui, vers qui. Ni le numéro, ni le
+texte. Et c'est bien une ouverture, pas un envoi : personne ne sait si le message a été expédié
+une fois WhatsApp lancé — la trace ne doit donc rien affirmer de plus.
+
+#### Textes légaux
+
+CGU §5 « Notifications WhatsApp (facultatif) » et Politique de confidentialité §6 « Notifications
+WhatsApp — point d'attention », calquées sur le traitement déjà en place pour la diffusion
+Facebook : canal optionnel, consentement explicite, et le transfert à un tiers nommé. Base légale
+posée (consentement, art. 6.1.a). Les deux documents sont redatés du 08/10.
+
+#### Trouvé en vérifiant
+
+`/admin` manquait au `matcher` du middleware de la section 290 : un lien profond vers une page
+d'administration perdait encore sa destination après expiration de session. Ajouté.
+
+#### Vérifié à l'écran, banc jetable purgé
+
+```
+/admin/users          numéro dans la page HTML : 0 occurrence ✓ (drapeau seul)
+/api/admin/whatsapp   consentant → lien ✓ · non consentant → 409 ✓ · non-admin → 403 ✓
+trace WHATSAPP_OUVERT numéro présent : non ✓
+/compte               décoche puis recoche → whatsappOptIn persiste ✓
+chat                  numéro tapé → panneau affiché ✓
+                      « Envoyer quand même » → message parti ✓
+                      second numéro, même conversation → plus d'avertissement ✓
+trace NUMERO_PARTAGE  3 sur 4 messages (le quatrième n'avait pas de numéro) ✓, sans contenu ✓
+```
+
+Banc de quatre comptes sur un domaine `.invalid`, purgé : contrôle à 0.
+
+---
+
 ### SECTION 291 — UN REFUS D'ENVOI NE DOIT PLUS POSER DE MARQUEUR (08/10)
 
 La section 290 s'est terminée sur une réserve : `envoyes: 7` comptait les appels revenus sans

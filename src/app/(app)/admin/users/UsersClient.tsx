@@ -7,6 +7,9 @@ interface User {
   email: string;
   role: string;
   createdAt: string;
+  /** Vrai si la personne a coché WhatsApp ET a un numéro. Le numéro lui-même ne descend
+   *  jamais ici (section 292) — seulement ce drapeau. */
+  joignableWhatsapp?: boolean;
   profile: { id: string; type: string; name: string | null } | null;
 }
 
@@ -122,6 +125,32 @@ export default function UsersClient({ initialUsers }: { initialUsers: User[] }) 
                 </td>
                 <td className="px-4 py-3 text-gray-400 text-xs">{fmt(u.createdAt)}</td>
                 <td className="px-4 py-3">
+                  {/* OUVRIR WHATSAPP (section 292) — affiché UNIQUEMENT si la personne a
+                      consenti et a un numéro. Pas de bouton grisé ni d'infobulle « n'a pas
+                      activé WhatsApp » : l'absence du bouton ne dit rien, un bouton désactivé
+                      divulguerait une préférence. */}
+                  {u.joignableWhatsapp && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const r = await fetch("/api/admin/whatsapp", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ userId: u.id }),
+                        });
+                        const d = await r.json().catch(() => null);
+                        // Le serveur revérifie le consentement : il a pu changer depuis que
+                        // cette page a été rendue. On dit ce qu'il répond.
+                        if (!r.ok || !d?.lien) { alert(d?.error ?? "Ouverture impossible."); return; }
+                        window.open(d.lien, "_blank", "noopener,noreferrer");
+                      }}
+                      className="mr-2 rounded-lg border border-emerald-300 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                      title="Ouvrir une conversation WhatsApp"
+                    >
+                      WhatsApp
+                    </button>
+                  )}
+
                   <div className="flex items-center justify-end gap-2">
                     {/* Trois rôles : on CHOISIT, on ne fait plus basculer. Un cycle à trois
                         états aurait obligé à cliquer deux fois pour revenir en arrière, sans

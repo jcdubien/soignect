@@ -46,7 +46,7 @@ interface ProfileData {
   numeroOrdre: string | null;
   adresse: string | null;
   siret: string | null;
-  user?: { phone: string | null; phoneCountry: string | null; emailOptIn: boolean; notifyConsultation?: boolean } | null;
+  user?: { phone: string | null; phoneCountry: string | null; emailOptIn: boolean; notifyConsultation?: boolean; whatsappOptIn?: boolean } | null;
 }
 
 interface MatchedMission {
@@ -83,6 +83,18 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   const [phone, setPhone]               = useState(initPhone.local);
   const [emailOptIn, setEmailOptIn]     = useState(profile.user?.emailOptIn ?? true);
   const [notifyConsultation, setNotifyConsultation] = useState(profile.user?.notifyConsultation ?? true);
+  // ── CONSENTEMENT WHATSAPP (section 292) ────────────────────────────────────────────────────
+  //
+  // La colonne `whatsappOptIn` existe depuis la section 50-51 et n'était LUE NI ÉCRITE nulle
+  // part : 0 compte à `true` sur 88, parce qu'aucun écran ne permettait de la cocher. Le
+  // consentement n'était pas à inventer, il était à brancher.
+  //
+  // `false` par défaut, et la valeur du schéma l'est déjà. Un canal plus intrusif que l'email
+  // ne s'ouvre pas par omission.
+  //
+  // ICI ET PAS À L'INSCRIPTION. Un consentement arraché avant de savoir à quoi sert le produit
+  // ne vaut rien, et l'inscription a déjà payé une question de trop (section 283).
+  const [whatsappOptIn, setWhatsappOptIn] = useState(profile.user?.whatsappOptIn ?? false);
 
   // Identité contractuelle (section 150) — même source de vérité que le garde serveur
   // (contrat/route.ts, signature/route.ts). Calculée sur l'état COURANT du formulaire, pour
@@ -131,6 +143,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         phoneCountry,
         emailOptIn,
         notifyConsultation,
+        whatsappOptIn,
         ...(isCandidat ? { ouvertSalariat } : {}),
       }),
     });
@@ -475,6 +488,30 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             />
           </div>
         </div>
+
+        <label className="flex items-start justify-between cursor-pointer gap-3">
+          <span className="text-sm text-gray-700">
+            Me joindre sur WhatsApp
+            {/* DIRE QUI VERRA LE NUMÉRO, ET NE PAS MENTIR. Un lien `wa.me` ouvre la
+                conversation CHEZ L'EXPÉDITEUR, numéro en clair : promettre que le numéro reste
+                caché serait faux dès qu'un cabinet aurait le bouton. Aujourd'hui il est réservé
+                à l'administration — la phrase dit exactement ça, et devra changer le jour où
+                cette décision changera. */}
+            <span className="block text-[11px] leading-snug text-gray-400 mt-0.5">
+              Réservé à l&rsquo;équipe Soignect, pour vous signaler une activité vous concernant.
+              Votre numéro n&rsquo;est montré à aucun autre utilisateur. Décochez à tout moment.
+            </span>
+          </span>
+          <input type="checkbox" className="sr-only" checked={whatsappOptIn} onChange={() => setWhatsappOptIn(v => !v)} />
+          <span
+            role="switch"
+            aria-checked={whatsappOptIn}
+            onClick={() => setWhatsappOptIn(v => !v)}
+            className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 mt-0.5 ${whatsappOptIn ? "bg-[#1B3A5C]" : "bg-[#E0E0E0]"}`}
+          >
+            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${whatsappOptIn ? "translate-x-6" : "translate-x-1"}`} />
+          </span>
+        </label>
 
         <label className="flex items-center justify-between cursor-pointer">
           <span className="text-sm text-gray-700">Notifications par email</span>

@@ -1,6 +1,6 @@
 # Politique de confidentialité
 
-*Dernière mise à jour : 6 septembre 2026*
+*Dernière mise à jour : 8 octobre 2026*
 
 ## 1. Qui traite vos données ?
 
@@ -78,7 +78,32 @@ Vous pouvez revenir sur ce choix à tout moment en nous écrivant :
 nous retirerons la publication. Supprimer votre annonce sur Soignect 
 ne l'efface pas de Facebook automatiquement.
 
-## 6. Combien de temps vos données sont-elles conservées ?
+## 6. Notifications WhatsApp — point d'attention
+
+Votre numéro de téléphone n'est utilisé pour vous écrire sur WhatsApp 
+que **si vous l'avez expressément autorisé** depuis votre compte. Ce 
+réglage est désactivé par défaut et révocable à tout moment, au même 
+endroit.
+
+**Qui voit votre numéro.** Seule l'équipe Soignect. Il n'est 
+communiqué à aucun autre utilisateur de la plateforme, ni avant ni 
+après une mise en relation.
+
+**Ce qui est transmis à Meta.** WhatsApp est un service de Meta 
+Platforms Ireland Limited. L'ouverture d'une conversation lui 
+transmet votre numéro et celui de votre correspondant, et relève 
+alors de ses propres conditions, sur lesquelles Soignect n'a pas la 
+main. Nous n'avons accès ni au contenu de ces échanges, ni à leur 
+accusé de réception.
+
+**Ce que nous conservons.** La date d'ouverture d'une conversation et 
+l'identifiant du compte concerné, pour savoir qui a été contacté et 
+quand. Ni le numéro, ni le texte du message.
+
+**Base légale.** Votre consentement (article 6.1.a du RGPD). Le 
+retirer suffit à faire cesser ce traitement pour l'avenir.
+
+## 7. Combien de temps vos données sont-elles conservées ?
 
 Vos données sont conservées pendant la durée d'utilisation active de 
 votre compte, puis archivées ou supprimées selon les délais légaux 
@@ -86,7 +111,7 @@ applicables (notamment pour les documents contractuels, soumis à des
 obligations de conservation propres au droit du travail et de la 
 santé).
 
-## 7. Quels sont vos droits ?
+## 8. Quels sont vos droits ?
 
 Conformément au Règlement Général sur la Protection des Données 
 (RGPD), vous disposez des droits suivants sur vos données 
@@ -106,7 +131,7 @@ Vous disposez également du droit d'introduire une réclamation auprès
 de la CNIL (Commission Nationale de l'Informatique et des Libertés) 
 si vous estimez que vos droits ne sont pas respectés.
 
-## 8. Sécurité des données
+## 9. Sécurité des données
 
 Vos données sont hébergées via Supabase (base de données) et Vercel 
 (application), avec des mesures de sécurité standard de l'industrie 
@@ -114,7 +139,7 @@ Vos données sont hébergées via Supabase (base de données) et Vercel
 traités par Stripe, qui ne transmet jamais vos coordonnées bancaires 
 complètes à Soignect.
 
-## 9. Cookies
+## 10. Cookies
 
 Soignect utilise uniquement des cookies techniques essentiels au 
 fonctionnement du service (authentification, maintien de la session 
@@ -126,7 +151,7 @@ expressément demandé.
 Soignect n'utilise, à ce stade, aucun cookie de mesure d'audience, 
 de publicité ou de traçage à des fins commerciales.
 
-## 10. Modification de cette politique
+## 11. Modification de cette politique
 
 Cette politique de confidentialité peut être amenée à évoluer, 
 notamment pendant la phase de développement de Soignect. Toute 

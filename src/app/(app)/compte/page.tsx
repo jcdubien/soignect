@@ -43,7 +43,7 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
       numeroOrdre: true,
       adresse: true,
       siret: true,
-      user: { select: { phone: true, phoneCountry: true, emailOptIn: true, notifyConsultation: true } },
+      user: { select: { phone: true, phoneCountry: true, emailOptIn: true, notifyConsultation: true, whatsappOptIn: true } },
     },
   });
 

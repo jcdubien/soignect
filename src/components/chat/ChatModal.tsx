@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { contientUnNumero } from "@/lib/numeroTelephone";
 
 interface Message {
   id: string;
@@ -55,6 +56,23 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastTimestampRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── AVERTISSEMENT AVANT DE PARTAGER UN NUMÉRO (section 292) ───────────────────────────────
+  //
+  // Mesuré le 08/10 : 7 messages sur 100 contiennent un numéro, dans 6 conversations sur 17 —
+  // et AUCUN ne suit un contrat signé. On ne s'échange pas un numéro après avoir contractualisé,
+  // on s'en échange un au lieu de contractualiser.
+  //
+  // IL N'EMPÊCHE RIEN, et c'est le point. Partager un numéro est légitime, et un blocage se
+  // contourne en trois secondes (« zéro six point… ») : il ne retiendrait que les gens honnêtes.
+  // L'écran dit ce qui se perd, puis s'efface. « Envoyer quand même » est le bouton par défaut
+  // et le premier, parce que c'est le geste de la personne, pas celui du produit.
+  //
+  // UNE SEULE FOIS PAR CONVERSATION ET PAR VISITE. `sessionStorage` comme ailleurs dans le
+  // dépôt : assez pour ne pas répéter la même phrase trois messages de suite, pas assez pour
+  // qu'un retour des semaines plus tard se fasse en silence.
+  const [avertissement, setAvertissement] = useState<string | null>(null);
+  const CLE_AVERTI = `soignect:numero-averti:${matchId}`;
 
   // ── POURQUOI UN PORTAIL, ET PAS UN `sticky` SUR L'EN-TÊTE (section 245) ──────────────────
   //
@@ -121,6 +139,17 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
     e.preventDefault();
     const content = draft.trim();
     if (!content || sending) return;
+
+    // L'avertissement s'interpose UNE fois, puis `envoyer()` fait le reste — le même chemin
+    // dans les deux cas, pour qu'il n'existe pas deux façons d'envoyer un message.
+    if (contientUnNumero(content) && !sessionStorage.getItem(CLE_AVERTI)) {
+      setAvertissement(content);
+      return;
+    }
+    await envoyer(content);
+  }
+
+  async function envoyer(content: string) {
     setSending(true);
     setDraft("");
 
@@ -319,6 +348,44 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
           </svg>
         </button>
       </form>
+
+      {/* Avertissement « vous partagez un numéro » (section 292). Un panneau au-dessus du
+          champ, pas une modale assombrie : ce n'est pas un geste à arrêter, c'est une
+          information à donner. L'ordre des boutons porte la décision — « Envoyer quand même »
+          d'abord, en plein, « Modifier » ensuite et en retrait. */}
+      {avertissement && (
+        <div className="absolute inset-x-0 bottom-0 z-20 border-t border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-[12px] leading-snug text-amber-900">
+            <span className="mr-1">📱</span>
+            <strong>Vous partagez un numéro.</strong> C&rsquo;est votre droit — mais hors de
+            Soignect, vous perdez la trace écrite de vos échanges, le contrat type et le rappel
+            des dates.
+          </p>
+          <div className="mt-2.5 flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                try { sessionStorage.setItem(CLE_AVERTI, "1"); } catch { /* mode privé : la
+                  phrase reviendra au prochain numéro, ce qui insiste un peu — moins grave que
+                  de ne rien dire. */ }
+                const texte = avertissement;
+                setAvertissement(null);
+                void envoyer(texte);
+              }}
+              className="flex-1 rounded-lg bg-[#0B3D5C] px-4 py-2 text-[12px] font-bold text-white hover:bg-[#0B3D5C]/90"
+            >
+              Envoyer quand même
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAvertissement(null); inputRef.current?.focus(); }}
+              className="rounded-lg border border-amber-300 px-4 py-2 text-[12px] font-semibold text-amber-900 hover:bg-amber-100"
+            >
+              Modifier
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation — MODALE, comme « Annuler le match » du fil « Vos choix », et non le
           bouton à deux temps du Planning. Le chat occupe tout l'écran : un second bouton qui

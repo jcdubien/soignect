@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { sendNewMessageEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
+import { contientUnNumero } from "@/lib/numeroTelephone";
+import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +74,25 @@ export async function POST(
     },
     include: { sender: { select: { id: true, type: true } } },
   });
+
+  // ── LE COMPTAGE SE REJOUE TOUT SEUL (section 292) ─────────────────────────────────────────
+  //
+  // La mesure du 08/10 (7 messages sur 100, 6 conversations sur 17) a demandé de relire TOUS les
+  // messages en base et d'y passer un motif. C'est faisable à 100 messages ; ça ne l'est plus
+  // longtemps, et ça oblige à toucher au contenu des conversations à chaque fois qu'on veut
+  // savoir si le chiffre a bougé.
+  //
+  // Cette trace déplace la mesure au moment de l'écriture. Elle ne porte NI le contenu, NI le
+  // numéro, ni même la position du motif : seulement « un message de cette conversation en
+  // contenait un ». C'est tout ce dont la question a besoin, et c'est la seule forme qui n'exige
+  // jamais de relire ce que deux personnes se sont écrit.
+  //
+  // Posée côté serveur, et non sur le clic de l'avertissement : on compte ce qui est RÉELLEMENT
+  // parti, pas ce que l'écran a montré. Les deux divergent dès que quelqu'un contourne la
+  // détection côté client, ou l'a déjà vue dans cette conversation.
+  if (contientUnNumero(parsed.data.content)) {
+    logTraceEvent({ eventType: "NUMERO_PARTAGE", matchId: id, profileId: session.user.profileId });
+  }
 
   // Notification immédiate au destinataire — nouveau message (section notifications).
   // Distincte du rappel 24h sans réponse (cron message-reminders). Fire-and-forget,
