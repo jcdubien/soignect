@@ -9,7 +9,6 @@ import {
   AnimatePresence,
 } from "framer-motion";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mission, Profile } from "@prisma/client";
 import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
@@ -18,6 +17,7 @@ import { fmtDayAuto } from "@/lib/dates";
 import MissionSelector, { TitulaireMission } from "./MissionSelector";
 import { libelleAuteur } from "@/lib/libellesPoste";
 import MissionDetailSheet from "./MissionDetailSheet";
+import FeuilleDispoExpress from "@/components/swipe/FeuilleDispoExpress";
 
 // `convergenceJours` est posé par /api/feed (section 282) UNIQUEMENT devant un remplaçant dont
 // une disponibilité dépasse 30 jours, et seulement sur les postes longue durée dont le début
@@ -560,6 +560,24 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // répondu : on n'affiche RIEN dans le doute, plutôt qu'un avertissement qui pourrait être faux.
   const [aPublie, setAPublie] = useState<boolean | null>(null);
 
+  // ── SAISIE DE LA DISPONIBILITÉ SUR PLACE (section 288) ────────────────────────────────────
+  //
+  // Le bandeau de la section 227 disait déjà la vérité, mais son appel à l'action SORT du fil.
+  // Mesuré le 07/10 : 11 candidats, 30 intérêts, zéro publication — le détour par un autre
+  // écran est exactement ce qui ne se fait pas. La feuille s'ouvre donc ici.
+  //
+  // DEUX DÉCLENCHEURS, UNE SEULE FEUILLE :
+  //   · après un « Intéressé » quand le lecteur n'a rien publié — l'instant où l'intention
+  //     vient d'être prouvée, et où l'annonce retenue fournit un pré-remplissage légitime ;
+  //   · à l'arrivée sur le fil quand des cabinets attendent déjà ses dates — le rattrapage des
+  //     11 personnes déjà passées par le geste, sans aucun envoi sortant.
+  const [feuilleDispo, setFeuilleDispo] = useState<MissionWithProfile | null | false>(false);
+  const [cabinetsEnAttente, setCabinetsEnAttente] = useState(0);
+  // `sessionStorage`, pas de colonne en base : « Plus tard » doit tenir le temps de la visite,
+  // pas éteindre définitivement un rappel que la personne a intérêt à revoir. Elle la retrouve
+  // à la prochaine session — et elle disparaît pour de bon dès qu'il y a quelque chose de publié.
+  const CLE_REPORT = "soignect:dispo-express-reporte";
+
   // Formule affichée pour la priorité territoriale (B2, 20/08).
   //
   // UNE seule institution → on la NOMME. C'est le point de B2 : la phrase s'adosse à une ligne
@@ -725,6 +743,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       if (seenHdr != null) setSeenAvailable(parseInt(seenHdr, 10) || 0);
       const publieHdr = r.headers.get("x-feed-a-publie");
       if (publieHdr != null) setAPublie(publieHdr === "1");
+      const attenteHdr = r.headers.get("x-feed-cabinets-en-attente");
+      if (attenteHdr != null) setCabinetsEnAttente(parseInt(attenteHdr, 10) || 0);
       const optInHdr = r.headers.get("x-feed-salariat-optin");
       if (optInHdr != null) setSalariatOptIn(parseInt(optInHdr, 10));
       const masquesHdr = r.headers.get("x-feed-remplacements-masques");
@@ -832,6 +852,22 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // et la modale de match doivent emprunter le MÊME chemin quelle que soit la vue. Dupliquer
   // l'appel aurait fait diverger les deux présentations d'un même choix — le score se calcule
   // ici, côté serveur, et rien dans la vue ne doit pouvoir l'influencer.
+  // RATTRAPAGE DES INTÉRÊTS DÉJÀ POSÉS (section 288). Les 11 personnes mesurées le 07/10 sont
+  // passées par le geste il y a des semaines : la feuille déclenchée au swipe ne les atteindrait
+  // jamais. Elle s'ouvre donc aussi à l'arrivée sur le fil — sans aucun envoi sortant, et
+  // seulement si des cabinets attendent VRAIMENT (le compte vient du serveur, pas d'une
+  // supposition). Sans annonce à pré-remplir : c'est leur propre disponibilité qu'on demande,
+  // pas celle d'une carte particulière parmi sept.
+  useEffect(() => {
+    if (isTitulaire) return;
+    if (aPublie !== false || cabinetsEnAttente === 0) return;
+    if (sessionStorage.getItem(CLE_REPORT)) return;
+    // `false` = jamais ouverte ; `null` = ouverte sans annonce. Ne rouvre donc pas une feuille
+    // que le swipe vient d'ouvrir avec son annonce, et ne se rouvre pas à chaque rechargement
+    // du feed.
+    setFeuilleDispo((prev) => (prev === false ? null : prev));
+  }, [isTitulaire, aPublie, cabinetsEnAttente]);
+
   const enregistrerChoix = useCallback(async (mission: MissionWithProfile, direction: "LEFT" | "RIGHT") => {
     const payload: Record<string, unknown> = { swipedMissionId: mission.id, direction };
     if (isTitulaire && activeMissionId) payload.targetMissionId = activeMissionId;
@@ -846,6 +882,13 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
         });
         if (res.ok) {
           const data = await res.json();
+          // La feuille s'ouvre APRÈS la réponse du serveur, et seulement si le geste a été
+          // enregistré : ouvrir un formulaire sur un swipe en échec demanderait de publier pour
+          // un intérêt qui n'existe pas. Jamais par-dessus une mise en relation — et le cas ne
+          // peut d'ailleurs pas se produire, une réciprocité exigeant une dispo publiée.
+          if (!data.match && aPublie === false && !sessionStorage.getItem(CLE_REPORT)) {
+            setFeuilleDispo(mission);
+          }
           if (data.match) {
             const m = data.match;
             const theirProfile: Profile | null =
@@ -869,7 +912,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
         body: JSON.stringify(payload),
       }).catch(console.error);
     }
-  }, [isTitulaire, activeMissionId, onSwipeRight]);
+  }, [isTitulaire, activeMissionId, onSwipeRight, aPublie]);
 
   // Choix depuis la LISTE : pas d'animation de carte à jouer, la ligne disparaît simplement.
   const choisirDepuisListe = useCallback(async (mission: MissionWithProfile, direction: "LEFT" | "RIGHT") => {
@@ -1339,12 +1382,17 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
                     publiée, « Intéressé » signale votre nom au cabinet concerné, mais aucune mise
                     en relation ne peut se former.
                   </p>
-                  <Link
-                    href="/disponibilites/create"
+                  {/* OUVRE LA FEUILLE, NE QUITTE PLUS LE FIL (section 288). Ce lien menait au
+                      formulaire complet, dans un autre écran : 11 candidats et 30 intérêts
+                      dormants mesurent ce que coûte le détour. Le formulaire complet reste
+                      atteignable depuis /disponibilites pour qui veut tout renseigner. */}
+                  <button
+                    type="button"
+                    onClick={() => setFeuilleDispo(null)}
                     className="mt-1.5 inline-block text-[11px] font-bold text-amber-900 underline hover:text-amber-950"
                   >
-                    Publier ma recherche →
-                  </Link>
+                    Publier ma recherche ici →
+                  </button>
                 </div>
               )}
               <p className="text-[11px] text-gray-400">
@@ -1355,6 +1403,41 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           </>
         )}
       </div>
+
+      {/* Feuille de saisie express (section 288). `false` = jamais ouverte, `null` = ouverte
+          sans annonce à pré-remplir (rattrapage), une mission = ouverte sur le geste qui vient
+          d'être fait. */}
+      {feuilleDispo !== false && (
+        <FeuilleDispoExpress
+          cabinetsEnAttente={cabinetsEnAttente}
+          annonce={
+            feuilleDispo
+              ? {
+                  missionType: feuilleDispo.missionType,
+                  estSalariat: feuilleDispo.estSalariat,
+                  location: feuilleDispo.location,
+                  startDate: feuilleDispo.startDate ? String(feuilleDispo.startDate) : null,
+                  endDate: feuilleDispo.endDate ? String(feuilleDispo.endDate) : null,
+                }
+              : null
+          }
+          profileType={profileType}
+          onPublie={() => {
+            setFeuilleDispo(false);
+            // Le feed est la SEULE autorité sur ce qui a changé : `aPublie` passe à vrai, le
+            // compte de cabinets en attente retombe à zéro, et les cartes peuvent bouger (une
+            // publication rend des réciprocités possibles). On le redemande plutôt que de
+            // corriger ces trois états de mémoire, ce qui inventerait le résultat.
+            fetchFeed(activeMissionId);
+          }}
+          onReporte={() => {
+            setFeuilleDispo(false);
+            try { sessionStorage.setItem(CLE_REPORT, "1"); } catch { /* mode privé : la feuille
+              reviendra au prochain geste, ce qui est le repli le moins mauvais — insister est
+              moins grave que de taire 7 cabinets qui attendent. */ }
+          }}
+        />
+      )}
     </>
   );
 }

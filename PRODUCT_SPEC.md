@@ -7347,6 +7347,143 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 288 — L'INTÉRÊT SE POSE DANS LE FIL, LA DISPONIBILITÉ AUSSI (07/10)
+
+Point de départ : un compte de test dit « Intéressé » sur une vraie annonce, et son auteur ne
+retrouve l'intérêt nulle part. Le premier soupçon était la perte de swipe signalée en 287.
+
+**Il était faux.** Le swipe est en base, horodaté, intact. Ce qui manquait, c'est tout le reste.
+
+#### Ce que la mesure a trouvé
+
+```
+CANDIDATS « INTÉRESSÉ » SANS AVOIR JAMAIS PUBLIÉ : 11
+  intérêts totalisés              : 30
+  avec photo (publiables en l'état) : 11
+  SANS photo (garde 422 bloquerait) :  0
+  avec région au profil             : 11
+
+  Simoni              ASSISTANT  10 intérêts · depuis le 11/09
+  Hippolyte JUE       REMPLACANT  7 intérêts · depuis le 23/08
+  Frédérique Hallpike             2 · Ferreira 2 · Amarante Domarle 2 · Iturralde Alzua 2
+  MILOVANOVIC Flora 1 · Faustine Roussel 1 · Petillon 1 · Olivier Villard 1
+
+TYPE D'ANNONCE RETENUE : REMPLACEMENT 15 · ASSISTANAT 15
+```
+
+Onze personnes réelles, trente gestes, zéro effet. Le produit se comportait exactement comme
+prévu : `lib/interetSignale` diffère le signal tant que le candidat n'a rien publié (section 268),
+et `/api/interets-recus` les COMPTE sans les servir, faute de fiche à ouvrir et de mission à
+swiper en retour. Des deux côtés l'intérêt existe, et personne ne peut rien en faire.
+
+#### Pourquoi l'avertissement ne suffisait pas
+
+Le bandeau de la section 227 dit déjà la vérité — « Vous n'apparaissez dans aucun fil » — et il
+est honnête. Mais son appel à l'action **sort du fil** : « Publier ma recherche → » menait au
+formulaire complet, dans un autre écran, qui perd le contexte du geste qu'on venait de faire.
+Les 30 intérêts dormants mesurent le coût de ce détour. Un avertissement juste qui demande de
+partir ailleurs n'est pas un avertissement efficace.
+
+Trois faits rendaient la correction facile, et c'est la mesure qui les a établis :
+
+1. **Personne n'est bloqué par la garde photo** (11/11 en ont une, 11/11 ont une région).
+2. **Le rattrapage existait déjà** : `POST /api/missions` appelle `rattraperInteretsDifferes`.
+   Le jour où l'un d'eux publie, ses dix intérêts partent d'un coup. Rien à construire côté signal.
+3. **Une disponibilité minimale, c'est deux champs** : `createMissionSchema` n'exige que `title`
+   et `location`. Les deux seules gardes conditionnelles sont les dates pour un remplacement en
+   recherche (section 165) et la durée minimale pour un poste (section 179).
+
+#### Ce qui a été construit
+
+`components/swipe/FeuilleDispoExpress.tsx` — la saisie se fait SUR PLACE, à l'instant où
+l'intention vient d'être prouvée. Deux déclencheurs, une seule feuille :
+
+- **après un « Intéressé »** quand le lecteur n'a rien publié — l'annonce retenue fournit le
+  pré-remplissage : ses dates, et la zone de sa commune. C'est précisément ce à quoi la personne
+  vient de dire oui ;
+- **à l'arrivée sur le fil** quand des cabinets attendent déjà ses dates — le rattrapage des 11,
+  **sans aucun envoi sortant**. Le nombre vient du serveur (`x-feed-cabinets-en-attente`), pas
+  d'une supposition, et il compte des cabinets DISTINCTS : « 7 cabinets attendent vos dates » à
+  quelqu'un qui a retenu trois annonces du même cabinet serait faux.
+
+Le compteur ne se paie que par ceux qui en ont besoin : il est sauté dès que le lecteur a publié
+quoi que ce soit, donc pour la quasi-totalité du trafic.
+
+La feuille **ne réécrit aucune règle** : elle publie par `POST /api/missions`, exactement comme
+le formulaire complet. Photo, dates, durée minimale, rattrapage des signaux — tout est appliqué
+une seule fois, à un seul endroit. Une route « express » qui aurait recopié ces gardes aurait fini
+par en diverger.
+
+Ce qu'elle ne demande pas, et c'est délibéré :
+
+- le **titre** est généré, pas saisi. On n'abandonne pas un formulaire sur un champ de trois
+  secondes, mais on abandonne sur un champ dont on ne sait quoi écrire ;
+- l'**accroche** est sautée. Une dispo sans accroche est plus faible dans le fil, mais
+  faible-et-visible bat invisible ; elle se complète ensuite ;
+- la **diffusion Facebook** reste à `false` et n'est pas même posée en question. La section 234
+  en fait un choix explicite du candidat parce que sa disponibilité nomme une personne, ses dates
+  et son secteur : l'embarquer dans une feuille de trois secondes produirait une publication
+  publique qu'il n'a pas voulue.
+
+Le bandeau de la 227 reste, avec sa phrase inchangée, mais son lien devient un bouton qui ouvre
+la feuille au lieu de quitter le fil.
+
+#### Trouvé pendant la vérification, et corrigé
+
+Le premier passage du banc a produit ceci :
+
+```
+titre  : « Remplacement — Centre / Cap Excellence — 1 nov. au 23 nov. »
+dates  : 2026-11-02 → 2026-11-24
+```
+
+Un jour d'écart aux deux bouts. `new Date("2026-11-02").toLocaleDateString("fr-FR", …)` lit la
+chaîne comme minuit UTC puis l'affiche en heure locale : à l'ouest de Greenwich, c'est la veille
+au soir. **La Guadeloupe est à UTC−4 — le décalage est systématique, pas occasionnel.** La
+disponibilité aurait porté un titre faux, lu par des cabinets qui s'organisent sur ces dates.
+`formatJour` découpe désormais le texte civil du champ, sans traverser aucun fuseau.
+
+C'est la deuxième fois que ce produit paie une date construite par `new Date` sur une chaîne
+courte. La règle à retenir : **une date déjà en `yyyy-mm-dd` se formate par découpage, jamais par
+`Date`.**
+
+#### Vérifié à l'écran, banc jetable purgé
+
+Deux comptes sur un domaine `.invalid` (aucun envoi n'est techniquement possible), un cabinet,
+une annonce, un candidat sans publication.
+
+```
+1. Après « Intéressé » sur l'annonce du banc, feuille ouverte avec
+   « Un remplacement » présélectionné · dates 02/11 → 24/11 de l'annonce
+   · zone « Centre / Cap Excellence » déduite des Abymes
+2. Publication → disponibilité créée, titre et dates concordants
+3. INTERET_SIGNALE écrit = 1  ✓ le signal différé est parti à la publication
+4. « Vous attendent » côté cabinet : 1 intérêt, 1 AFFICHÉ (carte ouvrable), 0 compté muet
+5. Branche poste : « Poste long terme — Sud Grande-Terre, Sud Basse-Terre — 6 mois minimum »
+   ASSISTANAT · début 01/12 · AUCUNE date de fin ✓ (section 179) · minMonths 6
+6. Rattrapage : candidat remis dans l'état des 11 → à l'arrivée sur le fil,
+   « Un cabinet attend vos dates », rien de pré-rempli, bouton désactivé tant que
+   dates et secteur manquent
+```
+
+Purge : traces 3 · swipes 1 · matchs 0 · notifications 3 · missions 2 · profils 2 · comptes 2.
+Contrôle après purge : 0 · 0 · 0. **Les 85 profils existants n'ont pas été touchés, et aucun
+email n'est parti vers une vraie adresse.**
+
+#### Comment ça se mesurera
+
+Sans nouvel instrument. Quand l'un des 11 publie, `rattraperInteretsDifferes` écrit N lignes
+`INTERET_SIGNALE` d'un coup pour un profil qui n'en avait aucune. La trace existe depuis la
+section 268 ; il suffit de la relire.
+
+#### Ce que cette section NE corrige PAS
+
+La perte de swipe signalée en 287 reste **ouverte et non confirmée**. Le geste manuel qui a
+ouvert cette section a bien été enregistré : il ne reproduit pas le symptôme, il ne l'infirme pas
+non plus. Les deux sujets sont distincts et le resteront jusqu'à une observation propre.
+
+---
+
 ### SECTION 287 — LE PRODUIT DEMANDAIT UN NUMÉRO ET EN IMPRIMAIT UN AUTRE (07/10)
 
 Trouvé en parcourant le produit **en infirmier**, pas en relisant du code.

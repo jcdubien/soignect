@@ -344,6 +344,44 @@ export async function GET(req: NextRequest) {
     take: 1,
   });
 
+  // ── COMBIEN DE CABINETS ATTENDENT SES DATES (section 288) ─────────────────────────────────
+  //
+  // Mesuré le 07/10 : **11 candidats totalisent 30 intérêts** sans avoir jamais rien publié —
+  // Simoni en a 10 depuis le 11/09, Hippolyte JUE 7 depuis le 23/08. Leur geste est bien en
+  // base, `lib/interetSignale` a différé le signal, et `/api/interets-recus` les compte sans
+  // les servir : personne, d'aucun côté, ne peut rien en faire. Le bandeau de la section 227
+  // leur disait déjà la vérité — et les 30 intérêts prouvent qu'un avertissement qui renvoie
+  // AILLEURS (« Publier ma recherche → ») ne suffit pas. Il faut saisir sur place.
+  //
+  // CE COMPTE NE SE PAIE QUE PAR CEUX QUI EN ONT BESOIN. Il est sauté dès que le lecteur a
+  // publié quoi que ce soit — c'est-à-dire pour la quasi-totalité du trafic. Dans ce cas
+  // l'en-tête vaut 0, ce qui est exact : qui apparaît dans un fil n'a aucun intérêt en souffrance
+  // de ce genre.
+  //
+  // Il compte des CABINETS DISTINCTS, pas des intérêts : dire « 7 cabinets attendent vos dates »
+  // à quelqu'un qui a retenu trois annonces d'un même cabinet serait faux, et c'est le nombre de
+  // personnes qui pourraient répondre qui mesure l'enjeu, pas le nombre de cartes swipées.
+  let cabinetsEnAttente = 0;
+  if (aPublie === 0) {
+    const aujourdhui = new Date();
+    aujourdhui.setHours(0, 0, 0, 0);
+    const interets = await prisma.swipe.findMany({
+      where: {
+        swiperId: myProfile.id,
+        direction: "RIGHT",
+        // Une annonce retirée ou dont la période est passée n'attend plus rien : la compter
+        // promettrait une réponse que personne ne peut plus donner.
+        swipedMission: {
+          ...EST_UNE_OFFRE,
+          OR: [{ endDate: null }, { endDate: { gte: aujourdhui } }],
+          ...NO_ACTIVE_MATCH_FILTER,
+        },
+      },
+      select: { swipedMission: { select: { profileId: true } } },
+    });
+    cabinetsEnAttente = new Set(interets.map((s) => s.swipedMission.profileId)).size;
+  }
+
   // ── CONVERGENCE DE DATES — UN ÉTIQUETAGE, PAS UN CLASSEMENT (section 282) ─────────────────
   //
   // Un remplaçant dont la disponibilité dépasse 30 jours se voit DÉJÀ proposer des postes long
@@ -452,6 +490,10 @@ export async function GET(req: NextRequest) {
       "x-feed-seen-available": String(seenAvailable),
       // 1 = le lecteur a une publication active, 0 = il n'apparaît dans aucun fil.
       "x-feed-a-publie": aPublie > 0 ? "1" : "0",
+      // Nombre de CABINETS qui attendent ses dates (section 288). Toujours 0 pour qui a publié,
+      // et c'est exact plutôt qu'économe : l'intérêt en souffrance est, par définition, le fait
+      // de quelqu'un qui n'apparaît nulle part.
+      "x-feed-cabinets-en-attente": String(cabinetsEnAttente),
       "x-feed-salariat-optin": String(candidatsOptes),
       // Ce que la présélection de types écarte. Zéro hors présélection — l'en-tête ne décrit
       // jamais un masquage qui n'a pas eu lieu.
