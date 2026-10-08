@@ -99,38 +99,68 @@ export async function inscritsSansPublication(plusVieuxQue: Date): Promise<Cible
 
 export interface ResultatRelance {
   examines: number;
+  /** Acceptés par Resend. En simulation : ce qui AURAIT été tenté. */
   envoyes: number;
+  /** Refusés par Resend (section 291). Non marqués : le cron réessaiera demain. */
+  refuses: number;
   ignoresOptOut: number;
   ignoresAdresseInvalide: number;
 }
 
 /**
- * Envoie la relance et marque CHAQUE cible comme traitée — y compris celles qu'on n'a pas pu
- * joindre. Marquer un échec définitif évite de le réessayer indéfiniment ; c'est la règle du cron
- * des messages, appliquée ici pour la même raison.
+ * Envoie le courrier et marque les cibles TRAITÉES.
+ *
+ * ── CE QUI EST MARQUÉ, ET CE QUI NE L'EST PLUS (section 291) ────────────────────────────────
+ *
+ * Marqué : l'envoi accepté, l'opt-out, et l'adresse qu'on ne peut pas écrire. Ces trois cas sont
+ * DÉFINITIFS — réessayer demain donnerait le même résultat, et le cron quotidien reprendrait la
+ * personne à vie.
+ *
+ * Plus marqué : le refus de Resend. Jusqu'ici il l'était, parce que les fonctions d'email
+ * rendaient `void` et qu'on ne pouvait pas le distinguer d'un succès. Or un refus n'est presque
+ * jamais propre à la personne — domaine non vérifié, quota, clé invalide sont des pannes
+ * GLOBALES : une heure d'indisponibilité marquait la cohorte entière du jour comme traitée, et
+ * ces gens n'auraient plus jamais reçu le courrier. Les laisser non marqués, c'est les reprendre
+ * demain, quand l'envoi remarchera.
+ *
+ * LE RISQUE ASSUMÉ EN ÉCHANGE : un destinataire que Resend refuse DURABLEMENT (liste de
+ * suppression après rebond) sera retenté chaque jour. Il est alors visible deux fois — dans
+ * `refuses` et dans Sentry — là où l'ancien comportement le perdait en silence. Un compteur de
+ * tentatives bornerait proprement ce cas ; il n'existe pas encore.
  */
 export async function envoyerRelances(
   cibles: CibleRelance[],
   opts: { simulation: boolean },
 ): Promise<ResultatRelance> {
-  const r: ResultatRelance = { examines: cibles.length, envoyes: 0, ignoresOptOut: 0, ignoresAdresseInvalide: 0 };
+  const r: ResultatRelance = { examines: cibles.length, envoyes: 0, refuses: 0, ignoresOptOut: 0, ignoresAdresseInvalide: 0 };
 
   for (const c of cibles) {
     const joignable = adresseEnvoyable(c.email);
+    const aEcrire = c.emailOptIn && joignable;
     if (!c.emailOptIn) r.ignoresOptOut++;
     else if (!joignable) r.ignoresAdresseInvalide++;
-    else r.envoyes++;
 
-    if (opts.simulation) continue;
+    if (opts.simulation) {
+      // En simulation, `envoyes` annonce ce qui SERAIT tenté : on ne peut rien savoir de plus
+      // sans appeler le fournisseur, et l'appeler serait un envoi.
+      if (aEcrire) r.envoyes++;
+      continue;
+    }
 
-    if (c.emailOptIn && joignable) {
-      await sendRelancePublicationEmail(c.email, {
+    if (aEcrire) {
+      const resultat = await sendRelancePublicationEmail(c.email, {
         firstName: c.prenom,
         cibleLabel: cibleVisibilitePour(c.type, c.profession),
         optIn: c.emailOptIn,
         joursDepuisInscription: c.joursDepuisInscription,
         publication: publicationPour(c.type),
       });
+      if (resultat === "refuse") {
+        console.error(`[relance] refus Resend pour ${c.profileId} — non marqué, repris demain`);
+        r.refuses++;
+        continue;
+      }
+      r.envoyes++;
     }
     await prisma.traceEvent.create({
       data: { eventType: EVENT_RELANCE, profileId: c.profileId },

@@ -91,11 +91,20 @@ export async function surveillerJetonFacebook(
       day: "numeric", month: "long", year: "numeric",
     });
 
-    await sendJetonFacebookEmail(admin.email, {
+    const resultat = await sendJetonFacebookEmail(admin.email, {
       joursRestants: etat.joursRestants ?? 0,
       echeance,
       nature,
     });
+
+    // UNE ALARME NON REMISE NE SE MARQUE PAS (section 291). Le marqueur dit « ce seuil a été
+    // alerté » et interdit toute nouvelle alerte pour ce seuil. Le poser sur un refus de Resend
+    // rendrait l'alarme silencieuse pour de bon — sur la seule surveillance qui prévient que la
+    // publication Facebook va cesser de fonctionner, et qui ne prévient personne d'autre.
+    // Sans marqueur, le job quotidien la retentera demain.
+    if (resultat === "refuse") {
+      return { ...base, action: "echec-envoi", motif: "refus d'acheminement — non marqué, retenté demain" };
+    }
 
     await prisma.traceEvent.create({
       data: { eventType: EVENT, metadata: { seuil, joursRestants: etat.joursRestants, nature } },

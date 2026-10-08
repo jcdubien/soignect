@@ -37,6 +37,31 @@ function layout(bodyHtml: string, cta?: { label: string; path: string }): string
   </div>`;
 }
 
+// ── CE QU'UN ENVOI A RÉELLEMENT PRODUIT (section 291) ─────────────────────────
+//
+// `sendEmail` renvoie un booléen depuis la panne du 30/07 — mais AUCUNE des seize fonctions
+// d'email ne le remontait : toutes rendaient `void`. Un refus de Resend (domaine non vérifié,
+// quota, clé invalide) était donc invisible pour l'appelant, alors même qu'il partait dans
+// `console.error` et dans Sentry.
+//
+// CE QUE ÇA A COÛTÉ, ET QUI ÉTAIT PASSÉ PRÈS. La campagne de la section 290 posait son marqueur
+// de déduplication APRÈS un appel dont elle ne savait rien. Un refus aurait donc marqué la
+// personne comme « déjà destinataire » sans qu'elle reçoive quoi que ce soit — et le marqueur
+// l'aurait écartée de toute reprise, définitivement. Sa propre docstring disait le contraire :
+// « marquer un envoi qui n'a pas eu lieu ferait perdre la personne définitivement ».
+//
+// TROIS ÉTATS, PAS UN BOOLÉEN. Un booléen confondrait « refusé » et « volontairement pas
+// envoyé » : quelqu'un qui a coupé ce canal n'est pas un échec, et le compter comme tel ferait
+// croire à une panne d'acheminement. Le dépôt utilise déjà cette forme ailleurs
+// (`ResultatSignal`, `ResultatVignette`).
+export type ResultatEnvoi =
+  /** Resend a accepté le message. Ce n'est pas une preuve de RÉCEPTION — seulement d'acceptation. */
+  | "envoye"
+  /** Refusé, ou clé absente : ce message n'existera jamais. Déjà tracé dans Sentry. */
+  | "refuse"
+  /** Volontairement non envoyé : la personne a coupé ce canal. Rien d'anormal. */
+  | "optout";
+
 // ── Envoi bas niveau — ne lève jamais, mais REMONTE toujours l'échec ───────────
 // Renvoie true si Resend a accepté l'envoi, false sinon. Les appelants restent en
 // fire-and-forget ; seul l'appelant qui logge un succès doit tester le retour.
@@ -94,8 +119,8 @@ export async function sendWelcomeEmail(
      *  fabrique pas par morceaux — troisième fois cette semaine. */
     publication: { mot: string; avecArticle: string; label: string; path: string };
   }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour ${opts.firstName},</p>
      <p style="font-size:15px;line-height:1.6;margin:0 0 8px">Votre compte est créé.</p>
@@ -108,7 +133,7 @@ export async function sendWelcomeEmail(
      </p>`,
     { label: opts.publication.label, path: opts.publication.path }
   );
-  await sendEmail(to, "Bienvenue sur Soignect", html);
+  return (await sendEmail(to, "Bienvenue sur Soignect", html)) ? "envoye" : "refuse";
 }
 
 // ── a bis) Relance « vous n'avez encore rien publié » (section 229) ────────────
@@ -130,8 +155,8 @@ export async function sendRelancePublicationEmail(
     joursDepuisInscription: number;
     publication: { mot: string; avecArticle: string; label: string; path: string };
   }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour ${opts.firstName},</p>
      <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
@@ -150,7 +175,7 @@ export async function sendRelancePublicationEmail(
   // l'emplacement « c'est LA recherche qui vous rend visible », et sonne faux après « publier ».
   // Constaté sur le rendu réel — encore une phrase assemblée à partir d'un fragment prévu pour
   // un autre usage.
-  await sendEmail(to, `Il vous reste à publier votre ${opts.publication.mot}`, html);
+  return (await sendEmail(to, `Il vous reste à publier votre ${opts.publication.mot}`, html)) ? "envoye" : "refuse";
 }
 
 // ── a bis) Jeton Facebook proche de l'échéance (section 255) ───────────────────
@@ -161,7 +186,7 @@ export async function sendRelancePublicationEmail(
 export async function sendJetonFacebookEmail(
   to: string,
   opts: { joursRestants: number; echeance: string; nature: "jeton" | "acces-donnees" }
-): Promise<void> {
+): Promise<ResultatEnvoi> {
   const quoi =
     opts.nature === "jeton"
       ? "le jeton de publication de la Page Facebook"
@@ -189,15 +214,15 @@ export async function sendJetonFacebookEmail(
      </p>`,
     { label: "Voir l'état du jeton", path: "/admin/diffusion" }
   );
-  await sendEmail(to, `Facebook : ${quoi} expire ${opts.joursRestants <= 0 ? "aujourd'hui" : `dans ${opts.joursRestants} j`}`, html);
+  return (await sendEmail(to, `Facebook : ${quoi} expire ${opts.joursRestants <= 0 ? "aujourd'hui" : `dans ${opts.joursRestants} j`}`, html)) ? "envoye" : "refuse";
 }
 
 // ── b) Nouvelle mise en relation ───────────────────────────────────────────────
 export async function sendNewRelationEmail(
   to: string,
   opts: { actorLabel: string; optIn: boolean }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0">
@@ -205,15 +230,15 @@ export async function sendNewRelationEmail(
      </p>`,
     { label: "Voir la proposition", path: "/matches" }
   );
-  await sendEmail(to, "Vous avez une nouvelle mise en relation sur Soignect", html);
+  return (await sendEmail(to, "Vous avez une nouvelle mise en relation sur Soignect", html)) ? "envoye" : "refuse";
 }
 
 // ── c) Contrat disponible ──────────────────────────────────────────────────────
 export async function sendContratEmail(
   to: string,
   opts: { matchId: string; optIn: boolean }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0">
@@ -221,7 +246,7 @@ export async function sendContratEmail(
      </p>`,
     { label: "Voir le contrat", path: `/match/${opts.matchId}` }
   );
-  await sendEmail(to, "Un contrat vous attend sur Soignect", html);
+  return (await sendEmail(to, "Un contrat vous attend sur Soignect", html)) ? "envoye" : "refuse";
 }
 
 function escapeHtml(s: string): string {
@@ -232,8 +257,8 @@ function escapeHtml(s: string): string {
 export async function sendConversationReminderEmail(
   to: string,
   opts: { partnerName: string | null; missionTitle: string | null; excerpt: string; matchId: string; optIn: boolean }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const who = opts.partnerName ?? "Un professionnel";
   const about = opts.missionTitle ? ` au sujet de « ${escapeHtml(opts.missionTitle)} »` : "";
   const excerpt = escapeHtml(opts.excerpt.slice(0, 140));
@@ -247,7 +272,7 @@ export async function sendConversationReminderEmail(
      </p>`,
     { label: "Répondre", path: `/match/${opts.matchId}?chat=1` }
   );
-  await sendEmail(to, "Un message attend votre réponse sur Soignect", html);
+  return (await sendEmail(to, "Un message attend votre réponse sur Soignect", html)) ? "envoye" : "refuse";
 }
 
 // ── d bis) Préavis d'expiration d'une mise en relation dormante (section 279) ──
@@ -267,8 +292,8 @@ export async function sendPreavisExpirationEmail(
     dernierEchangeLe: Date | null;
     optIn: boolean;
   }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const qui = opts.partnerName ? escapeHtml(opts.partnerName) : "un professionnel";
   const apropos = opts.missionTitle ? ` au sujet de « ${escapeHtml(opts.missionTitle)} »` : "";
   const joursSilence = opts.dernierEchangeLe
@@ -293,7 +318,7 @@ export async function sendPreavisExpirationEmail(
      </p>`,
     { label: "Ouvrir la conversation", path: `/match/${opts.matchId}?chat=1` }
   );
-  await sendEmail(to, "Votre mise en relation Soignect prend fin dans 3 jours", html);
+  return (await sendEmail(to, "Votre mise en relation Soignect prend fin dans 3 jours", html)) ? "envoye" : "refuse";
 }
 
 // ── e) Bascule vers le payant déclenchée (section 100) ─────────────────────────
@@ -301,7 +326,7 @@ export async function sendPreavisExpirationEmail(
 export async function sendBillingTriggeredEmail(
   to: string,
   opts: { reason: "contrat" | "usage"; optIn?: boolean }
-): Promise<void> {
+): Promise<ResultatEnvoi> {
   const motif = opts.reason === "contrat"
     ? "vous avez signé un contrat via Soignect"
     : "vous utilisez régulièrement le Planning Board";
@@ -317,7 +342,7 @@ export async function sendBillingTriggeredEmail(
      </p>`,
     { label: "Choisir mon plan", path: "/premium" }
   );
-  await sendEmail(to, "Votre accès Premium Soignect — action requise sous 14 jours", html);
+  return (await sendEmail(to, "Votre accès Premium Soignect — action requise sous 14 jours", html)) ? "envoye" : "refuse";
 }
 
 // ── g) Consultation d'annonce par un candidat (notif recruteur) ────────────────
@@ -346,8 +371,8 @@ export async function sendInteretEmail(
      *  répéter à l'identique et de passer pour une deuxième personne intéressée. */
     nouveauSignal?: boolean;
   }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const listingWord = opts.listingWord ?? "annonce";
   const about = opts.missionTitle ? ` « ${escapeHtml(opts.missionTitle)} »` : "";
   // Deux situations, deux messages (section 205). Le visiteur est TOUJOURS identifié — c'est
@@ -390,13 +415,14 @@ export async function sendInteretEmail(
     // rapport avec l'intérêt signalé. `layout` sait déjà n'en rendre aucun.
     opts.cta
   );
-  await sendEmail(
+  const accepte = await sendEmail(
     to,
     opts.nouveauSignal
       ? `${opts.viewerLabel} s'intéresse toujours à votre ${listingWord}`
       : `${opts.viewerLabel} s'intéresse à votre ${listingWord}`,
     html,
   );
+  return accepte ? "envoye" : "refuse";
 }
 
 // ── h) Nouveau message dans une conversation (notif immédiate) ──────────────────
@@ -404,8 +430,8 @@ export async function sendInteretEmail(
 export async function sendNewMessageEmail(
   to: string,
   opts: { senderLabel: string; excerpt: string; matchId: string; optIn: boolean }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const excerpt = escapeHtml(opts.excerpt.slice(0, 140));
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
@@ -417,15 +443,15 @@ export async function sendNewMessageEmail(
      </p>`,
     { label: "Répondre", path: `/match/${opts.matchId}?chat=1` }
   );
-  await sendEmail(to, "Nouveau message sur Soignect", html);
+  return (await sendEmail(to, "Nouveau message sur Soignect", html)) ? "envoye" : "refuse";
 }
 
 // ── i) Signature apposée par l'autre partie sur le contrat ─────────────────────
 export async function sendSignatureAppliedEmail(
   to: string,
   opts: { signerLabel: string; bothSigned: boolean; matchId: string; optIn: boolean }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const body = opts.bothSigned
     ? `<p style="font-size:15px;line-height:1.6;margin:0">
          ${escapeHtml(opts.signerLabel)} a signé — le contrat est désormais signé par les deux parties.
@@ -438,7 +464,7 @@ export async function sendSignatureAppliedEmail(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>${body}`,
     { label: "Voir le contrat", path: `/match/${opts.matchId}/contrat` }
   );
-  await sendEmail(to, "Signature du contrat sur Soignect", html);
+  return (await sendEmail(to, "Signature du contrat sur Soignect", html)) ? "envoye" : "refuse";
 }
 
 // ── c bis) Contrat annulé avant la seconde signature (section 248) ─────────────
@@ -452,8 +478,8 @@ export async function sendSignatureAppliedEmail(
 export async function sendContratAnnuleEmail(
   to: string,
   opts: { annuleParLabel: string; matchId: string; optIn: boolean }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
      <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
@@ -467,15 +493,15 @@ export async function sendContratAnnuleEmail(
      </p>`,
     { label: "Voir la mise en relation", path: `/match/${opts.matchId}/contrat` }
   );
-  await sendEmail(to, "Contrat annulé — une version corrigée va suivre", html);
+  return (await sendEmail(to, "Contrat annulé — une version corrigée va suivre", html)) ? "envoye" : "refuse";
 }
 
 // ── d) Mise en relation annulée ────────────────────────────────────────────────
 export async function sendRelationCancelledEmail(
   to: string,
   opts: { optIn: boolean; wasConfirmed?: boolean }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   // Annulation d'un match CONFIRMÉ (contrat signé) : message plus explicite sur les
   // conséquences (section 149). Sinon, annulation d'une simple mise en relation.
   const body = opts.wasConfirmed
@@ -487,11 +513,12 @@ export async function sendRelationCancelledEmail(
      <p style="font-size:15px;line-height:1.6;margin:0">${body}</p>`,
     { label: "Voir les propositions", path: "/annonces" }
   );
-  await sendEmail(
+  const accepte = await sendEmail(
     to,
     opts.wasConfirmed ? "Une mise en relation confirmée a été annulée" : "Une mise en relation a été annulée",
     html
   );
+  return accepte ? "envoye" : "refuse";
 }
 
 // ── i bis) Période retirée par le cabinet ─────────────────────────────────────────
@@ -501,8 +528,8 @@ export async function sendRelationCancelledEmail(
 export async function sendPeriodRemovedEmail(
   to: string,
   opts: { optIn: boolean; cabinetName?: string | null; periode?: string | null }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
   // Repli neutre : un etablissement n'est pas un cabinet (section 192).
   const who = opts.cabinetName ? escapeHtml(opts.cabinetName) : "Le recruteur";
   const quand = opts.periode ? ` (${escapeHtml(opts.periode)})` : "";
@@ -517,7 +544,7 @@ export async function sendPeriodRemovedEmail(
      </p>`,
     { label: "Voir les annonces", path: "/annonces" }
   );
-  await sendEmail(to, "Une période a été retirée — Soignect", html);
+  return (await sendEmail(to, "Une période a été retirée — Soignect", html)) ? "envoye" : "refuse";
 }
 
 // ── j) Invitation à rejoindre Soignect pour se rattacher à un poste (section 187) ──────────────
@@ -526,7 +553,7 @@ export async function sendPeriodRemovedEmail(
 export async function sendPosteInvitationEmail(
   to: string,
   opts: { cabinetName: string | null; postLabel: string; token: string }
-): Promise<void> {
+): Promise<ResultatEnvoi> {
   const who = opts.cabinetName ? escapeHtml(opts.cabinetName) : "Un recruteur";
   const html = layout(
     `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
@@ -539,7 +566,7 @@ export async function sendPosteInvitationEmail(
      </p>`,
     { label: "Créer mon compte →", path: `/register?inviteToken=${encodeURIComponent(opts.token)}` }
   );
-  await sendEmail(to, `Invitation à rejoindre Soignect — poste « ${opts.postLabel} »`, html);
+  return (await sendEmail(to, `Invitation à rejoindre Soignect — poste « ${opts.postLabel} »`, html)) ? "envoye" : "refuse";
 }
 
 // ── q) Intérêt en souffrance : des cabinets attendent des dates (section 290) ──────────────────
@@ -565,8 +592,8 @@ export async function sendPosteInvitationEmail(
 export async function sendInteretEnSouffranceEmail(
   to: string,
   opts: { firstName: string | null; nbCabinets: number; optIn: boolean }
-): Promise<void> {
-  if (!opts.optIn) return;
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
 
   const unSeul = opts.nbCabinets <= 1;
   const salutation = opts.firstName ? `Bonjour ${escapeHtml(opts.firstName)},` : "Bonjour,";
@@ -602,5 +629,5 @@ export async function sendInteretEnSouffranceEmail(
   const sujet = unSeul
     ? "Un cabinet attend vos dates"
     : `${opts.nbCabinets} cabinets attendent vos dates`;
-  await sendEmail(to, sujet, html);
+  return (await sendEmail(to, sujet, html)) ? "envoye" : "refuse";
 }

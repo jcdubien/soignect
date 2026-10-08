@@ -199,17 +199,26 @@ export async function ciblesInteretEnSouffrance(): Promise<{
 
 export interface ResultatSouffrance {
   examines: number;
+  /** Acceptés par Resend. Le marqueur n'est posé QUE sur ceux-là. */
   envoyes: number;
+  /** Refusés par Resend : rien n'est parti, rien n'est marqué, la campagne reste rejouable. */
+  refuses: number;
+  /** Exception pendant l'envoi (réseau, base). Même traitement qu'un refus. */
   echecs: number;
 }
 
 /**
  * Envoie le courrier et pose le marqueur.
  *
- * LE MARQUEUR N'EST ÉCRIT QU'APRÈS UN ENVOI RÉEL, ET SEULEMENT EN PRODUCTION. La garde
- * `VERCEL_ENV` vit dans la ROUTE, pas ici : cette fonction ne s'exécute jamais en simulation
- * (l'appelant ne l'appelle pas du tout), de sorte qu'il n'existe aucun chemin où elle écrirait
- * sans avoir envoyé.
+ * LE MARQUEUR N'EST ÉCRIT QU'APRÈS UN ENVOI ACCEPTÉ, ET SEULEMENT EN PRODUCTION. Deux gardes
+ * distinctes : `VERCEL_ENV` vit dans la ROUTE (cette fonction n'est pas appelée en simulation),
+ * et le résultat de l'envoi est LU ici.
+ *
+ * LIRE CE RÉSULTAT N'EST PAS UN RAFFINEMENT (section 291). Jusqu'ici les fonctions d'email
+ * rendaient `void` : un refus de Resend était invisible, et le marqueur se posait quand même.
+ * La personne sortait alors en « déjà destinataire » sans avoir rien reçu, écartée de toute
+ * reprise — l'inverse exact de ce que la note ci-dessous promet. Le code dit maintenant ce que
+ * la note disait déjà.
  *
  * DIFFÉRENCE ASSUMÉE AVEC LA SECTION 229, qui marque même les destinataires injoignables pour
  * que son cron quotidien ne les reprenne pas à vie. Ici il n'y a pas de cron : c'est une
@@ -219,14 +228,24 @@ export interface ResultatSouffrance {
 export async function envoyerInteretEnSouffrance(
   cibles: CibleSouffrance[],
 ): Promise<ResultatSouffrance> {
-  const r: ResultatSouffrance = { examines: cibles.length, envoyes: 0, echecs: 0 };
+  const r: ResultatSouffrance = { examines: cibles.length, envoyes: 0, refuses: 0, echecs: 0 };
   for (const c of cibles) {
     try {
-      await sendInteretEnSouffranceEmail(c.email, {
+      const resultat = await sendInteretEnSouffranceEmail(c.email, {
         firstName: c.prenom,
         nbCabinets: c.nbCabinets,
         optIn: c.optIn,
       });
+      if (resultat === "refuse") {
+        // Rien n'est parti : on ne marque pas. Le refus est déjà dans Sentry, et la personne
+        // reste reprenable au prochain appel — c'est tout l'intérêt d'une campagne manuelle.
+        console.error(`[souffrance] refus Resend pour ${c.profileId} — non marqué`);
+        r.refuses++;
+        continue;
+      }
+      // `optout` ne peut pas se produire ici : `ciblesInteretEnSouffrance` écarte déjà qui a
+      // coupé ses notifications. S'il survenait, le marquer serait juste — la personne a été
+      // traitée, et la décision de ne pas lui écrire est la sienne.
       await prisma.traceEvent.create({
         data: { eventType: EVENT_SOUFFRANCE, profileId: c.profileId },
       });

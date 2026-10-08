@@ -7347,6 +7347,103 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 291 — UN REFUS D'ENVOI NE DOIT PLUS POSER DE MARQUEUR (08/10)
+
+La section 290 s'est terminée sur une réserve : `envoyes: 7` comptait les appels revenus sans
+exception, **pas les acceptations de Resend**. En tirant ce fil, le défaut s'est révélé plus large
+que le compteur.
+
+#### Le défaut
+
+`sendEmail` renvoie un booléen depuis la panne du 30/07. **Aucune des seize fonctions d'email ne
+le remontait** : toutes rendaient `void`. Un refus — domaine non vérifié, quota, clé invalide —
+était donc indiscernable d'un succès pour l'appelant, alors même qu'il partait dans
+`console.error` et dans Sentry.
+
+Ça n'aurait été qu'un compteur imprécis si quatre endroits n'écrivaient pas un **marqueur** juste
+après l'envoi. Un marqueur posé sur un silence ne se contente pas d'être faux : il **interdit la
+reprise**.
+
+| Endroit | Ce qu'un refus produisait |
+|---|---|
+| `matchsDormants` | Le marqueur de préavis autorise l'expiration 3 jours plus tard. Refus → **la mise en relation disparaît sans que personne n'ait été averti.** |
+| `interetSignale` | La trace est le verrou `deja_signale`. Refus → le cabinet n'apprend rien, et plus rien ne peut le rattraper. |
+| `interetEnSouffrance` | Refus → la personne sort en « déjà destinataire » sans avoir rien reçu, écartée de toute reprise. |
+| `surveillanceJeton` | Refus → l'alarme du jeton Facebook devient muette pour ce seuil. C'est la seule qui prévient que la publication va cesser. |
+
+**Dans trois de ces quatre cas, le commentaire promettait déjà le bon comportement.**
+`matchsDormants` disait « un échec en cours de route laisse la relation sans marqueur » ;
+`interetEnSouffrance` disait « marquer un envoi qui n'a pas eu lieu ferait perdre la personne
+définitivement ». Les deux ne tenaient que pour une EXCEPTION — or un refus de Resend ne lève pas.
+Le `void` rendait la promesse invérifiable, donc fausse sans que rien ne le signale.
+
+#### Trois états, pas un booléen
+
+```ts
+export type ResultatEnvoi = "envoye" | "refuse" | "optout";
+```
+
+Un booléen confondrait « refusé » et « volontairement pas envoyé » : quelqu'un qui a coupé ce
+canal n'est pas un échec d'acheminement, et le compter comme tel ferait croire à une panne. Même
+forme que `ResultatSignal` et `ResultatVignette`.
+
+Les seize fonctions rendent ce type. Les appelants en fil-et-oublie n'ont rien à changer — ils
+ignorent simplement la valeur, mais ils **peuvent** désormais la lire.
+
+#### Ce que les quatre endroits font maintenant
+
+Tous suivent la même règle : **le marqueur ne se pose que si l'envoi n'a pas été refusé.**
+`optout` marque (la personne a été traitée, la décision est la sienne) ; `refuse` ne marque pas et
+laisse la reprise possible.
+
+La campagne de la section 229 change aussi de politique. Elle marquait TOUT LE MONDE, y compris
+sur refus, pour que son cron quotidien ne reprenne pas indéfiniment les injoignables. L'intention
+était bonne pour une adresse malformée — définitif — mais un refus de Resend n'est presque jamais
+propre à la personne : domaine non vérifié, quota, clé invalide sont des pannes GLOBALES. **Une
+heure d'indisponibilité marquait la cohorte entière du jour comme traitée**, et ces gens
+n'auraient plus jamais reçu le courrier. L'adresse malformée reste marquée ; le refus ne l'est
+plus.
+
+LE RISQUE ASSUMÉ EN ÉCHANGE : un destinataire que Resend refuse DURABLEMENT (liste de suppression
+après rebond) sera retenté chaque jour. Il est alors visible deux fois — dans `refuses` et dans
+Sentry — là où l'ancien comportement le perdait en silence. Un compteur de tentatives bornerait
+proprement ce cas ; il n'existe pas encore.
+
+#### Un déplacement à connaître
+
+Dans `interetSignale`, la trace était écrite AVANT l'appel ; elle le suit désormais. Deux appels
+simultanés sur la même annonce pourraient franchir la lecture de déduplication avant que l'un
+n'écrive. Le geste humain qui y mène est déjà dédupliqué en amont, et un second courrier vaut
+mieux qu'un verrou posé sur un silence.
+
+L'écran gagne une raison distincte. `/api/missions/[id]/interet` répondait `trop_tot` pour tout ce
+qui n'était pas `differe` — un refus aurait donc dit à la personne qu'elle venait de signaler son
+intérêt et devait attendre, alors que rien n'était parti. La raison `acheminement` dit l'inverse :
+*« L'envoi n'a pas abouti — rien n'a été transmis. Vous pouvez réessayer. »*
+
+#### Vérifié à l'écran, banc jetable purgé
+
+Serveur lancé avec une clé Resend invalide : l'API répond un vrai refus, aucun courrier ne part.
+
+```
+[email] refus Resend (validation_error): API key is invalid
+
+A · cabinet joignable, Resend refuse   → trace INTERET_SIGNALE ABSENTE  ✓ signalable à nouveau
+B · cabinet ayant coupé ses emails     → trace INTERET_SIGNALE ÉCRITE   ✓ geste bien consommé
+```
+
+Les deux branches du tri-état sont donc couvertes, sans qu'aucun email ne parte vers une adresse
+réelle. Banc de trois comptes sur un domaine `.invalid`, purgé : contrôle à 0.
+
+#### Corrigé au passage
+
+`leonie04.cappelaere@gmail.coml` → `leonie04.cappelaere@gmail.com`. Un `l` de trop rendait le
+compte injoignable depuis son inscription du 17/09 — et c'est l'adresse de connexion. Aucune
+collision : l'adresse corrigée était libre. Plus aucun domaine proche d'un domaine connu ne
+subsiste dans la base.
+
+---
+
 ### SECTION 290 — UN COURRIER POUR CEUX QUE LA FEUILLE N'ATTEINDRA JAMAIS (08/10)
 
 **ENVOYÉ le 08/10 à 11 h 10 UTC, aux sept destinataires validés.** Préparé puis soumis au compte
@@ -7433,12 +7530,11 @@ second appel : examines 0 — les sept sortent en « déjà destinataire de ce c
 journaux Vercel sur la fenêtre de l'envoi : Warning 0 · Error 0 · Fatal 0
 ```
 
-UNE RÉSERVE DE LECTURE, À CONNAÎTRE POUR LES PROCHAINES CAMPAGNES. `envoyes` compte les appels
-revenus sans exception, pas les acceptations de Resend : `sendEmail` renvoie `false` sur refus,
-mais les fonctions d'email ne remontent pas ce booléen. Un refus resterait donc invisible dans ce
-compteur. Il ne serait PAS silencieux pour autant — depuis la panne du 30/07, tout refus part dans
-`console.error` et dans Sentry — d'où la lecture des journaux ci-dessus, qui est ici la vraie
-preuve de non-refus. Rendre les appelants sensibles au retour reste à faire.
+UNE RÉSERVE DE LECTURE SUR CE COMPTEUR, LEVÉE DEPUIS (section 291). Au moment de cet envoi,
+`envoyes` comptait les appels revenus sans exception, pas les acceptations de Resend : les
+fonctions d'email ne remontaient pas le booléen de `sendEmail`. C'est pourquoi la preuve de
+non-refus est ici la LECTURE DES JOURNAUX ci-dessus, et non le compteur. Les appelants lisent
+désormais le résultat, et le marqueur ne se pose plus sur un envoi refusé.
 
 UN DÉPLOIEMENT DE TROP A FAILLI PASSER. La première simulation en production a répondu
 `examines = 8` : le correctif qui écarte le compte d'essai n'était pas encore servi, alors que le

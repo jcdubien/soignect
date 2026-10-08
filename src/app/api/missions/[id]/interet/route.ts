@@ -81,10 +81,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (resultat !== "envoye") {
     // `differe` et `deja_signale` sont improbables après `etatNouveauSignal`, mais possibles si
     // l'état a bougé entre les deux lectures. On refuse alors plutôt que d'annoncer un envoi.
-    return NextResponse.json(
-      { envoye: false, raison: resultat === "differe" ? "sans_recherche" : "trop_tot" },
-      { status: 409 },
-    );
+    //
+    // `refuse` est d'une autre nature (section 291) : la personne n'y est pour rien, c'est
+    // l'acheminement qui a échoué. Le confondre avec « trop tôt » lui ferait croire qu'elle
+    // vient de signaler son intérêt et qu'elle doit attendre — alors que rien n'est parti et
+    // que réessayer est exactement ce qu'il faut faire.
+    const raison =
+      resultat === "differe" ? "sans_recherche"
+      : resultat === "refuse" ? "acheminement"
+      : "trop_tot";
+    return NextResponse.json({ envoye: false, raison }, { status: 409 });
   }
   return NextResponse.json({ envoye: true });
 }

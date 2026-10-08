@@ -41,7 +41,14 @@ import { offreOuverteLe } from "@/lib/feedFilters";
 // le rattrapage : la déduplication le prendrait pour un signal déjà émis. Le geste, lui, reste
 // horodaté dans `Swipe.createdAt` ; rien n'est perdu.
 
-export type ResultatSignal = "envoye" | "differe" | "deja_signale" | "sans_destinataire";
+export type ResultatSignal =
+  | "envoye"
+  | "differe"
+  | "deja_signale"
+  | "sans_destinataire"
+  /** Resend a refusé : rien n'est parti, et RIEN N'EST TRACÉ — l'intérêt reste signalable
+   *  (section 291). Avant, la trace se posait d'abord : un refus bloquait toute reprise. */
+  | "refuse";
 
 interface MissionSwipee {
   id: string;
@@ -178,10 +185,6 @@ export async function signalerInteret(opts: {
     });
     if (!proprio?.user?.email) return "sans_destinataire";
 
-    await prisma.traceEvent.create({
-      data: { eventType: "INTERET_SIGNALE", missionId: mission.id, profileId: swiperId },
-    });
-
     const libelleVisiteur =
       swiperType === "TITULAIRE" ? "Un cabinet"
       : swiperType === "ASSISTANT" ? "Un assistant"
@@ -205,7 +208,7 @@ export async function signalerInteret(opts: {
         : `${libelleVisiteur} s'intéresse à votre ${motAnnonce} « ${mission.title} »`,
       linkUrl: `/annonces?card=${annonceVisiteur.id}`,
     });
-    await sendInteretEmail(proprio.user.email, {
+    const resultatEnvoi = await sendInteretEmail(proprio.user.email, {
       viewerLabel: libelleVisiteur,
       listingWord: motAnnonce,
       missionTitle: mission.title,
@@ -215,6 +218,23 @@ export async function signalerInteret(opts: {
       visiteurJoignable: true,
       nouveauSignal,
       cta,
+    });
+
+    // ── LA TRACE SUIT L'ENVOI, ELLE NE LE PRÉCÈDE PLUS (section 291) ───────────────────────
+    //
+    // Cette trace est le verrou de déduplication : tant qu'elle existe, `deja_signale` interdit
+    // tout nouveau signal. Elle était écrite AVANT l'appel, à une époque où les fonctions
+    // d'email rendaient `void` et où un refus de Resend était indiscernable d'un succès. Un
+    // refus posait donc le verrou sans que le cabinet n'apprenne rien — et plus rien ne pouvait
+    // le rattraper, puisque le verrou interdisait de réessayer.
+    //
+    // CE QUE LE DÉPLACEMENT COÛTE : deux appels simultanés sur la même annonce pourraient
+    // franchir la lecture de déduplication avant que l'un n'écrive. Le geste humain qui y mène
+    // est déjà dédupliqué en amont (un swipe ne se pose qu'une fois par annonce), et un second
+    // courrier vaut mieux qu'un verrou posé sur un silence.
+    if (resultatEnvoi === "refuse") return "refuse";
+    await prisma.traceEvent.create({
+      data: { eventType: "INTERET_SIGNALE", missionId: mission.id, profileId: swiperId },
     });
     return "envoye";
   } catch {

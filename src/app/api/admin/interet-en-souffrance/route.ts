@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     ok: true,
     simulation: !envoyerDemande,
     environnement: process.env.VERCEL_ENV ?? "(local)",
-    ...(resultat ?? { examines: cibles.length, envoyes: 0, echecs: 0 }),
+    ...(resultat ?? { examines: cibles.length, envoyes: 0, refuses: 0, echecs: 0 }),
     // Détail nominatif, comme la campagne de la 229 : on doit pouvoir vérifier QUI avant et
     // après, pas seulement combien.
     cibles: cibles.map((c) => ({

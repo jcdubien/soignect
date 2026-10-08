@@ -223,6 +223,7 @@ function titrePour(m: MatchDormant, cote: "A" | "B"): string | null {
  */
 async function emettrePreavis(m: MatchDormant): Promise<void> {
   const joursRestants = DELAI_PREAVIS_JOURS;
+  let refuse = false;
   for (const cote of ["A", "B"] as const) {
     const moi = cote === "A" ? m.profileA : m.profileB;
     const autre = cote === "A" ? m.profileB : m.profileA;
@@ -233,7 +234,7 @@ async function emettrePreavis(m: MatchDormant): Promise<void> {
       linkUrl: `/match/${m.id}?chat=1`,
     });
     if (moi.user?.email) {
-      await sendPreavisExpirationEmail(moi.user.email, {
+      const resultat = await sendPreavisExpirationEmail(moi.user.email, {
         partnerName: autre.name,
         missionTitle: titrePour(m, cote),
         matchId: m.id,
@@ -242,11 +243,30 @@ async function emettrePreavis(m: MatchDormant): Promise<void> {
         dernierEchangeLe: m.messages[0]?.createdAt ?? null,
         optIn: moi.user.emailOptIn,
       });
+      // `optout` n'est PAS un échec : la personne a coupé ce canal, et la cloche in-app
+      // ci-dessus l'a prévenue. Seul un refus d'acheminement compte comme préavis non remis.
+      if (resultat === "refuse") refuse = true;
     }
   }
-  // Marqueur APRÈS l'envoi, et volontairement : un échec en cours de route laisse la relation
-  // sans marqueur, donc reprise au prochain passage. Marquer d'abord aurait consommé le préavis
-  // sans que personne ne l'ait reçu.
+
+  // ── LE MARQUEUR EST LA PORTE DE L'EXPIRATION, IL NE S'OUVRE QUE SUR UN PRÉAVIS REMIS ──────
+  //
+  // Ce marqueur fait bien plus que dédupliquer : c'est lui qui autorise l'expiration trois
+  // jours plus tard (voir `SEUIL_DORMANCE_JOURS` / `DELAI_PREAVIS_JOURS`). Le poser sans que le
+  // préavis soit parti ferait disparaître une mise en relation sans que personne n'ait été
+  // averti — la conséquence la plus lourde de tout ce fichier.
+  //
+  // Le commentaire d'origine promettait déjà « un échec laisse la relation sans marqueur ». Il
+  // ne tenait que pour une EXCEPTION : un refus de Resend ne lève pas, et les fonctions d'email
+  // rendaient `void`, si bien que le refus posait le marqueur quand même (section 291).
+  //
+  // Un seul refus sur les deux parties suffit à tout reporter. L'autre recevra un second
+  // préavis au prochain passage — une répétition contre une expiration muette, l'arbitrage ne
+  // se discute pas.
+  if (refuse) {
+    console.error(`[dormants] préavis non remis pour ${m.id} — pas de marqueur, repris demain`);
+    return;
+  }
   await prisma.traceEvent.create({ data: { eventType: EVENT_PREAVIS, matchId: m.id } });
 }
 

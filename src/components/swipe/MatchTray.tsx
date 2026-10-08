@@ -104,7 +104,13 @@ function MissionSheet({
             ? "Publiez votre recherche pour que votre intérêt soit transmis."
             : data?.raison === "deja_en_relation"
               ? "Vous êtes déjà en relation : passez par le chat."
-              : "Impossible pour le moment. Réessayez plus tard.",
+              // `acheminement` (section 291) : l'email a été refusé, RIEN n'est parti et rien
+              // n'a été enregistré. Le repli générique disait déjà « réessayez », mais sans
+              // dire que le geste n'a pas été consommé — or c'est précisément ce qui décide
+              // d'essayer encore plutôt que d'attendre.
+              : data?.raison === "acheminement"
+                ? "L'envoi n'a pas abouti — rien n'a été transmis. Vous pouvez réessayer."
+                : "Impossible pour le moment. Réessayez plus tard.",
         );
         setSignalEnCours(false);
         return;
