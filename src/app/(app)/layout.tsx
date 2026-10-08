@@ -1,5 +1,17 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { EN_TETE_CHEMIN } from "@/middleware";
+
+// Où envoyer quelqu'un qui n'est pas connecté : vers la connexion, EN CONSERVANT ce qu'il
+// demandait (section 290). Le middleware pose le chemin dans un en-tête ; sans lui — en test
+// unitaire, ou si le `matcher` venait à ne plus couvrir une route — on retombe sur `/login` nu,
+// c'est-à-dire sur le comportement d'avant, jamais sur une redirection fabriquée.
+async function cibleConnexion(): Promise<string> {
+  const chemin = (await headers()).get(EN_TETE_CHEMIN);
+  if (!chemin || !chemin.startsWith("/") || chemin.startsWith("//")) return "/login";
+  return `/login?return_to=${encodeURIComponent(chemin)}`;
+}
 import Link from "next/link";
 import LienParcourir from "@/components/nav/LienParcourir";
 import Image from "next/image";
@@ -17,7 +29,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect(await cibleConnexion());
   if (!session.user.profileId) redirect("/register");
 
   const isAdmin = (session.user as { role: string }).role === "ADMIN";

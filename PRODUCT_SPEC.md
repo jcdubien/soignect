@@ -7347,6 +7347,81 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 290 — UN COURRIER POUR CEUX QUE LA FEUILLE N'ATTEINDRA JAMAIS (08/10)
+
+**PRÉPARÉ, PAS ENVOYÉ.** Rien n'est parti : le compte des destinataires attend une validation
+explicite. Cette section décrit ce qui est construit et ce qui a été vérifié.
+
+#### Pourquoi la section 288 ne suffit pas
+
+Sa feuille de saisie n'atteint que ceux qui REVIENNENT sur le fil. Huit personnes ont un
+« Intéressé » posé sur une annonce encore ouverte sans avoir jamais rien publié ; leur dernière
+activité remonte de onze à trente-trois jours, et la plus ancienne attend depuis le 23 août.
+Six semaines de silence établissent qu'elles ne reviendront pas d'elles-mêmes.
+
+#### Deux défauts trouvés AVANT d'écrire le courrier, et corrigés
+
+**1. Le rattrapage n'appliquait aucune des exclusions qu'il annonce** (section 289, `7d0da31`).
+`rattraperInteretsDifferes` ne filtrait que sur `isActive`. Sur la population visée, 27 annonces
+auraient été notifiées à la première publication, dont **14 sur lesquelles personne ne peut plus
+rien** : postes pourvus, périodes closes depuis août et septembre, annonces déjà engagées avec
+quelqu'un d'autre. Le nombre annoncé dans le courrier et le nombre d'emails réellement partis
+auraient divergé. `offreOuverteLe()` nomme les trois conditions en un seul objet, partagé par le
+compteur du fil et par le rattrapage.
+
+**2. Le lien du courrier n'atteignait pas sa destination.** Vérifié à l'écran : `(app)/layout.tsx`
+redirige vers `/login` NU. Le formulaire sait pourtant revenir quelque part — il lit
+`?return_to=` — mais seule la page publique d'une annonce le posait. Un clic depuis l'email
+donnait donc : `307 → /login`, connexion, puis `/disponibilites` par défaut. La feuille, qui ne
+vit que sur le fil, n'était jamais atteinte.
+
+Ça ne concernait pas que l'email : **toute arrivée profonde** depuis un signet, une notification
+ou un lien partagé perdait sa destination dès que la session avait expiré.
+
+Un layout de serveur ne connaît pas l'URL demandée — limite de l'App Router, pas un oubli. D'où
+le premier middleware du dépôt, qui **ne décide rien** : pas de session, pas de redirection, pas
+d'appel à la base. Il recopie le chemin dans un en-tête de requête et laisse passer ; le contrôle
+d'accès reste entier dans le layout. Le `matcher` est nominatif, limité aux segments servis par
+`(app)/layout.tsx`.
+
+#### Ce que le courrier dit, et ce qu'il se garde de dire
+
+Il serait FAUX d'écrire « ces cabinets ont été prévenus » : `lib/interetSignale` diffère le signal
+tant que rien n'est publié, donc personne n'a rien reçu. Le courrier dit l'état exact — le geste
+est enregistré, il n'est pas arrivé, et la publication le fait partir le jour même.
+
+Les deux formes sont écrites en entier, phrase par phrase. Le premier rendu disait « un cabinet
+[…] il n'y a aucune fiche à **leur** montrer » : un accord posé au mot près finit toujours par en
+oublier un.
+
+#### Garde d'envoi
+
+Trois verrous sur `POST /api/admin/interet-en-souffrance` : session ADMIN, `?envoyer=1` explicite
+(simulation par défaut), et **`VERCEL_ENV === "production"`**. Ce dernier est la garde demandée et
+il est vérifiable : la variable est posée par la plateforme, jamais par le dépôt. Sur un poste de
+développement elle est absente, l'envoi est refusé AVANT toute écriture, et **aucun marqueur ne
+peut être posé depuis un local**. Sans elle, un `npm run dev` pointé sur la base de production
+aurait suffi à consommer la campagne pour de vrai — le marqueur interdisant ensuite de la rejouer.
+
+Le marqueur `INTERET_SOUFFRANCE_RAPPEL` est écrit une fois par destinataire, après l'envoi. La
+fenêtre de silence de sept jours regarde AUSSI `RELANCE_PUBLICATION` (section 229) : elle protège
+la personne, pas la campagne.
+
+#### Vérifié à l'écran, banc jetable purgé
+
+```
+lien du courrier → /annonces, SANS session
+  307 → /login?return_to=%2Fannonces     ✓
+  connexion → /annonces                   ✓
+  feuille ouverte : « Un cabinet attend vos dates »  ✓
+```
+
+Un cas connu, laissé tel quel : « Plus tard » vit dans le `sessionStorage` de l'onglet. Qui a
+écarté la feuille puis clique le courrier DANS LE MÊME ONGLET ne la reverra pas de la visite.
+Marginal, et le bandeau ambre reste en place avec son bouton.
+
+---
+
 ### SECTION 288 — L'INTÉRÊT SE POSE DANS LE FIL, LA DISPONIBILITÉ AUSSI (07/10)
 
 Point de départ : un compte de test dit « Intéressé » sur une vraie annonce, et son auteur ne

@@ -541,3 +541,66 @@ export async function sendPosteInvitationEmail(
   );
   await sendEmail(to, `Invitation à rejoindre Soignect — poste « ${opts.postLabel} »`, html);
 }
+
+// ── q) Intérêt en souffrance : des cabinets attendent des dates (section 290) ──────────────────
+//
+// POURQUOI UN EMAIL DE PLUS. La feuille de saisie de la section 288 n'atteint que ceux qui
+// REVIENNENT sur le fil. Mesuré le 08/10 : huit personnes ont signalé leur intérêt à des
+// cabinets dont l'annonce est encore ouverte, sans avoir jamais rien publié — la plus ancienne
+// depuis le 23 août, et leur dernière activité remonte à 11 à 33 jours. Elles ne reviendront pas
+// d'elles-mêmes : c'est précisément ce que les six semaines écoulées démontrent.
+//
+// CE QU'IL NE DIT PAS, ET C'EST LE POINT DÉLICAT. Il serait faux d'écrire « ces cabinets ont été
+// prévenus » : `lib/interetSignale` DIFFÈRE le signal tant que rien n'est publié, donc personne
+// n'a rien reçu. L'email dit donc l'exact état des choses — le geste est enregistré, il n'est
+// pas arrivé, et la publication le fait partir le jour même (`rattraperInteretsDifferes`).
+//
+// SINGULIER ET PLURIEL ÉCRITS EN ENTIER. Pas de « cabinet(s) » ni de « s » conditionnel : un
+// courrier qui laisse voir sa mécanique de gabarit se lit comme un envoi de masse, ce qu'il est,
+// mais qu'il n'a aucune raison d'afficher.
+//
+// LE BOUTON MÈNE AU FIL, PAS AU FORMULAIRE COMPLET. `/annonces` ouvre la feuille d'arrivée de la
+// section 288, qui demande deux champs. Pointer vers `/disponibilites/create` renverrait au
+// formulaire long — le détour que la 288 vient précisément de supprimer.
+export async function sendInteretEnSouffranceEmail(
+  to: string,
+  opts: { firstName: string | null; nbCabinets: number; optIn: boolean }
+): Promise<void> {
+  if (!opts.optIn) return;
+
+  const unSeul = opts.nbCabinets <= 1;
+  const salutation = opts.firstName ? `Bonjour ${escapeHtml(opts.firstName)},` : "Bonjour,";
+
+  // LES DEUX FORMES SONT ÉCRITES EN ENTIER, phrase par phrase. Un accord posé au mot près
+  // (« cabinet(s) », « il/ils ») finit toujours par en oublier un : le premier rendu de ce
+  // courrier disait « un cabinet […] il n'y a aucune fiche à LEUR montrer ».
+  const constat = unSeul
+    ? `Vous avez signalé votre intérêt à un cabinet sur Soignect. Il ne l&rsquo;a pas reçu.`
+    : `Vous avez signalé votre intérêt à ${opts.nbCabinets} cabinets sur Soignect. Aucun ne l&rsquo;a reçu.`;
+  const raison = unSeul
+    ? `il n&rsquo;a aucune fiche à ouvrir`
+    : `ils n&rsquo;ont aucune fiche à ouvrir`;
+  const promesse = unSeul
+    ? `Votre signalement partira le jour même.`
+    : `Vos ${opts.nbCabinets} signalements partiront le jour même.`;
+
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">${salutation}</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       ${constat} Tant que votre disponibilité n&rsquo;est pas publiée, vous n&rsquo;apparaissez
+       dans aucun fil : ${raison}, et aucune mise en relation ne peut se former.
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       Publier demande deux champs : vos dates et vos secteurs. ${promesse}
+     </p>
+     <p style="font-size:14px;line-height:1.5;margin:0;color:#4b5563">
+       Vous pourrez la modifier ou la retirer à tout moment.
+     </p>`,
+    { label: "Publier ma disponibilité", path: "/annonces" }
+  );
+
+  const sujet = unSeul
+    ? "Un cabinet attend vos dates"
+    : `${opts.nbCabinets} cabinets attendent vos dates`;
+  await sendEmail(to, sujet, html);
+}
