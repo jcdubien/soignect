@@ -7349,8 +7349,8 @@ disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
 ### SECTION 290 — UN COURRIER POUR CEUX QUE LA FEUILLE N'ATTEINDRA JAMAIS (08/10)
 
-**PRÉPARÉ, PAS ENVOYÉ.** Rien n'est parti : le compte des destinataires attend une validation
-explicite. Cette section décrit ce qui est construit et ce qui a été vérifié.
+**ENVOYÉ le 08/10 à 11 h 10 UTC, aux sept destinataires validés.** Préparé puis soumis au compte
+avant déclenchement ; l'envoi n'est parti qu'après accord explicite sur le nombre.
 
 #### Pourquoi la section 288 ne suffit pas
 
@@ -7420,6 +7420,32 @@ sous-adresse dont la base n'a pas de compte reste un destinataire normal.
 
 **Sept destinataires** : Simoni (3 cabinets), Iturralde Alzua (2), MILOVANOVIC Flora, Hippolyte
 JUE, Frédérique Hallpike, Ferreira, Amarante Domarle (1 chacun).
+
+#### L'envoi
+
+```
+POST /api/admin/interet-en-souffrance?envoyer=1   (production, session ADMIN)
+  environnement = production · simulation = false
+  examines 7 · envoyes 7 · echecs 0
+
+marqueurs INTERET_SOUFFRANCE_RAPPEL posés : 7, un par destinataire
+second appel : examines 0 — les sept sortent en « déjà destinataire de ce courrier »
+journaux Vercel sur la fenêtre de l'envoi : Warning 0 · Error 0 · Fatal 0
+```
+
+UNE RÉSERVE DE LECTURE, À CONNAÎTRE POUR LES PROCHAINES CAMPAGNES. `envoyes` compte les appels
+revenus sans exception, pas les acceptations de Resend : `sendEmail` renvoie `false` sur refus,
+mais les fonctions d'email ne remontent pas ce booléen. Un refus resterait donc invisible dans ce
+compteur. Il ne serait PAS silencieux pour autant — depuis la panne du 30/07, tout refus part dans
+`console.error` et dans Sentry — d'où la lecture des journaux ci-dessus, qui est ici la vraie
+preuve de non-refus. Rendre les appelants sensibles au retour reste à faire.
+
+UN DÉPLOIEMENT DE TROP A FAILLI PASSER. La première simulation en production a répondu
+`examines = 8` : le correctif qui écarte le compte d'essai n'était pas encore servi, alors que le
+middleware, lui, l'était déjà — vérifier « le middleware répond » ne prouvait donc pas « le bon
+commit sert ». L'envoi a attendu que la simulation retourne 7 et les sept noms attendus. Pour une
+action irréversible, la précondition à tester est celle qui PORTE le changement, pas une autre qui
+se trouve dans le même déploiement.
 
 #### Vérifié à l'écran, banc jetable purgé
 
