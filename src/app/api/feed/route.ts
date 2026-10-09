@@ -361,6 +361,26 @@ export async function GET(req: NextRequest) {
   // Il compte des CABINETS DISTINCTS, pas des intérêts : dire « 7 cabinets attendent vos dates »
   // à quelqu'un qui a retenu trois annonces d'un même cabinet serait faux, et c'est le nombre de
   // personnes qui pourraient répondre qui mesure l'enjeu, pas le nombre de cartes swipées.
+  // ── UN MARCHÉ VIDE SE DIT, IL NE SE DEVINE PAS (section 294) ──────────────────────────────
+  //
+  // Dix infirmiers entrent en bêta sur une base de 85 profils tous kinés. Le fil est cloisonné
+  // par profession depuis le 17/08 : ils ne verront donc AUCUNE annonce, et l'écran vide leur
+  // disait « Plus d'annonces pour le moment — revenez plus tard », qui décrit une attente
+  // passagère. La vérité est autre : il n'y a pas encore un seul cabinet de leur profession.
+  //
+  // COMPTÉ SEULEMENT QUAND LE FIL EST VIDE. Pour tout le monde d'autre, la requête n'est jamais
+  // faite : qui voit des cartes n'a pas besoin qu'on lui dise combien de cabinets existent.
+  //
+  // Le compte porte sur les PROFILS, pas sur les annonces : « aucun cabinet n'est encore là »
+  // et « aucun cabinet ne publie en ce moment » appellent deux phrases différentes, et seule la
+  // première justifie de dire à quelqu'un qu'il est parmi les premiers.
+  let cabinetsDeMaProfession = -1;
+  if (missions.length === 0 && myProfile.type !== ProfileType.TITULAIRE) {
+    cabinetsDeMaProfession = await prisma.profile.count({
+      where: { type: ProfileType.TITULAIRE, isActive: true, profession: myProfile.profession },
+    });
+  }
+
   let cabinetsEnAttente = 0;
   if (aPublie === 0) {
     const interets = await prisma.swipe.findMany({
@@ -491,6 +511,12 @@ export async function GET(req: NextRequest) {
       // et c'est exact plutôt qu'économe : l'intérêt en souffrance est, par définition, le fait
       // de quelqu'un qui n'apparaît nulle part.
       "x-feed-cabinets-en-attente": String(cabinetsEnAttente),
+      // -1 = non calculé (le fil n'est pas vide). 0 = aucun cabinet de cette profession n'existe
+      // encore. L'écran distingue les deux : un compte non calculé ne doit rien faire dire.
+      "x-feed-cabinets-profession": String(cabinetsDeMaProfession),
+      // Le pluriel de la profession du LECTEUR, toujours. `x-feed-marche-ferme` ne le porte que
+      // lorsque le marché est fermé faute de gabarits — ce n'est pas le même fait.
+      "x-feed-ma-profession-pluriel": encodeURIComponent(professionPluriel(myProfile.profession)),
       "x-feed-salariat-optin": String(candidatsOptes),
       // Ce que la présélection de types écarte. Zéro hors présélection — l'en-tête ne décrit
       // jamais un masquage qui n'a pas eu lieu.

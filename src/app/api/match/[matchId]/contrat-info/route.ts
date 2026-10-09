@@ -45,8 +45,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
       // `startDate`/`endDate` : l'écran doit pré-remplir la période ET pouvoir dire d'où elle
       // vient quand les deux annonces divergent (section 237).
-      missionA: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true } },
-      missionB: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true } },
+      missionA: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true, estSalariat: true, natureSalariat: true, createdAt: true } },
+      missionB: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true, estSalariat: true, natureSalariat: true, createdAt: true } },
     },
   });
 
@@ -87,11 +87,41 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const missingOther = missingContractLabels(theirProfile);
   const enforce = await isContractProfileEnforced();
 
-  // Salariat (section 161/217) : le recruteur est une STRUCTURE (employeur) → contrat de travail,
-  // registre de gabarits salariés. Le titulaire vient du partage partagé, et non plus d'un test
-  // local qui renvoyait `null` — donc « pas un salariat » — quand aucun profil n'était TITULAIRE,
-  // là où la génération partait quand même dans la branche salariée.
-  const isSalariat = profilTitulaire.titulaireKind === "STRUCTURE";
+  // ── LE SALARIAT EST UNE PROPRIÉTÉ DE L'ANNONCE, PAS DU RECRUTEUR (section 294) ───────────
+  //
+  // Le test portait sur `titulaireKind === "STRUCTURE"`. Il datait d'un temps où seules les
+  // structures employaient. La section 262 a ouvert le salariat aux cabinets LIBÉRAUX — le
+  // modèle CNOMK du CDD est écrit mot pour mot pour « le masseur-kinésithérapeute libéral » qui
+  // embauche son remplaçant — mais ce test-ci n'a pas suivi : un cabinet libéral publiant un
+  // poste salarié se voyait proposer les gabarits LIBÉRAUX, c'est-à-dire exactement le contraire
+  // de ce qu'il a publié.
+  //
+  // REPLI SUR LA STRUCTURE, ET SEULEMENT POUR L'ANCIEN. Avant le 22/09, `estSalariat` n'existait
+  // pas : une annonce de structure ne pouvait pas le porter, et la déduire du recruteur était la
+  // seule lecture possible. Après cette date, l'annonce dit elle-même ce qu'elle propose, et la
+  // déduire à nouveau écraserait un choix explicite.
+  //
+  // Mesuré le 09/10 avant bascule : 41 annonces de titulaires, 4 publiées par une structure,
+  // TOUTES antérieures au 22/09 — donc couvertes par le repli. Zéro annonce change de registre.
+  const DEBUT_SALARIAT_EN_BASE = new Date("2026-09-22T00:00:00Z");
+  const annonceAnterieure =
+    !missionTitulaire || missionTitulaire.createdAt < DEBUT_SALARIAT_EN_BASE;
+  const isSalariat =
+    missionTitulaire?.estSalariat === true ||
+    (annonceAnterieure && profilTitulaire.titulaireKind === "STRUCTURE");
+
+  // La NATURE vient de l'annonce quand elle la porte. `NATURE_PAR_MISSION` déduit du type de
+  // mission — un assistanat devient un CDD — ce qui reste juste faute de mieux, mais un cabinet
+  // qui a coché « CDI » ne doit pas se voir proposer un CDD parce que son annonce est rangée en
+  // assistanat. `CDD_TERME` et `CDD_SANS_TERME` désignent deux variantes du même gabarit CDD.
+  const natureContrat =
+    missionTitulaire?.natureSalariat === "CDI"
+      ? ("CDI" as const)
+      : missionTitulaire?.natureSalariat?.startsWith("CDD")
+        ? ("CDD" as const)
+        : missionType
+          ? NATURE_PAR_MISSION[missionType]
+          : ("CDD" as const);
 
   // Période par défaut du contrat (section 237) — MÊME fonction que la route de génération, pour
   // que l'écran ne puisse pas annoncer une date que le PDF ne reprendrait pas. Le repli
@@ -134,7 +164,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     !missionType || !memeProfession
       ? []
       : isSalariat
-        ? gabaritsSalariePour(profilTitulaire.profession, NATURE_PAR_MISSION[missionType]).map((g) => ({
+        ? gabaritsSalariePour(profilTitulaire.profession, natureContrat).map((g) => ({
             id: g.id, libelle: g.libelle, quandLUtiliser: null,
             source: g.source, composeSansModele: g.composeSansModele ?? false,
           }))

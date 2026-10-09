@@ -11,6 +11,7 @@ import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164, splitE164 } from "@/lib/phone";
 import { bioLimitFor } from "@/lib/bio";
 import { missingContractLabels } from "@/lib/contractProfile";
+import { accrocheProfilExemple } from "@/lib/exemplesPublication";
 
 const REGION_LABELS: Record<Region, string> = {
   GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
@@ -449,7 +450,11 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             placeholder={
               profile.type === "TITULAIRE"
                 ? "Cabinet dynamique, patientèle sport et gériatrique, plateau technique complet…"
-                : "Kiné passionné, disponible été et Noël, mobile sur toute la Guadeloupe…"
+                // Écrit en dur jusqu'au 09/10 : un infirmier lisait « Kiné passionné… » dans
+                // l'exemple de SA propre accroche, sur l'écran où il se décrit. Le module des
+                // exemples (section 278) tenait déjà la phrase infirmière — elle n'était
+                // branchée qu'à l'inscription, pas ici (section 294).
+                : accrocheProfilExemple(profession as Profession)
             }
           />
         </div>

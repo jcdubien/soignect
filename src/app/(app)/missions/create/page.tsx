@@ -40,6 +40,9 @@ export default async function CreateMissionPage() {
       typesContractualisables={missionTypesPour(profil.profession)}
       salariatContractualisable={aDesGabaritsSalarie(profil.profession)}
       exemples={exemplesPour(profil.profession)}
+      // La phrase de l'exercice coordonné en dépend (section 294) : « jusqu'à 8 séances » est
+      // l'Avenant 7 des kinés, pas une règle commune.
+      profession={profil.profession}
     />
   );
 }

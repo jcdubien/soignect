@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { appBaseUrl } from "@/lib/appUrl";
-import { KINESITHERAPEUTE } from "@/lib/pagesDiffusion";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
@@ -17,11 +16,12 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL(appBaseUrl()),
   title: "Soignect — La mise en relation intelligente des professionnels de santé",
-  // La profession vient du REGISTRE, plus d'une chaîne en dur (25/08). Le texte rendu est
-  // identique — le produit ne sert qu'une profession et le dire ici est exact, pas une
-  // approximation à corriger. Ce qui change : le jour où une seconde s'ouvre, cette
-  // méta-description suit le registre au lieu d'être un oubli de plus à retrouver.
-  description: `Trouvez votre remplaçant ou votre cabinet en Guadeloupe. Soignect — la plateforme de mise en relation des ${KINESITHERAPEUTE.pluriel}.`,
+  // LE JOUR EST ARRIVÉ (section 294). La note de 2025 disait : « le produit ne sert qu'une
+  // profession, le dire ici est exact ; le jour où une seconde s'ouvre, cette description suit
+  // le registre ». Dix infirmiers entrent en bêta — la description ne peut plus nommer les
+  // seuls kinésithérapeutes. Elle ne nomme donc plus personne en particulier : énumérer les
+  // onze professions ouvertes la rendrait illisible, et en citer deux ferait une hiérarchie.
+  description: "Trouvez votre remplaçant ou votre cabinet en Guadeloupe. Soignect — la plateforme de mise en relation des professionnels de santé.",
   openGraph: {
     type: "website",
     siteName: "Soignect",

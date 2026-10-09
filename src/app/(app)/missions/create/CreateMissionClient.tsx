@@ -9,6 +9,8 @@ import { COMMUNES_GUADELOUPE } from "@/lib/communes";
 import { bioLimitFor } from "@/lib/bio";
 import Link from "next/link";
 import ReprendreTexte from "@/components/missions/ReprendreTexte";
+import { mentionExerciceCoordonne } from "@/lib/professions";
+import { assistanceIADisponible } from "@/lib/annonceAI";
 
 export const dynamic = "force-dynamic";
 
@@ -111,7 +113,7 @@ const MISSION_TYPE_PAR_BESOIN: Record<Exclude<NeedType, "">, string> = {
   collaboration: "COLLABORATION",
 };
 
-export default function CreateMissionClient({ typesContractualisables, salariatContractualisable, exemples }: { typesContractualisables: string[]; salariatContractualisable: boolean; exemples: ExemplesPublication }) {
+export default function CreateMissionClient({ typesContractualisables, salariatContractualisable, exemples, profession }: { typesContractualisables: string[]; salariatContractualisable: boolean; exemples: ExemplesPublication; profession: string }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -770,6 +772,12 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
                 Libellés décrivant le RÉSULTAT, pas l'action : « Analyser » et « Optimiser »
                 sonnaient pareil et rien n'indiquait lequel modifiait quoi. La ligne d'aide
                 sous chacun dit ce qui change : les champs, le texte, ou rien. */}
+            {/* ── L'ASSISTANCE N'EXISTE QUE LÀ OÙ L'INVITE EST ÉCRITE (section 294) ────────
+                Les invites nomment « kinésithérapeute » : soumises au texte d'un infirmier,
+                elles extraient avec la mauvaise grille. On RETIRE les boutons plutôt que de
+                les griser — un bouton désactivé invite à chercher ce qui le débloquerait, et
+                ici rien ne le débloque. La saisie manuelle n'a jamais dépendu d'eux. */}
+            {assistanceIADisponible(profession) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button type="button" onClick={() => runAI("extract")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
                 className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
@@ -794,6 +802,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
                 <span className="text-[10px] font-normal opacity-70 leading-snug">remplit l&apos;intitulé du poste ci-dessous</span>
               </button>
             </div>
+            )}
 
             {/* Annulation de la reformulation — seul geste destructif du formulaire : la
                 réécriture remplace le texte de l'utilisateur sans confirmation. On garde
@@ -1244,8 +1253,9 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
           />
           <span className="text-sm text-gray-700">
             🤝 Exercice coordonné (MSP, centre de santé, ESP)
+            {/* Phrase DÉRIVÉE de la profession (section 294), même raison que côté candidat. */}
             <span className="block text-xs text-gray-500 mt-0.5">
-              Ouvre l&apos;accès direct sans prescription médicale préalable, jusqu&apos;à 8 séances.
+              {mentionExerciceCoordonne(profession)}
             </span>
           </span>
         </label>

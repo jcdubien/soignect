@@ -10,6 +10,7 @@ import {
   redactionHelp,
   optimizeAnnonce,
   type AnnonceRole,
+  assistanceIADisponible,
 } from "@/lib/annonceAI";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,19 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   const profileId = (session?.user as { profileId?: string })?.profileId;
   if (!profileId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+
+  // ── L'INVITE EST ÉCRITE POUR LES KINÉS, ET ELLE LE DIT (section 294) ────────────────────
+  //
+  // Refus EXPLICITE, et côté serveur : masquer le bouton suffit à l'écran, pas à la route. Un
+  // 409 nommé vaut mieux qu'une extraction plausible et fausse — c'est précisément ce que
+  // produirait une invite « kinésithérapeute » soumise au texte d'un infirmier.
+  const moi = await prisma.profile.findUnique({ where: { id: profileId }, select: { profession: true } });
+  if (!assistanceIADisponible(moi?.profession)) {
+    return NextResponse.json(
+      { error: "L'assistance à la rédaction n'est pas encore disponible pour votre profession.", indisponible: true },
+      { status: 409 },
+    );
+  }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

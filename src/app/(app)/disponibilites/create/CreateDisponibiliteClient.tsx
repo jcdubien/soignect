@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { ExemplesPublication } from "@/lib/exemplesPublication";
-import { professionLabel, libelleOrdre } from "@/lib/professions";
+import { professionLabel, libelleOrdre, mentionExerciceCoordonne } from "@/lib/professions";
+import { assistanceIADisponible } from "@/lib/annonceAI";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
@@ -694,6 +695,9 @@ export default function CreateDisponibiliteClient({
           />
           {/* Libellés décrivant le RÉSULTAT, pas l'action, avec une ligne d'aide indiquant
               ce qui change : les champs, le texte, ou rien. */}
+          {/* Même règle que côté cabinet (section 294) : l'assistance n'existe que là où
+              l'invite est écrite pour la profession. */}
+          {assistanceIADisponible(profession) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button type="button" onClick={() => runAI("extract")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
               className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
@@ -718,6 +722,7 @@ export default function CreateDisponibiliteClient({
               <span className="text-[10px] font-normal opacity-70 leading-snug">remplit le titre de l&apos;annonce ci-dessous</span>
             </button>
           </div>
+          )}
 
           {/* Annulation de la reformulation — seul geste destructif du formulaire. */}
           {rawTextBeforeRedaction !== null && (
@@ -1102,9 +1107,10 @@ export default function CreateDisponibiliteClient({
           />
           <span className="text-sm text-gray-700">
             🤝 Je souhaite exercer en structure coordonnée
+            {/* Phrase DÉRIVÉE de la profession (section 294) : « jusqu'à 8 séances » est
+                l'Avenant 7 des kinés. Un infirmier y lisait une règle qui n'est pas la sienne. */}
             <span className="block text-xs text-gray-500 mt-0.5">
-              MSP, centre de santé, ESP — accès direct sans prescription médicale préalable,
-              jusqu&apos;à 8 séances.
+              {mentionExerciceCoordonne(profession)}
             </span>
           </span>
         </label>

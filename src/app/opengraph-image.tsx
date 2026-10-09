@@ -9,7 +9,12 @@ export const alt = "Soignect — la mise en relation des professionnels de sant�
 
 export default function Image() {
   return ogPage({
-    titre: "Le job board des kinés de Guadeloupe",
+    // NEUTRE depuis l'ouverture aux autres professions (section 294). C'est l'image de repli
+    // du produit ENTIER — accueil, connexion, inscription, pages légales : un infirmier qui
+    // reçoit un lien Soignect y lisait « le job board des kinés ». Les pages de diffusion
+    // kiné, elles, gardent leur propre image et leur propre mot : elles s'adressent aux kinés
+    // par construction, jusque dans leur URL.
+    titre: "Le job board des professionnels de santé en Guadeloupe",
     sousTitre: "Remplacement, assistanat, collaboration, salariat. Cabinets et candidats se trouvent en quelques swipes.",
   });
 }

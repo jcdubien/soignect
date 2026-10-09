@@ -264,3 +264,30 @@ const _TOUTES_LES_PROFESSIONS_SONT_GROUPEES: [ProfessionsOubliees] extends [neve
 void _TOUTES_LES_PROFESSIONS_SONT_GROUPEES;
 
 export const GROUPES_PROFESSION: readonly { titre: string; valeurs: readonly Profession[] }[] = GROUPES;
+
+// ── EXERCICE COORDONNÉ : NOMMER L'AVANTAGE SANS L'INVENTER (section 294) ─────────────────────
+//
+// Les deux formulaires de publication décrivaient la case « exercice coordonné » par le gain
+// PROPRE AUX KINÉS : « accès direct sans prescription médicale préalable, jusqu'à 8 séances ».
+// C'est l'Avenant 7 de leur convention. Un infirmier lisant cette phrase dans son propre
+// formulaire y lit une règle qui n'est pas la sienne.
+//
+// POURQUOI NEUTRE PLUTÔT QUE DÉRIVÉ POUR LES AUTRES. Écrire un `Record<Profession, string>`
+// complet demanderait d'affirmer, profession par profession, ce que l'exercice coordonné ouvre
+// — accès direct des infirmiers, des orthophonistes, des podologues. Je ne tiens pas ces règles,
+// et une phrase juridique inventée dans un formulaire de publication est pire qu'une phrase
+// générale : elle est crue.
+//
+// On garde donc la phrase mesurée là où elle est vraie, et on décrit la STRUCTURE partout
+// ailleurs. Ajouter une profession ici = ajouter une ligne, le jour où la règle est vérifiée.
+const AVANTAGE_COORDONNE: Partial<Record<Profession, string>> = {
+  KINESITHERAPEUTE: "accès direct sans prescription médicale préalable, jusqu'à 8 séances",
+};
+
+/** Phrase explicative de la case « exercice coordonné », selon la profession. Jamais vide. */
+export function mentionExerciceCoordonne(p?: string | null): string {
+  const avantage = p && p in AVANTAGE_COORDONNE ? AVANTAGE_COORDONNE[p as Profession] : null;
+  return avantage
+    ? `MSP, centre de santé, ESP — ${avantage}.`
+    : "MSP, centre de santé, ESP — exercice partagé entre professionnels de santé d'un même territoire.";
+}

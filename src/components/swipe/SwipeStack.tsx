@@ -616,6 +616,16 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // Pluriel de la profession dont aucun cabinet ne peut encore publier (section 284).
   // `null` = marché ouvert.
   const [marcheFerme, setMarcheFerme] = useState<string | null>(null);
+  // Marché encore sans cabinet de ma profession (section 294). `-1` = non calculé par le
+  // serveur (le fil n'est pas vide) : on ne dit alors RIEN, plutôt qu'une phrase fondée sur un
+  // compte qui n'a pas été fait.
+  const [cabinetsProfession, setCabinetsProfession] = useState(-1);
+  const [maProfessionPluriel, setMaProfessionPluriel] = useState<string>("professionnels");
+
+  // Candidat dont la profession n'a encore AUCUN cabinet inscrit. `-1` écarte le cas « non
+  // calculé », `marcheFerme` a priorité : quand les gabarits manquent, la cause est plus
+  // profonde que l'absence de cabinets et c'est elle qu'il faut dire.
+  const premierDeSaProfession = !isTitulaire && !marcheFerme && cabinetsProfession === 0;
   const filtreRef = useRef<MissionFilter>(profileType === "ASSISTANT" ? "POSTES" : "ALL");
   // Vue alternative (section 202) — desktop TITULAIRE uniquement. Les cartes restent le défaut :
   // la liste est un complément de comparaison, pas un remplacement du geste de décision.
@@ -745,6 +755,13 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       if (publieHdr != null) setAPublie(publieHdr === "1");
       const attenteHdr = r.headers.get("x-feed-cabinets-en-attente");
       if (attenteHdr != null) setCabinetsEnAttente(parseInt(attenteHdr, 10) || 0);
+      const cabProfHdr = r.headers.get("x-feed-cabinets-profession");
+      if (cabProfHdr != null) setCabinetsProfession(parseInt(cabProfHdr, 10));
+      const plurielHdr = r.headers.get("x-feed-ma-profession-pluriel");
+      if (plurielHdr != null) {
+        try { setMaProfessionPluriel(decodeURIComponent(plurielHdr) || "professionnels"); }
+        catch { setMaProfessionPluriel("professionnels"); }
+      }
       const optInHdr = r.headers.get("x-feed-salariat-optin");
       if (optInHdr != null) setSalariatOptIn(parseInt(optInHdr, 10));
       const masquesHdr = r.headers.get("x-feed-remplacements-masques");
@@ -1018,10 +1035,12 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8 py-10">
         {/* Établissement sans aucun candidat opté : ce n'est pas une attente, c'est un vivier
             inexistant — l'icône et le texte doivent le dire, pas rassurer à tort. */}
-        <span className="text-6xl">{marcheFerme ? "🚧" : filter !== "ALL" ? "🔍" : salariatOptIn === 0 ? "💼" : isTitulaire ? (seenAvailable > 0 ? "✅" : "👀") : "🌊"}</span>
+        <span className="text-6xl">{marcheFerme ? "🚧" : premierDeSaProfession ? "🌱" : filter !== "ALL" ? "🔍" : salariatOptIn === 0 ? "💼" : isTitulaire ? (seenAvailable > 0 ? "✅" : "👀") : "🌊"}</span>
         <p className="text-gray-500 font-semibold">
           {marcheFerme
             ? `Aucun cabinet de votre profession n'est encore sur Soignect`
+            : premierDeSaProfession
+            ? `Vous êtes parmi les premiers ${maProfessionPluriel} sur Soignect`
             : filter === "POSTES" && remplacementsMasques > 0
             ? "Aucun poste longue durée pour le moment"
             : filter !== "ALL"
@@ -1041,6 +1060,10 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
               garde la seule chose vraie — la publication est conservée. */}
           {marcheFerme
             ? `Les modèles de contrat ne sont pas encore intégrés — sans eux, un cabinet ne peut pas publier d'annonce pour des ${marcheFerme}. Votre recherche reste visible et vous serez prévenu dès qu'ils arriveront : vous n'aurez rien à republier.`
+            : premierDeSaProfession
+            ? (aPublie
+                ? `Aucun cabinet ${maProfessionPluriel ? "de votre profession" : ""} n'a encore publié. Votre recherche est en ligne : vous serez visible dès le premier, sans rien avoir à refaire.`
+                : "Publiez votre recherche : vous serez visible dès qu'un cabinet publie.")
             : filter === "POSTES" && remplacementsMasques > 0
             ? `${remplacementsMasques} annonce${remplacementsMasques > 1 ? "s" : ""} de remplacement ${remplacementsMasques > 1 ? "sont" : "est"} masquée${remplacementsMasques > 1 ? "s" : ""} par ce filtre. Les postes longue durée vous sont proposés en premier, mais rien ne vous y oblige.`
             : salariatOptIn === 0
@@ -1051,6 +1074,17 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
                 : "Votre annonce est bien en ligne et visible. Dès qu'un candidat correspond, il apparaît ici.")
             : "Revenez plus tard, ou publiez vos disponibilités pour être visible des cabinets."}
         </p>
+        {/* Le seul geste utile quand le marché est vide : se rendre visible. Pas de bouton si
+            la personne a DÉJÀ publié — il n'y aurait rien à faire de plus, et le proposer
+            laisserait croire que sa publication n'a pas pris. */}
+        {premierDeSaProfession && !aPublie && (
+          <button
+            onClick={() => setFeuilleDispo(null)}
+            className="px-5 py-2.5 bg-[#0B3D5C] text-white rounded-xl text-sm font-bold hover:bg-[#0B3D5C]/90 transition"
+          >
+            Publier ma recherche
+          </button>
+        )}
         {filter !== "ALL" && remplacementsMasques === 0 && (
           <button
             onClick={() => {

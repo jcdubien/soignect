@@ -433,3 +433,23 @@ Réponds en JSON : {"suggestions":["...","..."]} (0 à 3 éléments).${knownBloc
   if (!safe.success) return [];
   return safe.data.suggestions.map((s) => s.trim()).filter(Boolean).slice(0, 3);
 }
+
+// ── POUR QUELLES PROFESSIONS L'ASSISTANCE IA EST-ELLE ÉCRITE ? (section 294) ─────────────────
+//
+// Les quatre invites de ce fichier nomment le métier en toutes lettres : « extracteur pour une
+// plateforme de mise en relation de KINÉSITHÉRAPEUTES », « cabinet de KINÉSITHÉRAPIE qui
+// recrute », « annonce de candidat KINÉ ». Ce n'est pas un détail de ton : le modèle s'en sert
+// pour décider ce qu'est un acte, une spécialité, une organisation plausible. Soumise au texte
+// d'un infirmier, l'extraction interprète des tournées à domicile avec une grille de cabinet.
+//
+// ON DÉSACTIVE PLUTÔT QUE D'ÉLARGIR. Remplacer « kinésithérapeute » par « professionnel de
+// santé » rendrait l'invite grammaticalement correcte et silencieusement moins juste — un
+// extracteur qui se trompe sans le dire est pire qu'un bouton absent. Écrire une invite par
+// profession demande de connaître chaque métier ; ce n'est pas un travail de traduction.
+//
+// CONSÉQUENCE POUR LES MÉDECINS, ET POUR TOUTES LES AUTRES : l'assistance n'existe pas. Le
+// bouton n'apparaît pas, et la route refuse — la saisie manuelle reste entière, elle n'a jamais
+// dépendu de l'IA.
+export function assistanceIADisponible(profession?: string | null): boolean {
+  return profession === "KINESITHERAPEUTE";
+}

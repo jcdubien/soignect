@@ -95,6 +95,11 @@ export function libelleAuteur(publieur?: Publieur | null, court = false): string
   if (estEtablissement(publieur)) return court ? "Étab." : "Établissement";
   if (publieur?.type === "TITULAIRE") return "Cabinet";
   if (publieur?.type === "ASSISTANT") return court ? "Assist." : "Assistant";
-  if (publieur?.type === "REMPLACANT") return court ? "Kiné" : "Remplaçant";
+  // « Kiné » en forme courte jusqu'au 09/10 : la carte d'un infirmier remplaçant portait donc
+  // l'étiquette « Kiné ». Le type `Publieur` ne porte pas la profession, et la lui ajouter
+  // obligerait à l'aller chercher dans la dizaine d'appelants pour un mot de cinq lettres.
+  // « Rempl. » dit la même chose que la forme longue, abrégée — c'est-à-dire le seul rôle que
+  // cette étiquette a jamais eu (section 294).
+  if (publieur?.type === "REMPLACANT") return court ? "Rempl." : "Remplaçant";
   return "Profil";
 }
