@@ -7347,6 +7347,153 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 294 — CE QUI TRAHISSAIT ENCORE UNE APPLICATION « POUR KINÉS » (09/10)
+
+Dix infirmiers entrent en bêta sur une base de 88 profils, **zéro infirmier**. Relevé des
+surfaces qui les trahissaient, puis correction. Aucune donnée fictive : bancs en `.invalid`,
+purgés, contrôle à 0.
+
+#### Vocabulaire
+
+**« jusqu'à 8 séances »** — l'Avenant 7 des kinés — s'affichait dans les DEUX formulaires de
+publication, sous la case « exercice coordonné », quelle que soit la profession. Phrase désormais
+dérivée : l'avantage nommé là où il est vrai, la structure décrite ailleurs.
+
+Je n'écris PAS un `Record<Profession, string>` complet. Il faudrait affirmer, métier par métier,
+ce que l'exercice coordonné ouvre — accès direct des infirmiers, des orthophonistes, des
+podologues. Je ne tiens pas ces règles, et une phrase juridique inventée dans un formulaire est
+pire qu'une phrase générale : elle est crue. Ajouter une profession = ajouter une ligne, le jour
+où la règle est vérifiée.
+
+Deux autres, trouvées au grep :
+
+- `/compte` proposait **« Kiné passionné… »** comme exemple d'accroche à un infirmier, sur
+  l'écran où il se décrit. Le module des exemples (section 278) tenait déjà la phrase
+  infirmière — elle n'était branchée qu'à l'inscription.
+- La carte d'un remplaçant portait l'étiquette courte **« Kiné »**. Le type `Publieur` ne porte
+  pas la profession, et la lui ajouter obligerait à traverser dix appelants pour cinq lettres :
+  « Rempl. » dit la même chose, abrégé.
+
+**LAISSÉ VOLONTAIREMENT** : les pages de diffusion (`/remplacement-kine-guadeloupe`,
+`/emploi-kine-guadeloupe`, Saint-Martin, Saint-Barth) et leurs images. Elles s'adressent aux
+kinés par construction, jusque dans leur URL — les neutraliser détruirait leur objet. Elles sont
+déjà paramétrées par {profession × territoire} : ouvrir une page infirmière = ajouter une entrée.
+Également laissés : les gabarits de contrat kiné, et les deux mots « kiné » des gabarits
+infirmier — ce sont des commentaires, rien de visible.
+
+#### Assistance IA
+
+Les quatre invites nomment « kinésithérapeute » : « extracteur pour une plateforme de mise en
+relation de KINÉSITHÉRAPEUTES », « cabinet de KINÉSITHÉRAPIE qui recrute ». Ce n'est pas un détail
+de ton — le modèle s'en sert pour décider ce qu'est un acte, une organisation plausible. Soumise
+au texte d'un infirmier, l'extraction lit des tournées à domicile avec une grille de cabinet.
+
+**Désactivée hors kiné**, pas élargie : remplacer le mot par « professionnel de santé » rendrait
+l'invite grammaticalement correcte et silencieusement moins juste. Un extracteur qui se trompe
+sans le dire est pire qu'un bouton absent.
+
+Boutons **retirés** et non grisés — un bouton désactivé invite à chercher ce qui le débloquerait,
+et ici rien ne le débloque. La route refuse en 409 nommé : masquer suffit à l'écran, pas à l'API.
+
+**État pour les médecins** : identique à toutes les professions hors kiné — aucune assistance,
+aucun bouton, saisie manuelle entière. Elle n'a jamais dépendu de l'IA.
+
+#### Partage
+
+L'image de repli du produit ENTIER — accueil, connexion, inscription, pages légales — affichait
+« Le job board des kinés de Guadeloupe ». La méta-description nommait les seuls
+kinésithérapeutes. Les deux sont neutres.
+
+La note de 2025 sur cette description disait : « le produit ne sert qu'une profession, le dire ici
+est exact ; le jour où une seconde s'ouvre, elle suivra le registre ». Le jour est arrivé. Elle ne
+nomme plus personne en particulier : énumérer onze professions la rendrait illisible, en citer
+deux ferait une hiérarchie.
+
+Une annonce d'infirmier partagée ne portait déjà aucun mot kiné : `vignetteAnnonce` et les
+métadonnées d'annonce viennent de l'annonce elle-même.
+
+#### Salariat — deux défauts enchaînés, dont un en impasse
+
+`isSalariat` suivait `titulaireKind === "STRUCTURE"`, d'un temps où seules les structures
+employaient. La section 262 a ouvert le salariat aux cabinets LIBÉRAUX — le modèle CNOMK du CDD
+est écrit pour eux — sans que ce test suive. Il lit désormais l'annonce (`estSalariat` /
+`natureSalariat`), avec repli sur la structure pour les annonces antérieures au 22/09, date
+d'apparition du champ. Mesuré avant bascule : 41 annonces de titulaires, 4 de structures, toutes
+antérieures. **Zéro annonce change de registre.**
+
+La nature vient aussi de l'annonce : un cabinet qui a coché « CDI » ne doit pas se voir proposer
+un CDD parce que son annonce est rangée en assistanat.
+
+**LE SECOND DÉFAUT N'EST APPARU QU'AU BANC**, et il était pire. Tous les champs d'argent du
+formulaire étaient branchés sur `isEmployeur` — le PROFIL — et non sur l'annonce. Un cabinet
+libéral publiant un poste salarié voyait « CA mensuel estimé » au lieu de « Rémunération brute »,
+et la soumission forçait `remunerationBrute: null`. L'annonce se publiait, la mise en relation se
+formait, le bon gabarit était proposé — puis la génération échouait en 422, « la rémunération
+mensuelle brute n'est pas renseignée », **sans qu'aucun écran n'ait jamais permis de la
+renseigner.** Une impasse complète, invisible jusqu'à la dernière étape.
+
+Troisième, trouvé dans la foulée : le salaire n'était pas repris de l'annonce sur l'écran de
+contrat. Deux saisies du même chiffre, donc deux chiffres possibles — et c'est le second qui est
+imprimé et signé.
+
+#### Marché vide
+
+Le fil est cloisonné par profession depuis le 17/08 : un infirmier ne verra aucune carte, et
+l'écran vide disait « Plus d'annonces pour le moment — revenez plus tard », qui décrit une
+attente passagère. La vérité est autre.
+
+Il lit maintenant qu'il est parmi les premiers de sa profession, avec le seul geste utile —
+publier — et **rien à cliquer s'il l'a déjà fait** : proposer de publier à qui l'a fait
+laisserait croire que sa publication n'a pas pris.
+
+Le compte porte sur les PROFILS cabinets, pas sur les annonces : « aucun cabinet n'est encore
+là » et « aucun cabinet ne publie en ce moment » appellent deux phrases différentes, et seule la
+première justifie de dire à quelqu'un qu'il est parmi les premiers. Compté uniquement quand le
+fil est vide.
+
+#### Mesure d'ouverture
+
+`GET /api/admin/ouverture?profession=INFIRMIER&jours=30`. **Aucune trace nouvelle** : `SIGNUP`,
+`MISSION_PUBLISHED` et `SWIPE_RIGHT` existent depuis la section 86 et portent de quoi retrouver
+la profession par jointure. L'y copier aurait figé une COPIE — un compte qui change de profession
+rendrait la trace fausse, la jointure suit.
+
+« Premiers swipes » = le premier geste de chaque personne, pas le volume : dix swipes d'une seule
+personne ne disent pas qu'une profession s'est mise en mouvement.
+
+#### Vérifié au banc, purgé
+
+```
+fil d'un infirmier            0 annonce servie ✓ (cloisonnement)
+                              x-feed-ma-profession-pluriel: infirmiers
+                              x-feed-marche-ferme: (vide) ✓ les gabarits existent
+assistance IA                 HTTP 409 nommé ✓
+publication recherche IDE     201 ✓
+annonce salariat CDI
+  par un cabinet LIBÉRAL      201 ✓
+swipe réciproque              mise en relation créée ✓
+écran de contrat              isSalariat true ✓ · INFIRMIER_SALARIAT_CDI ✓
+                              identité contractuelle complète des deux côtés ✓
+PDF CDI et CDD                200, %PDF valide, empreintes MD5 DISTINCTES ✓
+salaire pré-rempli            2600, repris de l'annonce ✓
+```
+
+Purge : traces 11 · swipes 2 · matchs 1 · notifications 2 · missions 2 · profils 2 · comptes 2.
+Contrôle à 0. Base inchangée : 88 profils, 80 annonces, 0 profil infirmier.
+
+#### Non vérifié, et dit
+
+Le TEXTE des PDF n'a pas été lu à l'écran : le navigateur les télécharge au lieu de les afficher,
+et le bac à sable bloque les téléchargements. Vérifié autrement — les gabarits infirmier ne
+contiennent aucun mot kiné visible (seulement deux commentaires), et `gabaritsSalariePour` filtre
+par profession, donc un infirmier ne peut pas se voir proposer un gabarit kiné.
+
+Le parcours libéral infirmier (remplacement, deux modèles CNOI : « autorisation » et
+« confrère ») n'a pas été joué : le banc portait un salariat. Les deux modèles existent avec
+leurs propres champs de reversement.
+
+---
+
 ### SECTION 293 — RÉTROCESSION FIXE ET PLAFONNÉE, ET UN COMMENTAIRE QUI MENTAIT (09/10)
 
 #### Le piège du mot, trouvé en ouvrant le sujet

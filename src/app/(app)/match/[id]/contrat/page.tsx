@@ -37,6 +37,8 @@ interface MatchInfo {
     lieuTravail: string;
     heuresHebdomadaires: number;
     heuresComplementairesMax: number;
+    /** Repris de l'annonce (section 294), `null` si elle n'en porte pas. */
+    remunerationBrutMensuelle: number | null;
   };
   /** Honoraires et reversements des modèles infirmier (section 237, lot 3). */
   defautsInfirmier?: {
@@ -297,6 +299,12 @@ export default function ContratPage() {
           setLieuTravail(d.defautsSalarie.lieuTravail ?? "");
           setHeures(d.defautsSalarie.heuresHebdomadaires ?? 35);
           setHeuresComplMax(d.defautsSalarie.heuresComplementairesMax ?? 4);
+          // Le salaire de l'annonce, pré-rempli et modifiable (section 294). Il n'était pas
+          // repris : le cabinet le saisissait une fois à la publication puis le retapait ici,
+          // et c'est la seconde saisie qui part au PDF — rien ne signalait l'écart.
+          if (d.defautsSalarie.remunerationBrutMensuelle != null) {
+            setRemuneration(String(d.defautsSalarie.remunerationBrutMensuelle));
+          }
         }
         if (d.defautsDuree) {
           const u = d.defautsDuree;

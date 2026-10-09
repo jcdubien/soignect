@@ -127,6 +127,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   const sessionEmployeur = (session?.user as { isEmployeur?: boolean })?.isEmployeur ?? false;
   const [kindEmployeur, setKindEmployeur] = useState(false);
   const isEmployeur = sessionEmployeur || kindEmployeur;
+
   const profileType = rawProfileType as ProfileTypeKey;
 
   // Mode « couverture » (section 153, point 4/5) : un ASSISTANT rattaché à un poste peut
@@ -191,6 +192,20 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
     return coverMode && contractualisable("remplacement") ? "remplacement" : "";
   })();
   const [needType, setNeedType] = useState<NeedType>(initialNeedType);
+
+  // ── CE QUI DÉCIDE DU REGISTRE, C'EST L'ANNONCE (section 294) ──────────────────────────────
+  //
+  // `isEmployeur` décrit le PROFIL : une structure. Depuis la section 262 un cabinet LIBÉRAL
+  // peut publier un poste salarié — le modèle CNOMK du CDD est écrit pour lui. Mais tous les
+  // champs d'argent restaient branchés sur `isEmployeur` : ce cabinet voyait « CA mensuel
+  // estimé » au lieu de « Rémunération brute », et la soumission forçait `remunerationBrute`
+  // à `null`.
+  //
+  // CONSÉQUENCE VÉRIFIÉE AU BANC le 09/10 : l'annonce se publiait, la mise en relation se
+  // formait, le bon gabarit était proposé — puis la génération échouait en 422, « la
+  // rémunération mensuelle brute n'est pas renseignée », sans qu'aucun écran n'ait jamais
+  // permis de la renseigner. Une impasse complète, invisible jusqu'à la dernière étape.
+  const annonceSalariee = isEmployeur || needType === "salariat";
   // Nature du contrat salarié — n'a de sens que si `needType === "salariat"`. Pas de valeur par
   // défaut : c'est elle qui choisit le gabarit de contrat, la deviner serait deviner le document.
   const [natureSalariat, setNatureSalariat] = useState<NatureSalariatChoix | "">("");
@@ -543,8 +558,8 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
       // Un employeur ne declare ni chiffre d'affaires ni retrocession : il verse un salaire.
       // Un cabinet liberal, l'inverse. On n'envoie donc jamais les champs de l'autre monde —
       // sans quoi une extraction IA pourrait remplir en base un champ que l'ecran n'affiche pas.
-      caMensuelEstime: isEmployeur ? null : (form.caMensuelEstime ? parseInt(form.caMensuelEstime, 10) : null),
-      retrocessionRate: isEmployeur ? null : (form.retrocessionRate ? parseInt(form.retrocessionRate, 10) : null),
+      caMensuelEstime: annonceSalariee ? null : (form.caMensuelEstime ? parseInt(form.caMensuelEstime, 10) : null),
+      retrocessionRate: annonceSalariee ? null : (form.retrocessionRate ? parseInt(form.retrocessionRate, 10) : null),
       // Le mode n'a de sens que sur un remplacement libéral. Ailleurs on renvoie POURCENTAGE,
       // c'est-à-dire exactement ce que l'annonce faisait avant la section 293.
       retrocessionMode: (!isEmployeur && needType === "remplacement") ? form.retrocessionMode : "POURCENTAGE",
@@ -552,7 +567,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
         ? parseInt(form.retrocessionFixeEuros, 10) : null,
       retrocessionPlafondEuros: (!isEmployeur && needType === "remplacement" && form.retrocessionMode === "PLAFONNEE" && form.retrocessionPlafondEuros)
         ? parseInt(form.retrocessionPlafondEuros, 10) : null,
-      remunerationBrute: isEmployeur ? (form.remunerationBrute ? parseInt(form.remunerationBrute, 10) : null) : null,
+      remunerationBrute: annonceSalariee ? (form.remunerationBrute ? parseInt(form.remunerationBrute, 10) : null) : null,
       rawText: rawTextTrim || null,
       // Transformation d'une absence en annonce : la période cesse d'être « absent sans
       // rien de prévu » et devient une recherche — c'est ce qui éteint l'alerte.
@@ -647,7 +662,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
           : `taux de rétrocession : ${form.retrocessionRate}%`,
       );
     }
-    if (isEmployeur && form.remunerationBrute) k.push(`rémunération brute : ${form.remunerationBrute} €/mois`);
+    if (annonceSalariee && form.remunerationBrute) k.push(`rémunération brute : ${form.remunerationBrute} €/mois`);
     if (!isEmployeur && form.caMensuelEstime) k.push(`chiffre d'affaires estimé : ${form.caMensuelEstime} €/mois`);
     if (form.demiJourneesLibres) k.push(`demi-journées libres : ${form.demiJourneesLibres}/semaine`);
     if (form.logementPropose) k.push("logement proposé");
@@ -876,7 +891,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
               {!isEmployeur && needType === "remplacement" && form.retrocessionMode === "FIXE" && form.retrocessionFixeEuros && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Fixe {form.retrocessionFixeEuros} €/mois</span>}
               {!isEmployeur && !(needType === "remplacement" && form.retrocessionMode === "FIXE") && form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Rétro {form.retrocessionRate}%{needType === "remplacement" && form.retrocessionMode === "PLAFONNEE" && form.retrocessionPlafondEuros ? ` · max ${form.retrocessionPlafondEuros} €` : ""}</span>}
               {!isEmployeur && form.caMensuelEstime && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.caMensuelEstime}€/mois</span>}
-              {isEmployeur && form.remunerationBrute && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.remunerationBrute}€/mois brut</span>}
+              {annonceSalariee && form.remunerationBrute && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.remunerationBrute}€/mois brut</span>}
               {form.demiJourneesLibres && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗓️ {form.demiJourneesLibres} dj/sem.</span>}
               {form.logementPropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Logement</span>}
               {form.vehiculePropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Véhicule</span>}
@@ -1283,23 +1298,23 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
               distincte — un CA et un salaire brut ne se comparent pas. */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {isEmployeur ? "Rémunération brute mensuelle" : "CA mensuel estimé"}{" "}
+              {annonceSalariee ? "Rémunération brute mensuelle" : "CA mensuel estimé"}{" "}
               <span className="text-gray-400 font-normal">€ (opt.)</span>
             </label>
             <input
               type="number"
               min={0}
               step={100}
-              value={isEmployeur ? form.remunerationBrute : form.caMensuelEstime}
+              value={annonceSalariee ? form.remunerationBrute : form.caMensuelEstime}
               onChange={(e) =>
-                setForm(isEmployeur
+                setForm(annonceSalariee
                   ? { ...form, remunerationBrute: e.target.value }
                   : { ...form, caMensuelEstime: e.target.value })
               }
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-              placeholder={isEmployeur ? "Ex : 2600" : "Ex : 8000"}
+              placeholder={annonceSalariee ? "Ex : 2600" : "Ex : 8000"}
             />
-            {isEmployeur && (
+            {annonceSalariee && (
               <p className="text-xs text-gray-400 mt-1">
                 Brut mensuel du poste. Pour une vacation, indiquez l&apos;équivalent mensuel ou
                 laissez vide et précisez-le dans le texte.
@@ -1320,7 +1335,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
         {/* MASQUÉ POUR UN EMPLOYEUR — un salarié ne reverse rien et ne conserve pas une part
             d'honoraires : il est payé. Le champ n'était pas seulement mal nommé, il était sans
             objet, et « Redevance versée au cabinet » s'affichait sur une offre de CDI. */}
-        {!isEmployeur && (
+        {!annonceSalariee && (
         <div>
           {/* ── TROIS MODES, UNIQUEMENT SUR UN REMPLACEMENT (section 293) ──────────────────
               Sur un assistanat, ce champ nomme une redevance versée au cabinet, et aucun

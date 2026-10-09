@@ -45,8 +45,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
       // `startDate`/`endDate` : l'écran doit pré-remplir la période ET pouvoir dire d'où elle
       // vient quand les deux annonces divergent (section 237).
-      missionA: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true, estSalariat: true, natureSalariat: true, createdAt: true } },
-      missionB: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true, estSalariat: true, natureSalariat: true, createdAt: true } },
+      missionA: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true, estSalariat: true, natureSalariat: true, createdAt: true, remunerationBrute: true } },
+      missionB: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true, estSalariat: true, natureSalariat: true, createdAt: true, remunerationBrute: true } },
     },
   });
 
@@ -135,6 +135,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
     lieuTravail: lieuTravailParDefaut(missionTitulaire, profilTitulaire),
     heuresHebdomadaires: HEURES_HEBDOMADAIRES_DEFAUT,
     heuresComplementairesMax: HEURES_COMPLEMENTAIRES_DEFAUT,
+    // ── LE SALAIRE VIENT DE L'ANNONCE (section 294) ───────────────────────────────────────
+    //
+    // Il n'était pas pré-rempli : le cabinet le saisissait à la publication, puis le
+    // retapait sur l'écran de contrat. Deux saisies du même chiffre, donc deux chiffres
+    // possibles — et c'est le second qui est imprimé et signé, sans que rien ne signale
+    // l'écart avec ce qui a été publié.
+    //
+    // `null` quand l'annonce n'en porte pas : la génération refuse alors explicitement, ce
+    // qui reste le bon comportement — un salaire ne se devine pas.
+    remunerationBrutMensuelle: missionTitulaire?.remunerationBrute ?? null,
   };
 
   // Honoraires et reversements des modèles INFIRMIER (section 237, lot 3). Mêmes constantes que
