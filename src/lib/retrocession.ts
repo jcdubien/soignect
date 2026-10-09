@@ -41,7 +41,18 @@ export interface Retrocession {
   plafondEuros: number | null;
 }
 
-const euros = (n: number) => `${n.toLocaleString("fr-FR")} €`;
+// ── LE SÉPARATEUR DE MILLIERS NE PEUT PAS ÊTRE CELUI DE `toLocaleString` (section 295) ──────
+//
+// `(12500).toLocaleString("fr-FR")` rend « 12 500 » avec une ESPACE FINE INSÉCABLE (U+202F).
+// Vérifié : `[...s].map(c => c.codePointAt(0))` donne bien 202F. Ce caractère est absent de
+// beaucoup de polices — dans l'image de partage, rendue par Satori avec une police embarquée, il
+// sortirait en carré vide au milieu du montant, sur la seule surface que personne ne peut
+// corriger après coup : une image déjà scrapée par Facebook.
+//
+// On formate donc à la main, avec une espace insécable simple (U+00A0), présente partout.
+const ESPACE_INSECABLE = "\u00A0";
+const euros = (n: number) =>
+  `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ESPACE_INSECABLE)}${ESPACE_INSECABLE}€`;
 
 /**
  * Phrase courte pour une carte ou une fiche d'annonce.
@@ -53,15 +64,24 @@ const euros = (n: number) => `${n.toLocaleString("fr-FR")} €`;
 export function resumeRetrocession(r: Retrocession): string | null {
   switch (r.mode) {
     case "FIXE":
-      return r.fixeEuros ? `${euros(r.fixeEuros)} / mois (fixe)` : null;
+      return r.fixeEuros ? `Forfait ${euros(r.fixeEuros)}/mois` : null;
+
     case "PLAFONNEE":
-      if (!r.rate) return null;
-      return r.plafondEuros
-        ? `${r.rate} % · part cabinet plafonnée à ${euros(r.plafondEuros)} / mois`
-        : `${r.rate} %`;
+      // Un plafond annoncé sans montant ne se dégrade PAS en simple pourcentage : « 75 % pour le
+      // remplaçant » décrirait un accord non plafonné, c'est-à-dire la lecture la plus favorable
+      // d'une annonce qui ne la promet pas. On n'affiche rien.
+      return r.rate && r.plafondEuros
+        ? `${r.rate} % pour le remplaçant · part du cabinet plafonnée à ${euros(r.plafondEuros)}/mois`
+        : null;
+
     case "POURCENTAGE":
     default:
-      return r.rate ? `${r.rate} % de rétrocession` : null;
+      // « DES HONORAIRES POUR LE REMPLAÇANT », en toutes lettres. `retrocessionRate` est la part
+      // qu'il PERÇOIT (défaut 70, article 6 : « le remplaçant percevra 70% »), quand l'usage
+      // appelle « rétrocession » les 30 % qui reviennent au cabinet. Écrire « 75 % de
+      // rétrocession » laissait donc le lecteur choisir le sens — sur une image publique, sans
+      // personne à qui demander.
+      return r.rate ? `${r.rate} % des honoraires pour le remplaçant` : null;
   }
 }
 

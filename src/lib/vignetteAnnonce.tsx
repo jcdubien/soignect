@@ -26,8 +26,9 @@
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
-import { BriqueStatus } from "@prisma/client";
+import { BriqueStatus, MissionType } from "@prisma/client";
 import { phraseIntentionPartage } from "@/lib/libellesPoste";
+import { resumeRetrocession } from "@/lib/retrocession";
 
 // Image de partage Open Graph générée dynamiquement par annonce (section 158) — 1200×630.
 // Priorité aux 3 infos essentielles pour un candidat qui scrolle (mobile) : TYPE, DATES, COMMUNE.
@@ -227,6 +228,9 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
       select: {
         title: true, location: true, missionType: true,
         startDate: true, endDate: true, minMonths: true,
+        // Rétrocession (section 295) — affichée sur les REMPLACEMENTS seulement, voir plus bas.
+        retrocessionMode: true, retrocessionRate: true,
+        retrocessionFixeEuros: true, retrocessionPlafondEuros: true,
         // photoUrl : fond de la carte (section 158). type : cadre le badge (cabinet propose / candidat se propose).
         // titulaireKind : distingue un établissement d'un cabinet libéral, sans quoi le
         // badge traduit un CDI en vocabulaire libéral.
@@ -251,6 +255,28 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
   // aucun contexte pour trancher. La table vit dans lib/libellesPoste, avec les autres.
   const type = phraseIntentionPartage(m.missionType, m.profile);
   const dates = datesLabel(m);
+
+  // ── LA RÉTROCESSION, SUR LES REMPLACEMENTS SEULEMENT (section 295) ──────────────────────────
+  //
+  // POURQUOI PAS SUR UN ASSISTANAT. La colonne `retrocessionRate` y porte le sens INVERSE : le
+  // formulaire la nomme « Redevance versée au cabinet » et l'explique comme « la part des
+  // honoraires que l'assistant reverse ». Le même 25 veut donc dire « le remplaçant garde 25 % »
+  // sur un remplacement et « l'assistant reverse 25 % » sur un assistanat. Une image publique ne
+  // peut pas porter cette ambiguïté : le lecteur n'a personne à qui demander, et aucun gabarit
+  // de contrat n'imprime d'ailleurs ce chiffre côté assistanat.
+  //
+  // UNE SEULE SOURCE DE TEXTE. `resumeRetrocession` nourrit aussi l'article 6 et la phrase du
+  // fil. Réécrire la formule ici produirait une image qui promet autre chose que le contrat —
+  // et c'est l'image qui circule hors du produit, là où rien ne la corrige.
+  const retrocession =
+    m.missionType === MissionType.REMPLACEMENT
+      ? resumeRetrocession({
+          mode: m.retrocessionMode,
+          rate: m.retrocessionRate,
+          fixeEuros: m.retrocessionFixeEuros,
+          plafondEuros: m.retrocessionPlafondEuros,
+        })
+      : null;
 
   // Zone de sécurité : beaucoup de destinations de partage (messageries, aperçus système via
   // navigator.share) RECADRENT le 1200x630 en carré centré — soit les 630 px du milieu. Tout ce
@@ -477,6 +503,35 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
               <div style={{ display: "flex", width: px(118), fontSize: px(24), fontWeight: 700, letterSpacing: px(2), opacity: photo ? 0.9 : 0.65, ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>LIEU</div>
               <div style={{ display: "flex", fontSize: px(34), fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: px(460), ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>{location}</div>
             </div>
+
+            {/* ── RÉTROCESSION — PLEINE LARGEUR, PAS UNE LIGNE ÉTIQUETTE/VALEUR (section 295) ──
+                Les deux lignes au-dessus tiennent en 460 px parce qu'elles portent une date ou
+                une commune. « 75 % pour le remplaçant · part du cabinet plafonnée à 3 200 €/mois »
+                fait 65 caractères : dans la même colonne, l'ellipsis aurait coupé juste après
+                « part du cabinet plafonnée à… », c'est-à-dire en supprimant le montant tout en
+                laissant croire qu'il existe.
+                Elle occupe donc les 600 px de la zone de sécurité, à une taille plus petite, et
+                REVIENT À LA LIGNE — pas de `whiteSpace: nowrap`, pas de `WebkitLineClamp` (ignoré
+                par ce moteur). Deux lignes au pire, mesurées : il reste ~150 px de marge
+                verticale avant le pied, que `justifyContent: space-between` tient en bas. */}
+            {retrocession && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  width: px(SAFE),
+                  marginTop: px(6),
+                  fontSize: px(26),
+                  fontWeight: 600,
+                  lineHeight: 1.25,
+                  textAlign: "center",
+                  opacity: photo ? 0.96 : 0.88,
+                  ...(photo ? { textShadow: OMBRE_TEXTE } : {}),
+                }}
+              >
+                {retrocession}
+              </div>
+            )}
           </div>
         </div>
 
