@@ -29,6 +29,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       remunerationBrute: true,
       demiJourneesLibres: true, caMensuelEstime: true,
       retrocessionRate: true, rawText: true,
+      retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true,
     },
   });
   if (!mission) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
@@ -65,6 +66,11 @@ const updateSchema = z.object({
   caMensuelEstime: z.number().int().min(0).max(1000000).optional().nullable(),
   remunerationBrute: z.number().int().min(0).max(1000000).optional().nullable(), // section 194
   retrocessionRate: z.number().int().min(0).max(100).optional().nullable(), // (ré)introduit dans le parcours cabinet
+  // Modes de rétrocession (section 293). `retrocessionMode` pilote lequel des deux montants a
+  // un sens ; la route remet l'autre à null pour qu'un plafond oublié ne finisse pas imprimé.
+  retrocessionMode: z.enum(["POURCENTAGE", "FIXE", "PLAFONNEE"]).optional(),
+  retrocessionFixeEuros: z.number().int().min(0).max(1000000).optional().nullable(),
+  retrocessionPlafondEuros: z.number().int().min(0).max(1000000).optional().nullable(),
   rawText: z.string().max(8000).optional().nullable(),                       // texte libre de l'annonce
   briqueStatus: z.nativeEnum(BriqueStatus).optional(),
   statusNote: z.string().max(200).optional().nullable(),
@@ -161,6 +167,18 @@ export async function PATCH(
       // Le suivi humain porte sa PROPRE date : savoir quand on a appelé n'a rien à voir avec
       // la date du dernier changement de créneau.
       ...(suiviStatut !== undefined && { suiviStatut, suiviUpdatedAt: suiviStatut ? new Date() : null }),
+      // MÊME NETTOYAGE QU'À LA CRÉATION (section 293) : seul le montant du mode retenu survit.
+      // `...rest` vient de poser les deux ; on écrase ensuite, en se fondant sur le mode
+      // effectivement enregistré — celui qu'on vient de recevoir, ou celui déjà en base si le
+      // formulaire ne l'a pas renvoyé. Sans cette seconde lecture, modifier le seul montant
+      // d'une annonce déjà « fixe » l'aurait fait retomber au pourcentage.
+      ...(() => {
+        const mode = rest.retrocessionMode ?? mission.retrocessionMode;
+        return {
+          retrocessionFixeEuros: mode === "FIXE" ? (rest.retrocessionFixeEuros ?? null) : null,
+          retrocessionPlafondEuros: mode === "PLAFONNEE" ? (rest.retrocessionPlafondEuros ?? null) : null,
+        };
+      })(),
     },
   });
 

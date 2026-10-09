@@ -26,6 +26,11 @@ const createMissionSchema = z.object({
   pitch: z.string().max(700).optional().nullable(),
   bioTinder: z.string().max(700).optional().nullable(),
   retrocessionRate: z.number().int().min(0).max(100).optional().nullable(),
+  // Modes de rétrocession (section 293). `retrocessionMode` pilote lequel des deux montants a
+  // un sens ; la route remet l'autre à null pour qu'un plafond oublié ne finisse pas imprimé.
+  retrocessionMode: z.enum(["POURCENTAGE", "FIXE", "PLAFONNEE"]).optional(),
+  retrocessionFixeEuros: z.number().int().min(0).max(1000000).optional().nullable(),
+  retrocessionPlafondEuros: z.number().int().min(0).max(1000000).optional().nullable(),
   missionType: z.nativeEnum(MissionType).optional(),
   // Salariat (section 262) — orthogonal à `missionType`, qui garde son sens de FORME du poste.
   estSalariat: z.boolean().optional(),
@@ -126,7 +131,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, missionType, estSalariat, natureSalariat, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, remunerationBrute, rawText, ouvertSalariat, briqueStatus, cabinetPostId, diffuserSurFacebook } = parsed.data;
+  const { title, description, location, zones, specialties, startDate, endDate, minMonths, pitch, bioTinder, retrocessionRate, retrocessionMode, retrocessionFixeEuros, retrocessionPlafondEuros, missionType, estSalariat, natureSalariat, dateFlexibility, logementPropose, rechercheLogement, vehiculePropose, rechercheVehicule, secretairePresente, rechercheSecretariat, exerciceCoordonne, rechercheExerciceCoordonne, demiJourneesLibres, caMensuelEstime, remunerationBrute, rawText, ouvertSalariat, briqueStatus, cabinetPostId, diffuserSurFacebook } = parsed.data;
 
   // Le SIÈGE du titulaire n'accueille que du remplacement (section 191). Un assistant occupe
   // structurellement une autre ligne du planning — un nouveau poste, ou un poste d'assistant
@@ -327,6 +332,16 @@ export async function POST(req: NextRequest) {
       pitch: pitch ?? null,
       bioTinder: bioTinder ?? null,
       retrocessionRate: retrocessionRate ?? null,
+      // ── UN SEUL MONTANT SURVIT, CELUI DU MODE (section 293) ──────────────────────────────
+      //
+      // L'écran masque le champ de l'autre mode, mais son état garde la valeur déjà tapée : un
+      // cabinet qui essaie « plafonnée à 3200 » puis bascule sur « fixe » enverrait les deux.
+      // Le plafond oublié finirait alors dans l'article 6 d'un contrat signé, sur un accord qui
+      // ne le prévoit pas. On remet donc à null ce que le mode ne réclame pas — ici, où la
+      // règle ne peut pas être contournée, plutôt que dans le formulaire.
+      retrocessionMode: retrocessionMode ?? "POURCENTAGE",
+      retrocessionFixeEuros: retrocessionMode === "FIXE" ? (retrocessionFixeEuros ?? null) : null,
+      retrocessionPlafondEuros: retrocessionMode === "PLAFONNEE" ? (retrocessionPlafondEuros ?? null) : null,
       missionType: effectiveMissionType,
       estSalariat: salariat,
       // Miroir de la contrainte CHECK en base : hors salariat, la colonne reste nulle.

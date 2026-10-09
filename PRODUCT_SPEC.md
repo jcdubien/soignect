@@ -7347,6 +7347,112 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 293 — RÉTROCESSION FIXE ET PLAFONNÉE, ET UN COMMENTAIRE QUI MENTAIT (09/10)
+
+#### Le piège du mot, trouvé en ouvrant le sujet
+
+`Mission.retrocessionRate` stocke **la part que le remplaçant PERÇOIT**, pas celle qu'il reverse.
+L'article 6 du contrat le dit — « le remplaçant percevra 70% des honoraires qu'il aura encaissés »
+— le défaut de 70 n'a de sens que dans ce sens-là, et le formulaire cabinet l'énonce déjà
+correctement : « un “75/25” se saisit 75 ».
+
+**`contrats/types.ts` affirmait l'inverse** : « chez le kiné, le remplaçant reverse un pourcentage
+au remplacé ». Faux. La confusion vient de l'usage, qui appelle « rétrocession » les 30 % revenant
+au cabinet, quand la colonne stocke le complément.
+
+Aucun contrat n'a été affecté — ce commentaire décrivait les variantes infirmier, qui ont leurs
+propres champs (`reversementDirectPct`, `redevancePct`), et aucune n'a jamais lu
+`retrocessionPct`. Mais un commentaire faux sur le sens d'un pourcentage signé est exactement ce
+qui finit par produire une inversion : corrigé, avec la raison écrite.
+
+**La convention n'a PAS été touchée.** L'inverser aurait réinterprété 80 annonces en base et
+chaque contrat déjà signé — un 70 devenu 30 sur un document que deux personnes ont paraphé.
+
+#### Trois modes
+
+```
+POURCENTAGE  le remplaçant perçoit N % de ce qu'il encaisse        (comportement d'avant)
+FIXE         il perçoit un montant mensuel, quel que soit son CA   le cabinet porte le risque
+PLAFONNEE    il perçoit N %, mais la part gardée par le CABINET
+             ne dépasse jamais P €/mois                            un remplaçant productif
+                                                                   n'est plus pénalisé
+```
+
+**Le plafond porte sur la part du cabinet, pas sur celle du remplaçant.** C'est le sens courant de
+l'accord, et c'est contre-intuitif au regard du champ voisin, qui exprime l'autre part : d'où un
+libellé explicite à l'écran (« Part du cabinet plafonnée à »), parce que confondre les deux
+mettrait un faux montant dans un contrat signé.
+
+**L'unité est le mois**, pour les deux montants. `remunerationBrute` est déjà mensuelle et les
+postes longue durée raisonnent en mois. Un remplacement de trois jours s'en accommode moins bien :
+c'est le coût assumé d'une unité unique, contre la confusion certaine d'un sélecteur
+jour/semaine/mois répété à côté de chaque montant.
+
+**Réservés au REMPLACEMENT.** Sur un assistanat, le même champ nomme une redevance versée au
+cabinet, et aucun gabarit ne l'imprime : y greffer un forfait aurait promis une clause qu'aucun
+contrat ne porterait.
+
+#### Une clause, un seul endroit
+
+`lib/retrocession.ts` produit **et** la phrase du fil **et** l'article 6. Les séparer, c'est
+accepter qu'une annonce promette un plafond que le contrat ne mentionne pas. Le texte du mode
+POURCENTAGE est repris mot pour mot de l'article d'origine : un contrat signé hier et un contrat
+généré aujourd'hui dans le même mode se lisent à l'identique.
+
+Repli systématique sur cette phrase d'origine quand le montant du mode manque — mieux vaut
+l'article juridiquement éprouvé qu'une clause tronquée sur un montant absent.
+
+#### Un seul montant survit, et la règle est côté serveur
+
+L'écran masque le champ de l'autre mode, mais son état garde la valeur déjà tapée : un cabinet qui
+essaie « plafonnée à 3200 » puis bascule sur « fixe » enverrait les deux. Le plafond oublié
+finirait dans l'article 6. Les routes de création ET de modification remettent donc à `null` ce
+que le mode ne réclame pas — là où la règle ne peut pas être contournée.
+
+Le PATCH relit le mode **déjà en base** quand le formulaire ne le renvoie pas : sans cette seconde
+lecture, modifier le seul montant d'une annonce « fixe » l'aurait fait retomber au pourcentage.
+
+#### L'écran de génération suit le mode
+
+Il présentait un curseur de pourcentage dans tous les cas. Sur une annonce au forfait, il aurait
+laissé croire qu'on négocie une part d'honoraires alors que le PDF aurait imprimé un montant fixe.
+Il affiche désormais le forfait en clair, non modifiable — **le curseur négocie un taux, pas la
+nature de l'accord** : changer un forfait en pourcentage au moment de générer le PDF contredirait
+ce que le cabinet a publié et ce que le remplaçant a retenu. C'est à l'annonce d'être modifiée.
+
+#### Vérifié
+
+```
+clause produite par le code livré, six cas :
+  POURCENTAGE 75 %     → « percevra 75% des honoraires… »        (mot pour mot l'original)
+  POURCENTAGE sans taux→ repli sur 70 %
+  FIXE 2400            → « une somme forfaitaire de 2 400 € par mois, quel que soit le
+                           montant des honoraires… calculée au prorata »
+  FIXE sans montant    → repli sur l'article d'origine
+  PLAFONNEE 75/3200    → « …sans que la part conservée par le remplacé puisse excéder
+                           3 200 € par mois. Au-delà, les honoraires restent acquis au
+                           remplaçant. »
+  PLAFONNEE sans plafond → repli sur l'article d'origine
+
+base après migration : 80 annonces, 80 en POURCENTAGE, 0 montant égaré,
+                       18 taux existants conservés
+```
+
+#### Non fait, et su
+
+L'extraction IA (`annonceAI.ts`) ne connaît que le pourcentage. Un cabinet qui colle « 2400 €
+fixe par mois » n'obtiendra pas de pré-remplissage — le nombre dépasse le cap 0-100 et sera
+rejeté, donc rien ne sera corrompu, mais rien ne sera proposé non plus. Le champ reste à saisir à
+la main.
+
+Et la rétrocession **n'est affichée nulle part au candidat** : ni sur la carte, ni sur la page
+publique d'une annonce. Elle se saisit côté cabinet, et n'apparaît qu'au moment du contrat.
+`resumeRetrocession()` existe et est prête pour le jour où on décidera de la montrer — ce qui est
+une question de produit, pas de code : afficher « 2 400 € / mois » dans le fil changerait la
+nature de ce que le fil promet.
+
+---
+
 ### SECTION 292 — LES NUMÉROS FUIENT AVANT LE CONTRAT, PAS APRÈS (08/10)
 
 #### La mesure, et ce qu'elle renverse

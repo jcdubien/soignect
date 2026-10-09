@@ -238,6 +238,12 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
     caMensuelEstime: "",    // CA mensuel estimé € (feature terrain) — optionnel, vide = non renseigné
     remunerationBrute: "", // rémunération brute mensuelle € — équivalent salarié (section 194)
     retrocessionRate: "",   // taux de rétrocession % — (ré)introduit dans le parcours cabinet
+    // Modes de rétrocession (section 293). Réservés au REMPLACEMENT : c'est le seul gabarit
+    // qui imprime cette clause. Sur un assistanat le champ nomme une redevance, et aucun
+    // contrat ne la reprend — lui greffer un plafond aurait promis ce que rien ne tient.
+    retrocessionMode: "POURCENTAGE",
+    retrocessionFixeEuros: "",
+    retrocessionPlafondEuros: "",
     rawText: "",            // texte libre de l'annonce (refonte saisie texte-libre)
   });
 
@@ -357,6 +363,9 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
           caMensuelEstime: m.caMensuelEstime != null ? String(m.caMensuelEstime) : "",
           remunerationBrute: m.remunerationBrute != null ? String(m.remunerationBrute) : "",
           retrocessionRate: m.retrocessionRate != null ? String(m.retrocessionRate) : "",
+          retrocessionMode: m.retrocessionMode ?? "POURCENTAGE",
+          retrocessionFixeEuros: m.retrocessionFixeEuros != null ? String(m.retrocessionFixeEuros) : "",
+          retrocessionPlafondEuros: m.retrocessionPlafondEuros != null ? String(m.retrocessionPlafondEuros) : "",
           rawText: m.rawText ?? "",
           // Le titre d'une absence (« Congés ») n'est pas un titre d'annonce : on repart
           // d'un champ vide plutôt que de laisser publier « Congés » comme intitulé.
@@ -534,6 +543,13 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
       // sans quoi une extraction IA pourrait remplir en base un champ que l'ecran n'affiche pas.
       caMensuelEstime: isEmployeur ? null : (form.caMensuelEstime ? parseInt(form.caMensuelEstime, 10) : null),
       retrocessionRate: isEmployeur ? null : (form.retrocessionRate ? parseInt(form.retrocessionRate, 10) : null),
+      // Le mode n'a de sens que sur un remplacement libéral. Ailleurs on renvoie POURCENTAGE,
+      // c'est-à-dire exactement ce que l'annonce faisait avant la section 293.
+      retrocessionMode: (!isEmployeur && needType === "remplacement") ? form.retrocessionMode : "POURCENTAGE",
+      retrocessionFixeEuros: (!isEmployeur && needType === "remplacement" && form.retrocessionMode === "FIXE" && form.retrocessionFixeEuros)
+        ? parseInt(form.retrocessionFixeEuros, 10) : null,
+      retrocessionPlafondEuros: (!isEmployeur && needType === "remplacement" && form.retrocessionMode === "PLAFONNEE" && form.retrocessionPlafondEuros)
+        ? parseInt(form.retrocessionPlafondEuros, 10) : null,
       remunerationBrute: isEmployeur ? (form.remunerationBrute ? parseInt(form.remunerationBrute, 10) : null) : null,
       rawText: rawTextTrim || null,
       // Transformation d'une absence en annonce : la période cesse d'être « absent sans
@@ -618,7 +634,17 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
     if (form.startDate) k.push(`date de début : ${form.startDate}`);
     if (form.endDate) k.push(`date de fin : ${form.endDate}`);
     if (form.minMonths) k.push(`durée minimale : ${form.minMonths} mois`);
-    if (form.retrocessionRate) k.push(`taux de rétrocession : ${form.retrocessionRate}%`);
+    // Le récapitulatif doit dire le MODE, pas seulement un taux : « 75% » sur une annonce au
+    // forfait décrirait un accord que l'annonce ne propose pas (section 293).
+    if (needType === "remplacement" && form.retrocessionMode === "FIXE") {
+      if (form.retrocessionFixeEuros) k.push(`rémunération fixe : ${form.retrocessionFixeEuros} €/mois`);
+    } else if (form.retrocessionRate) {
+      k.push(
+        needType === "remplacement" && form.retrocessionMode === "PLAFONNEE" && form.retrocessionPlafondEuros
+          ? `rétrocession : ${form.retrocessionRate}%, part cabinet plafonnée à ${form.retrocessionPlafondEuros} €/mois`
+          : `taux de rétrocession : ${form.retrocessionRate}%`,
+      );
+    }
     if (isEmployeur && form.remunerationBrute) k.push(`rémunération brute : ${form.remunerationBrute} €/mois`);
     if (!isEmployeur && form.caMensuelEstime) k.push(`chiffre d'affaires estimé : ${form.caMensuelEstime} €/mois`);
     if (form.demiJourneesLibres) k.push(`demi-journées libres : ${form.demiJourneesLibres}/semaine`);
@@ -838,7 +864,8 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
               {form.location && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📍 {form.location}</span>}
               {form.startDate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📅 {form.startDate}{form.endDate ? ` → ${form.endDate}` : ""}</span>}
               {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
-              {!isEmployeur && form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Rétro {form.retrocessionRate}%</span>}
+              {!isEmployeur && needType === "remplacement" && form.retrocessionMode === "FIXE" && form.retrocessionFixeEuros && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Fixe {form.retrocessionFixeEuros} €/mois</span>}
+              {!isEmployeur && !(needType === "remplacement" && form.retrocessionMode === "FIXE") && form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Rétro {form.retrocessionRate}%{needType === "remplacement" && form.retrocessionMode === "PLAFONNEE" && form.retrocessionPlafondEuros ? ` · max ${form.retrocessionPlafondEuros} €` : ""}</span>}
               {!isEmployeur && form.caMensuelEstime && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.caMensuelEstime}€/mois</span>}
               {isEmployeur && form.remunerationBrute && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.remunerationBrute}€/mois brut</span>}
               {form.demiJourneesLibres && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗓️ {form.demiJourneesLibres} dj/sem.</span>}
@@ -1285,6 +1312,63 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
             objet, et « Redevance versée au cabinet » s'affichait sur une offre de CDI. */}
         {!isEmployeur && (
         <div>
+          {/* ── TROIS MODES, UNIQUEMENT SUR UN REMPLACEMENT (section 293) ──────────────────
+              Sur un assistanat, ce champ nomme une redevance versée au cabinet, et aucun
+              gabarit ne l'imprime : y greffer un fixe ou un plafond promettrait une clause
+              qu'aucun contrat ne porterait. */}
+          {needType === "remplacement" && (
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Comment le remplaçant est-il rémunéré ?
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ["POURCENTAGE", "Pourcentage"],
+                  ["FIXE", "Montant fixe"],
+                  ["PLAFONNEE", "Pourcentage plafonné"],
+                ] as const).map(([valeur, libelle]) => (
+                  <button
+                    key={valeur}
+                    type="button"
+                    onClick={() => setForm({ ...form, retrocessionMode: valeur })}
+                    className={`rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition ${
+                      form.retrocessionMode === valeur
+                        ? "border-kine-600 bg-kine-50 text-kine-800"
+                        : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >
+                    {libelle}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* MONTANT FIXE — le pourcentage n'a alors plus d'objet et le champ disparaît. */}
+          {needType === "remplacement" && form.retrocessionMode === "FIXE" ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Montant versé au remplaçant{" "}
+                <span className="text-gray-400 font-normal">€ par mois</span>
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={50}
+                value={form.retrocessionFixeEuros}
+                onChange={(e) => setForm({ ...form, retrocessionFixeEuros: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                placeholder="Ex : 2400"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Le remplaçant perçoit cette somme quel que soit son chiffre d&rsquo;affaires :
+                c&rsquo;est le cabinet qui porte le risque d&rsquo;activité. Calculée au prorata
+                pour une période incomplète, et reprise telle quelle au contrat.
+              </p>
+            </div>
+          ) : null}
+
+          <div className={needType === "remplacement" && form.retrocessionMode === "FIXE" ? "hidden" : ""}>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {needType === "remplacement"
               ? "Taux de rétrocession pour le remplaçant"
@@ -1306,6 +1390,34 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
               ? "Part des honoraires que le remplaçant conserve — c'est ce chiffre qui figurera au contrat. Un « 75/25 » se saisit 75."
               : "Part des honoraires que l'assistant reverse au cabinet — c'est ce chiffre qui figurera au contrat."}
           </p>
+          </div>
+
+          {/* PLAFOND — il porte sur la part du CABINET, pas sur celle du remplaçant. C'est le
+              sens courant de l'accord : un remplaçant très productif cesse d'être pénalisé par
+              son propre volume. Le dire ici, parce que le champ voisin exprime l'autre part et
+              que les confondre mettrait un faux montant dans un contrat signé. */}
+          {needType === "remplacement" && form.retrocessionMode === "PLAFONNEE" ? (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Part du cabinet plafonnée à{" "}
+                <span className="text-gray-400 font-normal">€ par mois</span>
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={50}
+                value={form.retrocessionPlafondEuros}
+                onChange={(e) => setForm({ ...form, retrocessionPlafondEuros: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                placeholder="Ex : 3200"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Au-delà de ce montant, les honoraires encaissés restent intégralement acquis au
+                remplaçant. Avec « 75 % » ci-dessus, le cabinet conserve 25 % sans jamais
+                dépasser ce plafond.
+              </p>
+            </div>
+          ) : null}
         </div>
         )}
 

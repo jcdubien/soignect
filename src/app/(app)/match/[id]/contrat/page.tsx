@@ -237,6 +237,15 @@ export default function ContratPage() {
   const [dureeAns,     setDureeAns]     = useState(2);
   const [periodeEssai, setPeriodeEssai] = useState(false);
   const [retrocessionPct, setRetrocessionPct] = useState(70);
+  // Mode de rémunération porté par l'ANNONCE (section 293). Il n'est pas réglable ici : le
+  // curseur négocie un taux, pas la nature de l'accord. Changer un forfait en pourcentage au
+  // moment de générer le PDF contredirait ce que le cabinet a publié et ce que le remplaçant a
+  // retenu — c'est à l'annonce d'être modifiée, pas au contrat de s'en écarter.
+  const [retrocession, setRetrocession] = useState<{
+    mode: "POURCENTAGE" | "FIXE" | "PLAFONNEE";
+    fixeEuros: number | null;
+    plafondEuros: number | null;
+  }>({ mode: "POURCENTAGE", fixeEuros: null, plafondEuros: null });
   const [redevancePct,    setRedevancePct]    = useState(40);
 
   // Modèle de contrat retenu (section 216). Quand la paire (profession, type de mission) en
@@ -275,6 +284,7 @@ export default function ContratPage() {
       .then(d => {
         setInfo(d);
         if (d.retrocessionPct) setRetrocessionPct(d.retrocessionPct);
+        if (d.retrocession) setRetrocession(d.retrocession);
         // Pré-remplissage de la période : la valeur retenue par la route de génération, calculée
         // par la même fonction des deux côtés. L'écran ne peut donc pas afficher une date que le
         // PDF ne reprendrait pas.
@@ -1292,8 +1302,24 @@ export default function ContratPage() {
           </div>
         )}
 
+        {/* FORFAIT — l'annonce ne propose pas de pourcentage, le curseur n'aurait rien à régler
+            et laisserait croire qu'on négocie une part d'honoraires (section 293). */}
+        {montreRetrocession && retrocession.mode === "FIXE" && (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <p className="text-sm font-semibold text-gray-800">Rémunération forfaitaire</p>
+            <p className="mt-1 text-sm text-gray-600">
+              {retrocession.fixeEuros
+                ? <>Le remplaçant percevra <strong>{retrocession.fixeEuros.toLocaleString("fr-FR")} € par mois</strong>, quel que soit le montant des honoraires encaissés. Calculé au prorata pour une période incomplète.</>
+                : <>L&rsquo;annonce annonce un forfait mensuel mais n&rsquo;en précise pas le montant. Renseignez-le sur l&rsquo;annonce avant de générer le contrat.</>}
+            </p>
+            <p className="mt-1.5 text-[11px] text-gray-400">
+              Défini par votre annonce. Pour en changer, modifiez l&rsquo;annonce.
+            </p>
+          </div>
+        )}
+
         {/* Taux de rétrocession (REMPLACEMENT libéral) */}
-        {montreRetrocession && (
+        {montreRetrocession && retrocession.mode !== "FIXE" && (
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">
               Taux de rétrocession pour le remplaçant (%)
@@ -1309,6 +1335,13 @@ export default function ContratPage() {
                 {retrocessionPct}%
               </span>
             </div>
+            {retrocession.mode === "PLAFONNEE" && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                {retrocession.plafondEuros
+                  ? <>Part du cabinet plafonnée à <strong>{retrocession.plafondEuros.toLocaleString("fr-FR")} € par mois</strong> : au-delà, les honoraires restent acquis au remplaçant. Défini par votre annonce.</>
+                  : <>Votre annonce annonce un plafond sans en préciser le montant : le contrat sera généré sans cette clause.</>}
+              </p>
+            )}
           </div>
         )}
 

@@ -65,11 +65,21 @@ export function localModalities(value: string): string {
 
 /** Remplacement infirmier — variante « remplaçant titulaire d'une autorisation d'exercice »
  *  (modèle CNOI du 15/11/2023). Distincte de `ContractDataRemplacement` (CNOMK) : la
- *  rétrocession y va dans l'AUTRE SENS. Chez le kiné, le remplaçant reverse un pourcentage au
- *  remplacé ; ici c'est le REMPLACÉ qui reverse au remplaçant, parce que c'est lui qui
- *  encaisse — le remplaçant n'étant pas installé, il facture avec sa CPS « remplaçant » et les
- *  honoraires transitent par le remplacé. Réutiliser `retrocessionPct` aurait inversé le sens
- *  d'un pourcentage sur un document signé.
+ *  rétrocession y va dans l'AUTRE SENS.
+ *
+ *  ⚠️ CE COMMENTAIRE DISAIT L'INVERSE DE `retrocessionPct` JUSQU'AU 09/10. Il affirmait que
+ *  « chez le kiné, le remplaçant reverse un pourcentage au remplacé ». C'est faux : l'article 6
+ *  de `template-remplacement.tsx` imprime « le remplaçant PERCEVRA {retrocessionPct}% des
+ *  honoraires qu'il aura encaissés », et le défaut de 70 n'a de sens que dans ce sens-là. La
+ *  confusion vient du mot : l'usage appelle « rétrocession » les 30% qui reviennent au cabinet,
+ *  la colonne stocke le complément. Aucun contrat n'a été affecté — cette variante n'a jamais
+ *  utilisé `retrocessionPct`, elle a ses propres champs — mais un commentaire faux sur le sens
+ *  d'un pourcentage signé est précisément ce qui finit par produire une inversion.
+ *
+ *  Ici, c'est le REMPLACÉ qui reverse au remplaçant, parce que c'est lui qui encaisse — le
+ *  remplaçant n'étant pas installé, il facture avec sa CPS « remplaçant » et les honoraires
+ *  transitent par le remplacé. D'où des champs dédiés : réutiliser `retrocessionPct` aurait
+ *  inversé le sens d'un pourcentage sur un document signé.
  *
  *  Deux délais distincts, tels que le modèle les sépare : paiement direct par l'assuré, et
  *  tiers payant. Les fondre en un seul aurait simplifié le type au prix du contrat. */
@@ -335,6 +345,10 @@ export interface ContractDataRemplacement extends SignatureImages, NegotiableCla
   startDate: string | null;
   endDate: string | null;
   retrocessionPct: number;
+  /** Article 6 rédigé (section 293) : le mode FIXE ou PLAFONNÉ ne se résume pas à un
+   *  pourcentage. Absent → le gabarit retombe sur sa phrase d'origine au pourcentage, pour
+   *  qu'un appelant qui n'a pas été mis à jour produise toujours un contrat valide. */
+  clauseRetrocession?: string;
   rayonKm: number;
   periodeEssai: boolean;
   generatedAt: string;

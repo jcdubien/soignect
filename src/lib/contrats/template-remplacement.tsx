@@ -43,7 +43,7 @@ const LEGAL_MENTION =
   "Document pré-rempli à titre indicatif — à faire valider par un avocat ou l'Ordre des masseurs-kinésithérapeutes avant signature.";
 
 export function buildRemplacementPdf(data: ContractDataRemplacement) {
-  const { remplace, remplacant, startDate, endDate, retrocessionPct, rayonKm, periodeEssai, generatedAt,
+  const { remplace, remplacant, startDate, endDate, retrocessionPct, clauseRetrocession, rayonKm, periodeEssai, generatedAt,
     modePaiement, delaiPaiementJours, modalitesLocaux,
     signatureTitulaireImg, signatureRemplacantImg, draft } = data;
 
@@ -127,7 +127,10 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 6 — Rétrocession</Text>
           <Text style={S.body}>
-            En rémunération de ses services, le remplaçant percevra {retrocessionPct}% des honoraires qu'il aura encaissés pendant la durée du remplacement. Le versement s'effectuera par {paymentMethodPhrase(modePaiement)} dans un délai de {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque période de remplacement.
+            {/* La clause vient de `lib/retrocession.ts` (section 293) : fixe, plafonnée ou
+                pourcentage. Repli sur la phrase d'origine si l'appelant ne l'a pas fournie —
+                un contrat doit rester générable même par un chemin resté en arrière. */}
+            {clauseRetrocession ?? `En rémunération de ses services, le remplaçant percevra ${retrocessionPct}% des honoraires qu'il aura encaissés pendant la durée du remplacement.`} Le versement s'effectuera par {paymentMethodPhrase(modePaiement)} dans un délai de {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque période de remplacement.
           </Text>
         </View>
 

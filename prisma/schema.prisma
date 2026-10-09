@@ -36,6 +36,12 @@ enum SubscriptionPlan {
   STRUCTURE  // Structures privées — 89€/mois + 20€/contrat (metered, section 7)
 }
 
+enum RetrocessionMode {
+  POURCENTAGE   // part des honoraires encaissés (comportement historique)
+  FIXE          // montant mensuel garanti au remplaçant
+  PLAFONNEE     // pourcentage, mais la part du cabinet est plafonnée en euros
+}
+
 enum MissionType {
   REMPLACEMENT
   ASSISTANAT
@@ -342,8 +348,25 @@ model Mission {
   // ASSISTANT : durée minimale en mois (ex: 3, 6, 12)
   minMonths Int?
 
-  // REMPLACANT : taux de rétrocession souhaité (%)
+  // ── RÉTROCESSION (section 293) ──────────────────────────────────────────────────────────
+  //
+  // ⚠️ SENS DE `retrocessionRate` : c'est la part que le REMPLAÇANT PERÇOIT, pas celle qu'il
+  // reverse. Le défaut de 70 et la phrase du contrat le confirment — « le remplaçant percevra
+  // 70% des honoraires qu'il aura encaissés ». L'usage courant appelle « rétrocession » les
+  // 30% qui reviennent au cabinet ; la colonne stocke le complément. Un commentaire de
+  // `contrats/types.ts` affirmait l'inverse : corrigé le 09/10.
   retrocessionRate Int?
+
+  // Mode de rémunération libérale. `POURCENTAGE` = comportement historique, et c'est le défaut
+  // pour que les 80 annonces existantes gardent exactement leur sens.
+  retrocessionMode RetrocessionMode @default(POURCENTAGE)
+
+  // FIXE : montant mensuel versé au remplaçant, quel que soit le chiffre d'affaires.
+  retrocessionFixeEuros Int?
+
+  // PLAFONNEE : `retrocessionRate` s'applique, mais la part CONSERVÉE PAR LE CABINET ne peut
+  // excéder ce montant mensuel. Au-delà, les honoraires restent acquis au remplaçant.
+  retrocessionPlafondEuros Int?
 
   // Type de contrat (section 20 — 3 types)
   missionType MissionType @default(REMPLACEMENT)

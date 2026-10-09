@@ -45,8 +45,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
       // `startDate`/`endDate` : l'écran doit pré-remplir la période ET pouvoir dire d'où elle
       // vient quand les deux annonces divergent (section 237).
-      missionA: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true, location: true, minMonths: true } },
-      missionB: { select: { missionType: true, retrocessionRate: true, startDate: true, endDate: true, location: true, minMonths: true } },
+      missionA: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true } },
+      missionB: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true } },
     },
   });
 
@@ -166,6 +166,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     theirName:       theirProfile.name,
     hasPremium,
     retrocessionPct,
+    // Le MODE vient de l'annonce du cabinet (section 293) : l'écran de génération doit montrer
+    // un forfait là où l'annonce en propose un, et non un curseur de pourcentage sans objet.
+    retrocession: {
+      mode: missionTitulaire?.retrocessionMode ?? "POURCENTAGE",
+      fixeEuros: missionTitulaire?.retrocessionFixeEuros ?? null,
+      plafondEuros: missionTitulaire?.retrocessionPlafondEuros ?? null,
+    },
     missingSelf,      // champs manquants du profil courant → lien /compte
     missingOther,     // champs manquants de l'autre partie → message informatif
     enforce,          // true = blocage dur ; false = avertissement non bloquant
