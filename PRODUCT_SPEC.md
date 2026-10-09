@@ -7347,6 +7347,79 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 295 — LA RÉTROCESSION SUR L'IMAGE DE PARTAGE (09/10)
+
+#### Une seule source de texte, et c'est la contrainte principale
+
+`resumeRetrocession()` nourrit désormais l'image, la phrase du fil et l'article 6 du contrat.
+Réécrire la formule dans la vignette produirait une image qui promet autre chose que le contrat —
+et c'est l'image qui circule **hors du produit**, là où rien ne la corrige : un aperçu Facebook
+déjà scrapé n'est pas rattrapable.
+
+Les libellés ont donc été repris à la source, pas dans l'image :
+
+```
+POURCENTAGE  « 75 % des honoraires pour le remplaçant »
+PLAFONNEE    « 75 % pour le remplaçant · part du cabinet plafonnée à 3 200 €/mois »
+FIXE         « Forfait 2 400 €/mois »
+```
+
+**LE SENS EN TOUTES LETTRES.** `retrocessionRate` est la part que le remplaçant PERÇOIT (défaut
+70, article 6 : « le remplaçant percevra 70% »), quand l'usage appelle « rétrocession » les 30 %
+qui reviennent au cabinet. L'ancien texte, « 75 % de rétrocession », laissait le lecteur choisir
+le sens — sur une image publique, sans personne à qui demander.
+
+**RIEN SI LE MONTANT MANQUE.** Un plafond annoncé sans montant ne se dégrade PAS en simple
+pourcentage : « 75 % pour le remplaçant » décrirait un accord non plafonné, c'est-à-dire la
+lecture la plus favorable d'une annonce qui ne la promet pas. Et jamais le repli de 70 % : il sert
+à rédiger un contrat, il n'est pas une promesse.
+
+#### Pas sur un assistanat, et c'est une question de sens
+
+Sur un assistanat, la MÊME colonne porte le sens inverse : le formulaire la nomme « Redevance
+versée au cabinet » et l'explique comme « la part des honoraires que l'assistant reverse ». Le
+même `25` veut donc dire « le remplaçant garde 25 % » d'un côté, « l'assistant reverse 25 % » de
+l'autre. Une image publique ne peut pas porter cette ambiguïté — et aucun gabarit n'imprime
+d'ailleurs ce chiffre côté assistanat.
+
+#### Deux pièges de rendu, tous deux vérifiés à l'image
+
+**U+202F.** `(12500).toLocaleString("fr-FR")` rend « 12 500 » avec une ESPACE FINE INSÉCABLE —
+vérifié, `codePointAt` donne bien `202F`. Absente de beaucoup de polices, elle serait sortie en
+carré vide au milieu du montant. Formatage à la main en U+00A0, contrôlé sur 800 / 2 400 / 3 200 /
+12 500 / 125 000 : aucun U+202F.
+
+**Pleine largeur, pas une ligne étiquette/valeur.** Les lignes DATES et LIEU tiennent en 460 px
+parce qu'elles portent une date ou une commune. La phrase plafonnée fait 65 caractères : dans la
+même colonne, l'ellipsis l'aurait coupée après « part du cabinet plafonnée à… », supprimant le
+montant **tout en laissant croire qu'il existe**. Elle occupe donc les 600 px de la zone de
+sécurité, à 26 px, et revient à la ligne — pas de `WebkitLineClamp`, ignoré par ce moteur.
+
+#### Vérifié en production, banc purgé
+
+Cinq images regardées sur `www.soignect.fr`, dont le pire cas : titre de 93 caractères (cap
+produit : 100) **et** plafond à 12 500 €. Deux lignes de titre tronquées par le calcul existant,
+deux lignes de rétrocession, aucun chevauchement avec le pied, aucun montant coupé, glyphes de
+l'espace insécable et du séparateur `·` corrects.
+
+Banc : 1 cabinet, 6 annonces, domaine `.invalid`, purgé — contrôle à 0. Base : 88 profils,
+81 annonces, toutes en `POURCENTAGE`.
+
+#### Ce que ça expose, et ce qui reste à décider
+
+La vignette n'a **aucune garde de session** : c'est l'image que Facebook et WhatsApp affichent à
+qui n'a pas de compte. Le chiffre devient donc public dès qu'une annonce est partagée — alors
+que la page publique `/annonce/[id]` et les pages de diffusion, elles, ne l'affichent pas.
+C'est un écart assumé le temps que l'exploitant tranche ; une case « Afficher la rétrocession sur
+la vignette » est décrite dans le rapport du 09/10, non implémentée.
+
+**La clause FIXE mérite un avis juridique avant d'être rendue plus visible** : un forfait mensuel
+versé à un remplaçant libéral indépendamment des honoraires encaissés s'écarte du modèle CNOMK,
+qui raisonne en pourcentage de ce que le remplaçant encaisse. Ce point est signalé à l'exploitant,
+pas tranché ici.
+
+---
+
 ### SECTION 294 — CE QUI TRAHISSAIT ENCORE UNE APPLICATION « POUR KINÉS » (09/10)
 
 Dix infirmiers entrent en bêta sur une base de 88 profils, **zéro infirmier**. Relevé des
