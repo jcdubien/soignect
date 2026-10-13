@@ -25,6 +25,8 @@
   --sable-chaud:    #F2E8D5;   /* fond de la timeline, pas blanc clinique */
   --corail-signal:  #E8633D;   /* statut NON_COUVERT — alerte douce */
   --vert-palme:     #3D7A5C;   /* statut CONFIRME */
+  --vert-palme-clair: #DCEDE3; /* remplaçant en place — fond (section 297) */
+  --vert-palme-fonce: #1F4A35; /* remplaçant en place — texte, 8,3:1 sur le fond clair */
   --bleu-marine:    #1B3A5C;   /* statut PRESENT (titulaire) */
   --ambre:          #D9A441;   /* statut PREAVIS / RECHERCHE */
   --orange-pale:    #F2A96B;   /* non couvert > 3 mois (anticiper) */

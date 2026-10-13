@@ -206,6 +206,11 @@ const BRIQUE_STATUS: Record<string, { bg: string; text: string; label: string }>
   NON_COUVERT:      { bg: "bg-[var(--corail-signal)]", text: "text-[#3D1508]",   label: "Non couvert" },
   FERME:            { bg: "bg-gray-700",               text: "text-white",       label: "Fermé" },
   CONFIRME:         { bg: "bg-[var(--vert-palme)]",    text: "text-white",       label: "Confirmé" },
+  // Même teinte, autre LUMINOSITÉ (section 297) : un remplaçant posé sur la période d'un
+  // occupant confirmé. Fond clair + liseré 2 px du vert plein — l'écart survit au niveau de gris
+  // (4,2:1 entre les deux fonds) et le liseré le porte aussi pour qui ne distingue pas les verts.
+  // Texte #1F4A35 sur #DCEDE3 : 8,3:1. État DÉRIVÉ, voir getEffectiveStatus.
+  REMPLACANT_EN_PLACE: { bg: "bg-[var(--vert-palme-clair)] border-2 border-[var(--vert-palme)]", text: "text-[var(--vert-palme-fonce)]", label: "Remplaçant en place" },
   EN_ATTENTE:       { bg: "bg-[var(--ambre)]",         text: "text-[#3D2A08]",   label: "En attente" },
   ANNULE:           { bg: "bg-gray-300",               text: "text-gray-600",    label: "Annulé" },
 };
@@ -440,7 +445,7 @@ function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
             key={b.key}
             onClick={b.onClick}
             title={b.title}
-            className={`md3-ripple absolute rounded-[5px] flex items-center px-1 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] ${b.colorCls} ${b.urgent ? "motion-safe:animate-pulse" : ""}`}
+            className={`md3-ripple absolute rounded-[5px] flex items-center px-1 overflow-hidden ${b.lane !== undefined ? "ring-1 ring-white" : ""} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] ${b.colorCls} ${b.urgent ? "motion-safe:animate-pulse" : ""}`}
             style={{
               // position en STYLE INLINE, obligatoire : `.md3-ripple { position: relative }`
               // (globals.css) est déclarée après les utilitaires Tailwind et l'emportait sur
@@ -579,18 +584,46 @@ function monthSkipFor(zoom: Zoom): number {
   return 1;                            // tous les mois
 }
 
-// Statut effectif d'une brique : override local en cours d'édition, sinon ce qui est STOCKÉ.
-// `post` reste dans la signature bien qu'inutilisé : les appelants le passent déjà, et le retirer
-// toucherait des sites d'appel sans rapport avec ce correctif.
+// Statut effectif d'une brique : override local en cours d'édition, sinon ce qui est STOCKÉ —
+// précisé en « remplaçant en place » quand la brique se loge dans un occupant du même poste.
 function getEffectiveStatus(
   mission: MissionData,
   post: PostData,
   localStatuses: Record<string, string>
 ): string {
-  void post;
   const local = localStatuses[mission.id];
   if (local) return local;
+  const base = statutStocke(mission);
+  return base === "CONFIRME" && remplaceUnOccupant(mission, post) ? "REMPLACANT_EN_PLACE" : base;
+}
 
+// ── REMPLAÇANT EN PLACE (section 297) ─────────────────────────────────────────────────────────
+//
+// Sur la ligne de Marion, « Simon » la remplaçait du 26/10 au 06/11 — et sa brique avait le vert
+// exact de l'occupation de Marion, sans terme, qui couvre toute la ligne. Vert sur vert.
+//
+// L'état est DÉRIVÉ de la géométrie, pas du type d'annonce : une occupation déclarée depuis le
+// Planning prend le type du POSTE (route presence), si bien qu'un remplaçant sur le poste d'une
+// assistante était enregistré « assistanat », et la présence du titulaire sur son propre siège
+// « remplacement ». Le type ne dit donc pas qui remplace qui ; l'inclusion, si : une occupation
+// confirmée, bornée, posée DANS la période d'une occupation confirmée plus longue du même poste.
+// Une couleur code un état, jamais une personne.
+const OCCUPE_CONFIRME = ["CONFIRME", "OCCUPE"];
+function remplaceUnOccupant(mission: MissionData, post: PostData): boolean {
+  const debut = toDate(mission.startDate);
+  const finPropre = toDate(mission.departureDate) ?? toDate(mission.endDate);
+  if (!debut || !finPropre) return false; // sans terme : c'est un occupant, pas un remplaçant
+  const duree = finPropre.getTime() - debut.getTime();
+  return post.missions.some((o) => {
+    if (o.id === mission.id || !OCCUPE_CONFIRME.includes(statutStocke(o))) return false;
+    const oDebut = toDate(o.startDate);
+    if (!oDebut) return false;
+    const oFin = (toDate(o.departureDate) ?? toDate(o.endDate) ?? RANGE_END).getTime();
+    return oDebut.getTime() <= debut.getTime() && oFin >= finPropre.getTime() && oFin - oDebut.getTime() > duree;
+  });
+}
+
+function statutStocke(mission: MissionData): string {
   const stored = mission.briqueStatus;
   // PREAVIS retiré (section 6) — les anciennes briques s'affichent comme CONFIRME
   if (stored === "PREAVIS") return "CONFIRME";
@@ -1526,7 +1559,7 @@ function MissionBrick({
     <div
       role="button"
       tabIndex={0}
-      className={`absolute rounded-[6px] flex items-center px-2 cursor-pointer select-none overflow-hidden transition-[filter,box-shadow] duration-200 hover:brightness-95 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] focus-visible:ring-offset-1 ${brickColor}`}
+      className={`absolute rounded-[6px] flex items-center px-2 cursor-pointer select-none overflow-hidden transition-[filter,box-shadow] duration-200 hover:brightness-95 hover:shadow-md ring-1 ring-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lagon-profond)] focus-visible:ring-offset-1 ${brickColor}`}
       style={{ left, width: Math.max(width, 24), position: "absolute", ...laneStyle(lane, laneCount, trackHeight) }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -3273,11 +3306,14 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
 
           {/* Légende */}
           <div className="flex-shrink-0 border-t border-gray-100 bg-white px-4 py-2 flex items-center gap-4 overflow-x-auto">
+            {/* Couleurs lues dans BRIQUE_STATUS — une seule source pour la brique, l'infobulle
+                et la légende (section 297). */}
             {[
-              { color: "bg-[var(--bleu-marine)]",   label: "Titulaire" },
-              { color: "bg-[var(--vert-palme)]",    label: "Confirmé" },
-              { color: "bg-[var(--ambre)]",         label: "Recrutement" },
-              { color: "bg-gray-700",               label: "Fermé" },
+              { color: BRIQUE_STATUS.PRESENT.bg,             label: "Titulaire" },
+              { color: BRIQUE_STATUS.CONFIRME.bg,            label: BRIQUE_STATUS.CONFIRME.label },
+              { color: BRIQUE_STATUS.REMPLACANT_EN_PLACE.bg, label: BRIQUE_STATUS.REMPLACANT_EN_PLACE.label },
+              { color: BRIQUE_STATUS.RECHERCHE.bg,           label: BRIQUE_STATUS.RECHERCHE.label },
+              { color: BRIQUE_STATUS.FERME.bg,               label: BRIQUE_STATUS.FERME.label },
               { color: "bg-[#E8633D]/20 border border-[#E8633D]/40", label: "Non couvert" },
             ].map(l => (
               <div key={l.label} className="flex items-center gap-1.5 flex-shrink-0">

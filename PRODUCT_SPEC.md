@@ -7347,6 +7347,31 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 297 — LE REMPLAÇANT EN PLACE A SA PROPRE NUANCE (13/10)
+
+**Constat** : sur la ligne de Marion, « SIMON » (remplaçant de Marion du 26/10 au 06/11) avait le
+vert exact de l'occupation de Marion, sans terme, qui couvre toute la ligne. Vert sur vert, et
+aucun bord entre deux briques. Simon remplace aussi le titulaire du 21 au 23/10, même défaut.
+
+**État distinct, dérivé** : « remplaçant en place » = occupation confirmée, bornée, posée DANS la
+période d'une occupation confirmée plus longue du même poste (`remplaceUnOccupant`). Pas lu du
+type d'annonce : la route `presence` type l'occupation d'après le POSTE, si bien que Simon sur le
+poste d'une assistante était enregistré « assistanat » (retypé en REMPLACEMENT en base le 13/10
+à la demande de JC) et la présence du titulaire sur son siège « remplacement ».
+
+| État | Fond | Texte | Bord | Contraste |
+|---|---|---|---|---|
+| Confirmé | `--vert-palme` #3D7A5C | blanc | — | 5,1:1 |
+| Remplaçant en place | `--vert-palme-clair` #DCEDE3 | `--vert-palme-fonce` #1F4A35 | 2 px #3D7A5C | 8,3:1 |
+
+Écart en niveaux de gris entre les deux fonds : 4,2:1 ; le liseré porte aussi la différence.
+Chaque brique a un filet blanc d'1 px (délimitation entre briques qui se chevauchent). Brique,
+infobulle et légende lisent `BRIQUE_STATUS` — une source. Le Planning des disponibilités
+(côté remplaçant) n'a pas d'inclusion d'occupants : inchangé.
+
+**Non fait** : la cause (formulaire « déclarer l'occupant » qui type d'après le poste) n'est pas
+corrigée — l'état dérivé ne dépend plus du type. Doublon « Marion » 26/10→06/11 laissé en base.
+
 ### SECTION 296 — FORFAIT ET PLAFOND : SUR LA REDEVANCE, PAS SUR LE REMPLACEMENT (13/10)
 
 **Correction d'arbitrage de JC** : les modes FIXE et PLAFONNÉE livrés en 293 sur le remplacement
