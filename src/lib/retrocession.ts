@@ -1,32 +1,76 @@
 import { RetrocessionMode } from "@prisma/client";
 
-// ── TROIS FAÇONS DE RÉMUNÉRER UN REMPLAÇANT LIBÉRAL (section 293) ────────────────────────────
+// ── RÉTROCESSION D'UN REMPLAÇANT, REDEVANCE D'UN ASSISTANT OU D'UN COLLABORATEUR ──────────────
 //
-// ⚠️ LE PIÈGE DU MOT. `Mission.retrocessionRate` stocke la part que le REMPLAÇANT PERÇOIT, pas
-// celle qu'il reverse. Le défaut de 70 et l'article 6 du contrat le disent — « le remplaçant
-// percevra 70% des honoraires qu'il aura encaissés ». L'usage, lui, appelle « rétrocession » les
-// 30% qui reviennent au cabinet. Les deux lectures coexistent dans le métier ; la colonne n'en
-// retient qu'une, et ce fichier est l'endroit où elle est écrite noir sur blanc.
+// ⚠️ LE MÊME CHAMP PORTE DEUX SENS. `Mission.retrocessionRate` stocke :
+//   • sur un REMPLACEMENT, la part que le REMPLAÇANT PERÇOIT (défaut 70, article 6 : « le
+//     remplaçant percevra 70% des honoraires qu'il aura encaissés ») ;
+//   • sur un ASSISTANAT ou une COLLABORATION, la REDEVANCE que l'assistant ou le collaborateur
+//     VERSE au titulaire (article 4/5 : « l'assistant versera au titulaire une redevance de N% »).
+// Cette convention n'a PAS été touchée : l'inverser aurait réinterprété chaque annonce en base et
+// chaque contrat déjà signé.
 //
-// Cette convention n'a PAS été touchée en ajoutant les deux modes. L'inverser aurait réinterprété
-// quatre-vingts annonces en base et chaque contrat déjà signé — un 70 devenu 30 sur un document
-// que deux personnes ont paraphé.
+// ── LES MODES FIXE ET PLAFONNÉE SONT RÉSERVÉS À L'ASSISTANAT ET À LA COLLABORATION (section 296)
 //
-// ── CE QUE CHAQUE MODE VEUT DIRE ────────────────────────────────────────────────────────────
+// Livrés d'abord sur le remplacement (section 293), à contresens de l'usage. Arbitrage du 13/10 :
+// un forfait ou un plafond se négocie sur une REDEVANCE de long terme — l'assistant ou le
+// collaborateur verse au titulaire une somme fixe, ou un pourcentage qui ne dépasse jamais P €
+// par mois. Un remplaçant, lui, est rétrocédé en pourcentage, point. Collaborateur = assistant
+// (même statut, mêmes besoins) : les deux reçoivent les mêmes modes.
 //
-//   POURCENTAGE  le remplaçant perçoit N % de ce qu'il encaisse.          (comportement d'avant)
-//   FIXE         il perçoit un montant mensuel, quel que soit son CA.     Le cabinet porte le
-//                risque d'activité, et c'est précisément ce qu'il vend.
-//   PLAFONNEE    il perçoit N %, MAIS la part gardée par le cabinet ne
-//                dépasse jamais P €/mois. Au-delà, tout lui reste.        Un remplaçant très
-//                productif n'est plus pénalisé par son propre volume.
+//   POURCENTAGE  la redevance vaut N % des honoraires encaissés.     (comportement d'avant)
+//   FIXE         la redevance est un montant mensuel, quel que soit le CA. L'assistant porte le
+//                risque d'activité ; le titulaire connaît sa recette.
+//   PLAFONNEE    N %, MAIS la redevance ne dépasse jamais P €/mois.  Un assistant très productif
+//                n'est plus pénalisé par son propre volume.
 //
-// L'UNITÉ EST LE MOIS, pour les deux montants. Arbitrage du 09/10 : `remunerationBrute` est déjà
-// mensuelle, et les postes longue durée raisonnent en mois. Un remplacement de trois jours s'en
-// accommode moins bien — c'est le coût assumé d'une unité unique, contre la confusion certaine
-// qu'aurait produite un sélecteur jour/semaine/mois à côté de chaque montant.
+// Le plafond porte donc toujours sur la part du CABINET — ici, c'est exactement la redevance.
+//
+// L'UNITÉ EST LE MOIS, pour les deux montants : les postes longue durée raisonnent en mois, et la
+// redevance est déjà « mensuelle » dans les deux gabarits.
+//
+// Aucune annonce n'avait quitté POURCENTAGE au moment de la bascule (vérifié en base le 13/10 :
+// 58 remplacements, 28 assistanats, 4 collaborations, tous en POURCENTAGE) — rien à migrer.
 
 export { RetrocessionMode };
+
+/**
+ * Les modes FIXE et PLAFONNEE n'existent que sur une redevance libérale de long terme.
+ *
+ * PAS POUR LES INFIRMIERS : la collaboration infirmier imprime l'article 7 du modèle CNOI,
+ * clause réglementaire au pourcentage du chiffre d'affaires. Offrir un forfait sur l'annonce
+ * promettrait un accord que ce contrat n'imprime pas.
+ */
+export function modesRedevanceAutorises(
+  missionType: string | null | undefined,
+  estSalariat: boolean,
+  profession: string | null | undefined,
+): boolean {
+  return (
+    !estSalariat &&
+    profession !== "INFIRMIER" &&
+    (missionType === "ASSISTANAT" || missionType === "COLLABORATION")
+  );
+}
+
+/**
+ * Ne laisse survivre que le montant du mode retenu, et ramène à POURCENTAGE tout mode posé là où
+ * il n'a pas de sens. Appliqué dans les routes, où la règle ne peut pas être contournée : l'écran
+ * masque un champ mais garde la valeur tapée, et un plafond oublié finirait imprimé.
+ */
+export function normaliserRetrocession(
+  autorise: boolean,
+  mode: RetrocessionMode | null | undefined,
+  fixeEuros: number | null | undefined,
+  plafondEuros: number | null | undefined,
+): { retrocessionMode: RetrocessionMode; retrocessionFixeEuros: number | null; retrocessionPlafondEuros: number | null } {
+  const m: RetrocessionMode = autorise && mode ? mode : "POURCENTAGE";
+  return {
+    retrocessionMode: m,
+    retrocessionFixeEuros: m === "FIXE" ? (fixeEuros ?? null) : null,
+    retrocessionPlafondEuros: m === "PLAFONNEE" ? (plafondEuros ?? null) : null,
+  };
+}
 
 export const LIBELLE_MODE: Record<RetrocessionMode, string> = {
   POURCENTAGE: "Pourcentage des honoraires",
@@ -55,71 +99,74 @@ const euros = (n: number) =>
   `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ESPACE_INSECABLE)}${ESPACE_INSECABLE}€`;
 
 /**
- * Phrase courte pour une carte ou une fiche d'annonce.
+ * Phrase courte d'une annonce de REMPLACEMENT — pourcentage seulement (section 296).
  *
  * `null` quand rien n'est renseigné : une annonce sans rétrocession déclarée ne doit afficher
  * AUCUNE mention, surtout pas « 70 % » hérité du défaut de génération de contrat. Ce défaut est
  * une valeur de repli au moment de rédiger un contrat, pas une promesse faite dans le fil.
+ *
+ * « DES HONORAIRES POUR LE REMPLAÇANT », en toutes lettres : `retrocessionRate` est la part qu'il
+ * PERÇOIT, quand l'usage appelle « rétrocession » les 30 % qui reviennent au cabinet.
  */
-export function resumeRetrocession(r: Retrocession): string | null {
+export function resumeRetrocession(r: Pick<Retrocession, "rate">): string | null {
+  return r.rate ? `${r.rate} % des honoraires pour le remplaçant` : null;
+}
+
+/**
+ * Phrase courte de la redevance d'un ASSISTANAT ou d'une COLLABORATION.
+ *
+ * Un plafond annoncé sans montant ne se dégrade PAS en simple pourcentage : « 25 % » décrirait
+ * un accord non plafonné, c'est-à-dire la lecture la moins favorable d'une annonce qui promet
+ * mieux. On n'affiche rien.
+ */
+export function resumeRedevance(r: Retrocession): string | null {
   switch (r.mode) {
     case "FIXE":
-      return r.fixeEuros ? `Forfait ${euros(r.fixeEuros)}/mois` : null;
-
+      return r.fixeEuros ? `Redevance forfaitaire ${euros(r.fixeEuros)}/mois` : null;
     case "PLAFONNEE":
-      // Un plafond annoncé sans montant ne se dégrade PAS en simple pourcentage : « 75 % pour le
-      // remplaçant » décrirait un accord non plafonné, c'est-à-dire la lecture la plus favorable
-      // d'une annonce qui ne la promet pas. On n'affiche rien.
       return r.rate && r.plafondEuros
-        ? `${r.rate} % pour le remplaçant · part du cabinet plafonnée à ${euros(r.plafondEuros)}/mois`
+        ? `Redevance ${r.rate} % des honoraires, plafonnée à ${euros(r.plafondEuros)}/mois`
         : null;
-
     case "POURCENTAGE":
     default:
-      // « DES HONORAIRES POUR LE REMPLAÇANT », en toutes lettres. `retrocessionRate` est la part
-      // qu'il PERÇOIT (défaut 70, article 6 : « le remplaçant percevra 70% »), quand l'usage
-      // appelle « rétrocession » les 30 % qui reviennent au cabinet. Écrire « 75 % de
-      // rétrocession » laissait donc le lecteur choisir le sens — sur une image publique, sans
-      // personne à qui demander.
-      return r.rate ? `${r.rate} % des honoraires pour le remplaçant` : null;
+      return r.rate ? `Redevance ${r.rate} % des honoraires` : null;
   }
 }
 
 /**
- * Article 6 du contrat de remplacement (CNOMK).
+ * Article « Redevance » des contrats d'assistanat (art. 4) et de collaboration (art. 5).
  *
- * UNE SEULE FONCTION POUR LES TROIS MODES, et elle vit ici plutôt que dans le gabarit : la
- * phrase imprimée et la phrase affichée dans le fil doivent décrire le même accord. Les séparer,
- * c'est accepter qu'une annonce promette un plafond que le contrat ne mentionne pas.
+ * UNE SEULE FONCTION POUR LES TROIS MODES, ici plutôt que dans les gabarits : l'annonce et le
+ * contrat doivent décrire le même accord. Le mode POURCENTAGE reprend MOT POUR MOT la phrase
+ * d'origine — un contrat déjà signé et un contrat généré aujourd'hui doivent se lire à
+ * l'identique. Repli sur cette phrase quand le montant du mode manque.
  *
- * Le texte du mode POURCENTAGE est repris MOT POUR MOT de l'article d'origine : un contrat déjà
- * signé et un contrat généré aujourd'hui dans le même mode doivent se lire à l'identique.
+ * `debiteur` : « l'assistant » ou « le collaborateur ». `objet` : ce que la redevance rémunère,
+ * propre à chaque gabarit.
  */
-export function clauseRetrocession(r: Retrocession, pctParDefaut: number): string {
+export function clauseRedevance(
+  r: Retrocession,
+  pctParDefaut: number,
+  debiteur: string,
+  objet: string,
+): string {
   const pct = r.rate ?? pctParDefaut;
+  const intro = `En contrepartie de ${objet}, ${debiteur} versera au titulaire`;
 
   if (r.mode === "FIXE" && r.fixeEuros) {
     return (
-      `En rémunération de ses services, le remplaçant percevra une somme forfaitaire de ` +
-      `${euros(r.fixeEuros)} par mois, quel que soit le montant des honoraires encaissés pendant ` +
-      `la durée du remplacement. Cette somme est calculée au prorata pour toute période ` +
-      `incomplète.`
+      `${intro} une redevance forfaitaire de ${euros(r.fixeEuros)} par mois, quel que soit le ` +
+      `montant des honoraires encaissés. Cette somme est calculée au prorata pour tout mois ` +
+      `incomplet.`
     );
   }
 
   if (r.mode === "PLAFONNEE" && r.plafondEuros) {
     return (
-      `En rémunération de ses services, le remplaçant percevra ${pct}% des honoraires qu'il aura ` +
-      `encaissés pendant la durée du remplacement, sans que la part conservée par le remplacé ` +
-      `puisse excéder ${euros(r.plafondEuros)} par mois. Au-delà de ce plafond, les honoraires ` +
-      `encaissés restent intégralement acquis au remplaçant.`
+      `${intro} une redevance mensuelle de ${pct}% de ses honoraires nets encaissés, sans que ` +
+      `cette redevance puisse excéder ${euros(r.plafondEuros)} par mois.`
     );
   }
 
-  // Repli : POURCENTAGE, ou un mode dont le montant manque. Mieux vaut l'article d'origine,
-  // juridiquement éprouvé, qu'une phrase tronquée sur un montant absent.
-  return (
-    `En rémunération de ses services, le remplaçant percevra ${pct}% des honoraires qu'il aura ` +
-    `encaissés pendant la durée du remplacement.`
-  );
+  return `${intro} une redevance mensuelle de ${pct}% de ses honoraires nets encaissés.`;
 }

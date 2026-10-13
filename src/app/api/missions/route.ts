@@ -1,3 +1,4 @@
+import { modesRedevanceAutorises, normaliserRetrocession } from "@/lib/retrocession";
 import { NextRequest, NextResponse } from "next/server";
 import { genererEtStockerVignette } from "@/lib/vignetteStockage";
 import { auth } from "@/lib/auth";
@@ -163,7 +164,7 @@ export async function POST(req: NextRequest) {
   // route (section 234), et une seconde lecture du même profil serait une requête pour rien.
   const me = await prisma.profile.findUnique({
     where: { id: session.user.profileId },
-    select: { photoUrl: true, type: true, region: true },
+    select: { photoUrl: true, type: true, region: true, profession: true },
   });
   if (effectiveBrique !== BriqueStatus.INDISPONIBLE) {
     if (!me?.photoUrl) {
@@ -339,9 +340,13 @@ export async function POST(req: NextRequest) {
       // Le plafond oublié finirait alors dans l'article 6 d'un contrat signé, sur un accord qui
       // ne le prévoit pas. On remet donc à null ce que le mode ne réclame pas — ici, où la
       // règle ne peut pas être contournée, plutôt que dans le formulaire.
-      retrocessionMode: retrocessionMode ?? "POURCENTAGE",
-      retrocessionFixeEuros: retrocessionMode === "FIXE" ? (retrocessionFixeEuros ?? null) : null,
-      retrocessionPlafondEuros: retrocessionMode === "PLAFONNEE" ? (retrocessionPlafondEuros ?? null) : null,
+      //
+      // Et le mode lui-même retombe à POURCENTAGE hors assistanat/collaboration libéral (section
+      // 296) : un remplacement ne se rétrocède qu'en pourcentage.
+      ...normaliserRetrocession(
+        modesRedevanceAutorises(effectiveMissionType, salariat, me?.profession),
+        retrocessionMode, retrocessionFixeEuros, retrocessionPlafondEuros,
+      ),
       missionType: effectiveMissionType,
       estSalariat: salariat,
       // Miroir de la contrainte CHECK en base : hors salariat, la colonne reste nulle.

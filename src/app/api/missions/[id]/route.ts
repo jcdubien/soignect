@@ -1,3 +1,4 @@
+import { modesRedevanceAutorises, normaliserRetrocession } from "@/lib/retrocession";
 import { NextRequest, NextResponse } from "next/server";
 import { genererEtStockerVignette, effacerVignette } from "@/lib/vignetteStockage";
 import { auth } from "@/lib/auth";
@@ -99,6 +100,12 @@ export async function PATCH(
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
+  // Profession du PROPRIÉTAIRE de l'annonce (pas de l'appelant, qui peut être un admin) : elle
+  // décide si la redevance admet un forfait ou un plafond (section 296).
+  const proprioProfession = (
+    await prisma.profile.findUnique({ where: { id: mission.profileId }, select: { profession: true } })
+  )?.profession;
+
   const { briqueStatus, statusNote, statusUpdatedAt, suiviStatut, startDate, endDate, departureDate, ...rest } = parsed.data;
 
   // ── CE QUI APPARTIENT À LA MISE EN RELATION NE SE RÈGLE PAS ICI (section 276) ───────────
@@ -172,13 +179,18 @@ export async function PATCH(
       // effectivement enregistré — celui qu'on vient de recevoir, ou celui déjà en base si le
       // formulaire ne l'a pas renvoyé. Sans cette seconde lecture, modifier le seul montant
       // d'une annonce déjà « fixe » l'aurait fait retomber au pourcentage.
-      ...(() => {
-        const mode = rest.retrocessionMode ?? mission.retrocessionMode;
-        return {
-          retrocessionFixeEuros: mode === "FIXE" ? (rest.retrocessionFixeEuros ?? null) : null,
-          retrocessionPlafondEuros: mode === "PLAFONNEE" ? (rest.retrocessionPlafondEuros ?? null) : null,
-        };
-      })(),
+      // Le type et le salariat sont relus de la même façon (section 296) : passer une annonce
+      // d'assistanat au remplacement doit la ramener au pourcentage.
+      ...normaliserRetrocession(
+        modesRedevanceAutorises(
+          rest.missionType ?? mission.missionType,
+          mission.estSalariat,
+          proprioProfession,
+        ),
+        rest.retrocessionMode ?? mission.retrocessionMode,
+        rest.retrocessionFixeEuros !== undefined ? rest.retrocessionFixeEuros : mission.retrocessionFixeEuros,
+        rest.retrocessionPlafondEuros !== undefined ? rest.retrocessionPlafondEuros : mission.retrocessionPlafondEuros,
+      ),
     },
   });
 

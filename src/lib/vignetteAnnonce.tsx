@@ -229,8 +229,7 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
         title: true, location: true, missionType: true,
         startDate: true, endDate: true, minMonths: true,
         // Rétrocession (section 295) — affichée sur les REMPLACEMENTS seulement, voir plus bas.
-        retrocessionMode: true, retrocessionRate: true,
-        retrocessionFixeEuros: true, retrocessionPlafondEuros: true,
+        retrocessionRate: true,
         // photoUrl : fond de la carte (section 158). type : cadre le badge (cabinet propose / candidat se propose).
         // titulaireKind : distingue un établissement d'un cabinet libéral, sans quoi le
         // badge traduit un CDI en vocabulaire libéral.
@@ -265,17 +264,14 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
   // peut pas porter cette ambiguïté : le lecteur n'a personne à qui demander, et aucun gabarit
   // de contrat n'imprime d'ailleurs ce chiffre côté assistanat.
   //
-  // UNE SEULE SOURCE DE TEXTE. `resumeRetrocession` nourrit aussi l'article 6 et la phrase du
-  // fil. Réécrire la formule ici produirait une image qui promet autre chose que le contrat —
+  // POURCENTAGE SEULEMENT (section 296) : les modes fixe et plafonné ont été déplacés sur la
+  // redevance de l'assistanat et de la collaboration, qui n'est toujours pas affichée ici.
+  //
+  // UNE SEULE SOURCE DE TEXTE. `resumeRetrocession` vit à côté de la clause du contrat. Réécrire la formule ici produirait une image qui promet autre chose que le contrat —
   // et c'est l'image qui circule hors du produit, là où rien ne la corrige.
   const retrocession =
     m.missionType === MissionType.REMPLACEMENT
-      ? resumeRetrocession({
-          mode: m.retrocessionMode,
-          rate: m.retrocessionRate,
-          fixeEuros: m.retrocessionFixeEuros,
-          plafondEuros: m.retrocessionPlafondEuros,
-        })
+      ? resumeRetrocession({ rate: m.retrocessionRate })
       : null;
 
   // Zone de sécurité : beaucoup de destinations de partage (messageries, aperçus système via

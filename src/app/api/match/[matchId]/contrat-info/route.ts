@@ -206,6 +206,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
     theirName:       theirProfile.name,
     hasPremium,
     retrocessionPct,
+    // Redevance publiée par le cabinet (section 296) : pré-remplit le curseur au lieu du 40 %
+    // figé. `null` → l'écran garde son défaut.
+    redevancePct: missionTitulaire?.retrocessionRate ?? null,
     // Le MODE vient de l'annonce du cabinet (section 293) : l'écran de génération doit montrer
     // un forfait là où l'annonce en propose un, et non un curseur de pourcentage sans objet.
     retrocession: {

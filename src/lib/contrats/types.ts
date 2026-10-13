@@ -345,10 +345,6 @@ export interface ContractDataRemplacement extends SignatureImages, NegotiableCla
   startDate: string | null;
   endDate: string | null;
   retrocessionPct: number;
-  /** Article 6 rédigé (section 293) : le mode FIXE ou PLAFONNÉ ne se résume pas à un
-   *  pourcentage. Absent → le gabarit retombe sur sa phrase d'origine au pourcentage, pour
-   *  qu'un appelant qui n'a pas été mis à jour produise toujours un contrat valide. */
-  clauseRetrocession?: string;
   rayonKm: number;
   periodeEssai: boolean;
   generatedAt: string;
@@ -360,6 +356,9 @@ export interface ContractDataAssisanat extends SignatureImages, NegotiableClause
   startDate: string | null;
   minMonths: number | null;
   redevancePct: number;
+  /** Article « Redevance » rédigé par `clauseRedevance` (section 296) : le mode FIXE ou PLAFONNÉ
+   *  de l'annonce ne se résume pas à un pourcentage. Absent → phrase d'origine au pourcentage. */
+  clauseRedevance?: string;
   rayonKm: number;
   dureeAns: number;
   periodeEssai: boolean;
@@ -372,6 +371,9 @@ export interface ContractDataCollaboration extends SignatureImages, NegotiableCl
   startDate: string | null;
   minMonths: number | null;
   redevancePct: number;
+  /** Article « Redevance » rédigé par `clauseRedevance` (section 296) : le mode FIXE ou PLAFONNÉ
+   *  de l'annonce ne se résume pas à un pourcentage. Absent → phrase d'origine au pourcentage. */
+  clauseRedevance?: string;
   rayonKm: number;
   dureeAns: number;
   periodeEssai: boolean;

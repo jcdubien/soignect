@@ -50,7 +50,7 @@ import {
   NON_CONCURRENCE_VIOLATION_MOIS_DEFAUT,
 } from "@/lib/contrats/defauts";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { clauseRetrocession } from "@/lib/retrocession";
+import { clauseRedevance } from "@/lib/retrocession";
 
 export const dynamic = "force-dynamic";
 // Force Node.js runtime — @react-pdf/renderer uses Node APIs
@@ -214,7 +214,19 @@ export async function GET(req: NextRequest, { params }: Params) {
   const dureeAns     = Math.max(1, parseInt(sp.get("dureeAns")     ?? "2",  10));
   const periodeEssai = sp.get("periodeEssai") === "true";
   const retrocessionPct = parseInt(sp.get("retrocessionPct") ?? String(missionTitulaire?.retrocessionRate ?? 70), 10);
-  const redevancePct    = parseInt(sp.get("redevancePct")    ?? "40", 10);
+  // Repli sur la redevance de l'ANNONCE (section 296), comme la rétrocession ci-dessus : le
+  // défaut figé de 40 % ignorait un « 25 % » publié par le cabinet.
+  const redevancePct    = parseInt(sp.get("redevancePct")    ?? String(missionTitulaire?.retrocessionRate ?? 40), 10);
+  // Article « Redevance » rédigé selon le mode de l'annonce du cabinet — c'est lui qui propose
+  // les conditions. Le taux, lui, reste réglable à la génération.
+  const redevanceAnnonce = missionTitulaire
+    ? {
+        mode: missionTitulaire.retrocessionMode,
+        rate: redevancePct,
+        fixeEuros: missionTitulaire.retrocessionFixeEuros,
+        plafondEuros: missionTitulaire.retrocessionPlafondEuros,
+      }
+    : null;
 
   // Clauses négociables in-app (section 164) — remplacent les placeholders figés des templates.
   const ALLOWED_MODES = ["Virement bancaire", "Chèque", "Espèces", "Autre"];
@@ -732,20 +744,6 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate:  periode.debut,
       endDate:    periode.fin,
       retrocessionPct,
-      // Le mode vient de l'ANNONCE DU CABINET (section 293) : c'est lui qui propose les
-      // conditions. `retrocessionPct` reste transmis pour le repli du gabarit, et parce qu'un
-      // paramètre d'URL peut encore le surcharger à la génération.
-      clauseRetrocession: missionTitulaire
-        ? clauseRetrocession(
-            {
-              mode: missionTitulaire.retrocessionMode,
-              rate: retrocessionPct,
-              fixeEuros: missionTitulaire.retrocessionFixeEuros,
-              plafondEuros: missionTitulaire.retrocessionPlafondEuros,
-            },
-            retrocessionPct,
-          )
-        : undefined,
       rayonKm, periodeEssai, generatedAt,
       modePaiement, delaiPaiementJours, modalitesLocaux,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
@@ -757,6 +755,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate: periode.debut,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+      clauseRedevance: redevanceAnnonce
+        ? clauseRedevance(redevanceAnnonce, redevancePct, "l'assistant", "la mise à disposition du cabinet et des équipements")
+        : undefined,
       modePaiement, delaiPaiementJours, modalitesLocaux,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
@@ -767,6 +768,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       startDate: periode.debut,
       minMonths: missionTitulaire?.minMonths ?? missionAutre?.minMonths ?? null,
       redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+      clauseRedevance: redevanceAnnonce
+        ? clauseRedevance(redevanceAnnonce, redevancePct, "le collaborateur", "la mise à disposition des locaux, du matériel et des équipements")
+        : undefined,
       modePaiement, delaiPaiementJours, modalitesLocaux,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });

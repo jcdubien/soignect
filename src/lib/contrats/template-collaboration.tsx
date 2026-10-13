@@ -42,7 +42,7 @@ const LEGAL_MENTION =
   "Document pré-rempli à titre indicatif — à faire valider par un avocat ou l'Ordre des masseurs-kinésithérapeutes avant signature.";
 
 export function buildCollaborationPdf(data: ContractDataCollaboration) {
-  const { titulaire, collaborateur, startDate, minMonths, redevancePct, rayonKm, dureeAns, periodeEssai, generatedAt,
+  const { titulaire, collaborateur, startDate, minMonths, redevancePct, clauseRedevance, rayonKm, dureeAns, periodeEssai, generatedAt,
     modePaiement, delaiPaiementJours, modalitesLocaux,
     signatureTitulaireImg, signatureRemplacantImg, draft } = data;
   const dureeStr = minMonths ? `${minMonths} mois` : "[durée à compléter]";
@@ -119,7 +119,9 @@ export function buildCollaborationPdf(data: ContractDataCollaboration) {
         <View style={S.article}>
           <Text style={S.articleTitle}>Article 5 — Redevance</Text>
           <Text style={S.body}>
-            En contrepartie de la mise à disposition des locaux, du matériel et des équipements, le collaborateur versera au titulaire une redevance mensuelle de {redevancePct}% de ses honoraires nets encaissés. Cette redevance sera versée par {paymentMethodPhrase(modePaiement)} dans les {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque mois.
+            {/* Fixe, plafonnée ou pourcentage : la phrase vient de `lib/retrocession.ts`
+                (section 296), la même qui résume l'annonce. */}
+            {clauseRedevance ?? `En contrepartie de la mise à disposition des locaux, du matériel et des équipements, le collaborateur versera au titulaire une redevance mensuelle de ${redevancePct}% de ses honoraires nets encaissés.`} Cette redevance sera versée par {paymentMethodPhrase(modePaiement)} dans les {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque mois.
           </Text>
         </View>
 

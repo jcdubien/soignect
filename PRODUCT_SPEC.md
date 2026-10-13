@@ -7347,6 +7347,35 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 296 — FORFAIT ET PLAFOND : SUR LA REDEVANCE, PAS SUR LE REMPLACEMENT (13/10)
+
+**Correction d'arbitrage de JC** : les modes FIXE et PLAFONNÉE livrés en 293 sur le remplacement
+appartiennent à l'**assistanat et à la collaboration** (collaborateur = assistant). Un remplaçant
+se rétrocède en pourcentage, point.
+
+| Annonce | Champ `retrocessionRate` | Modes offerts |
+|---|---|---|
+| Remplacement libéral | part que le remplaçant **perçoit** | pourcentage seul |
+| Assistanat / collaboration libéral (hors infirmier) | **redevance** versée au titulaire | pourcentage, forfait mensuel, pourcentage plafonné |
+| Collaboration infirmier | redevance | pourcentage seul — l'art. 7 CNOI est une clause réglementaire au % du CA |
+| Salariat | — | aucun |
+
+- Le plafond porte sur la **redevance**, donc toujours sur la part du cabinet ; au-delà, les
+  honoraires restent acquis à l'assistant/collaborateur. Unité : le mois.
+- Une source : `lib/retrocession.ts` — `resumeRedevance` (résumé), `clauseRedevance` (art. 4
+  assistanat / art. 5 collaboration, phrase d'origine mot pour mot en mode pourcentage),
+  `resumeRetrocession` (remplacement, pourcentage seul). L'article 6 du remplacement est revenu à
+  sa phrase d'origine.
+- Règle appliquée **dans les routes** (`modesRedevanceAutorises` + `normaliserRetrocession`) :
+  hors assistanat/collaboration libéral, le mode retombe à POURCENTAGE et les montants à null. Le
+  PATCH relit type, salariat et profession du **propriétaire** en base.
+- Trouvé en route : le curseur de redevance du contrat partait d'un 40 % figé, ignorant le taux
+  publié par le cabinet. Il part désormais de l'annonce (repli 40).
+- Vignette de partage : inchangée sur le remplacement (pourcentage) ; la redevance n'y est toujours
+  pas affichée — à décider.
+- Base au 13/10 : 58 remplacements, 28 assistanats, 4 collaborations, tous en POURCENTAGE — rien
+  à migrer.
+
 ### SECTION 295 — LA RÉTROCESSION SUR L'IMAGE DE PARTAGE (09/10)
 
 #### Une seule source de texte, et c'est la contrainte principale
@@ -7568,6 +7597,9 @@ leurs propres champs de reversement.
 ---
 
 ### SECTION 293 — RÉTROCESSION FIXE ET PLAFONNÉE, ET UN COMMENTAIRE QUI MENTAIT (09/10)
+
+> **Remplacée par la section 296** : les modes fixe et plafonné sont passés sur la redevance
+> d'assistanat/collaboration. Le remplacement est revenu au pourcentage seul.
 
 #### Le piège du mot, trouvé en ouvrant le sujet
 
