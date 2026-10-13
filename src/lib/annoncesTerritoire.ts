@@ -1,5 +1,5 @@
 import { Profession, ProfileType, ZoneGeographique } from "@prisma/client";
-import { EST_UNE_OFFRE } from "@/lib/feedFilters";
+import { offreOuverteLe } from "@/lib/feedFilters";
 
 /** Camp d'un annonceur. `Profile.type` est le SEUL discriminant fiable — `missionType`
  *  (REMPLACEMENT / ASSISTANAT / COLLABORATION) décrit la NATURE du poste, pas qui le publie :
@@ -62,11 +62,13 @@ export function filtreAnnoncesVivantes(
     // Même prédicat que le feed (section 265). Ces pages retenaient `isActive` seul : une brique
     // d'OCCUPATION — l'enregistrement de qui tient un poste — y passait pour une annonce, comme
     // elle passait au feed. `isSelfPresence` était déjà exclu ; `RECHERCHE` manquait.
-    ...EST_UNE_OFFRE,
     profile: { profession, type: { in: TYPES_DU_CAMP[camp] } },
     AND: [
+      // Prédicat unique (section 298). La borne était `endDate >= maintenant` : `endDate` étant
+      // stockée à 00:00 UTC, soit 20 h la VEILLE en Guadeloupe, une annonce sortait de ces pages
+      // la veille au soir de son dernier jour. Et le filtre des relations en cours manquait.
+      offreOuverteLe(maintenant),
       { OR: [{ zones: { hasSome: zones } }, { location: { in: communes } }] },
-      { OR: [{ endDate: null }, { endDate: { gte: maintenant } }] },
     ],
   };
 }

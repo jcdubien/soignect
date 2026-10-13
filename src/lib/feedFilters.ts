@@ -1,4 +1,5 @@
 import { BriqueStatus, MatchStatus, type Prisma } from "@prisma/client";
+import { jourLocalUtc } from "@/lib/jourLocal";
 
 // ── CE QUI EST UNE OFFRE (section 265) ───────────────────────────────────────────────────────
 //
@@ -66,13 +67,45 @@ export const NO_ACTIVE_MATCH_FILTER = {
 // Fonction et non constante : la borne du jour se calcule à l'appel. Une constante de module
 // figerait « aujourd'hui » à l'instant du premier import — sur un serveur de longue durée, elle
 // vieillirait sans bruit.
-export function offreOuverteLe(jour: Date): Prisma.MissionWhereInput {
-  const minuit = new Date(jour);
-  minuit.setHours(0, 0, 0, 0);
-  return {
-    ...EST_UNE_OFFRE,
-    ...NO_ACTIVE_MATCH_FILTER,
-    // `endDate: null` = poste durable sans terme (section 179) : il reste ouvert indéfiniment.
-    OR: [{ endDate: null }, { endDate: { gte: minuit } }],
-  };
+//
+// ── UN SEUL PRÉDICAT POUR TOUTES LES SURFACES (section 298) ──────────────────────────────────
+//
+// Fil, page publique, image de partage, sitemap, pages de diffusion, module embed, route de
+// swipe, signal d'intérêt, rattrapages : tous lisent CETTE fonction. Mesuré le 13/10 : 4 annonces
+// à période échue restaient proposées, et 3 emails « quelqu'un s'intéresse à votre annonce »
+// étaient partis pour une période déjà passée. Filtre à la LECTURE : aucune donnée n'est touchée,
+// `isActive` et `briqueStatus` restent tels quels, le cabinet garde l'annonce dans son Planning.
+//
+// ── LE JOUR EST CELUI DE LA GUADELOUPE, PAS CELUI DU SERVEUR ─────────────────────────────────
+//
+// La borne se calculait par `setHours(0, 0, 0, 0)` — minuit du fuseau du SERVEUR, UTC en
+// production. Or 20 h en Guadeloupe, c'est déjà minuit UTC le lendemain : dès 20 h locales, une
+// annonce qui se terminait le jour même sortait du fil. Voir `lib/jourLocal` : l'annonce reste
+// ouverte toute sa dernière journée, jusqu'à minuit en Guadeloupe.
+
+/**
+ * Une offre sur laquelle un tiers peut encore agir à l'instant `instant`.
+ *
+ * Contient un `OR` de premier niveau : à composer par `AND: [offreOuverteLe(now), { … }]` dès
+ * que la requête porte son propre `OR`, sinon l'un écraserait l'autre en silence.
+ */
+export function offreOuverteLe(instant: Date): Prisma.MissionWhereInput {
+  return { ...offreRecevableLe(instant), ...NO_ACTIVE_MATCH_FILTER };
+}
+
+/**
+ * Une offre qui peut encore RECEVOIR un geste d'intérêt : publiée, en recherche, période non
+ * échue — sans le filtre des relations en cours. C'est la garde du swipe, du signal d'intérêt et
+ * de son bouton « signaler à nouveau » : la mise en relation depuis le tiroir des intérêts reçus
+ * doit rester possible sur une annonce déjà engagée ailleurs, comme avant la section 298.
+ * `offreOuverteLe` en dérive : la borne de date n'est écrite qu'une fois.
+ */
+export function offreRecevableLe(instant: Date): Prisma.MissionWhereInput {
+  return { ...EST_UNE_OFFRE, ...periodeNonEchueLe(instant) };
+}
+
+/** La borne de date seule — un `OR` de premier niveau, voir `offreOuverteLe`. */
+export function periodeNonEchueLe(instant: Date): Prisma.MissionWhereInput {
+  // `endDate: null` = poste durable sans terme (section 179) : il reste ouvert indéfiniment.
+  return { OR: [{ endDate: null }, { endDate: { gte: jourLocalUtc(instant) } }] };
 }

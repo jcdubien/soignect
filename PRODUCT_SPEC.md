@@ -7347,6 +7347,46 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 298 — UNE ANNONCE ÉCHUE N'EST PLUS PROPOSÉE (13/10)
+
+**Mesure (13/10, lecture seule)** : 68 offres actives, dont 4 à période échue (2 depuis < 30 j,
+2 depuis 1 à 6 mois), toutes servies au fil. Sur 30 jours : 1 swipe « intéressé », 2 signaux
+d'intérêt dont 1 après la fin ; depuis toujours, 3 emails « quelqu'un s'intéresse à votre
+annonce » partis pour une période passée. Aucune relation créée sur un poste échu (0/19).
+
+**Un prédicat, trois échelons** (`lib/feedFilters.ts`), la borne de date écrite une fois :
+
+| Prédicat | Contenu | Utilisé par |
+|---|---|---|
+| `offreOuverteLe` | offre + aucune relation en cours + période non échue | fil (et ses compteurs), liste `/api/missions`, page publique, image de partage, sitemap, pages de diffusion, embed, Saint-Barth/Saint-Martin, rattrapages |
+| `offreRecevableLe` | offre + période non échue | route de swipe, `signalerInteret`, « signaler à nouveau », tiroir, intérêts reçus |
+| `periodeNonEchueLe` | `endDate` nulle ou ≥ jour local | les deux ci-dessus |
+
+`offreRecevableLe` existe parce que la mise en relation depuis le tiroir des intérêts reçus doit
+rester possible sur une annonce déjà engagée ailleurs — la garde du swipe ne filtrait pas les
+relations en cours avant, elle ne le fait pas davantage.
+
+**Jour local** (`lib/jourLocal.ts`) : `endDate` est stockée à 00:00 UTC du jour civil ; on la
+compare à 00:00 UTC du jour de la Guadeloupe. L'ancienne borne `setHours(0)` prenait minuit UTC
+sur le serveur — dès 20 h locales, une annonce finissant le jour même sortait. Les pages de
+diffusion comparaient à l'instant présent : l'annonce disparaissait la VEILLE à 20 h.
+
+**Filtre à la lecture** : `isActive`, `briqueStatus` et les données ne bougent pas. Le cabinet
+garde l'annonce au Planning ; l'encart dit « n'est plus visible par les candidats » et garde ses
+deux issues, et il bascule à la même borne (il s'affichait dès le dernier jour).
+
+**Swipe** : un « intéressé » sur une carte échue restée à l'écran → 409 avant toute écriture
+(aucun swipe, aucun signal, aucune notification), message affiché dans le fil. Un « pas
+intéressé » reste accepté. La réciprocité n'attache plus la relation à une annonce échue du
+swipeur.
+
+**Écarté** : la carte `/api/missions/[id]/card` (historique, fiche d'une annonce déjà vue ou en
+relation) reste servie — un swipe depuis la fiche est refusé par la route. Les images déjà
+stockées restent à leur URL de stockage ; la page et la route d'image, elles, répondent 404.
+
+**Changement de comportement à connaître** : la page publique et l'image de partage d'une annonce
+engagée dans une relation en cours répondent désormais 404, comme une annonce dépubliée.
+
 ### SECTION 297 — LE REMPLAÇANT EN PLACE A SA PROPRE NUANCE (13/10)
 
 **Constat** : sur la ligne de Marion, « SIMON » (remplaçant de Marion du 26/10 au 06/11) avait le

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { signalerInteret, etatNouveauSignal } from "@/lib/interetSignale";
+import { offreRecevableLe } from "@/lib/feedFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   });
   if (!swipe) return NextResponse.json({ error: "Aucun intérêt signalé sur cette annonce" }, { status: 403 });
 
-  const [annonceVisiteur, match, dernierSignal] = await Promise.all([
+  const [annonceVisiteur, match, dernierSignal, recevable] = await Promise.all([
     prisma.mission.findFirst({ where: { profileId: swiperId, isActive: true }, select: { id: true } }),
     prisma.match.findFirst({
       where: {
@@ -57,12 +58,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       orderBy: { occurredAt: "desc" },
       select: { occurredAt: true },
     }),
+    prisma.mission.findFirst({ where: { id: missionId, ...offreRecevableLe(new Date()) }, select: { id: true } }),
   ]);
 
   const etat = etatNouveauSignal({
     aPublieUneRecherche: !!annonceVisiteur,
     enRelation: !!match,
-    annonceActive: mission.isActive,
+    // Recevable et non simplement `isActive` (section 298) : une annonce échue ne recrute plus.
+    annonceActive: !!recevable,
     dernierSignalLe: dernierSignal?.occurredAt ?? null,
   });
   if (!etat.possible) {
@@ -87,7 +90,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     // vient de signaler son intérêt et qu'elle doit attendre — alors que rien n'est parti et
     // que réessayer est exactement ce qu'il faut faire.
     const raison =
-      resultat === "differe" ? "sans_recherche"
+      resultat === "annonce_close" ? "annonce_inactive"
+      : resultat === "differe" ? "sans_recherche"
       : resultat === "refuse" ? "acheminement"
       : "trop_tot";
     return NextResponse.json({ envoye: false, raison }, { status: 409 });

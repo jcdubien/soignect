@@ -1,3 +1,4 @@
+import { offreOuverteLe } from "@/lib/feedFilters";
 import { Metadata } from "next";
 import { KINESITHERAPEUTE, TERRITOIRES, titrePage } from "@/lib/pagesDiffusion";
 import { tracerVueLanding } from "@/lib/traceLanding";
@@ -26,10 +27,9 @@ const SAINT_BARTH_COMMUNES = ["Gustavia (Saint-Barth)"];
 
 async function getMissions() {
   return prisma.mission.findMany({
-    where: {
-      isActive: true,
-      location: { in: SAINT_BARTH_COMMUNES },
-    },
+    // Prédicat unique (section 298). `isActive` seul servait aussi des occupations, des
+    // absences et des annonces échues.
+    where: { ...offreOuverteLe(new Date()), location: { in: SAINT_BARTH_COMMUNES } },
     include: { profile: { select: { type: true, name: true, ratingAvg: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     take: 20,

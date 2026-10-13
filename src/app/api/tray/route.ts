@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { swipeExploitable } from "@/lib/camp";
 import { memeMarche } from "@/lib/professions";
+import { offreRecevableLe } from "@/lib/feedFilters";
 import { etatNouveauSignal } from "@/lib/interetSignale";
 import { contratConfirme } from "@/lib/matchEtat";
 
@@ -79,7 +80,7 @@ export async function GET(req: Request) {
   // élément : cinquante fiches auraient produit cinquante allers-retours pour afficher un bouton.
   // La DÉCISION, elle, n'est pas dupliquée — `etatNouveauSignal` est la même fonction que celle
   // de la route d'intérêt, qui relira ces faits pour son propre compte.
-  const [maRecherche, signaux] = await Promise.all([
+  const [maRecherche, signaux, recevables] = await Promise.all([
     prisma.mission.findFirst({ where: { profileId: swiperId, isActive: true }, select: { id: true } }),
     prisma.traceEvent.findMany({
       where: {
@@ -90,7 +91,14 @@ export async function GET(req: Request) {
       orderBy: { occurredAt: "desc" },
       select: { missionId: true, occurredAt: true },
     }),
+    // Même garde que la route d'intérêt (section 298) : une annonce échue ne recrute plus, le
+    // bouton « signaler à nouveau » doit le dire plutôt que d'échouer au clic.
+    prisma.mission.findMany({
+      where: { id: { in: swipes.map((s) => s.swipedMissionId) }, ...offreRecevableLe(new Date()) },
+      select: { id: true },
+    }),
   ]);
+  const idsRecevables = new Set(recevables.map((m) => m.id));
   // Tri décroissant + premier gagnant = le signal le plus récent par annonce.
   const dernierSignalParMission = new Map<string, Date>();
   for (const s of signaux) {
@@ -120,7 +128,7 @@ export async function GET(req: Request) {
       nouveauSignal: etatNouveauSignal({
         aPublieUneRecherche: !!maRecherche,
         enRelation: !!match,
-        annonceActive: s.swipedMission.isActive,
+        annonceActive: idsRecevables.has(mId),
         dernierSignalLe: dernierSignalParMission.get(mId) ?? null,
       }),
     };

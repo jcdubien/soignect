@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { createNotification } from "@/lib/notifications";
 import { sendInteretEmail } from "@/lib/email";
-import { offreOuverteLe } from "@/lib/feedFilters";
+import { offreOuverteLe, offreRecevableLe } from "@/lib/feedFilters";
 
 // Signal « quelqu'un s'intéresse à votre annonce » (sections 223-224, différé le 15/09).
 //
@@ -48,7 +48,9 @@ export type ResultatSignal =
   | "sans_destinataire"
   /** Resend a refusé : rien n'est parti, et RIEN N'EST TRACÉ — l'intérêt reste signalable
    *  (section 291). Avant, la trace se posait d'abord : un refus bloquait toute reprise. */
-  | "refuse";
+  | "refuse"
+  /** L'annonce ne peut plus recevoir d'intérêt — période échue, dépubliée (section 298). */
+  | "annonce_close";
 
 interface MissionSwipee {
   id: string;
@@ -156,6 +158,15 @@ export async function signalerInteret(opts: {
 }): Promise<ResultatSignal> {
   const { swiperId, swiperType, mission, nouveauSignal = false } = opts;
   try {
+    // UN SIGNAL POUR UNE PÉRIODE PASSÉE N'ARRIVE NULLE PART (section 298). Aucune garde ne
+    // portait sur l'annonce elle-même : 3 emails « quelqu'un s'intéresse à votre annonce » sont
+    // partis pour des périodes terminées (mesuré le 13/10). Rien n'est envoyé, rien n'est tracé.
+    const recevable = await prisma.mission.findFirst({
+      where: { id: mission.id, ...offreRecevableLe(new Date()) },
+      select: { id: true },
+    });
+    if (!recevable) return "annonce_close";
+
     // Déduplication : au plus un signal par couple (annonce, visiteur) — sauf geste explicite,
     // borné par DELAI_NOUVEAU_SIGNAL_MS. On lit le PLUS RÉCENT, d'où le tri : sans lui, le délai
     // repartirait du tout premier signal, qui ne dit plus rien du dernier envoi.

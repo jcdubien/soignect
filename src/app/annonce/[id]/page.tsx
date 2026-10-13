@@ -1,10 +1,11 @@
+import { offreOuverteLe } from "@/lib/feedFilters";
 import { notFound } from "next/navigation";
 import { urlVignette } from "@/lib/vignetteStockage";
 import { cheminPartageAnnonce } from "@/lib/partageAnnonce";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { BriqueStatus } from "@prisma/client";
+
 import { auth } from "@/lib/auth";
 import { logTraceEvent } from "@/lib/trace";
 import ShareActions from "@/components/share/ShareActions";
@@ -39,7 +40,9 @@ async function getMission(id: string) {
     // présence, indisponibilité — sont des lignes de planning, pas des offres : les exposer
     // publiait l'agenda personnel du praticien (page HTTP 200 + carte de partage à son nom).
     // Même règle que le sitemap (sitemap.ts) ; l'ancien filtre n'excluait qu'INDISPONIBLE.
-    where: { id, isActive: true, briqueStatus: BriqueStatus.RECHERCHE },
+    // Section 298 : le prédicat unique du fil — une annonce échue ou déjà engagée n'a plus de
+    // page publique, exactement comme une annonce dépubliée (404).
+    where: { id, ...offreOuverteLe(new Date()) },
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
       minMonths: true, missionType: true, pitch: true, bioTinder: true,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { EST_UNE_OFFRE } from "@/lib/feedFilters";
+import { offreRecevableLe } from "@/lib/feedFilters";
 import { z } from "zod";
 import { Prisma, SwipeDirection } from "@prisma/client";
 import { computeAffinityScore } from "@/lib/deepseek";
@@ -65,6 +65,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Impossible de swiper sa propre mission" }, { status: 400 });
   }
 
+  // ── UNE CARTE RESTÉE À L'ÉCRAN APRÈS LA FIN DE SA PÉRIODE (section 298) ─────────────────────
+  //
+  // Le fil n'en sert plus, mais une carte déjà chargée côté client peut survivre à minuit, ou à
+  // une dépublication. Un « intéressé » dessus posait un swipe, envoyait au cabinet « quelqu'un
+  // s'intéresse à votre annonce » (3 emails mesurés le 13/10 pour des périodes passées) et pouvait
+  // nouer une relation. On refuse AVANT toute écriture : aucune trace d'intérêt n'est posée.
+  // Un « pas intéressé » reste accepté — il ne fait qu'écarter la carte, sans effet pour l'autre.
+  const maintenant = new Date();
+  if (direction === SwipeDirection.RIGHT) {
+    // `offreRecevableLe` et non `offreOuverteLe` : voir feedFilters.
+    const ouverte = await prisma.mission.findFirst({
+      where: { id: swipedMissionId, ...offreRecevableLe(maintenant) },
+      select: { id: true },
+    });
+    if (!ouverte) {
+      return NextResponse.json(
+        { error: "Cette annonce n'est plus proposée : sa période est terminée, ou elle a été retirée entre-temps.", plusProposee: true },
+        { status: 409 },
+      );
+    }
+  }
+
   let affinityScore: number | undefined;
   // Période visée par le swipeur, conservée hors du bloc de scoring : la trace saisonnière en a
   // besoin plus bas, et la recalculer ferait un second appel à la base pour rien.
@@ -93,17 +115,13 @@ export async function POST(req: NextRequest) {
     // périmée pourrait encore nouer une relation sur une mission qui n'est plus proposée.
     // Repéré en rejouant le correctif sur la base : une paire y apparaissait via un swipe
     // historique posé sur une annonce désormais inactive.
-    const cibleEstUneOffre =
-      swipedMission.isActive &&
-      swipedMission.briqueStatus === EST_UNE_OFFRE.briqueStatus &&
-      !swipedMission.isSelfPresence;
-
-    const mesOffres = cibleEstUneOffre
-      ? await prisma.mission.findMany({
-          where: { ...EST_UNE_OFFRE, profileId: swiperId },
-          select: { id: true },
-        })
-      : [];
+    // La garde sur l'annonce retenue est désormais le refus ci-dessus (section 298). Côté
+    // swipeur, on écarte aussi ses annonces ÉCHUES : sans quoi la relation pouvait s'attacher
+    // à un poste terminé.
+    const mesOffres = await prisma.mission.findMany({
+      where: { profileId: swiperId, ...offreRecevableLe(maintenant) },
+      select: { id: true },
+    });
     const reciprocalMissionFilter = { swipedMissionId: { in: mesOffres.map((m) => m.id) } };
 
     // Une même personne peut avoir retenu PLUSIEURS de mes annonces. Prendre la première

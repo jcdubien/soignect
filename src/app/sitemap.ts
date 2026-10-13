@@ -1,3 +1,4 @@
+import { offreOuverteLe } from "@/lib/feedFilters";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { appBaseUrl as baseUrl } from "@/lib/appUrl";
@@ -29,7 +30,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let annonceEntries: MetadataRoute.Sitemap = [];
   try {
     const missions = await prisma.mission.findMany({
-      where: { isActive: true, briqueStatus: "RECHERCHE" },
+      // Prédicat unique (section 298) : on ne signale aux moteurs que des pages qui répondent.
+      where: offreOuverteLe(new Date()),
       select: { id: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
       take: 5000,

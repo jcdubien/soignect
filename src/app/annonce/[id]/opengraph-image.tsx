@@ -1,5 +1,6 @@
+import { offreOuverteLe } from "@/lib/feedFilters";
 import { prisma } from "@/lib/prisma";
-import { BriqueStatus } from "@prisma/client";
+
 import { rendreVignetteJpeg, ErreurRenduVignette, TAILLE_VIGNETTE } from "@/lib/vignetteAnnonce";
 import { urlVignette } from "@/lib/vignetteStockage";
 
@@ -52,7 +53,8 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   // pas — ces octets transitent déjà par Vercel aujourd'hui.
   const stockee = await prisma.mission
     .findFirst({
-      where: { id, isActive: true, briqueStatus: BriqueStatus.RECHERCHE },
+      // Prédicat unique (section 298) : une annonce échue ne sert plus son image.
+      where: { id, ...offreOuverteLe(new Date()) },
       select: { vignetteAt: true },
     })
     .catch(() => null);

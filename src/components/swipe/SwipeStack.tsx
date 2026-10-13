@@ -885,6 +885,10 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
     setFeuilleDispo((prev) => (prev === false ? null : prev));
   }, [isTitulaire, aPublie, cabinetsEnAttente]);
 
+  // Refus du serveur sur une carte restée à l'écran après la fin de sa période (section 298).
+  // Le message vient de la route : l'écran ne redit pas la règle.
+  const [avisRefus, setAvisRefus] = useState<string | null>(null);
+
   const enregistrerChoix = useCallback(async (mission: MissionWithProfile, direction: "LEFT" | "RIGHT") => {
     const payload: Record<string, unknown> = { swipedMissionId: mission.id, direction };
     if (isTitulaire && activeMissionId) payload.targetMissionId = activeMissionId;
@@ -897,6 +901,11 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          setAvisRefus(typeof d?.error === "string" ? d.error : "Votre choix n'a pas pu être enregistré. Réessayez.");
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           // La feuille s'ouvre APRÈS la réponse du serveur, et seulement si le geste a été
@@ -1130,6 +1139,13 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       <AnimatePresence>
         {match && <MatchModal match={match} onClose={() => setMatch(null)} />}
       </AnimatePresence>
+
+      {avisRefus && (
+        <div role="status" className="fixed inset-x-4 top-20 z-50 mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-lg flex items-start gap-3">
+          <span className="flex-1">{avisRefus}</span>
+          <button type="button" onClick={() => setAvisRefus(null)} className="text-amber-700 font-bold" aria-label="Fermer">✕</button>
+        </div>
+      )}
 
       {/* Fiche détaillée (bottom sheet, section 4).
           Accessibilité (WCAG 2.5.1, « Pointer Gestures ») : sans les boutons du carrousel, le

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileType, SwipeDirection } from "@prisma/client";
-import { EST_UNE_OFFRE } from "@/lib/feedFilters";
+import { offreRecevableLe } from "@/lib/feedFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -41,8 +41,7 @@ export async function GET() {
     return NextResponse.json({ items: [], sansPublication: 0 });
   }
 
-  const auj = new Date();
-  auj.setHours(0, 0, 0, 0);
+  const maintenant = new Date();
 
   // Ma profession borne cette liste (section 278). Le fil est cloisonné depuis le 17/08, donc un
   // intérêt d'une autre profession ne peut plus ARRIVER — mais `/compte` laisse changer de
@@ -64,11 +63,10 @@ export async function GET() {
   // MES annonces réellement proposables. Le prédicat partagé (section 265) plus l'exclusion des
   // périodes écoulées : un intérêt sur une annonce morte n'appelle plus d'action.
   const mesAnnonces = await prisma.mission.findMany({
-    where: {
-      ...EST_UNE_OFFRE,
-      profileId,
-      OR: [{ endDate: null }, { endDate: { gte: auj } }],
-    },
+    // Prédicat partagé (section 298) : la borne de date était recopiée ici, avec `setHours(0)`
+    // — minuit UTC sur le serveur, donc une annonce sortait de cette liste dès 20 h locales le
+    // jour même de sa fin.
+    where: { profileId, ...offreRecevableLe(maintenant) },
     select: { id: true, title: true },
   });
   if (mesAnnonces.length === 0) return NextResponse.json({ items: [], sansPublication: 0 });
@@ -112,7 +110,8 @@ export async function GET() {
   // La disponibilité publiée de chaque candidat — c'est ELLE que le cabinet swipe pour fermer la
   // boucle, et c'est elle qui porte les dates et l'accroche à lire.
   const dispos = await prisma.mission.findMany({
-    where: { ...EST_UNE_OFFRE, profileId: { in: enAttente.map((s) => s.swiperId) } },
+    // Recevable, pas seulement offre : swiper une disponibilité échue serait refusé (section 298).
+    where: { profileId: { in: enAttente.map((s) => s.swiperId) }, ...offreRecevableLe(maintenant) },
     include: { profile: true },
     orderBy: { updatedAt: "desc" },
   });

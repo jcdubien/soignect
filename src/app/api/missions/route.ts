@@ -11,7 +11,7 @@ import { publierSurLaPage, messagePourAnnonce } from "@/lib/facebookPage";
 import { rattraperInteretsDifferes } from "@/lib/interetSignale";
 import { bioLimitFor } from "@/lib/bio";
 import { stripMissionProfiles } from "@/lib/publicProfile";
-import { NO_ACTIVE_MATCH_FILTER } from "@/lib/feedFilters";
+import { offreOuverteLe } from "@/lib/feedFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -91,11 +91,9 @@ export async function GET(req: NextRequest) {
 
   const missions = await prisma.mission.findMany({
     where: {
-      isActive: true,
-      // Même règle que /api/feed : une absence du titulaire n'est pas une offre à swiper.
-      isSelfPresence: false,
+      // Prédicat unique du fil (sections 184, 265, 298) : offre, non engagée, non échue.
+      ...offreOuverteLe(new Date()),
       id: { notIn: excludeMissionIds },
-      ...NO_ACTIVE_MATCH_FILTER, // section 184 : masque les missions déjà matchées (cf. /api/feed)
       profile: {
         type: { in: oppositeTypes },
         isActive: true,

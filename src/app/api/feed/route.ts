@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileType, TitulaireKind, MissionType, Prisma } from "@prisma/client";
 import { stripMissionProfiles } from "@/lib/publicProfile";
-import { EST_UNE_OFFRE, NO_ACTIVE_MATCH_FILTER, offreOuverteLe } from "@/lib/feedFilters";
+import { EST_UNE_OFFRE, offreOuverteLe } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
@@ -103,6 +103,9 @@ export async function GET(req: NextRequest) {
   // lire la souplesse de chaque candidat, et prendre le maximum garantit qu'on n'écarte personne
   // de notable. Les dates absentes ne sont plus une exclusion mais un cas que le barème sait
   // traiter — on les laisse donc passer.
+  // Un seul instant pour toute la requête : le fil, ses compteurs et le rattrapage doivent
+  // juger « échue » sur la même horloge.
+  const maintenant = new Date();
   let dateFilter: Prisma.MissionWhereInput = {};
   // Période visée par le cabinet — déjà chargée pour le filtre de dates, on la garde pour le
   // bonus saisonnier (section 197), qui ne s'applique que si le besoin recoupe mai-octobre.
@@ -167,15 +170,18 @@ export async function GET(req: NextRequest) {
 
   const missions = await prisma.mission.findMany({
     where: {
-      // Prédicat unique (section 265) : active, EN RECHERCHE, et pas une absence. Le feed
-      // retenait ici sa propre définition, plus large que celle de la page publique.
-      ...EST_UNE_OFFRE,
-      id: { notIn: excludeMissionIds },
-      ...NO_ACTIVE_MATCH_FILTER,
-      profile: profileWhere,
-      ...(location ? { location } : {}),
-      ...dateFilter,
-      ...filtreTypes,
+      // Prédicat unique (sections 265, 298) : offre, non engagée, période non échue au jour
+      // local. Composé par AND : `dateFilter` et `filtreTypes` peuvent porter leur propre OR.
+      AND: [
+        offreOuverteLe(maintenant),
+        {
+          id: { notIn: excludeMissionIds },
+          profile: profileWhere,
+          ...(location ? { location } : {}),
+          ...dateFilter,
+          ...filtreTypes,
+        },
+      ],
     },
     include: { profile: true },
     orderBy: [
@@ -305,12 +311,15 @@ export async function GET(req: NextRequest) {
           // MÊME prédicat que le feed lui-même : ce compte sert à dire « vous les avez tous
           // vus » plutôt que « il n'y en a aucun ». Calculé sur un périmètre plus large, il
           // aurait annoncé des déjà-vus que le feed ne propose plus.
-          ...EST_UNE_OFFRE,
-          id: { in: excludeMissionIds },
-          ...NO_ACTIVE_MATCH_FILTER,
-          profile: profileWhere,
-          ...(location ? { location } : {}),
-          ...dateFilter,
+          AND: [
+            offreOuverteLe(maintenant),
+            {
+              id: { in: excludeMissionIds },
+              profile: profileWhere,
+              ...(location ? { location } : {}),
+              ...dateFilter,
+            },
+          ],
         },
       })
     : 0;
@@ -392,7 +401,7 @@ export async function GET(req: NextRequest) {
         // rattrapage décide ensuite qui reçoit un email. Deux prédicats écrits séparément
         // auraient fini par ne plus désigner les mêmes annonces — la promesse et l'envoi
         // auraient divergé sans que rien ne le signale.
-        swipedMission: offreOuverteLe(new Date()),
+        swipedMission: offreOuverteLe(maintenant),
       },
       select: { swipedMission: { select: { profileId: true } } },
     });
@@ -426,13 +435,16 @@ export async function GET(req: NextRequest) {
   const remplacementsMasques = types === "POSTES"
     ? await prisma.mission.count({
         where: {
-          ...EST_UNE_OFFRE,
-          id: { notIn: excludeMissionIds },
-          ...NO_ACTIVE_MATCH_FILTER,
-          profile: profileWhere,
-          ...(location ? { location } : {}),
-          missionType: MissionType.REMPLACEMENT,
-          estSalariat: false,
+          AND: [
+            offreOuverteLe(maintenant),
+            {
+              id: { notIn: excludeMissionIds },
+              profile: profileWhere,
+              ...(location ? { location } : {}),
+              missionType: MissionType.REMPLACEMENT,
+              estSalariat: false,
+            },
+          ],
         },
       })
     : 0;

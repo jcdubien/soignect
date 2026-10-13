@@ -1168,8 +1168,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
             {periodePassee && (
               <p className="mt-2 text-xs leading-snug rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
                 ⚠️ <strong>Cette période est déjà passée.</strong> Vérifiez l&apos;année : une
-                annonce dont la période est révolue reste visible par les candidats, qui peuvent
-                s&apos;y intéresser pour rien. Si c&apos;est voulu, vous pouvez publier quand même.
+                annonce dont la période est terminée n&apos;est pas proposée aux candidats.
               </p>
             )}
           </div>

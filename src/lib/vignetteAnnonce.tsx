@@ -23,10 +23,11 @@
 // aperçus déjà scrapés par Facebook pointent sur son URL, et la supprimer les casserait. Elle
 // devient le REPLI, servi tant qu'une annonce n'a pas sa vignette stockée.
 
+import { offreOuverteLe } from "@/lib/feedFilters";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
-import { BriqueStatus, MissionType } from "@prisma/client";
+import { MissionType } from "@prisma/client";
 import { phraseIntentionPartage } from "@/lib/libellesPoste";
 import { resumeRetrocession } from "@/lib/retrocession";
 
@@ -224,7 +225,8 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
     m = await prisma.mission.findFirst({
       // Même règle que la page publique et le sitemap : seules les annonces EN RECHERCHE
       // ont une image de partage. Sinon on générait une carte Facebook pour des congés.
-      where: { id, isActive: true, briqueStatus: BriqueStatus.RECHERCHE },
+      // Section 298 : le prédicat unique — ni échue, ni déjà engagée.
+      where: { id, ...offreOuverteLe(new Date()) },
       select: {
         title: true, location: true, missionType: true,
         startDate: true, endDate: true, minMonths: true,

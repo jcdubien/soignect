@@ -1,5 +1,6 @@
 "use client";
 
+import { jourLocalUtc } from "@/lib/jourLocal";
 import { useState, useRef, useEffect } from "react";
 import { cheminPartageAnnonce } from "@/lib/partageAnnonce";
 import Link from "next/link";
@@ -272,9 +273,10 @@ export function estAnnoncePerimee(m: {
   if (!m.isActive || m.briqueStatus !== "RECHERCHE") return false;
   const d = toDate(m.departureDate ?? m.endDate);
   if (!d) return false;
-  const auj = new Date();
-  auj.setHours(0, 0, 0, 0);
-  return d < auj;
+  // Même borne que le fil (section 298, lib/jourLocal) : l'encart et la visibilité côté
+  // candidats basculent au même instant. `setHours(0)` marquait « écoulée » dès le DERNIER jour,
+  // pendant que le fil servait encore l'annonce.
+  return d < jourLocalUtc(new Date());
 }
 
 /** Nomme le problème ET les deux issues. Un avertissement qui ne dit pas quoi faire laisse son
@@ -282,8 +284,8 @@ export function estAnnoncePerimee(m: {
 export function EncartPeriodeEcoulee() {
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-snug text-amber-800">
-      ⚠️ <strong>Période écoulée.</strong> Cette annonce reste visible par les candidats et propose
-      une période déjà passée. Modifiez ses dates ou dépubliez-la.
+      ⚠️ <strong>Période écoulée.</strong> Cette annonce n&apos;est plus visible par les candidats.
+      Modifiez ses dates pour la proposer à nouveau, ou dépubliez-la.
     </div>
   );
 }
