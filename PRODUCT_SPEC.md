@@ -7347,6 +7347,51 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 301 — L'OFFRE PARTENAIRE EST ENFIN DITE (14/10)
+
+Demande de Jean-Charles : mettre en avant qu'une MSP, un EHPAD, une CPTS ou un hôpital, **en devenant
+partenaire (payant)**, obtient une mise en avant de ses zones en tension — pour orienter l'offre selon
+ses objectifs, pas seulement recruter au coup par coup.
+
+**Le levier existait déjà (section 214) et n'était annoncé nulle part.** Vérifié dans le code avant
+d'écrire une ligne : une `PrioriteTerritoriale` (commune × profession), portée par un
+`ClientInstitutionnel` actif, ajoute des points à l'ORDRE du fil des candidats de cette profession ;
+la carte porte « déclarée prioritaire par <structure> ». Le levier s'éteint à `revueLe` ou à la
+clôture. En base le 14/10 : 1 client (CPTS, `POC_GRATUIT`), 2 priorités.
+
+Bloc `BlocPartenaire` sur les portes `offrePartenaire` : TERRITOIRE, MAISON_DE_SANTE, ÉTABLISSEMENT
+(kiné et infirmier). Absent des portes chercheur et cabinet. CTA « Devenir partenaire » →
+`/register?src=partenaire-<porte>-<profession>` (sous la limite de 40 caractères de `src`).
+
+**Ce que le bloc ne dit pas, délibérément :**
+- « remontent **dans** le fil », pas « en tête » : ce sont des points ajoutés à la désirabilité, pas
+  un rang garanti. La première version poussée (c629f5c) disait « en tête » — corrigé au commit suivant ;
+- aucun prix : aucun n'est arrêté — « offre payante, sur devis » ;
+- la remontée vaut pour **toutes** les annonces de la commune, pas pour celles du seul partenaire :
+  on promeut une zone en tension, pas un employeur.
+
+**Nuance non écrite sur la page** : la mention nomme la structure quand une seule institution
+apparaît dans le fil du candidat ; s'il y en a plusieurs, la formule devient neutre (« où votre
+profession est signalée comme manquante »).
+
+**Limites à connaître avant de vendre** : `TypeInstitution` ne connaît ni hôpital ni EHPAD (seulement
+`AUTRE`) ; le partenaire ne règle rien lui-même, il demande et l'administrateur saisit (section 233).
+
+La page CPTS disait « Gratuit pour les structures territoriales pendant la bêta » : elle dit désormais
+« Consultation gratuite pendant la bêta. Mise en avant de vos zones : offre partenaire. »
+
+### SECTION 300 — LES PAGES DU GABARIT COMMUN N'AVAIENT PAS D'IMAGE DE PARTAGE (14/10)
+
+Signalé par Jean-Charles : les miniatures des pages infirmier ne s'affichaient pas sur Facebook. Cause :
+une page qui déclare son propre `openGraph` sans image ne reprend PAS l'image du segment racine. Les
+pages composées par `PagePorte`, et la page CPTS, servaient donc un partage sans `og:image` — défaut
+ancien sur recrutement / emploi / territoire kiné, révélé par les nouvelles pages.
+
+Chaque route a désormais son `opengraph-image.tsx`, qui délègue à `lib/ogPorte` ; titres et
+sous-titres courts portés par la porte (`ogTitre`, `ogSousTitre`). Runtime Node : le module des pages
+lit les enums Prisma. Vérifié en production avec l'agent `facebookexternalhit` : 8 images en 200 PNG.
+Facebook garde en cache un partage déjà scrapé : repasser chaque URL dans le Sharing Debugger.
+
 ### SECTION 299 — UNE PAGE PAR PUBLIC : CPTS, MSP, ÉTABLISSEMENTS, ET LES INFIRMIERS (14/10)
 
 #### Ce qui change

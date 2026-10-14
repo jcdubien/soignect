@@ -24,7 +24,7 @@ export default function BlocPartenaire({ profession, inscription }: { profession
       </h2>
       <p className="text-sm text-gray-600 mb-4">
         CPTS, maison de santé, hôpital, EHPAD : en devenant partenaire, vous déclarez les communes
-        où une profession manque. Les annonces de ces communes remontent en tête du fil des{" "}
+        où une profession manque. Les annonces de ces communes remontent dans le fil des{" "}
         {profession.pluriel} disponibles. Vous orientez l&apos;offre vers vos objectifs de
         territoire, pas seulement vers un recrutement ponctuel.
       </p>
