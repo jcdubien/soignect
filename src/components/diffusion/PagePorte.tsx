@@ -4,6 +4,7 @@ import { ZoneGeographique } from "@prisma/client";
 import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import { Porte, Profession, Territoire, cleTracePage } from "@/lib/pagesDiffusion";
+import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
 
 // Gabarit commun des pages de diffusion « à annonces » (section 212) — portes CABINET,
 // ÉTABLISSEMENT et MAISON DE SANTÉ, et toutes les pages infirmier (section 299). La porte
@@ -113,6 +114,10 @@ export default async function PagePorte({
           {porte.cta}
         </Link>
       </div>
+
+      {porte.offrePartenaire && (
+        <BlocPartenaire profession={profession} inscription={`/register?profession=${profession.enumBase}&src=partenaire-${porte.slug}-${profession.slug}`} />
+      )}
 
       {/* NE GARDER ICI QUE CE QUI EST VRAI PAR CONSTRUCTION (règle du 10/08, réaffirmée le
           12/08) : ce que fait Soignect, les types de poste, le statut du territoire. Aucune

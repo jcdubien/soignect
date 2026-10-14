@@ -191,6 +191,10 @@ export interface Porte {
    *  par certaines destinations — et une phrase. */
   ogTitre: (p: Profession, t: Territoire) => string;
   ogSousTitre: (p: Profession, t: Territoire) => string;
+  /** Vrai pour les structures qui pilotent un territoire ou des besoins durables — CPTS, MSP,
+   *  établissements : la page leur présente l'offre partenaire (section 301). Un cabinet libéral
+   *  ou un candidat n'y est pas concerné. */
+  offrePartenaire: boolean;
   /** Le camp des annonces que cette porte AFFICHE — l'inverse de son visiteur, jamais le sien.
    *  Déclaré par porte plutôt que dérivé : ajouter une porte oblige à trancher à qui elle parle,
    *  au lieu de laisser un défaut décider en silence. */
@@ -213,6 +217,7 @@ export const PORTES: Record<string, Porte> = {
       `${proposeAssistanat(p) ? "Remplacements, assistanats et collaborations" : "Remplacements et collaborations"} ${t.preposition} ${t.nom}. Gratuit pour qui cherche un poste.`,
     /** un chercheur de poste vient voir des POSTES, pas d'autres candidats. */
     montre: "EMPLOYEUR",
+    offrePartenaire: false,
   },
   CABINET: {
     slug: "recrutement",
@@ -230,6 +235,7 @@ export const PORTES: Record<string, Porte> = {
     ogSousTitre: (p) => `${formesDuPoste(p)} : publiez votre poste, les ${p.pluriel} disponibles vous répondent.`,
     /** un cabinet qui recrute vient voir des CANDIDATS, pas les annonces d'autres cabinets. */
     montre: "CANDIDAT",
+    offrePartenaire: false,
   },
   ETABLISSEMENT: {
     slug: "emploi",
@@ -247,6 +253,7 @@ export const PORTES: Record<string, Porte> = {
     ogSousTitre: (p) => `Hôpitaux, cliniques, EHPAD, SSR : vos offres en CDI, CDD ou vacation, présentées aux ${p.pluriel} ouverts au salariat.`,
     /** meme raison que la porte CABINET : un employeur vient voir qui est disponible. */
     montre: "CANDIDAT",
+    offrePartenaire: true,
   },
   // Une MSP recrute comme un cabinet — même camp montré, mêmes types de poste — mais elle a un
   // argument qu'un cabinet isolé n'a pas : l'exercice coordonné. La case existe sur l'annonce
@@ -269,6 +276,7 @@ export const PORTES: Record<string, Porte> = {
     ogSousTitre: (p) => `${formesDuPoste(p)}. Publiez le poste et signalez l'exercice coordonné.`,
     /** même camp que la porte CABINET : une MSP qui recrute vient voir qui est disponible. */
     montre: "CANDIDAT",
+    offrePartenaire: true,
   },
   // La porte TERRITOIRE ne suit PAS le gabarit des trois autres — voir la page dédiée.
   // Elle est déclarée ici pour le slug, la trace et /admin/diffusion ; son contenu est un
@@ -286,11 +294,14 @@ export const PORTES: Record<string, Porte> = {
     metaDescription: (p, t) =>
       `CPTS et collectivités de ${t.nom} : suivez les postes de ${p.discipline} ouverts sur votre territoire et intégrez-les à votre site.`,
     cta: "Échanger sur un partenariat →",
-    ctaSous: "Gratuit pour les structures territoriales pendant la bêta.",
+    // La consultation reste gratuite ; la mise en avant des zones est l'offre partenaire, payante
+    // (section 301). L'ancienne phrase — « gratuit pendant la bêta » — couvrait les deux.
+    ctaSous: "Consultation gratuite pendant la bêta. Mise en avant de vos zones : offre partenaire.",
     ogTitre: (p) => `Structurer l'offre de ${p.discipline}`,
-    ogSousTitre: () => "CPTS et collectivités : les postes ouverts sur votre territoire, et un module pour votre site.",
+    ogSousTitre: () => "CPTS et collectivités : vos zones en tension mises en avant, les postes ouverts, un module pour votre site.",
     /** la page compte les POSTES OUVERTS du territoire, ce qu'elle dit d'ailleurs en toutes lettres. */
     montre: "EMPLOYEUR",
+    offrePartenaire: true,
   },
 };
 

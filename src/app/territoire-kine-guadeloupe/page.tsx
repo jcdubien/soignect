@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { KINESITHERAPEUTE, INFIRMIER, TERRITOIRES, PORTES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
 import { filtreAnnoncesVivantes, PERIMETRE_GUADELOUPE } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
+import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
 import { ZONE_LABELS, COMMUNE_ZONE } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
@@ -128,6 +129,10 @@ export default async function Page() {
         >
           {PORTE.cta}
         </Link>
+      </div>
+
+      <div className="mb-8 -mt-2">
+        <BlocPartenaire profession={PRO} inscription={`/register?src=partenaire-${PORTE.slug}-${PRO.slug}`} />
       </div>
 
       {/* Une MSP recrute : sa page est celle d'un employeur, pas celle-ci (section 299). */}
