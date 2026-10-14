@@ -121,7 +121,9 @@ export default async function Page() {
           <p className="text-kine-100 text-sm">{PORTE.ctaSous}</p>
         </div>
         <Link
-          href="/register"
+          // Provenance seule (section 86), sans profession : une CPTS n'en exerce pas une, et
+          // présélectionner « kiné » parce que la page en parle fausserait son inscription.
+          href={`/register?src=${cleTracePage(PORTE, PRO, TERR)}`}
           className="flex-shrink-0 px-5 py-3 bg-white text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition"
         >
           {PORTE.cta}
