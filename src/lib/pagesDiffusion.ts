@@ -187,6 +187,10 @@ export interface Porte {
   cta: string;
   /** Ce que le visiteur vient chercher, sous le CTA. */
   ctaSous: string;
+  /** Image de partage (section 300) : titre COURT — l'image en a 600 px utiles, recadrée au carré
+   *  par certaines destinations — et une phrase. */
+  ogTitre: (p: Profession, t: Territoire) => string;
+  ogSousTitre: (p: Profession, t: Territoire) => string;
   /** Le camp des annonces que cette porte AFFICHE — l'inverse de son visiteur, jamais le sien.
    *  Déclaré par porte plutôt que dérivé : ajouter une porte oblige à trancher à qui elle parle,
    *  au lieu de laisser un défaut décider en silence. */
@@ -204,6 +208,9 @@ export const PORTES: Record<string, Porte> = {
     metaDescription: (p, t) => t.metaDescription(p),
     cta: "S'inscrire →",
     ctaSous: "Remplaçants : accès à vie, sans aucun frais.",
+    ogTitre: (p, t) => `Postes ${p.deCourt} ${t.preposition} ${t.nom}`,
+    ogSousTitre: (p, t) =>
+      `${proposeAssistanat(p) ? "Remplacements, assistanats et collaborations" : "Remplacements et collaborations"} ${t.preposition} ${t.nom}. Gratuit pour qui cherche un poste.`,
     /** un chercheur de poste vient voir des POSTES, pas d'autres candidats. */
     montre: "EMPLOYEUR",
   },
@@ -219,6 +226,8 @@ export const PORTES: Record<string, Porte> = {
       `Cabinets de ${t.nom} : publiez votre recherche ${p.deSingulier} et recevez des candidatures. ${listeTypes(p)} — ${p.contratPreRempli}, sans commission sur les honoraires.`,
     cta: "Publier mon poste →",
     ctaSous: "Publication gratuite pendant la bêta.",
+    ogTitre: (p, t) => `Recruter ${p.unSingulier} ${t.preposition} ${t.nom}`,
+    ogSousTitre: (p) => `${formesDuPoste(p)} : publiez votre poste, les ${p.pluriel} disponibles vous répondent.`,
     /** un cabinet qui recrute vient voir des CANDIDATS, pas les annonces d'autres cabinets. */
     montre: "CANDIDAT",
   },
@@ -234,6 +243,8 @@ export const PORTES: Record<string, Porte> = {
       `Établissements de ${t.nom} — hôpital, clinique, EHPAD, SSR, CAMSP : publiez vos postes ${p.deSingulier} salarié et touchez les candidats ouverts au salariat.`,
     cta: "Publier une offre →",
     ctaSous: "Le contrat de travail relève de votre établissement.",
+    ogTitre: (p) => `Recrutement ${p.court} salarié`,
+    ogSousTitre: (p) => `Hôpitaux, cliniques, EHPAD, SSR : vos offres en CDI, CDD ou vacation, présentées aux ${p.pluriel} ouverts au salariat.`,
     /** meme raison que la porte CABINET : un employeur vient voir qui est disponible. */
     montre: "CANDIDAT",
   },
@@ -254,6 +265,8 @@ export const PORTES: Record<string, Porte> = {
       `MSP de ${t.nom} : publiez vos postes ${p.deSingulier} et signalez l'exercice coordonné. ${listeTypes(p)} — ${p.contratPreRempli}, sans commission sur les honoraires.`,
     cta: "Publier le poste de la MSP →",
     ctaSous: "Publication gratuite pendant la bêta.",
+    ogTitre: (p) => `Votre maison de santé recrute ${p.unSingulier}`,
+    ogSousTitre: (p) => `${formesDuPoste(p)}. Publiez le poste et signalez l'exercice coordonné.`,
     /** même camp que la porte CABINET : une MSP qui recrute vient voir qui est disponible. */
     montre: "CANDIDAT",
   },
@@ -274,6 +287,8 @@ export const PORTES: Record<string, Porte> = {
       `CPTS et collectivités de ${t.nom} : suivez les postes de ${p.discipline} ouverts sur votre territoire et intégrez-les à votre site.`,
     cta: "Échanger sur un partenariat →",
     ctaSous: "Gratuit pour les structures territoriales pendant la bêta.",
+    ogTitre: (p) => `Structurer l'offre de ${p.discipline}`,
+    ogSousTitre: () => "CPTS et collectivités : les postes ouverts sur votre territoire, et un module pour votre site.",
     /** la page compte les POSTES OUVERTS du territoire, ce qu'elle dit d'ailleurs en toutes lettres. */
     montre: "EMPLOYEUR",
   },
