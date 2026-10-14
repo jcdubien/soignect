@@ -13,8 +13,9 @@
 // AJOUTER UNE PROFESSION OU UN TERRITOIRE = ajouter une entrée ici. Les trois pages n'ont pas
 // à être touchées : elles lisent leur configuration par leur clé.
 
-import { Profession as ProfessionDb } from "@prisma/client";
+import { MissionType, Profession as ProfessionDb } from "@prisma/client";
 import type { Camp } from "@/lib/annoncesTerritoire";
+import { missionTypesPour } from "@/lib/contrats/gabarits";
 
 export interface Profession {
   /** « kinésithérapeute » — employé dans le titre personnifié. */
@@ -40,6 +41,14 @@ export interface Profession {
    *  l'autre marcherait aujourd'hui et casserait en silence à la première profession dont les
    *  deux formes divergent. */
   enumBase: ProfessionDb;
+  /** « un kinésithérapeute » — l'article ne se compose pas : « un » ici, « une » ailleurs. */
+  unSingulier: string;
+  /** « de kinésithérapeute », mais « d'infirmier » : l'élision ne se compose pas non plus. */
+  deSingulier: string;
+  /** « de kiné », mais « d'infirmier ». */
+  deCourt: string;
+  /** Le modèle de contrat que la plateforme pré-remplit, nommé comme le connaît la profession. */
+  contratPreRempli: string;
 }
 
 export const KINESITHERAPEUTE: Profession = {
@@ -49,7 +58,50 @@ export const KINESITHERAPEUTE: Profession = {
   discipline: "kinésithérapie",
   slug: "kine",
   enumBase: ProfessionDb.KINESITHERAPEUTE,
+  unSingulier: "un kinésithérapeute",
+  deSingulier: "de kinésithérapeute",
+  deCourt: "de kiné",
+  contratPreRempli: "contrat CNOMK pré-rempli",
 };
+
+export const INFIRMIER: Profession = {
+  singulier: "infirmier",
+  pluriel: "infirmiers",
+  court: "infirmier",
+  discipline: "soins infirmiers",
+  slug: "infirmier",
+  enumBase: ProfessionDb.INFIRMIER,
+  unSingulier: "un infirmier",
+  deSingulier: "d'infirmier",
+  deCourt: "d'infirmier",
+  contratPreRempli: "contrat de l'Ordre des infirmiers pré-rempli",
+};
+
+// ── LES TYPES DE POSTE SE DÉRIVENT DES CONTRATS, ILS NE S'ÉCRIVENT PAS (section 299) ────────
+//
+// Les textes nommaient « assistanat » en dur. L'assistanat n'existe pas chez les infirmiers
+// (gabarits infirmier du 27/08 : aucun modèle de l'Ordre), et la page aurait promis un poste qu'aucun formulaire
+// ne permet de publier. La source est le registre des gabarits — la même que le formulaire de
+// création d'annonce : une page ne peut pas annoncer un type que l'écran de publication refuse.
+function proposeAssistanat(p: Profession): boolean {
+  return missionTypesPour(p.enumBase).includes(MissionType.ASSISTANAT);
+}
+/** « Remplacement de quelques semaines, assistanat sur la durée ou collaboration libérale ». */
+function formesDuPoste(p: Profession): string {
+  return proposeAssistanat(p)
+    ? "Remplacement de quelques semaines, assistanat sur la durée ou collaboration libérale"
+    : "Remplacement de quelques semaines ou collaboration libérale";
+}
+/** « Remplacement, assistanat, collaboration libérale ». */
+function listeTypes(p: Profession): string {
+  return proposeAssistanat(p)
+    ? "Remplacement, assistanat, collaboration libérale"
+    : "Remplacement, collaboration libérale";
+}
+/** « remplaçant, assistant, collaborateur ». */
+function listePersonnes(p: Profession): string {
+  return proposeAssistanat(p) ? "remplaçant, assistant, collaborateur" : "remplaçant, collaborateur";
+}
 
 /** Vocabulaire DÉCLARÉ, indexé par valeur d'enum. Partiel à dessein : une profession absente
  *  d'ici n'a pas de vocabulaire, et rien ne doit lui en inventer un.
@@ -61,6 +113,7 @@ export const KINESITHERAPEUTE: Profession = {
  *  d'URL déclaré plutôt que dérivé (14/08) : ce qui n'a pas été décidé doit se voir. */
 export const VOCABULAIRE_PROFESSION: Partial<Record<ProfessionDb, Profession>> = {
   [ProfessionDb.KINESITHERAPEUTE]: KINESITHERAPEUTE,
+  [ProfessionDb.INFIRMIER]: INFIRMIER,
 };
 
 export function libelleProfession(valeur: ProfessionDb): string {
@@ -102,7 +155,7 @@ export interface Territoire {
 // vient chercher plutôt que d'étiqueter la page. La profession y reste explicite, pour la
 // reconnaissance immédiate.
 export function titrePage(p: Profession, t: Territoire): string {
-  return `Je souhaite organiser mon temps d'activité de ${p.singulier} ${t.preposition} ${t.nom}`;
+  return `Je souhaite organiser mon temps d'activité ${p.deSingulier} ${t.preposition} ${t.nom}`;
 }
 
 // ── Troisième axe : la PORTE, c'est-à-dire À QUI la page s'adresse (section 212) ────────
@@ -158,12 +211,12 @@ export const PORTES: Record<string, Porte> = {
     slug: "recrutement",
     libelle: "Cabinet",
     cible: "Cabinets libéraux qui recrutent",
-    titre: (p, t) => `Je recherche un ${p.singulier} pour renforcer mon cabinet ${t.preposition} ${t.nom}`,
+    titre: (p, t) => `Je recherche ${p.unSingulier} pour renforcer mon cabinet ${t.preposition} ${t.nom}`,
     accroche: (p, t) =>
-      `Publiez votre poste et voyez qui s'y intéresse. Remplacement de quelques semaines, assistanat sur la durée ou collaboration libérale : vous décidez du cadre, les ${p.pluriel} disponibles ${t.preposition} ${t.nom} vous répondent sans intermédiaire.`,
-    metaTitre: (p, t) => `Recruter un ${p.court} ${t.preposition} ${t.nom} — remplaçant, assistant, collaborateur | Soignect`,
+      `Publiez votre poste et voyez qui s'y intéresse. ${formesDuPoste(p)} : vous décidez du cadre, les ${p.pluriel} disponibles ${t.preposition} ${t.nom} vous répondent sans intermédiaire.`,
+    metaTitre: (p, t) => `Recruter un ${p.court} ${t.preposition} ${t.nom} — ${listePersonnes(p)} | Soignect`,
     metaDescription: (p, t) =>
-      `Cabinets de ${t.nom} : publiez votre recherche de ${p.singulier} et recevez des candidatures. Remplacement, assistanat, collaboration libérale — contrat CNOMK pré-rempli, sans commission sur les honoraires.`,
+      `Cabinets de ${t.nom} : publiez votre recherche ${p.deSingulier} et recevez des candidatures. ${listeTypes(p)} — ${p.contratPreRempli}, sans commission sur les honoraires.`,
     cta: "Publier mon poste →",
     ctaSous: "Publication gratuite pendant la bêta.",
     /** un cabinet qui recrute vient voir des CANDIDATS, pas les annonces d'autres cabinets. */
@@ -173,15 +226,35 @@ export const PORTES: Record<string, Porte> = {
     slug: "emploi",
     libelle: "Établissement",
     cible: "Hôpitaux, cliniques, EHPAD, SSR, CAMSP — recrutement salarié",
-    titre: (p, t) => `Nous recrutons un ${p.singulier} pour notre établissement ${t.preposition} ${t.nom}`,
+    titre: (p, t) => `Nous recrutons ${p.unSingulier} pour notre établissement ${t.preposition} ${t.nom}`,
     accroche: (p, t) =>
       `CDI, CDD, vacation : publiez votre offre et touchez les ${p.pluriel} ouverts au salariat ${t.preposition} ${t.nom}. Vous décrivez le poste et la rémunération ; le contrat reste le vôtre, Soignect ne s'y substitue pas.`,
     metaTitre: (p, t) => `Recrutement ${p.court} salarié ${t.preposition} ${t.nom} — CDI, CDD, vacation | Soignect`,
     metaDescription: (p, t) =>
-      `Établissements de ${t.nom} — hôpital, clinique, EHPAD, SSR, CAMSP : publiez vos postes de ${p.singulier} salarié et touchez les candidats ouverts au salariat.`,
+      `Établissements de ${t.nom} — hôpital, clinique, EHPAD, SSR, CAMSP : publiez vos postes ${p.deSingulier} salarié et touchez les candidats ouverts au salariat.`,
     cta: "Publier une offre →",
     ctaSous: "Le contrat de travail relève de votre établissement.",
     /** meme raison que la porte CABINET : un employeur vient voir qui est disponible. */
+    montre: "CANDIDAT",
+  },
+  // Une MSP recrute comme un cabinet — même camp montré, mêmes types de poste — mais elle a un
+  // argument qu'un cabinet isolé n'a pas : l'exercice coordonné. La case existe sur l'annonce
+  // (section 190) et compte dans le score de compatibilité d'un candidat qui la recherche
+  // (`rechercheExerciceCoordonne`). On ne promet RIEN de plus : ni badge sur la carte, ni
+  // meilleur rang dans le fil — le fil trie sur la désirabilité, pas sur ce critère.
+  MAISON_DE_SANTE: {
+    slug: "maison-de-sante",
+    libelle: "Maison de santé (MSP)",
+    cible: "Maisons de santé pluriprofessionnelles qui recrutent — exercice coordonné",
+    titre: (p, t) => `Notre maison de santé cherche ${p.unSingulier} ${t.preposition} ${t.nom}`,
+    accroche: (p, t) =>
+      `${formesDuPoste(p)} : publiez le poste de votre MSP et cochez « exercice coordonné ». Les ${p.pluriel} disponibles ${t.preposition} ${t.nom} vous répondent sans intermédiaire, et le score de compatibilité en tient compte pour ceux qui recherchent ce mode d'exercice.`,
+    metaTitre: (p, t) => `Maison de santé ${t.preposition} ${t.nom} : recruter un ${p.court} — ${listePersonnes(p)} | Soignect`,
+    metaDescription: (p, t) =>
+      `MSP de ${t.nom} : publiez vos postes ${p.deSingulier} et signalez l'exercice coordonné. ${listeTypes(p)} — ${p.contratPreRempli}, sans commission sur les honoraires.`,
+    cta: "Publier le poste de la MSP →",
+    ctaSous: "Publication gratuite pendant la bêta.",
+    /** même camp que la porte CABINET : une MSP qui recrute vient voir qui est disponible. */
     montre: "CANDIDAT",
   },
   // La porte TERRITOIRE ne suit PAS le gabarit des trois autres — voir la page dédiée.
@@ -189,14 +262,16 @@ export const PORTES: Record<string, Porte> = {
   // argumentaire, pas un couple titre + accroche.
   TERRITOIRE: {
     slug: "territoire",
-    libelle: "MSP / CPTS / territoire",
-    cible: "Structures territoriales — pitch institutionnel, pas une page d'acquisition",
+    // Les MSP ont leur propre porte depuis la section 299 : celle-ci parle aux CPTS et aux
+    // collectivités, qui pilotent une offre de soins sans recruter elles-mêmes.
+    libelle: "CPTS / territoire",
+    cible: "CPTS et collectivités — pitch institutionnel, pas une page d'acquisition",
     titre: (p) => `Structurer l'offre de ${p.discipline} sur mon territoire`,
     accroche: (p, t) =>
-      `Soignect donne à une CPTS, une MSP ou une collectivité une vue sur les postes ouverts et les tensions de recrutement en ${p.discipline} ${t.preposition} ${t.nom} — et un module à intégrer sur son propre site.`,
-    metaTitre: (p, t) => `Structurer l'offre de ${p.discipline} ${t.preposition} ${t.nom} — CPTS, MSP, collectivités | Soignect`,
+      `Soignect donne à une CPTS ou à une collectivité une vue sur les postes ouverts et les tensions de recrutement en ${p.discipline} ${t.preposition} ${t.nom} — et un module à intégrer sur son propre site.`,
+    metaTitre: (p, t) => `Structurer l'offre de ${p.discipline} ${t.preposition} ${t.nom} — CPTS, collectivités | Soignect`,
     metaDescription: (p, t) =>
-      `CPTS, MSP et collectivités de ${t.nom} : suivez les postes de ${p.discipline} ouverts sur votre territoire et intégrez-les à votre site.`,
+      `CPTS et collectivités de ${t.nom} : suivez les postes de ${p.discipline} ouverts sur votre territoire et intégrez-les à votre site.`,
     cta: "Échanger sur un partenariat →",
     ctaSous: "Gratuit pour les structures territoriales pendant la bêta.",
     /** la page compte les POSTES OUVERTS du territoire, ce qu'elle dit d'ailleurs en toutes lettres. */
@@ -208,7 +283,8 @@ export const PORTES: Record<string, Porte> = {
 export function cheminPage(porte: Porte, p: Profession, t: Territoire): string {
   // La porte CHERCHEUR garde le chemin historique déclaré sur le territoire : il est indexé,
   // partagé, et cité dans les traces depuis des semaines. Le reconstruire le casserait.
-  return porte.slug === "remplacement"
+  // Ce chemin historique est celui des KINÉS : une autre profession suit le motif commun.
+  return porte.slug === "remplacement" && p.enumBase === ProfessionDb.KINESITHERAPEUTE
     ? t.chemin
     : `/${porte.slug}-${p.slug}-${slugTerritoire(t)}`;
 }
@@ -230,13 +306,13 @@ export const TERRITOIRES: Record<string, Territoire> = {
     chemin: "/remplacement-kine-guadeloupe",
     cleTrace: "remplacement-kine-guadeloupe",
     accroche: (p) =>
-      `Soignect est le job board des ${p.pluriel} de Guadeloupe. Une mission de quelques semaines, un assistanat sur la durée ou une collaboration libérale : cabinets et candidats se trouvent en quelques swipes, sans intermédiaire. Gratuit pour qui cherche un poste.`,
-    metaTitre: (p) => `Remplacement, assistanat, collaboration ${p.court} en Guadeloupe | Soignect`,
+      `Soignect est le job board des ${p.pluriel} de Guadeloupe. ${proposeAssistanat(p) ? "Une mission de quelques semaines, un assistanat sur la durée ou une collaboration libérale" : "Une mission de quelques semaines ou une collaboration libérale"} : cabinets et candidats se trouvent en quelques swipes, sans intermédiaire. Gratuit pour qui cherche un poste.`,
+    metaTitre: (p) => `${proposeAssistanat(p) ? "Remplacement, assistanat, collaboration" : "Remplacement, collaboration"} ${p.court} en Guadeloupe | Soignect`,
     metaDescription: (p) =>
-      `Postes de ${p.discipline} en Guadeloupe : remplacements ponctuels, assistanats et collaborations libérales. Annonces de cabinets et ${p.pluriel} disponibles sur toute la Guadeloupe (Grande-Terre, Basse-Terre, Marie-Galante, Les Saintes, La Désirade).`,
-    ogTitre: (p) => `Postes de ${p.court} en Guadeloupe | Soignect`,
+      `Postes de ${p.discipline} en Guadeloupe : ${proposeAssistanat(p) ? "remplacements ponctuels, assistanats et collaborations libérales" : "remplacements ponctuels et collaborations libérales"}. Annonces de cabinets et ${p.pluriel} disponibles sur toute la Guadeloupe (Grande-Terre, Basse-Terre, Marie-Galante, Les Saintes, La Désirade).`,
+    ogTitre: (p) => `Postes ${p.deCourt} en Guadeloupe | Soignect`,
     ogDescription: (p) =>
-      `Le job board des ${p.pluriel} de Guadeloupe : remplacement, assistanat, collaboration. Trouvez un cabinet ou un candidat en quelques swipes.`,
+      `Le job board des ${p.pluriel} de Guadeloupe : ${proposeAssistanat(p) ? "remplacement, assistanat, collaboration" : "remplacement, collaboration"}. Trouvez un cabinet ou un candidat en quelques swipes.`,
   },
   SAINT_MARTIN: {
     nom: "Saint-Martin",
@@ -267,3 +343,39 @@ export const TERRITOIRES: Record<string, Territoire> = {
     ogDescription: (p) => `Le job board des ${p.pluriel} de Saint-Barthélemy.`,
   },
 };
+
+// ── LES PAGES RÉELLEMENT SERVIES (section 299) ─────────────────────────────────────────────
+//
+// Chaque entrée correspond à une route sous src/app. Le sitemap et /admin/diffusion la lisent :
+// une page ajoutée ici est indexée et suivie sans qu'on ait à s'en souvenir ailleurs. L'oubli
+// inverse — une route sans entrée — reste possible, mais il se voit : la page n'apparaît pas
+// dans l'administration.
+export interface PagePubliee {
+  porte: Porte;
+  profession: Profession;
+  territoire: Territoire;
+}
+
+export const PAGES_PUBLIEES: PagePubliee[] = [
+  // Les pages historiques des kinés, sur les trois territoires.
+  ...Object.values(TERRITOIRES).map((territoire) => ({ porte: PORTES.CHERCHEUR, profession: KINESITHERAPEUTE, territoire })),
+  ...[PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.MAISON_DE_SANTE, PORTES.TERRITOIRE].map((porte) => ({
+    porte, profession: KINESITHERAPEUTE, territoire: TERRITOIRES.GUADELOUPE,
+  })),
+  // Infirmiers : Guadeloupe seule, et pas de porte TERRITOIRE — sa page compte les postes
+  // ouverts par zone, et une CPTS se voit proposer la page commune, pas une page par métier.
+  ...[PORTES.CHERCHEUR, PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.MAISON_DE_SANTE].map((porte) => ({
+    porte, profession: INFIRMIER, territoire: TERRITOIRES.GUADELOUPE,
+  })),
+];
+
+/** Métadonnées d'une page composée par PagePorte — titre, description, canonique, Open Graph. */
+export function metadonneesPage(porte: Porte, p: Profession, t: Territoire) {
+  const chemin = cheminPage(porte, p, t);
+  return {
+    alternates: { canonical: chemin },
+    title: porte.metaTitre(p, t),
+    description: porte.metaDescription(p, t),
+    openGraph: { url: chemin, title: porte.metaTitre(p, t), description: porte.metaDescription(p, t), type: "website" as const },
+  };
+}

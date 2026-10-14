@@ -5,9 +5,10 @@ import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import { Porte, Profession, Territoire, cleTracePage } from "@/lib/pagesDiffusion";
 
-// Gabarit commun des pages de diffusion « à annonces » (section 212) — portes CABINET et
-// ÉTABLISSEMENT. La porte CHERCHEUR garde ses trois pages historiques, vérifiées à l'écran :
-// on ne les réécrit pas pour un gain de forme.
+// Gabarit commun des pages de diffusion « à annonces » (section 212) — portes CABINET,
+// ÉTABLISSEMENT et MAISON DE SANTÉ, et toutes les pages infirmier (section 299). La porte
+// CHERCHEUR des kinés garde ses trois pages historiques, vérifiées à l'écran : on ne les réécrit
+// pas pour un gain de forme.
 //
 // Ce composant ne connaît NI profession NI territoire : il reçoit les trois axes et compose.
 // C'est ce qui permet d'ajouter une porte sans le toucher.
@@ -34,6 +35,10 @@ export default async function PagePorte({
   });
 
   await tracerVueLanding(cleTracePage(porte, profession, territoire), missions.length);
+
+  // La provenance voyage jusqu'à l'inscription (section 86) : sans elle, on compte les visites
+  // d'une page sans jamais savoir si elles aboutissent. Même clé que la trace de visite.
+  const inscription = `/register?profession=${profession.enumBase}&src=${cleTracePage(porte, profession, territoire)}`;
 
   const fmt = (d: Date | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : null;
@@ -62,7 +67,7 @@ export default async function PagePorte({
           // quelqu'un qui arrive par « remplacement kiné Guadeloupe » a déjà dit ce qu'il
           // exerce, et le lui redemander serait une friction gratuite. C'est le SEUL cas de
           // présélection — ailleurs, le champ reste vide.
-          href={`/register?profession=${profession.enumBase}`}
+          href={inscription}
           className="flex-shrink-0 px-5 py-3 bg-white text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition"
         >
           {porte.cta}
@@ -104,7 +109,7 @@ export default async function PagePorte({
       )}
 
       <div className="mt-8 text-center">
-        <Link href={`/register?profession=${profession.enumBase}`} className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition">
+        <Link href={inscription} className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition">
           {porte.cta}
         </Link>
       </div>

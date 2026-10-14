@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import ShareActions from "@/components/share/ShareActions";
-import { KINESITHERAPEUTE, TERRITOIRES, PORTES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
+import { PAGES_PUBLIEES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
 import { INSTANCES_EMBED, cheminEmbed, cleTraceEmbed } from "@/lib/embedTerritoire";
 import { ZONE_LABELS } from "@/lib/communes";
 import { etatJetonPage } from "@/lib/facebookPage";
@@ -23,19 +23,12 @@ export const dynamic = "force-dynamic";
 // justement l'oubli qu'on veut rendre impossible, Jean-Charles ayant déjà découvert des pages
 // en ligne dont il ignorait l'existence.
 const PAGES = [
-  // Porte CHERCHEUR × 3 territoires — les pages historiques.
-  ...Object.values(TERRITOIRES).map((t) => ({
-    chemin: cheminPage(PORTES.CHERCHEUR, KINESITHERAPEUTE, t),
-    titre: `${PORTES.CHERCHEUR.libelle} — ${t.nom}`,
-    sousTitre: PORTES.CHERCHEUR.cible,
-    trace: cleTracePage(PORTES.CHERCHEUR, KINESITHERAPEUTE, t),
-  })),
-  // Les trois autres portes, sur la Guadeloupe seule aujourd'hui.
-  ...[PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.TERRITOIRE].map((porte) => ({
-    chemin: cheminPage(porte, KINESITHERAPEUTE, TERRITOIRES.GUADELOUPE),
-    titre: `${porte.libelle} — ${TERRITOIRES.GUADELOUPE.nom}`,
+  // Toutes les pages publiées, kinés et infirmiers (section 299) — une entrée du registre suffit.
+  ...PAGES_PUBLIEES.map(({ porte, profession, territoire }) => ({
+    chemin: cheminPage(porte, profession, territoire),
+    titre: `${porte.libelle} · ${profession.court} — ${territoire.nom}`,
     sousTitre: porte.cible,
-    trace: cleTracePage(porte, KINESITHERAPEUTE, TERRITOIRES.GUADELOUPE),
+    trace: cleTracePage(porte, profession, territoire),
   })),
   // Modules embarquables (section 208) — pas des pages de campagne, mais tracés de la même
   // façon. DÉRIVÉS du registre depuis le 20/08, comme les portes juste au-dessus : l'entrée

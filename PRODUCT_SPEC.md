@@ -7347,6 +7347,62 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 299 — UNE PAGE PAR PUBLIC : CPTS, MSP, ÉTABLISSEMENTS, ET LES INFIRMIERS (14/10)
+
+#### Ce qui change
+
+| Page | Public | Nouveau |
+|---|---|---|
+| `/maison-de-sante-kine-guadeloupe` | MSP qui recrutent un kiné | oui |
+| `/maison-de-sante-infirmier-guadeloupe` | MSP qui recrutent un infirmier | oui |
+| `/remplacement-infirmier-guadeloupe` | infirmiers qui cherchent un poste | oui |
+| `/recrutement-infirmier-guadeloupe` | cabinets infirmiers qui recrutent | oui |
+| `/emploi-infirmier-guadeloupe` | hôpitaux, cliniques, EHPAD, SSR, centres de santé | oui |
+| `/territoire-kine-guadeloupe` | CPTS et collectivités — **ne parle plus aux MSP** | modifiée |
+
+Une MSP recrute : elle reçoit la page d'un employeur (porte `MAISON_DE_SANTE`, camp montré
+`CANDIDAT`), pas l'argumentaire territorial d'une CPTS, qui pilote une offre sans recruter. La page
+CPTS renvoie vers les deux pages MSP.
+
+#### Les types de poste se dérivent des contrats
+
+Les textes nommaient « assistanat » en dur. Il n'existe pas chez les infirmiers (aucun modèle de
+l'Ordre) : les phrases lisent désormais `missionTypesPour(profession)`, la même source que le
+formulaire de publication. Une page ne peut plus annoncer un poste que l'écran refuse.
+
+`Profession` porte trois formes de plus — `unSingulier`, `deSingulier`, `deCourt` — parce que
+« de infirmier » ne se corrige pas par composition. Déclarées, pas dérivées (même règle que `slug`).
+
+**Contrôle de non-régression** : les 90 textes kiné (3 territoires × 4 portes × titres, accroches,
+méta, chemins) comparés avant/après. **Seules les 9 lignes de la porte TERRITOIRE changent**, celles
+qui retirent les MSP. Les chemins et clés de trace historiques sont intacts.
+
+#### Un registre des pages servies
+
+`PAGES_PUBLIEES` alimente le sitemap et `/admin/diffusion`. Le sitemap n'en listait que 3 sur 7 :
+recrutement, emploi et territoire n'y avaient jamais été. Il en liste 12.
+
+Le bouton d'inscription de `PagePorte` porte désormais `src=<clé de trace>` : on saura quelle page
+produit des inscriptions, pas seulement des visites.
+
+#### Ce que ces pages ne disent pas, et pourquoi
+
+- **Rien sur un badge « exercice coordonné »** : la case compte dans le score de compatibilité d'un
+  candidat qui la recherche, mais aucune carte ne l'affiche et le fil ne trie pas dessus.
+- **Pas de page infirmier Saint-Martin / Saint-Barth, ni de page territoire infirmier** : aucune
+  annonce infirmière n'y existe.
+
+#### Points ouverts, constatés en base le 14/10
+
+- **0 infirmier ouvert au salariat** (15 kinés). La page établissement infirmier décrit un mécanisme
+  vrai, sans public aujourd'hui.
+- La page établissement montre **tous** les candidats du camp, y compris ceux qui ne sont pas ouverts
+  au salariat — comportement antérieur, commun aux deux professions.
+- Un compte titulaire porte **une** profession : une MSP qui recrute kiné et infirmier a besoin de
+  deux comptes.
+- La page CPTS affirme « vérification de l'inscription à l'Ordre avant signature » ; tant que
+  `enforceContractProfile` est à `false`, c'est un avertissement, pas un blocage.
+
 ### SECTION 298 — UNE ANNONCE ÉCHUE N'EST PLUS PROPOSÉE (13/10)
 
 **Mesure (13/10, lecture seule)** : 68 offres actives, dont 4 à période échue (2 depuis < 30 j,

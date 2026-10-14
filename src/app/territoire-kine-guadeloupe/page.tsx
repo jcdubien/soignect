@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { KINESITHERAPEUTE, TERRITOIRES, PORTES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
+import { KINESITHERAPEUTE, INFIRMIER, TERRITOIRES, PORTES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
 import { filtreAnnoncesVivantes, PERIMETRE_GUADELOUPE } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import { ZONE_LABELS, COMMUNE_ZONE } from "@/lib/communes";
@@ -57,7 +57,7 @@ export default async function Page() {
     <div className="max-w-2xl mx-auto px-4 py-10">
       <div className="mb-8">
         <span className="inline-block px-3 py-1 bg-kine-100 text-kine-700 rounded-full text-xs font-semibold mb-3">
-          📍 {TERR.nom} · CPTS, MSP, collectivités
+          📍 {TERR.nom} · CPTS, collectivités
         </span>
         <h1 className="text-3xl font-black text-gray-900 mb-3">{PORTE.titre(PRO, TERR)}</h1>
         <p className="text-gray-500 text-base leading-relaxed">{PORTE.accroche(PRO, TERR)}</p>
@@ -128,9 +128,17 @@ export default async function Page() {
         </Link>
       </div>
 
+      {/* Une MSP recrute : sa page est celle d'un employeur, pas celle-ci (section 299). */}
+      <p className="text-sm text-gray-500 mb-8">
+        Vous êtes une maison de santé qui recrute ?{" "}
+        <Link href={cheminPage(PORTES.MAISON_DE_SANTE, KINESITHERAPEUTE, TERR)} className="underline text-kine-700">un kiné</Link>
+        {" · "}
+        <Link href={cheminPage(PORTES.MAISON_DE_SANTE, INFIRMIER, TERR)} className="underline text-kine-700">un infirmier</Link>
+      </p>
+
       <div className="mt-12 border-t border-gray-100 pt-8 space-y-3 text-sm text-gray-400">
         <h2 className="text-base font-semibold text-gray-600">
-          Soignect pour les CPTS, MSP et collectivités
+          Soignect pour les CPTS et les collectivités
         </h2>
         {/* Rien ici qui ne soit vrai par construction (règle du 10/08). Aucune promesse de
             résultat, aucun chiffre de marché : le compteur de postes ci-dessus est la seule

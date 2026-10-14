@@ -2,6 +2,7 @@ import { offreOuverteLe } from "@/lib/feedFilters";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { appBaseUrl as baseUrl } from "@/lib/appUrl";
+import { PAGES_PUBLIEES, cheminPage } from "@/lib/pagesDiffusion";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +13,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticPaths = [
     "/",
-    "/remplacement-kine-guadeloupe",
-    "/remplacement-kine-saint-martin",
-    "/remplacement-kine-saint-barth",
+    // Pages de diffusion, dérivées du registre (section 299) : la liste écrite à la main n'en
+    // tenait que 3 sur 7, et une page ajoutée n'y serait jamais entrée.
+    ...PAGES_PUBLIEES.map((pg) => cheminPage(pg.porte, pg.profession, pg.territoire)),
     "/mentions-legales",
     "/confidentialite",
     "/cgu",
