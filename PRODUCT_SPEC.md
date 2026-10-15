@@ -7347,6 +7347,26 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 303 — L'OFFRE PARTENAIRE A UN PRIX (14/10)
+
+Grille arrêtée par Jean-Charles, affichée dans `BlocPartenaire` (portes territoire, MSP, emploi) ;
+source unique `lib/tarifsPartenaire.ts`. HT, à l'année, engagement d'un an.
+
+| Structure | Contenu | Prix | Lancement (5 premiers, 1re année) |
+|---|---|---|---|
+| Maison de santé | 1 commune, toutes professions | 590 € | 290 € |
+| CPTS, collectivité | tout le territoire, module, bilan trimestriel | 1 900 € | 950 € |
+| EHPAD, SSR, clinique | 1 établissement, 2 communes, forfait Structure inclus | 1 900 € | 950 € |
+| Hôpital | plusieurs sites, bilan trimestriel | dès 4 900 € | 2 900 € |
+
+La ligne de la porte visitée est mise en évidence ; les autres restent visibles. « Sur devis » a
+disparu. Le tarif de lancement se donne contre logo et retour d'expérience à six mois. La CPTS
+Nord Basse-Terre reste gratuite (conflit d'intérêts : JC en est secrétaire).
+
+**Pas encore en place** : aucun paiement en ligne (le bouton mène toujours à l'inscription, la
+facturation est manuelle) ; « forfait Structure inclus » s'applique à la main par l'administrateur ;
+`TypeInstitution` n'a ni hôpital ni EHPAD.
+
 ### SECTION 302 — LA PAGE CPTS PARLE DE TOUTES LES PROFESSIONS (14/10)
 
 Signalé par Jean-Charles : la page territoire ne comptait que les postes de kiné, en liste, sous un

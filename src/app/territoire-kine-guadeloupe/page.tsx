@@ -176,7 +176,7 @@ export default async function Page() {
       </div>
 
       <div className="mb-8 -mt-2">
-        <BlocPartenaire profession={PRO} inscription={`/register?src=partenaire-${PORTE.slug}-${PRO.slug}`} />
+        <BlocPartenaire profession={PRO} inscription={`/register?src=partenaire-${PORTE.slug}-${PRO.slug}`} porteSlug={PORTE.slug} />
       </div>
 
       {/* Une MSP recrute : sa page est celle d'un employeur, pas celle-ci (section 299). */}

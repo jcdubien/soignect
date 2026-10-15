@@ -116,7 +116,7 @@ export default async function PagePorte({
       </div>
 
       {porte.offrePartenaire && (
-        <BlocPartenaire profession={profession} inscription={`/register?profession=${profession.enumBase}&src=partenaire-${porte.slug}-${profession.slug}`} />
+        <BlocPartenaire profession={profession} inscription={`/register?profession=${profession.enumBase}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />
       )}
 
       {/* NE GARDER ICI QUE CE QUI EST VRAI PAR CONSTRUCTION (règle du 10/08, réaffirmée le

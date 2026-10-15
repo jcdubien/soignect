@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Profession } from "@/lib/pagesDiffusion";
+import { TARIFS_PARTENAIRE, euros } from "@/lib/tarifsPartenaire";
 
 // L'offre PARTENAIRE (section 301) — ce qui distingue une structure qui pilote un territoire
 // d'une structure qui pourvoit un poste.
@@ -14,8 +15,9 @@ import type { Profession } from "@/lib/pagesDiffusion";
 //     c'est une zone en tension qu'on promeut, pas un employeur ;
 //   • la structure ne la règle pas elle-même : elle la demande, l'administrateur la saisit
 //     (section 233), avec une échéance de revue qui éteint le levier si elle passe.
-// Aucun prix : il n'en existe pas d'arrêté, et un chiffre inventé ici serait cru.
-export default function BlocPartenaire({ profession, inscription }: { profession: Profession; inscription: string }) {
+// Les prix viennent de `TARIFS_PARTENAIRE` (section 303) ; la ligne de la porte visitée est
+// mise en évidence, les autres restent visibles — une MSP voit aussi ce que paie une CPTS.
+export default function BlocPartenaire({ profession, inscription, porteSlug }: { profession: Profession; inscription: string; porteSlug: string }) {
   return (
     <div className="mt-10 rounded-2xl border border-kine-200 bg-kine-50 p-5">
       <p className="text-xs font-bold uppercase tracking-wide text-kine-700 mb-1">Offre partenaire</p>
@@ -34,6 +36,40 @@ export default function BlocPartenaire({ profession, inscription }: { profession
         <li>📊 <strong>Un espace partenaire</strong> — postes ouverts, praticiens disponibles et mises en relation sur votre territoire.</li>
         <li>🗓️ <strong>Une durée convenue</strong> — communes et échéance fixées ensemble, revues à terme.</li>
       </ul>
+      <div className="overflow-x-auto -mx-1 mb-2">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-kine-200 text-xs text-gray-500">
+              <th className="text-left font-semibold py-2 px-1">Structure</th>
+              <th className="text-right font-semibold py-2 px-1 whitespace-nowrap">Par an</th>
+              <th className="text-right font-semibold py-2 px-1 whitespace-nowrap">Lancement</th>
+            </tr>
+          </thead>
+          <tbody>
+            {TARIFS_PARTENAIRE.map((t) => {
+              const vous = t.portes.includes(porteSlug);
+              return (
+                <tr key={t.cle} className={`border-b border-kine-100 ${vous ? "bg-white" : ""}`}>
+                  <td className="py-2 px-1">
+                    <span className={`block ${vous ? "font-bold text-gray-900" : "font-semibold text-gray-700"}`}>{t.pour}</span>
+                    <span className="block text-xs text-gray-500">{t.contenu}</span>
+                  </td>
+                  <td className="py-2 px-1 text-right whitespace-nowrap tabular-nums text-gray-500 align-top">
+                    {t.aPartirDe && <span className="text-xs">dès </span>}<s>{euros(t.prixAn)}</s>
+                  </td>
+                  <td className="py-2 px-1 text-right whitespace-nowrap tabular-nums font-bold text-kine-700 align-top">
+                    {euros(t.lancementAn)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-gray-500 mb-5">
+        Prix HT, engagement d&apos;un an. Tarif de lancement réservé aux 5 premiers partenaires,
+        pour la première année.
+      </p>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <Link
           href={inscription}
@@ -41,7 +77,6 @@ export default function BlocPartenaire({ profession, inscription }: { profession
         >
           Devenir partenaire →
         </Link>
-        <p className="text-xs text-gray-500">Offre payante, sur devis.</p>
       </div>
     </div>
   );
