@@ -1,7 +1,8 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { KINESITHERAPEUTE, INFIRMIER, TERRITOIRES, PORTES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
+import { KINESITHERAPEUTE, INFIRMIER, TERRITOIRES, PORTES, VOCABULAIRE_PROFESSION, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
+import type { Profession } from "@/lib/pagesDiffusion";
 import { filtreAnnoncesVivantes, PERIMETRE_GUADELOUPE } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
@@ -35,24 +36,42 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function Page() {
-  const missions = await prisma.mission.findMany({
-    where: filtreAnnoncesVivantes(PERIMETRE_GUADELOUPE.zones, PERIMETRE_GUADELOUPE.communes, PRO.enumBase, PORTE.montre),
-    select: { location: true, zones: true },
-    take: 200,
-  });
+// Une CPTS pilote TOUTES les professions de son territoire : le tableau croise zone ×
+// profession au lieu de ne compter que celle du slug. Les colonnes sont les professions qui ont
+// un vocabulaire déclaré — une profession sans libellé n'a pas de colonne à inventer.
+const PROFESSIONS_TABLEAU = Object.values(VOCABULAIRE_PROFESSION) as Profession[];
 
-  await tracerVueLanding(cleTracePage(PORTE, PRO, TERR), missions.length);
+export default async function Page() {
+  const parProfession = await Promise.all(
+    PROFESSIONS_TABLEAU.map((p) =>
+      prisma.mission.findMany({
+        where: filtreAnnoncesVivantes(PERIMETRE_GUADELOUPE.zones, PERIMETRE_GUADELOUPE.communes, p.enumBase, PORTE.montre),
+        select: { location: true, zones: true },
+        take: 200,
+      }),
+    ),
+  );
+  const total = parProfession.reduce((n, l) => n + l.length, 0);
+
+  // Le compteur de trace suit ce que le visiteur voit : toutes professions confondues.
+  await tracerVueLanding(cleTracePage(PORTE, PRO, TERR), total);
 
   // Répartition par macro-zone — la commune publiée est résolue par COMMUNE_ZONE, source
   // unique du découpage (section 211). Une annonce sans commune connue retombe sur ses zones
   // déclarées ; sinon elle n'est comptée nulle part plutôt que rangée arbitrairement.
-  const parZone = new Map<string, number>();
-  for (const m of missions) {
-    const z = COMMUNE_ZONE[m.location] ?? m.zones[0];
-    if (z) parZone.set(z, (parZone.get(z) ?? 0) + 1);
-  }
-  const repartition = Array.from(parZone.entries()).sort((a, b) => b[1] - a[1]);
+  const parZone = new Map<string, number[]>();
+  parProfession.forEach((missions, i) => {
+    for (const m of missions) {
+      const z = COMMUNE_ZONE[m.location] ?? m.zones[0];
+      if (!z) continue;
+      const ligne = parZone.get(z) ?? PROFESSIONS_TABLEAU.map(() => 0);
+      ligne[i] += 1;
+      parZone.set(z, ligne);
+    }
+  });
+  const somme = (l: number[]) => l.reduce((a, b) => a + b, 0);
+  const repartition = Array.from(parZone.entries()).sort((a, b) => somme(b[1]) - somme(a[1]));
+  const totauxColonnes = PROFESSIONS_TABLEAU.map((_, i) => somme(repartition.map(([, l]) => l[i])));
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
@@ -66,7 +85,7 @@ export default async function Page() {
 
       <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-8">
         <h2 className="text-sm font-bold text-gray-800 mb-1">
-          Postes ouverts aujourd&apos;hui, par zone
+          Postes ouverts aujourd&apos;hui, par zone et par profession
         </h2>
         <p className="text-xs text-gray-400 mb-3">
           Répartition en direct des annonces actives {TERR.preposition} {TERR.nom}.
@@ -74,14 +93,39 @@ export default async function Page() {
         {repartition.length === 0 ? (
           <p className="text-sm text-gray-500">Aucune annonce active pour le moment.</p>
         ) : (
-          <ul className="space-y-1.5">
-            {repartition.map(([zone, n]) => (
-              <li key={zone} className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="text-gray-700">{ZONE_LABELS[zone as keyof typeof ZONE_LABELS] ?? zone}</span>
-                <span className="font-bold text-gray-900">{n}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-xs text-gray-500">
+                  <th className="text-left font-semibold py-2 px-1">Zone</th>
+                  {PROFESSIONS_TABLEAU.map((p) => (
+                    <th key={p.slug} className="text-right font-semibold py-2 px-1 capitalize">{p.court}s</th>
+                  ))}
+                  <th className="text-right font-semibold py-2 px-1">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {repartition.map(([zone, ligne]) => (
+                  <tr key={zone} className="border-b border-gray-50">
+                    <td className="py-1.5 px-1 text-gray-700">{ZONE_LABELS[zone as keyof typeof ZONE_LABELS] ?? zone}</td>
+                    {ligne.map((n, i) => (
+                      <td key={i} className={`py-1.5 px-1 text-right tabular-nums ${n ? "text-gray-900" : "text-gray-300"}`}>{n || "–"}</td>
+                    ))}
+                    <td className="py-1.5 px-1 text-right font-bold text-gray-900 tabular-nums">{somme(ligne)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="text-xs font-bold text-gray-800">
+                  <td className="pt-2 px-1">Total</td>
+                  {totauxColonnes.map((n, i) => (
+                    <td key={i} className="pt-2 px-1 text-right tabular-nums">{n}</td>
+                  ))}
+                  <td className="pt-2 px-1 text-right tabular-nums">{somme(totauxColonnes)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         )}
         {/* EMPLACEMENT RÉSERVÉ — indicateur de tension (v2). Même réserve que sur le module
             embarquable : le zonage ARS est un classement réglementaire régional, l'APL de la
@@ -110,8 +154,8 @@ export default async function Page() {
             Des contrats conformes, pas seulement des mises en relation
           </p>
           <p className="text-sm text-gray-500">
-            Modèles CNOMK pré-remplis, vérification de l&apos;inscription à l&apos;Ordre avant
-            signature : ce qui se noue sur la plateforme tient juridiquement.
+            Modèles de l&apos;Ordre pré-remplis pour chaque profession, coordonnées
+            professionnelles demandées avant signature.
           </p>
         </div>
       </div>
@@ -151,8 +195,8 @@ export default async function Page() {
             résultat, aucun chiffre de marché : le compteur de postes ci-dessus est la seule
             donnée avancée, et elle est calculée en direct. */}
         <p>
-          Soignect référence les postes de {PRO.discipline} publiés par les cabinets et les
-          professionnels eux-mêmes {TERR.preposition} {TERR.nom}. Les structures territoriales y
+          Soignect référence les postes de kinésithérapie et de soins infirmiers publiés par les
+          cabinets, les structures et les professionnels eux-mêmes {TERR.preposition} {TERR.nom}. Les structures territoriales y
           accèdent pour suivre l&apos;offre sur leur périmètre et l&apos;afficher sur leur propre
           site. L&apos;inscription est gratuite pour qui cherche un poste.
         </p>

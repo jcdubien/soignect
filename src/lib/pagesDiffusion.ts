@@ -287,17 +287,19 @@ export const PORTES: Record<string, Porte> = {
     // collectivités, qui pilotent une offre de soins sans recruter elles-mêmes.
     libelle: "CPTS / territoire",
     cible: "CPTS et collectivités — pitch institutionnel, pas une page d'acquisition",
-    titre: (p) => `Structurer l'offre de ${p.discipline} sur mon territoire`,
-    accroche: (p, t) =>
-      `Soignect donne à une CPTS ou à une collectivité une vue sur les postes ouverts et les tensions de recrutement en ${p.discipline} ${t.preposition} ${t.nom} — et un module à intégrer sur son propre site.`,
-    metaTitre: (p, t) => `Structurer l'offre de ${p.discipline} ${t.preposition} ${t.nom} — CPTS, collectivités | Soignect`,
-    metaDescription: (p, t) =>
-      `CPTS et collectivités de ${t.nom} : suivez les postes de ${p.discipline} ouverts sur votre territoire et intégrez-les à votre site.`,
+    // Une CPTS pilote TOUTES les professions de son territoire : ces textes ne nomment pas la
+    // discipline du slug. L'URL garde « kine » parce qu'elle est indexée et partagée.
+    titre: () => `Structurer l'offre de soins sur mon territoire`,
+    accroche: (_p, t) =>
+      `Soignect donne à une CPTS ou à une collectivité une vue sur les postes ouverts, profession par profession, ${t.preposition} ${t.nom} — et un module à intégrer sur son propre site.`,
+    metaTitre: (_p, t) => `Structurer l'offre de soins ${t.preposition} ${t.nom} — CPTS, collectivités | Soignect`,
+    metaDescription: (_p, t) =>
+      `CPTS et collectivités de ${t.nom} : suivez les postes ouverts sur votre territoire, kinés et infirmiers, et intégrez-les à votre site.`,
     cta: "Échanger sur un partenariat →",
     // La consultation reste gratuite ; la mise en avant des zones est l'offre partenaire, payante
     // (section 301). L'ancienne phrase — « gratuit pendant la bêta » — couvrait les deux.
     ctaSous: "Consultation gratuite pendant la bêta. Mise en avant de vos zones : offre partenaire.",
-    ogTitre: (p) => `Structurer l'offre de ${p.discipline}`,
+    ogTitre: () => `Structurer l'offre de soins`,
     ogSousTitre: () => "CPTS et collectivités : vos zones en tension mises en avant, les postes ouverts, un module pour votre site.",
     /** la page compte les POSTES OUVERTS du territoire, ce qu'elle dit d'ailleurs en toutes lettres. */
     montre: "EMPLOYEUR",

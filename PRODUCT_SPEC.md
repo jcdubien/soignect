@@ -7347,6 +7347,18 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 302 — LA PAGE CPTS PARLE DE TOUTES LES PROFESSIONS (14/10)
+
+Signalé par Jean-Charles : la page territoire ne comptait que les postes de kiné, en liste, sous un
+titre « Structurer l'offre de kinésithérapie ». Une CPTS pilote toutes les professions.
+
+- « Postes ouverts » devient un tableau zone × profession (colonnes = `VOCABULAIRE_PROFESSION`,
+  aujourd'hui kinés et infirmiers), avec totaux de ligne et de colonne ; un zéro s'affiche « – ».
+- Titre, accroche, méta et image de partage disent « offre de soins ». L'URL garde `kine` (indexée).
+- La phrase « vérification de l'inscription à l'Ordre avant signature » est retirée : le blocage
+  (`enforceContractProfile`) est à faux en production, la page promettait ce qui ne tourne pas.
+- La trace compte désormais les postes toutes professions confondues.
+
 ### SECTION 301 — L'OFFRE PARTENAIRE EST ENFIN DITE (14/10)
 
 Demande de Jean-Charles : mettre en avant qu'une MSP, un EHPAD, une CPTS ou un hôpital, **en devenant
