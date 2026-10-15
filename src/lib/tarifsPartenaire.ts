@@ -37,7 +37,7 @@ export const TARIFS_PARTENAIRE: TarifPartenaire[] = [
     lienPaiement: "https://buy.stripe.com/9B6bJ22e83uAceQa59eZ205",
   },
   {
-    cle: "ETABLISSEMENT", pour: "EHPAD, SSR, clinique",
+    cle: "ETABLISSEMENT", pour: "EHPAD, SSIAD, SSR, clinique",
     contenu: "1 établissement, 2 communes, forfait Structure inclus",
     prixAn: 1900, lancementAn: 950, portes: ["emploi"],
     lienPaiement: "https://buy.stripe.com/fZu6oI9GA9SYdiUcdheZ203",

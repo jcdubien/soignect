@@ -52,6 +52,9 @@ export interface Profession {
   /** « kinés », « infirmiers », « aides-soignants » — en-tête de colonne. Ne se compose pas :
    *  « aide-soignant » + « s » donnerait « aide-soignants ». */
   courtPluriel: string;
+  /** Qui emploie cette profession en salariat, au pluriel — « EHPAD, SSIAD, cliniques… ». Propre
+   *  au métier : un SSIAD emploie des aides-soignants et des infirmiers, pas des kinés. */
+  employeurs: string;
 }
 
 export const KINESITHERAPEUTE: Profession = {
@@ -66,6 +69,7 @@ export const KINESITHERAPEUTE: Profession = {
   deCourt: "de kiné",
   contratPreRempli: "contrat CNOMK pré-rempli",
   courtPluriel: "kinés",
+  employeurs: "hôpitaux, cliniques, EHPAD, SSR, CAMSP",
 };
 
 export const INFIRMIER: Profession = {
@@ -80,11 +84,12 @@ export const INFIRMIER: Profession = {
   deCourt: "d'infirmier",
   contratPreRempli: "contrat de l'Ordre des infirmiers pré-rempli",
   courtPluriel: "infirmiers",
+  employeurs: "hôpitaux, cliniques, EHPAD, SSR, SSIAD, HAD",
 };
 
-// Aides-soignants (section 304) : SALARIÉS SEULEMENT. Une seule porte publiée — ÉTABLISSEMENT.
-// Les portes chercheur, cabinet et MSP parlent remplacement et collaboration libérale, qui
-// n'existent pas pour ce métier ; `contratPreRempli` n'y est donc jamais lu, et il dit la vérité
+// Aides-soignants (section 304) : SALARIÉS SEULEMENT. Deux portes publiées — CANDIDAT_SALARIE
+// (section 305) et ÉTABLISSEMENT. Les portes chercheur, cabinet et MSP parlent remplacement et
+// collaboration libérale, qui n'existent pas pour ce métier ; `contratPreRempli` n'y est donc jamais lu, et il dit la vérité
 // au cas où il le serait.
 export const AIDE_SOIGNANT: Profession = {
   singulier: "aide-soignant",
@@ -98,6 +103,8 @@ export const AIDE_SOIGNANT: Profession = {
   deCourt: "d'aide-soignant",
   contratPreRempli: "contrat de travail établi par l'employeur",
   courtPluriel: "aides-soignants",
+  // Les SSIAD d'abord : les aides-soignants en sont le personnel soignant principal.
+  employeurs: "EHPAD, SSIAD, cliniques, hôpitaux, SSR",
 };
 
 // ── LES TYPES DE POSTE SE DÉRIVENT DES CONTRATS, ILS NE S'ÉCRIVENT PAS (section 299) ────────
@@ -267,20 +274,42 @@ export const PORTES: Record<string, Porte> = {
     montre: "CANDIDAT",
     offrePartenaire: false,
   },
+  // Chercheur de poste SALARIÉ (section 305). La porte CHERCHEUR parle remplacement libéral et
+  // organisation de son activité — vrai pour un kiné, faux pour un aide-soignant, qui ne
+  // remplace pas : il cherche un CDI, un CDD ou des vacations. Même camp montré que CHERCHEUR
+  // (les offres des employeurs), autres phrases.
+  CANDIDAT_SALARIE: {
+    slug: "poste",
+    libelle: "Chercheur de poste salarié",
+    cible: "Soignants salariés — CDI, CDD, vacations en établissement ou à domicile",
+    titre: (p, t) => `Je cherche un poste ${p.deSingulier} ${t.preposition} ${t.nom}`,
+    accroche: (p, t) =>
+      `CDI, CDD ou vacations — ${p.employeurs} : consultez les offres ${t.preposition} ${t.nom} et publiez votre disponibilité pour que les employeurs viennent à vous.`,
+    metaTitre: (p, t) => `Emploi ${p.court} ${t.preposition} ${t.nom} — CDI, CDD, vacations | Soignect`,
+    metaDescription: (p, t) =>
+      `${p.pluriel.charAt(0).toUpperCase()}${p.pluriel.slice(1)} ${t.preposition} ${t.nom} : offres en CDI, CDD et vacations (${p.employeurs}). Inscription gratuite.`,
+    cta: "Publier ma disponibilité →",
+    ctaSous: "Inscription gratuite. Les employeurs voient votre disponibilité et vous contactent.",
+    ogTitre: (p) => `Emploi ${p.court}`,
+    ogSousTitre: (p) => `CDI, CDD, vacations : ${p.employeurs}. Inscription gratuite.`,
+    /** un candidat vient voir les OFFRES des employeurs. */
+    montre: "EMPLOYEUR",
+    offrePartenaire: false,
+  },
   ETABLISSEMENT: {
     slug: "emploi",
     libelle: "Établissement",
-    cible: "Hôpitaux, cliniques, EHPAD, SSR, CAMSP — recrutement salarié",
+    cible: "Hôpitaux, cliniques, EHPAD, SSR, SSIAD, CAMSP — recrutement salarié",
     titre: (p, t) => `Nous recrutons ${p.unSingulier} pour notre établissement ${t.preposition} ${t.nom}`,
     accroche: (p, t) =>
       `CDI, CDD, vacation : publiez votre offre et touchez ${candidatsSalaries(p)} ${t.preposition} ${t.nom}. Vous décrivez le poste et la rémunération ; le contrat reste le vôtre, Soignect ne s'y substitue pas.`,
     metaTitre: (p, t) => `Recrutement ${p.court} salarié ${t.preposition} ${t.nom} — CDI, CDD, vacation | Soignect`,
     metaDescription: (p, t) =>
-      `Établissements de ${t.nom} — hôpital, clinique, EHPAD, SSR, CAMSP : publiez vos postes ${p.deSingulier} salarié et touchez ${candidatsSalaries(p)}.`,
+      `Établissements de ${t.nom} — ${p.employeurs} : publiez vos postes ${p.deSingulier} salarié et touchez ${candidatsSalaries(p)}.`,
     cta: "Publier une offre →",
     ctaSous: "Le contrat de travail relève de votre établissement.",
     ogTitre: (p) => `Recrutement ${p.court} salarié`,
-    ogSousTitre: (p) => `Hôpitaux, cliniques, EHPAD, SSR : vos offres en CDI, CDD ou vacation, présentées ${candidatsSalaries(p).replace(/^les /, "aux ")}.`,
+    ogSousTitre: (p) => `${p.employeurs.charAt(0).toUpperCase()}${p.employeurs.slice(1)} : vos offres en CDI, CDD ou vacation, présentées ${candidatsSalaries(p).replace(/^les /, "aux ")}.`,
     /** meme raison que la porte CABINET : un employeur vient voir qui est disponible. */
     montre: "CANDIDAT",
     offrePartenaire: true,
@@ -425,8 +454,10 @@ export const PAGES_PUBLIEES: PagePubliee[] = [
   ...[PORTES.CHERCHEUR, PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.MAISON_DE_SANTE].map((porte) => ({
     porte, profession: INFIRMIER, territoire: TERRITOIRES.GUADELOUPE,
   })),
-  // Aides-soignants : la porte établissement seule (voir la déclaration de la profession).
-  { porte: PORTES.ETABLISSEMENT, profession: AIDE_SOIGNANT, territoire: TERRITOIRES.GUADELOUPE },
+  // Aides-soignants : chercheur de poste salarié et établissement (sections 304, 305).
+  ...[PORTES.CANDIDAT_SALARIE, PORTES.ETABLISSEMENT].map((porte) => ({
+    porte, profession: AIDE_SOIGNANT, territoire: TERRITOIRES.GUADELOUPE,
+  })),
 ];
 
 /** Métadonnées d'une page composée par PagePorte — titre, description, canonique, Open Graph. */

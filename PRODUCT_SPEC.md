@@ -7347,6 +7347,29 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 305 — LES DEUX PAGES DES AIDES-SOIGNANTS (14/10)
+
+Demande de Jean-Charles : une page pour l'aide-soignant qui cherche un poste, une pour qui recrute.
+
+- **Nouvelle porte `CANDIDAT_SALARIE`** (slug `poste`, montre les offres EMPLOYEUR) : la porte
+  CHERCHEUR parle remplacement libéral, faux pour un AS. Page `/poste-aide-soignant-guadeloupe` :
+  « Je cherche un poste d'aide-soignant », CTA « Publier ma disponibilité », lien d'inscription
+  avec `profileType=REMPLACANT` (l'écran du choix libéral est sauté, et l'inscription dit
+  « candidat·e à un poste salarié »).
+- **Page recruteur** `/emploi-aide-soignant-guadeloupe` (section 304) inchangée dans sa forme.
+- **Qui emploie, par métier** : `Profession.employeurs` — AS « EHPAD, SSIAD, cliniques, hôpitaux,
+  SSR » ; infirmier ajoute SSIAD et HAD ; kiné inchangé. Utilisé par la méta-description et
+  l'image de partage de la porte établissement et par la nouvelle porte.
+- SSIAD : ajouté à la grille partenaire (« EHPAD, SSIAD, SSR, clinique ») et à `TypeInstitution`
+  (appliqué en production le 14/10).
+- Cartes d'annonce : une offre d'établissement (`titulaireKind = STRUCTURE`) est étiquetée
+  « Établissement », plus « Cabinet ».
+
+**Infirmier libéral employeur d'un AS : non promis.** R.4311-4 CSP limite la collaboration
+infirmier–aide-soignant aux établissements et services (sanitaires, sociaux, médico-sociaux) ;
+en libéral, les soins de l'AS ne sont pas facturables à l'Assurance maladie. Aucune page cabinet
+pour les AS ; rien ne bloque pour autant un cabinet de choisir AIDE_SOIGNANT à l'inscription.
+
 ### SECTION 304 — LES AIDES-SOIGNANTS, PROFESSION SALARIÉE SEULEMENT (14/10)
 
 Demande de Jean-Charles, pour vendre l'offre partenaire aux EHPAD (premier besoin : IDE et AS).

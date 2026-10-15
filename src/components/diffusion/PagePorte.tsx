@@ -28,7 +28,7 @@ export default async function PagePorte({
   const missions = await prisma.mission.findMany({
     // Le camp vient de la PORTE, qui le déclare : une porte employeur montre des candidats.
     where: filtreAnnoncesVivantes(zones, communes, profession.enumBase, porte.montre),
-    include: { profile: { select: { type: true, name: true } } },
+    include: { profile: { select: { type: true, name: true, titulaireKind: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     // Échantillon, pas inventaire : 8 suffisent à montrer qu'il se passe quelque chose.
     // Au-delà, la page devient une liste à faire défiler et le CTA disparaît sous le pli.
@@ -39,7 +39,11 @@ export default async function PagePorte({
 
   // La provenance voyage jusqu'à l'inscription (section 86) : sans elle, on compte les visites
   // d'une page sans jamais savoir si elles aboutissent. Même clé que la trace de visite.
-  const inscription = `/register?profession=${profession.enumBase}&src=${cleTracePage(porte, profession, territoire)}`;
+  // La porte du chercheur de poste SALARIÉ préselectionne le compte candidat (section 305) : sans
+  // ça, un aide-soignant devrait choisir entre « remplaçant » et « assistant / collaborateur »,
+  // deux mots qui ne décrivent pas son métier.
+  const typeCompte = porte.slug === "poste" ? "&profileType=REMPLACANT" : "";
+  const inscription = `/register?profession=${profession.enumBase}${typeCompte}&src=${cleTracePage(porte, profession, territoire)}`;
 
   const fmt = (d: Date | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : null;
@@ -89,7 +93,11 @@ export default async function PagePorte({
               : m.startDate ? `dès le ${fmt(m.startDate)}`
               : m.minMonths ? `${m.minMonths} mois min.`
               : null;
-            const label = { REMPLACANT: "Remplaçant", ASSISTANT: "Assistant", TITULAIRE: "Cabinet" }[m.profile.type];
+            // Une structure n'est pas un « Cabinet » : sur la page d'un aide-soignant, presque toutes
+            // les offres viennent d'EHPAD et de SSIAD (section 305).
+            const label = m.profile.type === "TITULAIRE" && m.profile.titulaireKind === "STRUCTURE"
+              ? "Établissement"
+              : { REMPLACANT: "Remplaçant", ASSISTANT: "Assistant", TITULAIRE: "Cabinet" }[m.profile.type];
             return (
               <div key={m.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Profession } from "@prisma/client";
 import { PROFESSION_LABELS, GROUPES_PROFESSION } from "@/lib/professions";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { accrocheProfilExemple } from "@/lib/exemplesPublication";
 import { signIn, getSession } from "next-auth/react";
 import Image from "next/image";
@@ -385,7 +386,9 @@ function RegisterForm() {
                 <p className="-mt-3 mb-5 text-sm text-gray-400">
                   Inscription en tant que{" "}
                   <span className="font-semibold text-gray-600">
-                    {profileType === "REMPLACANT" ? "remplaçant·e"
+                    {/* Un aide-soignant ne remplace pas (section 305) : même compte, mot juste. */}
+                    {profileType === "REMPLACANT" && contratFourniParEmployeur(profession) ? "candidat·e à un poste salarié"
+                      : profileType === "REMPLACANT" ? "remplaçant·e"
                       : profileType === "ASSISTANT" ? "assistant·e / collaborateur·rice"
                       : structure ? "établissement" : "cabinet"}
                   </span>.{" "}

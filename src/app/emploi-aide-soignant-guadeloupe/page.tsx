@@ -25,7 +25,7 @@ export default function Page() {
         <>
           <h2 className="text-base font-semibold text-gray-600">Recruter un aide-soignant en Guadeloupe</h2>
           <p>
-            EHPAD, SSR, cliniques, hôpitaux, services de soins à domicile : Soignect référence vos
+            EHPAD, SSIAD, cliniques, hôpitaux, SSR : Soignect référence vos
             offres de poste d&apos;aide-soignant et les présente aux aides-soignants inscrits. Le
             contrat de travail relève de votre établissement — Soignect ne le génère pas et ne
             s&apos;y substitue pas.
