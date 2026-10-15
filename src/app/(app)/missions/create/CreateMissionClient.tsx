@@ -10,6 +10,7 @@ import { bioLimitFor } from "@/lib/bio";
 import Link from "next/link";
 import ReprendreTexte from "@/components/missions/ReprendreTexte";
 import { mentionExerciceCoordonne } from "@/lib/professions";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { assistanceIADisponible } from "@/lib/annonceAI";
 
 export const dynamic = "force-dynamic";
@@ -206,6 +207,9 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   // rémunération mensuelle brute n'est pas renseignée », sans qu'aucun écran n'ait jamais
   // permis de la renseigner. Une impasse complète, invisible jusqu'à la dernière étape.
   const annonceSalariee = isEmployeur || needType === "salariat";
+  // Profession salariée seulement (section 304) : son contrat est celui de l'employeur, et les
+  // critères d'exercice libéral (secrétariat, exercice coordonné) n'ont pas de sens pour elle.
+  const salarieSeul = contratFourniParEmployeur(profession);
   // Forfait et plafond : redevance d'un assistant ou d'un collaborateur libéral seulement
   // (section 296). Jamais sur un remplacement, jamais pour un infirmier (article 7 CNOI au %).
   const modesRedevance =
@@ -562,8 +566,8 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
       dateFlexibility: form.dateFlexibility,
       logementPropose: form.logementPropose,
       vehiculePropose: form.vehiculePropose,
-      secretairePresente: form.secretairePresente,
-      exerciceCoordonne: form.exerciceCoordonne,
+      secretairePresente: salarieSeul ? false : form.secretairePresente,
+      exerciceCoordonne: salarieSeul ? false : form.exerciceCoordonne,
       demiJourneesLibres: form.demiJourneesLibres ? parseInt(form.demiJourneesLibres, 10) : null,
       // Un employeur ne declare ni chiffre d'affaires ni retrocession : il verse un salaire.
       // Un cabinet liberal, l'inverse. On n'envoie donc jamais les champs de l'autre monde —
@@ -644,8 +648,9 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
       ...(typeof f.demiJourneesLibres === "number" ? { demiJourneesLibres: String(f.demiJourneesLibres) } : {}),
       ...(f.logementPropose === true ? { logementPropose: true } : {}),
       ...(f.vehiculePropose === true ? { vehiculePropose: true } : {}),
-      ...(f.secretairePresente === true ? { secretairePresente: true } : {}),
-      ...(f.exerciceCoordonne === true ? { exerciceCoordonne: true } : {}),
+      // Jamais pour une profession salariée seulement : les cases ne lui sont pas proposées.
+      ...(f.secretairePresente === true && !salarieSeul ? { secretairePresente: true } : {}),
+      ...(f.exerciceCoordonne === true && !salarieSeul ? { exerciceCoordonne: true } : {}),
     }));
     setDetectedTags({
       repartition: typeof f.repartition === "string" ? f.repartition : undefined,
@@ -1017,8 +1022,10 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
                 </div>
                 <p className="text-[11px] text-gray-500 mt-2 leading-snug">
                   Employer crée un lien de subordination : déclaration préalable à l&apos;embauche,
-                  paie et cotisations vous incombent. Le contrat généré suit le modèle-type de
-                  votre ordre professionnel.
+                  paie et cotisations vous incombent.{" "}
+                  {salarieSeul
+                    ? "Le contrat de travail est le vôtre, selon votre convention collective : Soignect ne le génère pas."
+                    : "Le contrat généré suit le modèle-type de votre ordre professionnel."}
                 </p>
               </div>
             )}
@@ -1256,6 +1263,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
           <span className="text-sm text-gray-700">🚗 Véhicule mis à disposition</span>
         </label>
 
+        {!salarieSeul && (<>
         {/* ── Secrétariat sur place (section 190) — alimente le bonus secrétariat du score.
              Argument récurrent des annonces réelles : moins de charge administrative. ── */}
         <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
@@ -1287,6 +1295,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
             </span>
           </span>
         </label>
+        </>)}
 
         {/* ── Demi-journées libres + CA estimé (feature terrain) — informations affichées sur
              la fiche annonce (hors score). Critères de qualité de vie annoncés spontanément. ── */}
