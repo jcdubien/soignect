@@ -10,9 +10,14 @@
 // partage, la page de diffusion, le feed et le tiroir des relations. Quatre copies d'une même
 // règle divergent toujours — c'est d'ailleurs comme ça que le contresens a survécu.
 
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
+
 export interface Publieur {
   type?: string | null;           // ProfileType
   titulaireKind?: string | null;  // CABINET | STRUCTURE
+  // Facultative : elle seule distingue un candidat SALARIÉ (aide-soignant, section 304) d'un
+  // remplaçant. Sans elle, le libellé reste celui d'avant.
+  profession?: string | null;
 }
 
 export function estEtablissement(p?: Publieur | null): boolean {
@@ -21,6 +26,21 @@ export function estEtablissement(p?: Publieur | null): boolean {
 
 export function estCandidat(p?: Publieur | null): boolean {
   return p?.type === "REMPLACANT" || p?.type === "ASSISTANT";
+}
+
+/** Candidat d'une profession qui n'exerce qu'en salariat : il ne « remplace » personne. */
+export function estCandidatSalarie(p?: Publieur | null): boolean {
+  return estCandidat(p) && contratFourniParEmployeur(p?.profession);
+}
+
+/** Le rôle quand le vocabulaire libéral serait FAUX — établissement, candidat salarié —, sinon
+ *  null, et chaque écran garde sa propre formule (« Cabinet / Titulaire », « Remplaçant·e »…).
+ *  Section 304 : l'en-tête, le chat et la liste des relations disaient « Titulaire »,
+ *  « Cabinet / Titulaire » ou « Remplaçant » à un EHPAD et à un aide-soignant. */
+export function libelleRoleSalariat(p?: Publieur | null): string | null {
+  if (estEtablissement(p)) return "Établissement";
+  if (estCandidatSalarie(p)) return "Candidat·e";
+  return null;
 }
 
 // Un établissement embauche : le vocabulaire est celui du contrat de travail.
@@ -44,7 +64,15 @@ const CANDIDAT: Record<string, string> = {
   COLLABORATION: "Cherche une collaboration",
 };
 
-export function libelleTypePoste(missionType: string, publieur?: Publieur | null): string {
+export function libelleTypePoste(
+  missionType: string,
+  publieur?: Publieur | null,
+  // La nature déclarée à la publication (section 262) prime : un CDD est rangé en REMPLACEMENT,
+  // que la table établissement lirait « Vacation ».
+  natureSalariat?: string | null,
+): string {
+  if (natureSalariat === "CDI") return "CDI";
+  if (natureSalariat === "CDD_TERME" || natureSalariat === "CDD_SANS_TERME") return "CDD";
   const table = estCandidat(publieur) ? CANDIDAT : estEtablissement(publieur) ? ETABLISSEMENT : CABINET;
   return table[missionType] ?? missionType;
 }
@@ -100,6 +128,7 @@ export function libelleAuteur(publieur?: Publieur | null, court = false): string
   // obligerait à l'aller chercher dans la dizaine d'appelants pour un mot de cinq lettres.
   // « Rempl. » dit la même chose que la forme longue, abrégée — c'est-à-dire le seul rôle que
   // cette étiquette a jamais eu (section 294).
+  if (estCandidatSalarie(publieur)) return court ? "Cand." : "Candidat";
   if (publieur?.type === "REMPLACANT") return court ? "Rempl." : "Remplaçant";
   return "Profil";
 }

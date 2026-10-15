@@ -24,6 +24,7 @@ import ActiveAnnoncesMenu from "./ActiveAnnoncesMenu";
 import ActiveAnnoncesMobile from "./ActiveAnnoncesMobile";
 import NotificationBell from "@/components/ui/NotificationBell";
 import { EST_UNE_OFFRE } from "@/lib/feedFilters";
+import { libelleRoleSalariat, libelleTypePoste } from "@/lib/libellesPoste";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     select: {
       name: true,
       region: true,
+      // Pour le badge de rôle : un EHPAD n'est pas « Titulaire », un aide-soignant pas « Remplaçant ».
+      titulaireKind: true,
+      profession: true,
       subscriptionPlan: true,
       billingTriggeredAt: true,
       // « Annonces actives » comptait `isActive` SEUL (section 267) — troisième surface à
@@ -60,6 +64,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         orderBy: { startDate: "asc" },
         select: {
           id: true, title: true, startDate: true, endDate: true, location: true, missionType: true,
+          natureSalariat: true,
           updatedAt: true, // version du lien de partage (section 249)
           // Compteur de candidatures/mises en relation par annonce (section 157).
           _count: { select: { matchesA: true, matchesB: true } },
@@ -139,6 +144,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             title: m.title,
             location: m.location,
             missionType: m.missionType as string,
+            // Libellé résolu ici, où l'on connaît le titulaire : un établissement lit « CDI »,
+            // pas « Collaboration » (section 304). Un cabinet garde ses libellés d'avant.
+            libelleType:
+              m.natureSalariat || profile?.titulaireKind === "STRUCTURE"
+                ? libelleTypePoste(m.missionType, { type: profileType, titulaireKind: profile?.titulaireKind }, m.natureSalariat)
+                : undefined,
             updatedAt: m.updatedAt,
             confirmedCount: confirmed,
             pendingCount: Math.max(0, likes - confirmed), // likes reçus non encore matchés
@@ -175,7 +186,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             (< sm) : le header y déborde et `overflow-x-clip` rognait les items de droite
             (déconnexion). Le rôle reste visible sur la page Compte. */}
         <span className="hidden sm:inline-block shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-[var(--bleu-marine)]/10 text-[var(--bleu-marine)] border border-[var(--bleu-marine)]/25">
-          {({ TITULAIRE: "Titulaire", REMPLACANT: "Remplaçant", ASSISTANT: "Assistant" } as Record<string, string>)[profileType ?? ""] ?? "Profil"}
+          {libelleRoleSalariat({ type: profileType, titulaireKind: profile?.titulaireKind, profession: profile?.profession })
+            ?? ({ TITULAIRE: "Titulaire", REMPLACANT: "Remplaçant", ASSISTANT: "Assistant" } as Record<string, string>)[profileType ?? ""] ?? "Profil"}
         </span>
 
         {/* Résumé contextuel — section 21 */}

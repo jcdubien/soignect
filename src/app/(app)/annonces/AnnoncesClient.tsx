@@ -21,13 +21,15 @@ interface Props {
   signalLongTerme?: { interets: number; avecCollaboration: boolean } | null;
   freeAccessMode?: boolean;
   titulaireMissions: TitulaireMission[];
+  profession?: string | null;
+  titulaireKind?: string | null;
   initialMissionId?: string;
   disponibiliteId?: string;
   cardMissionId?: string;
   isAdmin?: boolean;
 }
 
-export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, initialMissionId, disponibiliteId, cardMissionId, isAdmin, signalLongTerme }: Props) {
+export default function AnnoncesClient({ profileType, profileId, isPremium, freeAccessMode, titulaireMissions, profession, titulaireKind, initialMissionId, disponibiliteId, cardMissionId, isAdmin, signalLongTerme }: Props) {
   const [trayKey, setTrayKey] = useState(0);
   // Rechargement du feed après annulation d'un choix (section 218).
   const [feedKey, setFeedKey] = useState(0);
@@ -192,6 +194,8 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
             profileType={profileType}
             profileId={profileId}
             titulaireMissions={titulaireMissions}
+            profession={profession}
+            titulaireKind={titulaireKind}
             initialMissionId={initialMissionId}
             refreshKey={feedKey}
           />

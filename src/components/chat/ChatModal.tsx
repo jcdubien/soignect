@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { createPortal } from "react-dom";
 import { contientUnNumero } from "@/lib/numeroTelephone";
 
@@ -15,6 +16,10 @@ interface Message {
 interface ChatPartner {
   type: string;
   theirMissionTitle?: string | null;
+  // Pour nommer un établissement ou un candidat salarié autrement que « Cabinet / Titulaire »
+  // et « Remplaçant·e » (section 304). Facultatifs : sans eux, le libellé d'avant.
+  titulaireKind?: string | null;
+  profession?: string | null;
 }
 
 interface ChatModalProps {
@@ -47,6 +52,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export default function ChatModal({ matchId, myProfileId, partner, aiScore, onClose, myType, contratConfirmed, onCancelled }: ChatModalProps) {
   const canSendContract = myType === "TITULAIRE" || myType === "ASSISTANT";
+  const libellePartenaire = libelleRoleSalariat(partner) ?? TYPE_LABEL[partner.type] ?? partner.type;
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -237,7 +243,7 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-800 text-sm">{TYPE_LABEL[partner.type] ?? partner.type}</p>
+          <p className="font-semibold text-gray-800 text-sm">{libellePartenaire}</p>
           {partner.theirMissionTitle && (
             <p className="text-xs text-gray-400 truncate">{partner.theirMissionTitle}</p>
           )}
@@ -298,7 +304,7 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
             <div className="text-4xl mb-3">💬</div>
             <p className="text-gray-500 text-sm font-medium">Démarrez la conversation !</p>
             <p className="text-gray-400 text-xs mt-1">
-              {TYPE_EMOJI[partner.type]} {TYPE_LABEL[partner.type]} attend votre message
+              {TYPE_EMOJI[partner.type]} {libellePartenaire} attend votre message
             </p>
           </div>
         )}

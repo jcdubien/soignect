@@ -9,7 +9,7 @@ const ChatModal = dynamic(() => import("./ChatModal"), { ssr: false });
 interface Props {
   matchId: string;
   myProfileId: string;
-  partner: { type: string; theirMissionTitle?: string | null };
+  partner: { type: string; theirMissionTitle?: string | null; titulaireKind?: string | null; profession?: string | null };
   aiScore: number | null;
   myType?: string;
   autoOpen?: boolean; // ouvre directement le chat (deep-link notif ?chat=1, section 183)

@@ -5,6 +5,7 @@ import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import { Porte, Profession, Territoire, cleTracePage, cheminPage, PAGES_PUBLIEES } from "@/lib/pagesDiffusion";
 import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
+import { libelleRoleSalariat } from "@/lib/libellesPoste";
 
 // Gabarit commun des pages de diffusion « à annonces » (section 212) — portes CABINET,
 // ÉTABLISSEMENT et MAISON DE SANTÉ, et toutes les pages infirmier (section 299). La porte
@@ -100,9 +101,10 @@ export default async function PagePorte({
               : null;
             // Une structure n'est pas un « Cabinet » : sur la page d'un aide-soignant, presque toutes
             // les offres viennent d'EHPAD et de SSIAD (section 305).
-            const label = m.profile.type === "TITULAIRE" && m.profile.titulaireKind === "STRUCTURE"
-              ? "Établissement"
-              : { REMPLACANT: "Remplaçant", ASSISTANT: "Assistant", TITULAIRE: "Cabinet" }[m.profile.type];
+            // Un aide-soignant qui se propose n'est pas un « Remplaçant » non plus (section 304) : la
+            // page est celle d'UNE profession, toutes ses annonces la partagent.
+            const label = libelleRoleSalariat({ ...m.profile, profession: profession.enumBase })
+              ?? { REMPLACANT: "Remplaçant", ASSISTANT: "Assistant", TITULAIRE: "Cabinet" }[m.profile.type];
             return (
               <div key={m.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">

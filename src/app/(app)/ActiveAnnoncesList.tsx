@@ -14,6 +14,8 @@ export interface ActiveMission {
   title: string;
   location: string;
   missionType: string;
+  /** Libellé déjà résolu pour ce titulaire (vocabulaire salarié), sinon TYPE_LABEL. */
+  libelleType?: string;
   pendingCount?: number;   // likes reçus non encore matchés — « en attente » (section 157)
   confirmedCount?: number; // mises en relation confirmées
 }
@@ -119,7 +121,7 @@ export default function ActiveAnnoncesList({
             >
               <span className="text-sm font-semibold text-gray-800 truncate">{m.title}</span>
               <span className="text-xs text-gray-400 truncate">
-                {TYPE_LABEL[m.missionType] ?? m.missionType} · 📍 {m.location}
+                {m.libelleType ?? TYPE_LABEL[m.missionType] ?? m.missionType} · 📍 {m.location}
               </span>
               {err && <span className="text-[11px] text-red-600 mt-0.5">{err}</span>}
             </Link>

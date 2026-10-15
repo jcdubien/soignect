@@ -22,11 +22,17 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
   // Statut Premium (item 8) — gating du bouton "Envoyer un contrat" dans le tray.
   // Prend en compte le mode lancement gratuit (section 2).
   let isPremium = false;
+  // Profession et nature du titulaire : elles décident du vocabulaire des filtres et du
+  // sélecteur d'annonces (section 304 — pas de « Collaboration » pour le CDI d'un EHPAD).
+  let profession: string | null = null;
+  let titulaireKind: string | null = null;
   if (profileId) {
     const me = await prisma.profile.findUnique({
       where: { id: profileId },
-      select: { subscriptionPlan: true, billingTriggeredAt: true, isFounding: true },
+      select: { subscriptionPlan: true, billingTriggeredAt: true, isFounding: true, profession: true, titulaireKind: true },
     });
+    profession = me?.profession ?? null;
+    titulaireKind = me?.titulaireKind ?? null;
     isPremium = await hasPremiumAccess({ subscriptionPlan: me?.subscriptionPlan, billingTriggeredAt: me?.billingTriggeredAt, isFounding: me?.isFounding });
   }
 
@@ -47,6 +53,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
         id: true,
         title: true,
         missionType: true,
+        natureSalariat: true,
         startDate: true,
         endDate: true,
         matchesA: { select: { id: true } },
@@ -59,6 +66,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
       id: m.id,
       title: m.title,
       missionType: m.missionType as string,
+      natureSalariat: m.natureSalariat,
       startDate:  m.startDate?.toISOString()  ?? null,
       endDate:    m.endDate?.toISOString()    ?? null,
       candidatesCount: m.matchesA.length + m.matchesB.length,
@@ -72,6 +80,8 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
       isPremium={isPremium}
       freeAccessMode={freeAccessMode}
       titulaireMissions={titulaireMissions}
+      profession={profession}
+      titulaireKind={titulaireKind}
       initialMissionId={initialMissionId}
       disponibiliteId={disponibiliteId}
       cardMissionId={cardMissionId}

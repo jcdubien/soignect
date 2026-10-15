@@ -16,6 +16,7 @@ import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
 import { fmtDayAuto } from "@/lib/dates";
 import MissionSelector, { TitulaireMission } from "./MissionSelector";
 import { libelleAuteur } from "@/lib/libellesPoste";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import MissionDetailSheet from "./MissionDetailSheet";
 import FeuilleDispoExpress from "@/components/swipe/FeuilleDispoExpress";
 
@@ -50,6 +51,9 @@ interface SwipeStackProps {
   onSwipeRight?: () => void;
   profileType?: string;
   titulaireMissions?: TitulaireMission[];
+  /** Profession et nature du compte courant — vocabulaire des filtres (section 304). */
+  profession?: string | null;
+  titulaireKind?: string | null;
   initialMissionId?: string;
   /** Profil courant — pour cloisonner l'historique « annonces consultées » par compte. */
   profileId?: string;
@@ -539,8 +543,23 @@ function defaultMissionId(missions?: TitulaireMission[]): string | null {
 }
 
 // ── SwipeStack principal ───────────────────────────────────────────────────────
-export default function SwipeStack({ onSwipeRight, profileType, titulaireMissions, initialMissionId, profileId, onEmptyChange, refreshKey = 0 }: SwipeStackProps) {
+export default function SwipeStack({ onSwipeRight, profileType, titulaireMissions, profession, titulaireKind, initialMissionId, profileId, onEmptyChange, refreshKey = 0 }: SwipeStackProps) {
   const isTitulaire = profileType === "TITULAIRE";
+  // Profession salariée seulement (section 304) : pas d'assistanat ni de collaboration. Les
+  // annonces s'y rangent en REMPLACEMENT (dates précises, CDD) et COLLABORATION (CDI, poste
+  // durable) — mêmes valeurs filtrées, mots de son métier. Le recruteur lit les choix que le
+  // candidat a faits (« Dates précises », « Poste durable »), le candidat la nature des offres.
+  const salarieSeul = contratFourniParEmployeur(profession);
+  const filtresProposes: MissionFilter[] = salarieSeul
+    ? ["ALL", "REMPLACEMENT", "COLLABORATION"]
+    : ["ALL", "POSTES", "REMPLACEMENT", "ASSISTANAT", "COLLABORATION"];
+  const libellesFiltres: Record<MissionFilter, string> = salarieSeul
+    ? {
+        ...FILTER_LABELS,
+        REMPLACEMENT:  isTitulaire ? "Dates précises" : "CDD, vacations",
+        COLLABORATION: isTitulaire ? "Poste durable" : "CDI",
+      }
+    : FILTER_LABELS;
 
   const [detailMission,    setDetailMission]    = useState<MissionWithProfile | null>(null);
   const [missions,         setMissions]         = useState<MissionWithProfile[]>([]);
@@ -1053,7 +1072,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             : filter === "POSTES" && remplacementsMasques > 0
             ? "Aucun poste longue durée pour le moment"
             : filter !== "ALL"
-            ? `Aucune annonce "${FILTER_LABELS[filter]}" pour le moment`
+            ? `Aucune annonce "${libellesFiltres[filter]}" pour le moment`
             : salariatOptIn === 0
             ? "Aucun candidat ouvert aux postes salariés pour l'instant"
             : isTitulaire
@@ -1167,13 +1186,14 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           <MissionSelector
             missions={titulaireMissions}
             selectedId={activeMissionId}
+            publieur={{ type: profileType, titulaireKind, profession }}
             onSelect={(id) => setActiveMissionId(id)}
           />
         )}
 
         {/* ── Filter pills ── */}
         <div className="flex items-center gap-2 px-4 pt-2 pb-1 overflow-x-auto shrink-0" style={{ scrollbarWidth: "none" }}>
-          {(["ALL", "POSTES", "REMPLACEMENT", "ASSISTANAT", "COLLABORATION"] as MissionFilter[]).map(f => (
+          {filtresProposes.map(f => (
             <button
               key={f}
               onClick={() => {
@@ -1190,7 +1210,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
                   : "bg-gray-100 text-gray-500 hover:bg-gray-200"
               }`}
             >
-              {FILTER_LABELS[f]}
+              {libellesFiltres[f]}
             </button>
           ))}
 

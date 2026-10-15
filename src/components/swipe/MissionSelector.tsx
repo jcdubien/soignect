@@ -1,11 +1,14 @@
 "use client";
 
 import { fmtRange } from "@/lib/dates";
+import { estEtablissement, libelleTypePoste, type Publieur } from "@/lib/libellesPoste";
 
 export interface TitulaireMission {
   id: string;
   title: string;
   missionType: string;
+  /** Nature déclarée d'un poste salarié (CDI, CDD_TERME, CDD_SANS_TERME), sinon absente. */
+  natureSalariat?: string | null;
   startDate: string | null;
   endDate: string | null;
   candidatesCount: number;
@@ -29,9 +32,11 @@ interface Props {
   missions: TitulaireMission[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Le titulaire qui consulte : un établissement lit « CDI », pas « Collaboration ». */
+  publieur?: Publieur | null;
 }
 
-export default function MissionSelector({ missions, selectedId, onSelect }: Props) {
+export default function MissionSelector({ missions, selectedId, onSelect, publieur }: Props) {
   if (missions.length === 0) return null;
 
   return (
@@ -53,7 +58,11 @@ export default function MissionSelector({ missions, selectedId, onSelect }: Prop
                 : "bg-white text-gray-600 border-gray-200 hover:border-kine-300 hover:text-kine-700"
             }`}
           >
-            {TYPE_LABELS[m.missionType] ?? m.missionType}
+            {/* Vocabulaire salarié dès qu'il s'applique (section 304) ; libellés libéraux sinon,
+                inchangés pour un cabinet. */}
+            {m.natureSalariat || estEtablissement(publieur)
+              ? libelleTypePoste(m.missionType, publieur, m.natureSalariat)
+              : TYPE_LABELS[m.missionType] ?? m.missionType}
             {dateLabel && (
               <span className={isActive ? " text-kine-200" : " text-gray-400"}> · {dateLabel}</span>
             )}

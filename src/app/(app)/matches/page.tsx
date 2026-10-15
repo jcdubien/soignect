@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { prisma } from "@/lib/prisma";
 import { contratConfirme } from "@/lib/matchEtat";
 import Image from "next/image";
@@ -167,7 +168,9 @@ export default async function MatchesPage() {
               {/* Grille 2 colonnes sur desktop (refonte layout) — exploite la largeur ; 1 col mobile */}
               <div className="grid sm:grid-cols-2 gap-4">
           {groupItems.map((m) => {
-            const tc    = typeConfig(m.otherProfile.type);
+            const tcBase = typeConfig(m.otherProfile.type);
+            // Un établissement n'est pas un « Cabinet », un aide-soignant pas un « Remplaçant·e ».
+            const tc    = { ...tcBase, label: libelleRoleSalariat(m.otherProfile) ?? tcBase.label };
             const score = m.affinityScore !== null ? Math.round(m.affinityScore) : null;
             const scoreColor =
               score === null ? "" :
@@ -253,7 +256,7 @@ export default async function MatchesPage() {
                   <MatchChatButton
                     matchId={m.id}
                     myProfileId={myProfileId}
-                    partner={{ type: m.otherProfile.type, theirMissionTitle: m.theirMission?.title ?? null }}
+                    partner={{ type: m.otherProfile.type, theirMissionTitle: m.theirMission?.title ?? null, titulaireKind: m.otherProfile.titulaireKind, profession: m.otherProfile.profession }}
                     aiScore={m.affinityScore}
                     myType={viewerType}
                     contratConfirmed={contratConfirme({ missionA: m.myMission, missionB: m.theirMission })}
