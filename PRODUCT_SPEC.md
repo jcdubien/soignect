@@ -7363,9 +7363,10 @@ La ligne de la porte visitée est mise en évidence ; les autres restent visible
 disparu. Le tarif de lancement se donne contre logo et retour d'expérience à six mois. La CPTS
 Nord Basse-Terre reste gratuite (conflit d'intérêts : JC en est secrétaire).
 
-**Pas encore en place** : aucun paiement en ligne (le bouton mène toujours à l'inscription, la
-facturation est manuelle) ; « forfait Structure inclus » s'applique à la main par l'administrateur ;
-`TypeInstitution` n'a ni hôpital ni EHPAD.
+**Paiement** : chaque ligne porte un `lienPaiement` (Payment Link Stripe, tarif de lancement,
+annuel) ; vide, la ligne n'a pas de bouton. Le webhook ignore ces paiements (aucun `profileId`) :
+l'administrateur saisit les communes à réception, et applique à la main le « forfait Structure
+inclus ». `TypeInstitution` gagne HOPITAL, EHPAD, SSR, CLINIQUE (14/10, ajout appliqué en production).
 
 ### SECTION 302 — LA PAGE CPTS PARLE DE TOUTES LES PROFESSIONS (14/10)
 

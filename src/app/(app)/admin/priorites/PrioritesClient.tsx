@@ -7,7 +7,7 @@ import { useState } from "react";
 // profession ajoutée à l'enum n'y serait jamais apparue — sans erreur de compilation.
 interface OptionProfession { value: string; label: string }
 
-const TYPES = ["CPTS", "MSP", "ARS", "CGSS", "COLLECTIVITE", "AUTRE"] as const;
+const TYPES = ["CPTS", "MSP", "ARS", "CGSS", "COLLECTIVITE", "HOPITAL", "EHPAD", "SSR", "CLINIQUE", "AUTRE"] as const;
 
 const NATURES = [
   { value: "POC_GRATUIT", label: "PoC gratuit" },

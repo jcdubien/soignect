@@ -171,6 +171,10 @@ enum TypeInstitution {
   ARS
   CGSS
   COLLECTIVITE
+  HOPITAL
+  EHPAD
+  SSR
+  CLINIQUE
   AUTRE
 }
 
