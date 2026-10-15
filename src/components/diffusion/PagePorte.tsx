@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ZoneGeographique } from "@prisma/client";
 import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
-import { Porte, Profession, Territoire, cleTracePage } from "@/lib/pagesDiffusion";
+import { Porte, Profession, Territoire, cleTracePage, cheminPage, PAGES_PUBLIEES } from "@/lib/pagesDiffusion";
 import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
 
 // Gabarit commun des pages de diffusion « à annonces » (section 212) — portes CABINET,
@@ -114,6 +114,29 @@ export default async function PagePorte({
           {porte.cta}
         </Link>
       </div>
+
+      {/* Les autres métiers de la MÊME porte (section 304) — dérivés du registre. Un EHPAD
+          arrivé par « emploi kiné » recrute aussi des infirmiers et des aides-soignants. */}
+      {(() => {
+        // Pages EMPLOYEUR seulement (elles montrent des candidats) : « vous recrutez aussi »
+        // ne se dit pas à quelqu'un qui cherche un poste.
+        const soeurs = porte.montre !== "CANDIDAT" ? [] : PAGES_PUBLIEES.filter(
+          (x) => x.porte.slug === porte.slug && x.territoire === territoire && x.profession.slug !== profession.slug,
+        );
+        return soeurs.length > 0 ? (
+          <p className="mt-6 text-sm text-gray-500 text-center">
+            Vous recrutez aussi{" "}
+            {soeurs.map((x, i) => (
+              <span key={x.profession.slug}>
+                {i > 0 && (i === soeurs.length - 1 ? " ou " : ", ")}
+                <Link href={cheminPage(x.porte, x.profession, x.territoire)} className="underline text-kine-700">
+                  {x.profession.unSingulier}
+                </Link>
+              </span>
+            ))}{" "}?
+          </p>
+        ) : null;
+      })()}
 
       {porte.offrePartenaire && (
         <BlocPartenaire profession={profession} inscription={`/register?profession=${profession.enumBase}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />

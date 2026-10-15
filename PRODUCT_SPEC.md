@@ -7369,6 +7369,12 @@ employeurs. `CONTRAT_FOURNI_PAR_L_EMPLOYEUR` (lib/contrats/gabaritsSalarie) l'é
   (`courtPluriel`). Pour une profession sans type libéral, les textes disent « les
   aides-soignants », pas « ouverts au salariat ».
 
+**Admin et diffusion mis en cohérence** : `/admin/diffusion` regroupe les pages par profession
+(groupe dérivé de `courtPluriel`) ; les pages employeur proposent « Vous recrutez aussi un… »
+vers les autres métiers de la même porte, et la page CPTS renvoie aux pages MSP et
+établissement de chaque métier — liens dérivés de `PAGES_PUBLIEES`. Les listes de professions de
+l'admin (profils, priorités, statistiques) dérivaient déjà de l'enum.
+
 **Limites** : l'inscription fait choisir « remplaçant » ou « assistant / collaborateur » avant la
 profession — vocabulaire libéral pour un AS candidat ; un établissement = une profession par
 compte, donc un EHPAD qui recrute IDE et AS ouvre deux comptes. Parcours non testé de bout en bout

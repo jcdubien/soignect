@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { KINESITHERAPEUTE, INFIRMIER, TERRITOIRES, PORTES, VOCABULAIRE_PROFESSION, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
+import { KINESITHERAPEUTE, TERRITOIRES, PORTES, VOCABULAIRE_PROFESSION, PAGES_PUBLIEES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
 import type { Profession } from "@/lib/pagesDiffusion";
 import { filtreAnnoncesVivantes, PERIMETRE_GUADELOUPE } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
@@ -179,13 +179,24 @@ export default async function Page() {
         <BlocPartenaire profession={PRO} inscription={`/register?src=partenaire-${PORTE.slug}-${PRO.slug}`} porteSlug={PORTE.slug} />
       </div>
 
-      {/* Une MSP recrute : sa page est celle d'un employeur, pas celle-ci (section 299). */}
-      <p className="text-sm text-gray-500 mb-8">
-        Vous êtes une maison de santé qui recrute ?{" "}
-        <Link href={cheminPage(PORTES.MAISON_DE_SANTE, KINESITHERAPEUTE, TERR)} className="underline text-kine-700">un kiné</Link>
-        {" · "}
-        <Link href={cheminPage(PORTES.MAISON_DE_SANTE, INFIRMIER, TERR)} className="underline text-kine-700">un infirmier</Link>
-      </p>
+      {/* Une MSP ou un établissement recrute : leur page est celle d'un employeur, pas celle-ci
+          (sections 299, 304). Les liens se dérivent du registre des pages publiées. */}
+      <div className="mb-8 space-y-2">
+      {[
+        { porte: PORTES.MAISON_DE_SANTE, question: "Vous êtes une maison de santé qui recrute ?" },
+        { porte: PORTES.ETABLISSEMENT, question: "Vous êtes un EHPAD, une SSR, une clinique ou un hôpital ?" },
+      ].map(({ porte, question }) => (
+        <p key={porte.slug} className="text-sm text-gray-500">
+          {question}{" "}
+          {PAGES_PUBLIEES.filter((x) => x.porte.slug === porte.slug && x.territoire === TERR).map((x, i) => (
+            <span key={x.profession.slug}>
+              {i > 0 && " · "}
+              <Link href={cheminPage(x.porte, x.profession, TERR)} className="underline text-kine-700">{x.profession.unSingulier}</Link>
+            </span>
+          ))}
+        </p>
+      ))}
+      </div>
 
       <div className="mt-12 border-t border-gray-100 pt-8 space-y-3 text-sm text-gray-400">
         <h2 className="text-base font-semibold text-gray-600">

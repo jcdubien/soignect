@@ -23,8 +23,10 @@ export const dynamic = "force-dynamic";
 // justement l'oubli qu'on veut rendre impossible, Jean-Charles ayant déjà découvert des pages
 // en ligne dont il ignorait l'existence.
 const PAGES = [
-  // Toutes les pages publiées, kinés et infirmiers (section 299) — une entrée du registre suffit.
+  // Toutes les pages publiées — kinés, infirmiers, aides-soignants (sections 299, 304). Une
+  // entrée du registre suffit ; le groupe vient de la profession, pas d'une liste recopiée.
   ...PAGES_PUBLIEES.map(({ porte, profession, territoire }) => ({
+    groupe: profession.courtPluriel.charAt(0).toUpperCase() + profession.courtPluriel.slice(1),
     chemin: cheminPage(porte, profession, territoire),
     titre: `${porte.libelle} · ${profession.court} — ${territoire.nom}`,
     sousTitre: porte.cible,
@@ -35,6 +37,7 @@ const PAGES = [
   // était écrite à la main, donc une deuxième CPTS aurait marché côté module et n'aurait
   // jamais paru ici. Même défaut que les pages Saint-Martin/Saint-Barth découvertes après coup.
   ...INSTANCES_EMBED.map((i) => ({
+    groupe: "Modules embarquables",
     chemin: cheminEmbed(i),
     titre: `Module embarquable — ${ZONE_LABELS[i.zone]}`,
     sousTitre: `Iframe pour le site de ${i.destinataire} — postes ouverts du territoire`,
@@ -143,8 +146,15 @@ export default async function AdminDiffusionPage() {
         )}
       </div>
 
+      {/* Regroupées par profession (section 304) : à quatorze pages, une liste à plat ne se
+          lisait plus. L'ordre des groupes est celui du registre. */}
+      {Array.from(new Set(PAGES.map((p) => p.groupe))).map((groupe) => (
+      <section key={groupe} className="mb-8">
+      <h2 className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-3">
+        {groupe} <span className="font-normal text-gray-400">({PAGES.filter((p) => p.groupe === groupe).length})</span>
+      </h2>
       <div className="space-y-4">
-        {PAGES.map((p) => {
+        {PAGES.filter((p) => p.groupe === groupe).map((p) => {
           const c = p.trace ? compteur.get(p.trace) : null;
           return (
             <div key={p.chemin} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -189,6 +199,8 @@ export default async function AdminDiffusionPage() {
           );
         })}
       </div>
+      </section>
+      ))}
 
       <p className="text-xs text-gray-400 mt-6 leading-relaxed">
         Une visite servie depuis le cache du navigateur ne compte pas : la trace est posée côté
