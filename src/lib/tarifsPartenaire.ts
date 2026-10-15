@@ -15,6 +15,12 @@ export interface TarifPartenaire {
   aPartirDe?: boolean;
   /** Portes de diffusion où cette ligne est celle du visiteur — mise en évidence. */
   portes: string[];
+  /** Payment Link Stripe (https://buy.stripe.com/…) au tarif de LANCEMENT, abonnement annuel.
+   *  URL publique, pas un secret. Vide = pas de bouton de paiement sur la ligne. Les cinq places
+   *  de lancement prises, remplacer le lien par celui du prix plein.
+   *  Le webhook ignore ces paiements (pas de `profileId` en métadonnées) : rien ne s'active
+   *  tout seul, l'administrateur saisit les communes à réception — c'est voulu. */
+  lienPaiement?: string;
 }
 
 export const TARIFS_PARTENAIRE: TarifPartenaire[] = [

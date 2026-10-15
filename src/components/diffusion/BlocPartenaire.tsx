@@ -53,6 +53,16 @@ export default function BlocPartenaire({ profession, inscription, porteSlug }: {
                   <td className="py-2 px-1">
                     <span className={`block ${vous ? "font-bold text-gray-900" : "font-semibold text-gray-700"}`}>{t.pour}</span>
                     <span className="block text-xs text-gray-500">{t.contenu}</span>
+                    {t.lienPaiement && (
+                      <a
+                        href={t.lienPaiement}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-1 text-xs font-bold text-kine-700 underline"
+                      >
+                        Souscrire en ligne →
+                      </a>
+                    )}
                   </td>
                   <td className="py-2 px-1 text-right whitespace-nowrap tabular-nums text-gray-500 align-top">
                     {t.aPartirDe && <span className="text-xs">dès </span>}<s>{euros(t.prixAn)}</s>
