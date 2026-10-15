@@ -457,6 +457,11 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
 
   // Hard-gate publication (parcours texte-libre) : type + contenu + commune + dates (remplacement).
   // Ces champs restent STRUCTURÉS et confirmés ; l'IA ne fait que pré-remplir. Taux/CA non bloquants.
+  // Un CDD À TERME PRÉCIS a une fin par définition — et le serveur l'exige, puisqu'il est
+  // enregistré en REMPLACEMENT. Le champ n'était proposé qu'au besoin « remplacement » : aucun
+  // CDD ne pouvait donc partir (422 « dates de disponibilité »), banc du 15/10. Le CDD SANS
+  // terme précis, lui, n'a pas de date de fin connue : jusqu'au retour de la personne remplacée.
+  const cddATerme = needType === "salariat" && natureSalariat === "CDD_TERME";
   const missingRequired: string[] = [];
   if (profileType === "TITULAIRE" && !needType) missingRequired.push("le type de poste");
   // Sans nature, la génération n'aurait pas de quoi trancher entre CDI et CDD — le serveur
@@ -465,7 +470,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   if (!form.title.trim())                        missingRequired.push("un titre");
   if (!form.location)                            missingRequired.push("la commune");
   if (!contentValid)                             missingRequired.push("une description (≥ 40 caractères)");
-  if (needType === "remplacement" && (!form.startDate || !form.endDate)) missingRequired.push("les dates de début et de fin");
+  if ((needType === "remplacement" || cddATerme) && (!form.startDate || !form.endDate)) missingRequired.push("les dates de début et de fin");
   // Annonce rattachée à un poste du Planning : sans date de début, la brique ne se place sur
   // aucune ligne. On le dit AVANT publication plutôt que de laisser partir une annonce fantôme.
   if (cabinetPostId && needType !== "remplacement" && !form.startDate) missingRequired.push("la date de prise de poste");
@@ -484,7 +489,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   // la durée minimale (minMonths), et un endDate court ferait échouer la validation 90 jours.
   const showEndDate =
     formType === "REMPLACANT" ||
-    (formType === "TITULAIRE" && needType === "remplacement");
+    (formType === "TITULAIRE" && (needType === "remplacement" || cddATerme));
 
   const showMinMonths =
     (formType === "ASSISTANT") ||
@@ -1127,6 +1132,8 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {formType !== "TITULAIRE"
                 ? "Mes dates de disponibilité"
+                : cddATerme
+                ? "Durée du contrat"
                 : showEndDate
                 ? "Période de remplacement"
                 : "Date de prise de poste"}
