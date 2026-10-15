@@ -262,6 +262,9 @@ export async function POST(req: NextRequest) {
     logTraceEvent({
       eventType: "SWIPE_RIGHT",
       missionId: swipedMissionId,
+      // L'acteur : sans lui, /api/admin/ouverture ne peut pas rattacher le swipe à la
+      // profession de celui qui swipe, et comptait 0 swipe pour toutes les professions.
+      profileId: swiperId,
       commune: swipedMission.location,
       missionType: swipedMission.missionType,
       // `saisonnier` : la carte retenue beneficiait-elle du bonus mai-octobre (section 197) ?
