@@ -4,6 +4,7 @@
 // Source unique de vérité, partagée serveur (blocage/PDF) et client (/compte, contrat).
 
 import { libelleNumeroOrdre } from "@/lib/professions";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 export interface ContractIdentity {
   name?: string | null;
@@ -94,7 +95,15 @@ export function isStructureProfile(p: Pick<ContractIdentity, "titulaireKind">): 
 }
 
 // Liste des champs requis pour ce profil (dépend du type structure vs praticien).
-export function requiredContractFields(p: Pick<ContractIdentity, "titulaireKind">): ContractField[] {
+//
+// AUCUN pour une profession dont le contrat est celui de l'employeur (section 304) : Soignect ne
+// génère ni ne fait signer ce contrat, et un aide-soignant n'a ni RPPS ni ordre. Sans cette
+// exemption, activer `enforceContractProfile` lui opposait « Identité contractuelle incomplète »
+// — dans la route de contrat AVANT le refus prévu, et dans la signature, qui n'en a aucun.
+export function requiredContractFields(
+  p: Pick<ContractIdentity, "titulaireKind" | "profession">,
+): ContractField[] {
+  if (contratFourniParEmployeur(p.profession)) return [];
   const base: ContractField[] = ["name", "adresse"];
   return isStructureProfile(p)
     ? [...base, "siret"]
