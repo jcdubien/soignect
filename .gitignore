@@ -34,3 +34,6 @@ prisma/dev.db
 # Échafaudages de vérification (bancs jetables) — jamais versionnés
 _tmp-*
 .banc*.json
+
+# Soignect Suite : fichier autonome avec identité et signature en dur, jamais commité
+soignect_suite_*.html
