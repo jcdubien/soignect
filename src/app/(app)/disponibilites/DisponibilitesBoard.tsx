@@ -653,19 +653,18 @@ function AssistantEditModal({ slot, salarieSeul, onClose, onSaved }: {
   );
 }
 
-function AssistantDispoView({ profileName, salarieSeul, missions, linkedPost }: {
-  profileName: string | null;
-  salarieSeul: boolean;
-  missions: MissionSlot[];
-  linkedPost?: LinkedPost | null;
-}) {
+// ── Recherches de poste durable, en cartes (section 179) ──────────────────────────
+// Extraites de la vue assistant pour servir AUSSI au-dessus de la frise d'un compte REMPLAÇANT :
+// une recherche sans dates (feuille express, formulaire « poste durable ») n'a aucune place sur
+// une frise datée, et le candidat ne la retrouvait nulle part — ni pour la voir, ni pour la
+// modifier, ni pour la retirer (constaté à l'écran le 15/10, section 304).
+function RecherchesPosteDurable({ missions, salarieSeul }: { missions: MissionSlot[]; salarieSeul: boolean }) {
   const router = useRouter();
   const [editSlot, setEditSlot] = useState<MissionSlot | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<{ id: string; msg: string } | null>(null);
-  const [, setCouverturesRetirees] = useState<Set<string>>(new Set());
 
   async function doDelete(id: string) {
     setBusyId(id); setErrorId(null);
@@ -684,37 +683,7 @@ function AssistantDispoView({ profileName, salarieSeul, missions, linkedPost }: 
   const visible = missions.filter((m) => !deletedIds.has(m.id));
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-gray-50 overflow-y-auto">
-      {/* Bannière « poste rattaché » (section 153) — identique à la vue remplaçant. */}
-      {linkedPost && (
-        <div className="bg-violet-50 border-b border-violet-200 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-violet-800">
-            👩‍⚕️ Vous êtes actuellement {linkedPost.isCollaboration ? "collaborateur·rice" : "assistant·e"}{linkedPost.cabinetName ? <> chez <strong>{linkedPost.cabinetName}</strong></> : ""} (poste « {linkedPost.label} »).
-          </p>
-          <Link href={`/missions/create?cabinetPostId=${encodeURIComponent(linkedPost.id)}&needType=remplacement`}
-            className="shrink-0 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition">
-            Faire remplacer mon absence →
-          </Link>
-        </div>
-      )}
-
-      {linkedPost && <CouverturesPoste post={linkedPost} onRetire={(id) => { setCouverturesRetirees(prev => new Set(prev).add(id)); router.refresh(); }} />}
-
-      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-4">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">Ma recherche de poste</h1>
-          <p className="text-xs text-gray-400">{salarieSeul ? `${profileName ?? "Candidat·e"} · Poste durable` : `${profileName ?? "Assistant"} · Poste long terme (assistanat / collaboration)`}</p>
-        </div>
-
-        {visible.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-            <div className="text-4xl mb-2">👩‍⚕️</div>
-            <p className="text-sm font-semibold text-gray-700">Aucune recherche publiée</p>
-            <p className="text-xs text-gray-400 mt-1 mb-4">Publiez votre recherche pour être visible des {salarieSeul ? "établissements qui recrutent" : "cabinets qui recrutent en longue durée"}.</p>
-            <Link href="/disponibilites/create" className="inline-block px-4 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition">+ Publier ma recherche</Link>
-          </div>
-        ) : (
-          <>
+    <>
             {visible.map((m) => {
               const isCollab = m.missionType === "COLLABORATION";
               const pending = m.pendingCount ?? 0;
@@ -765,12 +734,59 @@ function AssistantDispoView({ profileName, salarieSeul, missions, linkedPost }: 
                 </div>
               );
             })}
+      {editSlot && <AssistantEditModal slot={editSlot} salarieSeul={salarieSeul} onClose={() => setEditSlot(null)} onSaved={() => { setEditSlot(null); router.refresh(); }} />}
+    </>
+  );
+}
+
+function AssistantDispoView({ profileName, salarieSeul, missions, linkedPost }: {
+  profileName: string | null;
+  salarieSeul: boolean;
+  missions: MissionSlot[];
+  linkedPost?: LinkedPost | null;
+}) {
+  const router = useRouter();
+  const [, setCouverturesRetirees] = useState<Set<string>>(new Set());
+  const visible = missions;
+
+  return (
+    <div className="flex flex-col h-full min-h-0 bg-gray-50 overflow-y-auto">
+      {/* Bannière « poste rattaché » (section 153) — identique à la vue remplaçant. */}
+      {linkedPost && (
+        <div className="bg-violet-50 border-b border-violet-200 px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-violet-800">
+            👩‍⚕️ Vous êtes actuellement {linkedPost.isCollaboration ? "collaborateur·rice" : "assistant·e"}{linkedPost.cabinetName ? <> chez <strong>{linkedPost.cabinetName}</strong></> : ""} (poste « {linkedPost.label} »).
+          </p>
+          <Link href={`/missions/create?cabinetPostId=${encodeURIComponent(linkedPost.id)}&needType=remplacement`}
+            className="shrink-0 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition">
+            Faire remplacer mon absence →
+          </Link>
+        </div>
+      )}
+
+      {linkedPost && <CouverturesPoste post={linkedPost} onRetire={(id) => { setCouverturesRetirees(prev => new Set(prev).add(id)); router.refresh(); }} />}
+
+      <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-4">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">Ma recherche de poste</h1>
+          <p className="text-xs text-gray-400">{salarieSeul ? `${profileName ?? "Candidat·e"} · Poste durable` : `${profileName ?? "Assistant"} · Poste long terme (assistanat / collaboration)`}</p>
+        </div>
+
+        {visible.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+            <div className="text-4xl mb-2">👩‍⚕️</div>
+            <p className="text-sm font-semibold text-gray-700">Aucune recherche publiée</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">Publiez votre recherche pour être visible des {salarieSeul ? "établissements qui recrutent" : "cabinets qui recrutent en longue durée"}.</p>
+            <Link href="/disponibilites/create" className="inline-block px-4 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition">+ Publier ma recherche</Link>
+          </div>
+        ) : (
+          <>
+            <RecherchesPosteDurable missions={visible} salarieSeul={salarieSeul} />
             <Link href="/disponibilites/create" className="block text-center px-4 py-3 border border-dashed border-kine-300 text-kine-700 rounded-2xl text-sm font-bold hover:bg-kine-50 transition">+ Publier une autre recherche</Link>
           </>
         )}
       </div>
 
-      {editSlot && <AssistantEditModal slot={editSlot} salarieSeul={salarieSeul} onClose={() => setEditSlot(null)} onSaved={() => { setEditSlot(null); router.refresh(); }} />}
     </div>
   );
 }
@@ -859,6 +875,11 @@ export default function DisponibilitesBoard({ profileName, salarieSeul = false, 
       suggestedEnd:   endDate.toISOString().slice(0, 10),
     });
   }, [dayWidth, isAssistant]);
+
+  // Recherches long terme SANS dates d'un compte remplaçant : la frise ne peut pas les montrer.
+  const recherchesDurables = missions.filter(
+    (m) => m.missionType !== "REMPLACEMENT" && m.briqueStatus !== "INDISPONIBLE" && !(m.startDate && m.endDate),
+  );
 
   // Assistant (section 179, Option 1) : vue « recherche de poste » sans timeline datée.
   // Placé après les hooks (règles des Hooks) — la logique timeline ci-dessus reste inerte ici.
@@ -981,6 +1002,18 @@ export default function DisponibilitesBoard({ profileName, salarieSeul = false, 
         {/* Bouton « + Ajouter » supprimé (section 148) — ajout d'une disponibilité
             uniquement via clic sur la timeline (zone claire → créer). */}
       </div>
+
+      {/* Recherches de poste durable : sans dates, elles n'ont pas de place sur la frise. */}
+      {recherchesDurables.length > 0 && (
+        <div className="flex-shrink-0 max-h-[45vh] overflow-y-auto border-b border-gray-100 bg-gray-50 px-3 sm:px-4 py-3">
+          <div className="max-w-2xl space-y-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              {salarieSeul ? "Ma recherche de poste durable" : "Ma recherche de poste long terme"}
+            </p>
+            <RecherchesPosteDurable missions={recherchesDurables} salarieSeul={salarieSeul} />
+          </div>
+        </div>
+      )}
 
       {/* ── Timeline ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">

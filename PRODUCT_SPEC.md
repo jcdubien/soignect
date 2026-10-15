@@ -7426,9 +7426,10 @@ règle vit dans `lib/libellesPoste` (`libelleRoleSalariat`, `libelleAuteur`, `li
   exemple d'accroche d'établissement (inscription, Compte) ; limite d'accroche affichée selon
   le type (700 / 280) ; « Visible par les établissements », « signale votre nom à
   l'établissement » ; mention saisonnière sans « remplaçants » pour un établissement AS.
-- **Reste ouvert** : un candidat de type REMPLACANT qui publie un poste durable (feuille
-  express ou formulaire) ne le retrouve pas dans Mes disponibilités — la frise datée n'affiche
-  rien sans dates. Touche aussi les kinés.
+- Mes disponibilités d'un compte REMPLACANT : ses recherches long terme SANS dates (feuille
+  express, formulaire « poste durable ») s'affichent en cartes au-dessus de la frise, avec
+  Modifier / Supprimer / partage (composant `RecherchesPosteDurable`, partagé avec la vue
+  assistant). Avant, la frise datée ne les montrait nulle part. Vaut aussi pour les kinés.
 
 **Limites** : un établissement = une profession par compte, donc un EHPAD qui recrute IDE et AS
 ouvre deux comptes. L'assistance IA reste réservée aux kinés (section 294). Parcours non testé de
