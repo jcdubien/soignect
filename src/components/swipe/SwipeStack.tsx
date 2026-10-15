@@ -1298,7 +1298,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           ) : (
             <>
               Ordre d&apos;affichage : les comptes abonnés et partenaires
-              apparaissent en premier{isTitulaire ? ", ainsi que les disponibilités couvrant mai-octobre, période où les remplaçants sont les plus rares" : ""}{prioriteTerritoriale > 0 ? `, ainsi que les postes situés sur une commune ${mentionPriorite}` : ""}.
+              apparaissent en premier{isTitulaire ? `, ainsi que les disponibilités couvrant mai-octobre${salarieSeul ? "" : ", période où les remplaçants sont les plus rares"}` : ""}{prioriteTerritoriale > 0 ? `, ainsi que les postes situés sur une commune ${mentionPriorite}` : ""}.
               Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
             </>
           )}
@@ -1453,7 +1453,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
                 <div className="max-w-md rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-center">
                   <p className="text-[11px] leading-snug text-amber-900">
                     <strong>Vous n&apos;apparaissez dans aucun fil.</strong> Sans recherche
-                    publiée, « Intéressé » signale votre nom au cabinet concerné, mais aucune mise
+                    publiée, « Intéressé » signale votre nom {salarieSeul ? "à l'établissement concerné" : "au cabinet concerné"}, mais aucune mise
                     en relation ne peut se former.
                   </p>
                   {/* OUVRE LA FEUILLE, NE QUITTE PLUS LE FIL (section 288). Ce lien menait au

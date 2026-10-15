@@ -599,7 +599,8 @@ export default function CreateDisponibiliteClient({
         </div>
         <p className="text-gray-400 text-sm">
           {salarieSeul
-            ? "Visible par les établissements et les cabinets qui recrutent en Guadeloupe"
+            // L'inscription ne propose plus que le compte établissement pour cette profession.
+            ? "Visible par les établissements qui recrutent en Guadeloupe"
             : isAssistant
             ? "Visible par les cabinets proposant des postes longue durée"
             : "Visible par les cabinets recherchant un remplaçant en Guadeloupe"}

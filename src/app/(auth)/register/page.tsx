@@ -603,7 +603,7 @@ function RegisterForm() {
               <StepIndicator current={2} total={2} />
               <h2 className="text-lg font-bold text-gray-800 mb-1">Votre accroche</h2>
               <p className="text-gray-400 text-sm mb-4">
-                280 caractères pour convaincre — les premiers verront votre profil en premier.
+                {bioLimit} caractères pour convaincre — les premiers verront votre profil en premier.
               </p>
 
               {/* Boutons starter */}
@@ -642,7 +642,11 @@ function RegisterForm() {
                     starter
                       ? "…complétez en quelques mots"
                       : profileType === "TITULAIRE"
-                      ? "Cabinet dynamique à Pointe-à-Pitre, patientèle sport et gériatrique, plateau technique complet, logement possible…"
+                      // Un établissement n'est pas un cabinet kiné : l'exemple ne lui prête ni
+                      // patientèle ni plateau technique (section 304).
+                      ? structure
+                        ? "Établissement à Pointe-à-Pitre, équipe stable, plannings connus à l'avance, intégration accompagnée…"
+                        : "Cabinet dynamique à Pointe-à-Pitre, patientèle sport et gériatrique, plateau technique complet, logement possible…"
                       // Suit la profession choisie à l'écran PRÉCÉDENT (section 278) : elle était
                       // en dur sur « Kiné passionné de sport », servie telle quelle à l'infirmière
                       // qui venait de se déclarer infirmière.

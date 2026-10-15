@@ -9,6 +9,7 @@ import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
 import { fmtDayAuto, fmtDayYear } from "@/lib/dates";
 import type { TitulaireMission } from "@/components/swipe/MissionSelector";
 import { libelleAuteur } from "@/lib/libellesPoste";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import Button from "@/components/ui/md3/Button";
 import { lectureQualitative, PROFILE_LABEL } from "@/lib/compatibilite";
@@ -142,8 +143,10 @@ function MissionSheet({
     }
   }
 
-  // "Envoyer un contrat" visible uniquement côté recruteur (titulaire/assistant)
-  const canSendContract = myProfileType === "TITULAIRE" || myProfileType === "ASSISTANT";
+  // "Envoyer un contrat" visible uniquement côté recruteur (titulaire/assistant), et jamais quand
+  // le contrat est celui de l'employeur (aide-soignant, section 304) : il n'y a rien à envoyer.
+  const canSendContract =
+    (myProfileType === "TITULAIRE" || myProfileType === "ASSISTANT") && !contratFourniParEmployeur(p.profession);
 
   // Item 10 — réaffecter cette relation à une autre mission ouverte (si plusieurs)
   const canReassign = !!item.matchId && titulaireMissions.length > 1;

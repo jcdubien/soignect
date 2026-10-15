@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { createPortal } from "react-dom";
 import { contientUnNumero } from "@/lib/numeroTelephone";
 
@@ -51,7 +52,11 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function ChatModal({ matchId, myProfileId, partner, aiScore, onClose, myType, contratConfirmed, onCancelled }: ChatModalProps) {
-  const canSendContract = myType === "TITULAIRE" || myType === "ASSISTANT";
+  // Pas de bouton quand le contrat est celui de l'employeur (aide-soignant, section 304) :
+  // Soignect n'en génère aucun, « Envoyer un contrat » promettait un document qui n'existe pas.
+  // Les deux parties ont la même profession (un fil par profession) : celle du partenaire suffit.
+  const canSendContract =
+    (myType === "TITULAIRE" || myType === "ASSISTANT") && !contratFourniParEmployeur(partner.profession);
   const libellePartenaire = libelleRoleSalariat(partner) ?? TYPE_LABEL[partner.type] ?? partner.type;
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);

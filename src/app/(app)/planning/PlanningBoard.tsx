@@ -9,6 +9,7 @@ import Button from "@/components/ui/md3/Button";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import ShareActions from "@/components/share/ShareActions";
 import { TYPE_LABEL } from "../ActiveAnnoncesList";
+import { libelleTypePoste } from "@/lib/libellesPoste";
 import { notPast, nextDay } from "@/lib/dates";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -68,6 +69,9 @@ interface UnlinkedMission {
   startDate: Date | string | null;
   endDate: Date | string | null;
   missionType: string;
+  // Nature déclarée d'un poste salarié (section 262) : un CDI d'établissement ne se lit pas
+  // « Collaboration ».
+  natureSalariat?: string | null;
   briqueStatus: string;
   // Chargé plutôt que supposé : la requête serveur filtre déjà `isActive: true`, mais le
   // prédicat de péremption le teste — une valeur déduite d'un `where` lointain est une
@@ -3259,7 +3263,9 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
                       <p className="text-sm font-semibold text-gray-800 truncate">{m.title}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         <span className="inline-block px-1.5 py-0.5 rounded-full bg-[var(--ambre)]/20 text-[#8a5a00] text-[10px] font-bold mr-1.5">
-                          {TYPE_LABEL[m.missionType] ?? m.missionType}
+                          {isEmployeur || m.natureSalariat
+                            ? libelleTypePoste(m.missionType, { type: "TITULAIRE", titulaireKind: isEmployeur ? "STRUCTURE" : "CABINET" }, m.natureSalariat)
+                            : TYPE_LABEL[m.missionType] ?? m.missionType}
                         </span>
                         {start && end ? `${fmtDate(start)} → ${fmtDate(end)}` : "Sans dates"}
                       </p>
@@ -3311,9 +3317,10 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
             {/* Couleurs lues dans BRIQUE_STATUS — une seule source pour la brique, l'infobulle
                 et la légende (section 297). */}
             {[
-              { color: BRIQUE_STATUS.PRESENT.bg,             label: "Titulaire" },
+              // Un établissement n'a ni « titulaire » ni « remplaçant » : il a des salariés en poste.
+              { color: BRIQUE_STATUS.PRESENT.bg,             label: isEmployeur ? "En poste" : "Titulaire" },
               { color: BRIQUE_STATUS.CONFIRME.bg,            label: BRIQUE_STATUS.CONFIRME.label },
-              { color: BRIQUE_STATUS.REMPLACANT_EN_PLACE.bg, label: BRIQUE_STATUS.REMPLACANT_EN_PLACE.label },
+              { color: BRIQUE_STATUS.REMPLACANT_EN_PLACE.bg, label: isEmployeur ? "Remplacement en cours" : BRIQUE_STATUS.REMPLACANT_EN_PLACE.label },
               { color: BRIQUE_STATUS.RECHERCHE.bg,           label: BRIQUE_STATUS.RECHERCHE.label },
               { color: BRIQUE_STATUS.FERME.bg,               label: BRIQUE_STATUS.FERME.label },
               { color: "bg-[#E8633D]/20 border border-[#E8633D]/40", label: "Non couvert" },

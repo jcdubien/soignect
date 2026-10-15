@@ -285,7 +285,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
 
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">
-            {profile.type === "TITULAIRE" ? "Nom du cabinet" : "Votre nom"}
+            {profile.type === "TITULAIRE" ? (isStructure ? "Nom de l'établissement" : "Nom du cabinet") : "Votre nom"}
           </label>
           <input
             type="text"
@@ -474,7 +474,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
       {/* ── Votre accroche (BioTinder en interne) ── */}
       <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-3">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Votre accroche</h2>
-        <p className="text-xs text-gray-400">Votre phrase visible sur les cartes (280 caractères max)</p>
+        <p className="text-xs text-gray-400">Votre phrase visible sur les cartes ({bioLimitFor(profile.type)} caractères max)</p>
         <div className="relative">
           <textarea
             value={bioTinder}
@@ -483,7 +483,9 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             className="w-full px-3 py-2.5 border border-kine-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none break-words whitespace-pre-wrap"
             placeholder={
               profile.type === "TITULAIRE"
-                ? "Cabinet dynamique, patientèle sport et gériatrique, plateau technique complet…"
+                ? isStructure
+                  ? "Établissement à Pointe-à-Pitre, équipe stable, plannings connus à l'avance, intégration accompagnée…"
+                  : "Cabinet dynamique, patientèle sport et gériatrique, plateau technique complet…"
                 // Écrit en dur jusqu'au 09/10 : un infirmier lisait « Kiné passionné… » dans
                 // l'exemple de SA propre accroche, sur l'écran où il se décrit. Le module des
                 // exemples (section 278) tenait déjà la phrase infirmière — elle n'était
@@ -589,7 +591,9 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
       {/* ── Ouverture au salariat (candidat) ──
            Réglage de RECHERCHE, pas de notification : il décide de ce que le candidat voit et
            de qui le voit. Modifiable ici à tout moment, sans republier de disponibilité. */}
-      {isCandidat && (
+      {/* Un aide-soignant est salarié PAR NATURE (section 304) : le fil ignore ce réglage pour lui,
+          et « sans cette option, vous ne voyez que les cabinets libéraux » serait faux. */}
+      {isCandidat && !salarieSeul && (
         <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Type de postes recherchés</h2>
           <label className="flex items-center justify-between cursor-pointer gap-3">
@@ -624,7 +628,9 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
               <p className="text-xs text-yellow-600 font-medium">⭐ Cabinet fondateur</p>
             )}
             {profile.type === "REMPLACANT" && (
-              <p className="text-xs text-emerald-600 font-medium">Accès gratuit à vie pour les remplaçants</p>
+              <p className="text-xs text-emerald-600 font-medium">
+                {salarieSeul ? "Accès gratuit à vie pour les candidat·es" : "Accès gratuit à vie pour les remplaçants"}
+              </p>
             )}
           </div>
           {profile.type === "TITULAIRE" && profile.subscriptionPlan === "FREE" && (

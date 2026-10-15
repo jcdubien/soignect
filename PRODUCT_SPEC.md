@@ -7418,6 +7418,17 @@ règle vit dans `lib/libellesPoste` (`libelleRoleSalariat`, `libelleAuteur`, `li
   `natureSalariat` (un CDI d'établissement ne s'affiche plus « Collaboration libérale ») ;
   Google Jobs reçoit FULL_TIME / TEMPORARY / PER_DIEM pour un poste salarié, plus CONTRACTOR.
   Les vignettes déjà stockées gardent leur ancienne phrase jusqu'à leur régénération.
+- Parcours testé à l'écran le 15/10 (deux comptes test, supprimés ensuite). Corrigé à la suite :
+  pas de « Envoyer un contrat » (chat, tiroir des relations) quand le contrat est celui de
+  l'employeur ; Planning d'un établissement : badge CDI/CDD via `libelleTypePoste`, légende
+  « En poste » / « Remplacement en cours » ; Compte candidat AS : plus de bascule « ouvert au
+  salariat », « Accès gratuit à vie pour les candidat·es » ; « Nom de l'établissement » et
+  exemple d'accroche d'établissement (inscription, Compte) ; limite d'accroche affichée selon
+  le type (700 / 280) ; « Visible par les établissements », « signale votre nom à
+  l'établissement » ; mention saisonnière sans « remplaçants » pour un établissement AS.
+- **Reste ouvert** : un candidat de type REMPLACANT qui publie un poste durable (feuille
+  express ou formulaire) ne le retrouve pas dans Mes disponibilités — la frise datée n'affiche
+  rien sans dates. Touche aussi les kinés.
 
 **Limites** : un établissement = une profession par compte, donc un EHPAD qui recrute IDE et AS
 ouvre deux comptes. L'assistance IA reste réservée aux kinés (section 294). Parcours non testé de
