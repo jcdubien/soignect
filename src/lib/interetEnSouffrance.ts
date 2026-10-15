@@ -3,6 +3,7 @@ import { SwipeDirection, ProfileType } from "@prisma/client";
 import { offreOuverteLe } from "@/lib/feedFilters";
 import { adresseEnvoyable, EVENT_RELANCE } from "@/lib/relancePublication";
 import { sendInteretEnSouffranceEmail } from "@/lib/email";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 // ── DES CABINETS ATTENDENT DES DATES, ET PERSONNE NE LE SAIT (section 290) ───────────────────
 //
@@ -56,6 +57,8 @@ export interface CibleSouffrance {
   /** Nombre de CABINETS distincts, pas d'annonces. C'est le nombre que la feuille d'arrivée
    *  affiche (« 3 cabinets attendent vos dates ») : l'email et l'écran doivent dire le même. */
   nbCabinets: number;
+  /** Profession salariée seulement (section 304) : ceux qui attendent sont des établissements. */
+  salarieSeul: boolean;
   nbAnnonces: number;
   premierInteret: Date;
   derniereActivite: Date;
@@ -115,7 +118,7 @@ export async function ciblesInteretEnSouffrance(): Promise<{
   const profils = await prisma.profile.findMany({
     where: { id: { in: ids } },
     select: {
-      id: true, name: true, type: true, updatedAt: true,
+      id: true, name: true, type: true, profession: true, updatedAt: true,
       missions: { where: { isActive: true }, take: 1, select: { id: true } },
       user: { select: { id: true, email: true, emailOptIn: true } },
     },
@@ -186,6 +189,7 @@ export async function ciblesInteretEnSouffrance(): Promise<{
       nom: pr.name,
       type: pr.type,
       nbCabinets: e.cabinets.size,
+      salarieSeul: contratFourniParEmployeur(pr.profession),
       nbAnnonces: e.annonces.size,
       premierInteret: e.premier,
       derniereActivite: new Date(Math.max(e.dernier.getTime(), pr.updatedAt.getTime())),
@@ -234,6 +238,7 @@ export async function envoyerInteretEnSouffrance(
       const resultat = await sendInteretEnSouffranceEmail(c.email, {
         firstName: c.prenom,
         nbCabinets: c.nbCabinets,
+        salarieSeul: c.salarieSeul,
         optIn: c.optIn,
       });
       if (resultat === "refuse") {

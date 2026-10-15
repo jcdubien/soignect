@@ -64,6 +64,16 @@ const CANDIDAT: Record<string, string> = {
   COLLABORATION: "Cherche une collaboration",
 };
 
+// Un candidat SALARIÉ (aide-soignant, section 304) ne remplace personne et ne cherche ni
+// assistanat ni collaboration : sa disponibilité datée vise des CDD et vacations, sa recherche
+// longue un poste durable. ASSISTANAT ne devrait plus être publié pour lui, mais une ligne
+// ancienne doit se lire juste.
+const CANDIDAT_SALARIE: Record<string, string> = {
+  REMPLACEMENT: "Disponible en CDD, vacations",
+  ASSISTANAT: "Cherche un poste durable",
+  COLLABORATION: "Cherche un poste durable",
+};
+
 export function libelleTypePoste(
   missionType: string,
   publieur?: Publieur | null,
@@ -73,7 +83,8 @@ export function libelleTypePoste(
 ): string {
   if (natureSalariat === "CDI") return "CDI";
   if (natureSalariat === "CDD_TERME" || natureSalariat === "CDD_SANS_TERME") return "CDD";
-  const table = estCandidat(publieur) ? CANDIDAT : estEtablissement(publieur) ? ETABLISSEMENT : CABINET;
+  const table = estCandidatSalarie(publieur) ? CANDIDAT_SALARIE
+    : estCandidat(publieur) ? CANDIDAT : estEtablissement(publieur) ? ETABLISSEMENT : CABINET;
   return table[missionType] ?? missionType;
 }
 
@@ -106,15 +117,33 @@ const INTENTION_CANDIDAT: Record<string, string> = {
   COLLABORATION: "Propose sa disponibilité comme collaborateur",
 };
 
+const INTENTION_CANDIDAT_SALARIE: Record<string, string> = {
+  REMPLACEMENT:  "Propose sa disponibilité en CDD ou vacation",
+  ASSISTANAT:    "Cherche un poste durable",
+  COLLABORATION: "Cherche un poste durable",
+};
+
 /** Qui cherche quoi, en une phrase. Repli sur le libellé de poste plutôt que sur une phrase
- *  approximative : mieux vaut une étiquette neutre qu'une intention inventée. */
-export function phraseIntentionPartage(missionType: string, publieur?: Publieur | null): string {
-  const table = estCandidat(publieur)
-    ? INTENTION_CANDIDAT
-    : estEtablissement(publieur)
-      ? INTENTION_ETABLISSEMENT
-      : INTENTION_CABINET;
-  return table[missionType] ?? libelleTypePoste(missionType, publieur);
+ *  approximative : mieux vaut une étiquette neutre qu'une intention inventée.
+ *  `natureSalariat` prime pour un établissement : son CDD est rangé en REMPLACEMENT, que la
+ *  table lirait « recrute en vacation ». */
+export function phraseIntentionPartage(
+  missionType: string,
+  publieur?: Publieur | null,
+  natureSalariat?: string | null,
+): string {
+  if (estEtablissement(publieur)) {
+    if (natureSalariat === "CDI") return INTENTION_ETABLISSEMENT.COLLABORATION;
+    if (natureSalariat === "CDD_TERME" || natureSalariat === "CDD_SANS_TERME") return INTENTION_ETABLISSEMENT.ASSISTANAT;
+  }
+  const table = estCandidatSalarie(publieur)
+    ? INTENTION_CANDIDAT_SALARIE
+    : estCandidat(publieur)
+      ? INTENTION_CANDIDAT
+      : estEtablissement(publieur)
+        ? INTENTION_ETABLISSEMENT
+        : INTENTION_CABINET;
+  return table[missionType] ?? libelleTypePoste(missionType, publieur, natureSalariat);
 }
 
 // Qui publie. « Cabinet » était affiché pour tout profil TITULAIRE — un hôpital, un EHPAD ou une
@@ -122,13 +151,15 @@ export function phraseIntentionPartage(missionType: string, publieur?: Publieur 
 export function libelleAuteur(publieur?: Publieur | null, court = false): string {
   if (estEtablissement(publieur)) return court ? "Étab." : "Établissement";
   if (publieur?.type === "TITULAIRE") return "Cabinet";
+  // Avant ASSISTANT : un aide-soignant en recherche de poste durable a un compte ASSISTANT, et
+  // « Assistant » lui prêtait un statut libéral qu'il n'a pas.
+  if (estCandidatSalarie(publieur)) return court ? "Cand." : "Candidat";
   if (publieur?.type === "ASSISTANT") return court ? "Assist." : "Assistant";
   // « Kiné » en forme courte jusqu'au 09/10 : la carte d'un infirmier remplaçant portait donc
   // l'étiquette « Kiné ». Le type `Publieur` ne porte pas la profession, et la lui ajouter
   // obligerait à l'aller chercher dans la dizaine d'appelants pour un mot de cinq lettres.
   // « Rempl. » dit la même chose que la forme longue, abrégée — c'est-à-dire le seul rôle que
   // cette étiquette a jamais eu (section 294).
-  if (estCandidatSalarie(publieur)) return court ? "Cand." : "Candidat";
   if (publieur?.type === "REMPLACANT") return court ? "Rempl." : "Remplaçant";
   return "Profil";
 }

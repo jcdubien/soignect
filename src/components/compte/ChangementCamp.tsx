@@ -33,12 +33,18 @@ export default function ChangementCamp({
   profileId,
   campActuel,
   etaitAssistant,
+  salarieSeul = false,
 }: {
   profileId: string;
   campActuel: "TITULAIRE" | "CHERCHEUR";
+  /** Profession salariée seulement (section 304) : le camp recruteur est un établissement, et
+   *  la distinction assistant / remplaçant n'existe pas. */
+  salarieSeul?: boolean;
   /** Sert au seul avertissement sur la sous-catégorie non mémorisée — voir plus bas. */
   etaitAssistant: boolean;
 }) {
+  const nomCamp = (c: "TITULAIRE" | "CHERCHEUR") =>
+    salarieSeul && c === "TITULAIRE" ? "Établissement" : NOM_CAMP[c];
   const router = useRouter();
   const { update } = useSession();
   const [impact, setImpact] = useState<Impact | null>(null);
@@ -107,7 +113,7 @@ export default function ChangementCamp({
       <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Type de profil</h2>
 
       <div className="rounded-xl bg-gray-50 border border-gray-100 p-3.5">
-        <p className="text-sm font-semibold text-gray-800">{NOM_CAMP[campActuel]}</p>
+        <p className="text-sm font-semibold text-gray-800">{nomCamp(campActuel)}</p>
         <p className="text-xs text-gray-500 mt-0.5">{QUOI_CAMP[campActuel]}</p>
       </div>
 
@@ -119,7 +125,7 @@ export default function ChangementCamp({
             disabled={chargement}
             className="md3-ripple w-full py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-40"
           >
-            {chargement ? "Vérification…" : `Devenir ${NOM_CAMP[cible].toLowerCase()}`}
+            {chargement ? "Vérification…" : `Devenir ${nomCamp(cible).toLowerCase()}`}
           </button>
           <p className="text-[11px] text-gray-400 leading-snug">
             Vous verrez ce que le changement implique avant de le confirmer.
@@ -130,7 +136,7 @@ export default function ChangementCamp({
       {impact && (
         <div className="rounded-xl border border-gray-200 p-3.5 space-y-3">
           <p className="text-sm font-semibold text-gray-800">
-            Passer en « {NOM_CAMP[cible]} »
+            Passer en « {nomCamp(cible)} »
           </p>
           <p className="text-xs text-gray-500">{QUOI_CAMP[cible]}</p>
 
@@ -176,7 +182,7 @@ export default function ChangementCamp({
                 <li>Aucune donnée existante n&apos;est concernée.</li>
               )}
               {/* Conséquence réelle et non mémorisée — annoncée plutôt que subie. */}
-              {etaitAssistant && cible === "TITULAIRE" && (
+              {etaitAssistant && !salarieSeul && cible === "TITULAIRE" && (
                 <li>
                   Votre profil est aujourd&apos;hui « Assistant·e ». En revenant chercheur plus tard,
                   vous serez enregistré comme « Remplaçant·e »&nbsp;: les deux catégories sont

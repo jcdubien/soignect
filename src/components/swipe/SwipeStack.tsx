@@ -1074,7 +1074,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             : filter !== "ALL"
             ? `Aucune annonce "${libellesFiltres[filter]}" pour le moment`
             : salariatOptIn === 0
-            ? "Aucun candidat ouvert aux postes salariés pour l'instant"
+            ? (salarieSeul ? "Aucun candidat disponible pour le moment" : "Aucun candidat ouvert aux postes salariés pour l'instant")
             : isTitulaire
             ? (seenAvailable > 0
                 ? "Vous avez déjà vu tous les candidats disponibles"
@@ -1090,17 +1090,21 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             ? `Les modèles de contrat ne sont pas encore intégrés — sans eux, un cabinet ne peut pas publier d'annonce pour des ${marcheFerme}. Votre recherche reste visible et vous serez prévenu dès qu'ils arriveront : vous n'aurez rien à republier.`
             : premierDeSaProfession
             ? (aPublie
-                ? `Aucun cabinet ${maProfessionPluriel ? "de votre profession" : ""} n'a encore publié. Votre recherche est en ligne : vous serez visible dès le premier, sans rien avoir à refaire.`
-                : "Publiez votre recherche : vous serez visible dès qu'un cabinet publie.")
+                ? `Aucun ${salarieSeul ? "établissement" : "cabinet"} ${maProfessionPluriel ? "de votre profession" : ""} n'a encore publié. Votre recherche est en ligne : vous serez visible dès le premier, sans rien avoir à refaire.`
+                : `Publiez votre recherche : vous serez visible dès qu'un ${salarieSeul ? "établissement" : "cabinet"} publie.`)
             : filter === "POSTES" && remplacementsMasques > 0
             ? `${remplacementsMasques} annonce${remplacementsMasques > 1 ? "s" : ""} de remplacement ${remplacementsMasques > 1 ? "sont" : "est"} masquée${remplacementsMasques > 1 ? "s" : ""} par ce filtre. Les postes longue durée vous sont proposés en premier, mais rien ne vous y oblige.`
+            : salariatOptIn === 0 && salarieSeul
+            // Un aide-soignant est salarié par nature (section 304) : aucune case à cocher n'est
+            // en cause, il n'y a simplement encore personne de sa profession.
+            ? "Votre annonce est en ligne. Aucun candidat de cette profession n'est encore inscrit : ils apparaîtront ici dès le premier."
             : salariatOptIn === 0
             ? "Votre annonce est en ligne. Seuls les professionnels ayant coché « ouvert aux postes salariés » dans leur compte peuvent la voir et vous être proposés — aucun ne l'a fait à ce jour. Ils apparaîtront ici dès qu'un premier l'activera."
             : isTitulaire
             ? (seenAvailable > 0
                 ? `Vous avez parcouru ${seenAvailable} profil${seenAvailable > 1 ? "s" : ""} actuellement disponible${seenAvailable > 1 ? "s" : ""}. De nouveaux candidats apparaîtront ici dès leur inscription — retrouvez ceux qui vous intéressent dans « Vos mises en relation ».`
                 : "Votre annonce est bien en ligne et visible. Dès qu'un candidat correspond, il apparaît ici.")
-            : "Revenez plus tard, ou publiez vos disponibilités pour être visible des cabinets."}
+            : `Revenez plus tard, ou publiez vos disponibilités pour être visible des ${salarieSeul ? "établissements" : "cabinets"}.`}
         </p>
         {/* Le seul geste utile quand le marché est vide : se rendre visible. Pas de bouton si
             la personne a DÉJÀ publié — il n'y aurait rien à faire de plus, et le proposer
@@ -1480,6 +1484,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       {feuilleDispo !== false && (
         <FeuilleDispoExpress
           cabinetsEnAttente={cabinetsEnAttente}
+          salarieSeul={salarieSeul}
           annonce={
             feuilleDispo
               ? {

@@ -18,8 +18,8 @@ import Link from "next/link";
 // intention et sonne condescendant pour quelqu'un qui vient justement de l'exprimer trois fois.
 // On lui rappelle ce qu'il a fait, il en tire la conclusion.
 export default function SuggestionLongTerme({
-  interets, avecCollaboration,
-}: { interets: number; avecCollaboration: boolean }) {
+  interets, avecCollaboration, salarie = false,
+}: { interets: number; avecCollaboration: boolean; salarie?: boolean }) {
   const [ferme, setFerme] = useState(false);
   // L'affichage ne se compte qu'une fois par montage : React monte deux fois en développement
   // (StrictMode), et sans ce garde la mesure d'exposition serait doublée dès le premier jour.
@@ -44,12 +44,22 @@ export default function SuggestionLongTerme({
       <span className="text-lg leading-none mt-0.5">👩‍⚕️</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-700">
-          Vous avez marqué de l&apos;intérêt pour {interets} postes d&apos;assistanat
-          {avecCollaboration ? " ou de collaboration" : ""}. Ces postes se cherchent différemment
-          d&apos;un remplacement — sur la durée, pas sur des dates.
+          {salarie ? (
+            <>
+              Vous avez marqué de l&apos;intérêt pour {interets} postes durables. Ces postes se
+              cherchent différemment d&apos;un CDD ou d&apos;une vacation — sur la durée, pas sur
+              des dates.
+            </>
+          ) : (
+            <>
+              Vous avez marqué de l&apos;intérêt pour {interets} postes d&apos;assistanat
+              {avecCollaboration ? " ou de collaboration" : ""}. Ces postes se cherchent différemment
+              d&apos;un remplacement — sur la durée, pas sur des dates.
+            </>
+          )}
         </p>
         <Link
-          href="/disponibilites/create?type=ASSISTANAT"
+          href={`/disponibilites/create?type=${salarie ? "COLLABORATION" : "ASSISTANAT"}`}
           onClick={() => void tracer("clic")}
           className="inline-block mt-1.5 text-sm font-semibold text-violet-700 hover:underline"
         >

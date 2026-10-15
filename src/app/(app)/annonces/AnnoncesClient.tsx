@@ -18,7 +18,7 @@ interface Props {
   profileId: string;
   isPremium?: boolean;
   /** Suggestion « poste long terme » (section 272), null si non concerné. */
-  signalLongTerme?: { interets: number; avecCollaboration: boolean } | null;
+  signalLongTerme?: { interets: number; avecCollaboration: boolean; salarie: boolean } | null;
   freeAccessMode?: boolean;
   titulaireMissions: TitulaireMission[];
   profession?: string | null;
@@ -187,6 +187,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
             <SuggestionLongTerme
               interets={signalLongTerme.interets}
               avecCollaboration={signalLongTerme.avecCollaboration}
+              salarie={signalLongTerme.salarie}
             />
           )}
           <SwipeStack

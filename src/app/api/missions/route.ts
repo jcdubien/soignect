@@ -12,6 +12,7 @@ import { rattraperInteretsDifferes } from "@/lib/interetSignale";
 import { bioLimitFor } from "@/lib/bio";
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { offreOuverteLe } from "@/lib/feedFilters";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 export const dynamic = "force-dynamic";
 
@@ -182,7 +183,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Validation 90 jours minimum pour les postes longs (section 37.E)
-  const effectiveMissionType = missionType ?? MissionType.REMPLACEMENT;
+  // L'assistanat n'existe pas pour une profession salariée seulement (section 304) : le long
+  // terme d'un aide-soignant est un poste durable, rangé en COLLABORATION. Le formulaire complet
+  // le fait déjà ; la feuille express et tout autre chemin passent par ici.
+  const effectiveMissionType =
+    missionType === MissionType.ASSISTANAT && me?.type !== "TITULAIRE" && contratFourniParEmployeur(me?.profession)
+      ? MissionType.COLLABORATION
+      : missionType ?? MissionType.REMPLACEMENT;
 
   // ── Salariat (section 262) ────────────────────────────────────────────────────────────────
   //

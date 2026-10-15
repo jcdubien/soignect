@@ -3,6 +3,7 @@ import { SwipeDirection } from "@prisma/client";
 import { createNotification } from "@/lib/notifications";
 import { sendInteretEmail } from "@/lib/email";
 import { offreOuverteLe, offreRecevableLe } from "@/lib/feedFilters";
+import { estEtablissement, estCandidatSalarie } from "@/lib/libellesPoste";
 
 // Signal « quelqu'un s'intéresse à votre annonce » (sections 223-224, différé le 15/09).
 //
@@ -196,8 +197,17 @@ export async function signalerInteret(opts: {
     });
     if (!proprio?.user?.email) return "sans_destinataire";
 
+    // « Un cabinet » pour un EHPAD, « Un remplaçant » pour un aide-soignant : le rôle se lit
+    // avec la nature du titulaire et la profession, comme partout (lib/libellesPoste).
+    const visiteur = await prisma.profile.findUnique({
+      where: { id: swiperId },
+      select: { titulaireKind: true, profession: true },
+    });
+    const publieur = { type: swiperType, titulaireKind: visiteur?.titulaireKind, profession: visiteur?.profession };
     const libelleVisiteur =
-      swiperType === "TITULAIRE" ? "Un cabinet"
+      estEtablissement(publieur) ? "Un établissement"
+      : swiperType === "TITULAIRE" ? "Un cabinet"
+      : estCandidatSalarie(publieur) ? "Un candidat"
       : swiperType === "ASSISTANT" ? "Un assistant"
       : "Un remplaçant";
     const motAnnonce = proprio.type === "TITULAIRE" ? "annonce" : "disponibilité";

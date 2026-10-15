@@ -8,6 +8,7 @@ import { z } from "zod";
 import { BriqueStatus, MissionType, SuiviStatut, ZonageType, ZoneGeographique } from "@prisma/client";
 import { logMatchCancelled } from "@/lib/trace";
 import { getCommuneZonage } from "@/lib/communes";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 export const dynamic = "force-dynamic";
 
@@ -102,11 +103,16 @@ export async function PATCH(
 
   // Profession du PROPRIÉTAIRE de l'annonce (pas de l'appelant, qui peut être un admin) : elle
   // décide si la redevance admet un forfait ou un plafond (section 296).
-  const proprioProfession = (
-    await prisma.profile.findUnique({ where: { id: mission.profileId }, select: { profession: true } })
-  )?.profession;
+  const proprio = await prisma.profile.findUnique({ where: { id: mission.profileId }, select: { profession: true, type: true } });
+  const proprioProfession = proprio?.profession;
 
   const { briqueStatus, statusNote, statusUpdatedAt, suiviStatut, startDate, endDate, departureDate, ...rest } = parsed.data;
+
+  // Même règle qu'à la création (section 304) : pas d'assistanat pour un candidat d'une profession
+  // salariée seulement — son long terme est un poste durable, rangé en COLLABORATION.
+  if (rest.missionType === MissionType.ASSISTANAT && proprio?.type !== "TITULAIRE" && contratFourniParEmployeur(proprioProfession)) {
+    rest.missionType = MissionType.COLLABORATION;
+  }
 
   // ── CE QUI APPARTIENT À LA MISE EN RELATION NE SE RÈGLE PAS ICI (section 276) ───────────
   //

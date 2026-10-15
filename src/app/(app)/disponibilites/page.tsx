@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import DisponibilitesBoard from "./DisponibilitesBoard";
 import { ProfileType } from "@prisma/client";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function DisponibilitesPage() {
       name: true,
       type: true,
       region: true,
+      profession: true,
     },
   });
 
@@ -108,6 +110,7 @@ export default async function DisponibilitesPage() {
   return (
     <DisponibilitesBoard
       profileName={profile.name}
+      salarieSeul={contratFourniParEmployeur(profile.profession)}
       profileType={profile.type === ProfileType.ASSISTANT ? "ASSISTANT" : "REMPLACANT"}
       profileLocation={regionLabel[profile.region] ?? "Guadeloupe"}
       missions={missions.map(m => {

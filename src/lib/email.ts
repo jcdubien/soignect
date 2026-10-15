@@ -591,19 +591,23 @@ export async function sendPosteInvitationEmail(
 // formulaire long — le détour que la 288 vient précisément de supprimer.
 export async function sendInteretEnSouffranceEmail(
   to: string,
-  opts: { firstName: string | null; nbCabinets: number; optIn: boolean }
+  opts: { firstName: string | null; nbCabinets: number; optIn: boolean; salarieSeul?: boolean }
 ): Promise<ResultatEnvoi> {
   if (!opts.optIn) return "optout";
 
   const unSeul = opts.nbCabinets <= 1;
+  // Un aide-soignant (section 304) a signalé son intérêt à des ÉTABLISSEMENTS : « cabinet » lui
+  // décrirait un marché libéral qui n'est pas le sien. Même règle : les deux formes en entier.
+  const unRecruteur = opts.salarieSeul ? "un établissement" : "un cabinet";
+  const desRecruteurs = opts.salarieSeul ? "établissements" : "cabinets";
   const salutation = opts.firstName ? `Bonjour ${escapeHtml(opts.firstName)},` : "Bonjour,";
 
   // LES DEUX FORMES SONT ÉCRITES EN ENTIER, phrase par phrase. Un accord posé au mot près
   // (« cabinet(s) », « il/ils ») finit toujours par en oublier un : le premier rendu de ce
   // courrier disait « un cabinet […] il n'y a aucune fiche à LEUR montrer ».
   const constat = unSeul
-    ? `Vous avez signalé votre intérêt à un cabinet sur Soignect. Il ne l&rsquo;a pas reçu.`
-    : `Vous avez signalé votre intérêt à ${opts.nbCabinets} cabinets sur Soignect. Aucun ne l&rsquo;a reçu.`;
+    ? `Vous avez signalé votre intérêt à ${unRecruteur} sur Soignect. Il ne l&rsquo;a pas reçu.`
+    : `Vous avez signalé votre intérêt à ${opts.nbCabinets} ${desRecruteurs} sur Soignect. Aucun ne l&rsquo;a reçu.`;
   const raison = unSeul
     ? `il n&rsquo;a aucune fiche à ouvrir`
     : `ils n&rsquo;ont aucune fiche à ouvrir`;
@@ -627,8 +631,8 @@ export async function sendInteretEnSouffranceEmail(
   );
 
   const sujet = unSeul
-    ? "Un cabinet attend vos dates"
-    : `${opts.nbCabinets} cabinets attendent vos dates`;
+    ? (opts.salarieSeul ? "Un établissement attend vos dates" : "Un cabinet attend vos dates")
+    : `${opts.nbCabinets} ${desRecruteurs} attendent vos dates`;
   return (await sendEmail(to, sujet, html)) ? "envoye" : "refuse";
 }
 

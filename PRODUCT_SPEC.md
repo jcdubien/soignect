@@ -7398,10 +7398,30 @@ vers les autres métiers de la même porte, et la page CPTS renvoie aux pages MS
 établissement de chaque métier — liens dérivés de `PAGES_PUBLIEES`. Les listes de professions de
 l'admin (profils, priorités, statistiques) dérivaient déjà de l'enum.
 
-**Limites** : l'inscription fait choisir « remplaçant » ou « assistant / collaborateur » avant la
-profession — vocabulaire libéral pour un AS candidat ; un établissement = une profession par
-compte, donc un EHPAD qui recrute IDE et AS ouvre deux comptes. Parcours non testé de bout en bout
-(inscription → publication → fil) : vérifié au typage, au build et au rendu des pages.
+**Passe vocabulaire salariat (15/10)** — partout où un AS ou un établissement est nommé, la
+règle vit dans `lib/libellesPoste` (`libelleRoleSalariat`, `libelleAuteur`, `libelleTypePoste`,
+`phraseIntentionPartage`), prédicat `contratFourniParEmployeur` :
+- Inscription : écran 1 réduit à Établissement / Candidat·e pour une profession salariée seule.
+- Identité contractuelle : `requiredContractFields` vide pour l'AS (contrat, signature, Compte).
+  Page Compte : ni RPPS ni ordre, champ facultatif « N° de diplôme (DEAS) » (`numeroOrdre`),
+  aucun astérisque, mention « contrat établi par l'employeur » ; pas de choix cabinet/structure
+  pour un établissement AS.
+- Rôles : en-tête, chat, relations, carte, fiche détail, liste des intéressés, notification
+  d'intérêt disent « Établissement » / « Candidat », jamais « Cabinet » / « Remplaçant ». Un AS
+  en compte ASSISTANT est « Candidat », pas « Assistant ».
+- Type de poste d'un candidat AS : « Disponible en CDD, vacations » / « Cherche un poste
+  durable ». L'ASSISTANAT n'existe pas pour lui : POST et PATCH `/api/missions` le rangent en
+  COLLABORATION côté serveur, quel que soit le chemin (formulaire, feuille express, édition).
+- Feuille express (section 288), courrier d'intérêt en souffrance (290), bandeau long terme,
+  tableau Mes disponibilités, vides du fil : « établissement(s) » et « poste durable ».
+- Page publique `/annonce/[id]` et vignette de partage : libellé via `libelleTypePoste` avec
+  `natureSalariat` (un CDI d'établissement ne s'affiche plus « Collaboration libérale ») ;
+  Google Jobs reçoit FULL_TIME / TEMPORARY / PER_DIEM pour un poste salarié, plus CONTRACTOR.
+  Les vignettes déjà stockées gardent leur ancienne phrase jusqu'à leur régénération.
+
+**Limites** : un établissement = une profession par compte, donc un EHPAD qui recrute IDE et AS
+ouvre deux comptes. L'assistance IA reste réservée aux kinés (section 294). Parcours non testé de
+bout en bout (inscription → publication → fil) : vérifié au typage, au build et au rendu.
 
 ### SECTION 303 — L'OFFRE PARTENAIRE A UN PRIX (14/10)
 

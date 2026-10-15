@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PROFESSION_LABELS } from "@/lib/professions";
+import { PROFESSION_LABELS, libelleNumeroOrdre } from "@/lib/professions";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { Profession, Region, SubscriptionPlan, ProfileType, TitulaireKind } from "@prisma/client";
@@ -11,6 +11,8 @@ import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164, splitE164 } from "@/lib/phone";
 import { bioLimitFor } from "@/lib/bio";
 import { missingContractLabels } from "@/lib/contractProfile";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
+import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { accrocheProfilExemple } from "@/lib/exemplesPublication";
 
 const REGION_LABELS: Record<Region, string> = {
@@ -71,6 +73,10 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
   const [siret, setSiret]         = useState(profile.siret ?? "");
   const [kind, setKind] = useState<TitulaireKind>(profile.titulaireKind);
   const isStructure = profile.type === "TITULAIRE" && kind === "STRUCTURE";
+  // Profession dont le contrat est celui de l'employeur (section 304) : Soignect n'en génère
+  // aucun, et un aide-soignant n'a ni RPPS ni ordre. Le serveur n'exige plus rien
+  // (requiredContractFields) ; l'écran ne doit plus rien marquer d'obligatoire.
+  const salarieSeul = contratFourniParEmployeur(profession);
   // Réglage candidat : ouverture aux postes salariés. Il n'était modifiable qu'à la création
   // d'une NOUVELLE disponibilité — un candidat déjà inscrit ne pouvait donc plus l'activer
   // sans tout republier. Résultat mesuré : 0 candidat opté sur 8, et le feed salarié aveugle
@@ -253,7 +259,8 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Mon compte</h1>
         <p className="text-gray-400 text-sm mt-0.5">
-          {profile.type === "TITULAIRE" ? "Cabinet / Titulaire" : profile.type === "ASSISTANT" ? "Assistant·e" : "Remplaçant·e"}
+          {libelleRoleSalariat({ type: profile.type, titulaireKind: kind, profession })
+            ?? (profile.type === "TITULAIRE" ? "Cabinet / Titulaire" : profile.type === "ASSISTANT" ? "Assistant·e" : "Remplaçant·e")}
           {verified && (
             <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
               ✓ Vérifié RPPS
@@ -269,6 +276,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         profileId={profile.id}
         campActuel={profile.type === "TITULAIRE" ? "TITULAIRE" : "CHERCHEUR"}
         etaitAssistant={profile.type === "ASSISTANT"}
+        salarieSeul={salarieSeul}
       />
 
       {/* ── Informations personnelles ── */}
@@ -317,11 +325,32 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         </div>
 
         {/* ── Identité contractuelle (section 150) — figure dans le PDF de contrat ── */}
-        <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Champs <strong>obligatoires pour générer un contrat</strong> (ils y figurent). Complétez-les dès maintenant.
-        </p>
+        {salarieSeul ? (
+          <p className="text-[11px] text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            Le contrat de travail est établi par l&apos;employeur, selon sa convention collective :
+            Soignect ne le génère pas. Ces informations sont facultatives.
+          </p>
+        ) : (
+          <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Champs <strong>obligatoires pour générer un contrat</strong> (ils y figurent). Complétez-les dès maintenant.
+          </p>
+        )}
 
-        {!isStructure && (
+        {/* Aide-soignant : pas de RPPS ni d'ordre — seul le diplôme (DEAS) atteste la qualification. */}
+        {!isStructure && salarieSeul && (
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{libelleNumeroOrdre(profession)}</label>
+            <input
+              type="text"
+              value={numeroOrdre}
+              onChange={e => setNumeroOrdre(e.target.value)}
+              maxLength={30}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+            />
+          </div>
+        )}
+
+        {!isStructure && !salarieSeul && (
           <>
             {/* RPPS */}
             <div>
@@ -379,7 +408,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         {isStructure && (
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">
-              N° SIRET <span className="text-red-500">*</span>
+              N° SIRET {!salarieSeul && <span className="text-red-500">*</span>}
             </label>
             <input
               type="text"
@@ -395,7 +424,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
         {/* Adresse professionnelle (tous) */}
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">
-            Adresse professionnelle <span className="text-red-500">*</span>
+            Adresse professionnelle {!salarieSeul && <span className="text-red-500">*</span>}
           </label>
           <input
             type="text"
@@ -409,7 +438,9 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
       </section>
 
       {/* ── Nature du titulaire (TITULAIRE uniquement) — Cabinet vs Structure ── */}
-      {profile.type === "TITULAIRE" && (
+      {/* Un établissement d'aides-soignants n'a pas de « cabinet libéral » à choisir. Le choix
+          reste offert à un compte resté en CABINET, pour qu'il puisse en sortir. */}
+      {profile.type === "TITULAIRE" && !(salarieSeul && kind === "STRUCTURE") && (
         <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Type de compte</h2>
           <div className="grid grid-cols-2 gap-3">

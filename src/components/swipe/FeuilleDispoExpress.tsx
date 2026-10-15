@@ -57,6 +57,9 @@ interface Props {
   } | null;
   /** Type du profil — sert de forme par défaut quand aucune annonce ne la dicte. */
   profileType?: string;
+  /** Profession salariée seulement (aide-soignant, section 304) : ceux qui attendent sont des
+   *  établissements, la recherche datée vise des CDD et vacations, la longue un poste durable. */
+  salarieSeul?: boolean;
   onPublie: () => void;
   onReporte: () => void;
 }
@@ -94,6 +97,7 @@ export default function FeuilleDispoExpress({
   cabinetsEnAttente,
   annonce,
   profileType,
+  salarieSeul = false,
   onPublie,
   onReporte,
 }: Props) {
@@ -145,8 +149,8 @@ export default function FeuilleDispoExpress({
 
     const titre =
       forme === "REMPLACEMENT"
-        ? `Remplacement — ${etiquetteGeo} — ${formatJour(debut)} au ${formatJour(fin)}`
-        : `Poste long terme — ${etiquetteGeo} — ${minMonths} mois minimum`;
+        ? `${salarieSeul ? "CDD, vacations" : "Remplacement"} — ${etiquetteGeo} — ${formatJour(debut)} au ${formatJour(fin)}`
+        : `${salarieSeul ? "Poste durable" : "Poste long terme"} — ${etiquetteGeo} — ${minMonths} mois minimum`;
 
     const r = await fetch("/api/missions", {
       method: "POST",
@@ -159,7 +163,9 @@ export default function FeuilleDispoExpress({
         location: etiquetteGeo,
         zones,
         specialties: [],
-        missionType: forme === "REMPLACEMENT" ? "REMPLACEMENT" : "ASSISTANAT",
+        // L'assistanat n'existe pas pour une profession salariée seulement : son long terme est
+        // un poste durable, rangé en COLLABORATION comme dans le formulaire complet.
+        missionType: forme === "REMPLACEMENT" ? "REMPLACEMENT" : salarieSeul ? "COLLABORATION" : "ASSISTANAT",
         // Un poste long terme n'a pas de date de fin (section 179) : c'est `minMonths` qui le
         // place, et envoyer un `endDate` ferait buter sur la garde des 90 jours.
         startDate: debut ? new Date(debut).toISOString() : null,
@@ -190,10 +196,10 @@ export default function FeuilleDispoExpress({
   // un fait vérifiable ; « complétez votre profil » n'en est pas un.
   const titre =
     cabinetsEnAttente > 1
-      ? `${cabinetsEnAttente} cabinets attendent vos dates`
+      ? `${cabinetsEnAttente} ${salarieSeul ? "établissements" : "cabinets"} attendent vos dates`
       : annonce
-        ? "Ce cabinet ne peut pas encore vous répondre"
-        : "Un cabinet attend vos dates";
+        ? salarieSeul ? "Cet établissement ne peut pas encore vous répondre" : "Ce cabinet ne peut pas encore vous répondre"
+        : salarieSeul ? "Un établissement attend vos dates" : "Un cabinet attend vos dates";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-3 pb-3 sm:pb-0">
@@ -218,7 +224,9 @@ export default function FeuilleDispoExpress({
                   : "border-gray-200 text-gray-500 hover:bg-gray-50"
               }`}
             >
-              {f === "REMPLACEMENT" ? "Un remplacement" : "Un poste long terme"}
+              {f === "REMPLACEMENT"
+                ? salarieSeul ? "CDD, vacations" : "Un remplacement"
+                : salarieSeul ? "Un poste durable" : "Un poste long terme"}
             </button>
           ))}
         </div>
@@ -312,7 +320,7 @@ export default function FeuilleDispoExpress({
           {envoi
             ? "Publication…"
             : cabinetsEnAttente > 1
-              ? `Publier — prévenir les ${cabinetsEnAttente} cabinets`
+              ? `Publier — prévenir les ${cabinetsEnAttente} ${salarieSeul ? "établissements" : "cabinets"}`
               : "Publier ma disponibilité"}
         </button>
         <button

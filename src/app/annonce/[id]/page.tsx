@@ -10,14 +10,15 @@ import { auth } from "@/lib/auth";
 import { logTraceEvent } from "@/lib/trace";
 import ShareActions from "@/components/share/ShareActions";
 import { appBaseUrl as baseUrl } from "@/lib/appUrl";
+import { libelleTypePoste, estEtablissement } from "@/lib/libellesPoste";
 
 export const dynamic = "force-dynamic";
 
-const TYPE_LABEL: Record<string, string> = {
-  REMPLACEMENT: "Remplacement",
-  ASSISTANAT: "Assistanat (long terme)",
-  COLLABORATION: "Collaboration libérale",
-};
+// Le libellé vient de lib/libellesPoste, comme partout ailleurs : la table locale disait
+// « Collaboration libérale » du CDI d'un EHPAD, sur la page la plus partagée du produit.
+function typeLabel(m: { missionType: string; natureSalariat: string | null; profile: Parameters<typeof libelleTypePoste>[1] }): string {
+  return libelleTypePoste(m.missionType, m.profile, m.natureSalariat);
+}
 
 function fmt(d: Date | null | undefined): string | null {
   // timeZone UTC : dates « jour seul » stockées à minuit UTC (sinon décalage d'un jour selon
@@ -45,7 +46,7 @@ async function getMission(id: string) {
     where: { id, ...offreOuverteLe(new Date()) },
     select: {
       id: true, title: true, location: true, startDate: true, endDate: true,
-      minMonths: true, missionType: true, pitch: true, bioTinder: true,
+      minMonths: true, missionType: true, natureSalariat: true, estSalariat: true, pitch: true, bioTinder: true,
       demiJourneesLibres: true, caMensuelEstime: true, remunerationBrute: true, // feature terrain
       createdAt: true, updatedAt: true, vignetteAt: true,
       profile: { select: { profession: true, name: true, region: true, titulaireKind: true, type: true } },
@@ -53,20 +54,27 @@ async function getMission(id: string) {
   });
 }
 
-// employmentType schema.org (Google Jobs) mappé depuis le type de mission.
+// employmentType schema.org (Google Jobs) mappé depuis le type de mission. Un poste salarié
+// n'est pas un contrat de prestataire : sa nature déclarée (section 262) décide.
 const EMPLOYMENT_TYPE: Record<string, string> = {
   REMPLACEMENT: "TEMPORARY",
   ASSISTANAT: "CONTRACTOR",
   COLLABORATION: "CONTRACTOR",
 };
+function employmentType(m: { missionType: string; estSalariat: boolean; natureSalariat: string | null }): string {
+  if (m.natureSalariat === "CDI") return "FULL_TIME";
+  if (m.natureSalariat === "CDD_TERME" || m.natureSalariat === "CDD_SANS_TERME") return "TEMPORARY";
+  if (m.estSalariat) return m.missionType === "REMPLACEMENT" ? "PER_DIEM" : "FULL_TIME";
+  return EMPLOYMENT_TYPE[m.missionType] ?? "CONTRACTOR";
+}
 
 // Données structurées JobPosting (schema.org) pour Google Jobs (section 158).
 function jobPostingLd(m: NonNullable<Awaited<ReturnType<typeof getMission>>>, url: string) {
-  const type = TYPE_LABEL[m.missionType] ?? m.missionType;
+  const type = typeLabel(m);
   const description =
     (m.pitch ?? m.bioTinder ?? `${type} en Guadeloupe`).trim() +
     ` — ${type} · ${m.location} · ${periodLabel(m)}.`;
-  const orgName = m.profile.name ?? "Cabinet de santé";
+  const orgName = m.profile.name ?? (estEtablissement(m.profile) ? "Établissement de santé" : "Cabinet de santé");
   return {
     "@context": "https://schema.org/",
     "@type": "JobPosting",
@@ -74,7 +82,7 @@ function jobPostingLd(m: NonNullable<Awaited<ReturnType<typeof getMission>>>, ur
     description,
     datePosted: m.createdAt.toISOString(),
     ...(m.endDate ? { validThrough: m.endDate.toISOString() } : {}),
-    employmentType: EMPLOYMENT_TYPE[m.missionType] ?? "CONTRACTOR",
+    employmentType: employmentType(m),
     hiringOrganization: { "@type": "Organization", name: orgName },
     jobLocation: {
       "@type": "Place",
@@ -95,7 +103,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const m = await getMission(id);
   if (!m) return { title: "Annonce introuvable — Soignect" };
-  const type = TYPE_LABEL[m.missionType] ?? m.missionType;
+  const type = typeLabel(m);
   const title = `${m.title} · ${m.location}`;
   const description = `${type} · ${m.location} · ${periodLabel(m)} — sur Soignect`;
   // `vignetteAt` fait foi : il n'est posé qu'APRÈS un téléversement réussi, donc une URL de
@@ -146,7 +154,7 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
     metadata: { authed: isLoggedIn },
   });
 
-  const type = TYPE_LABEL[m.missionType] ?? m.missionType;
+  const type = typeLabel(m);
   // Un cabinet publie une « annonce », un candidat une « recherche » (section 157) : le
   // vocabulaire et le CTA suivent le propriétaire de la fiche, pas le lecteur.
   const ownerIsCabinet = m.profile.type === "TITULAIRE";
@@ -205,7 +213,7 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
           <div className="mt-5 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
             <p className="text-sm font-semibold text-gray-700">🔒 Détails complets & candidature</p>
             <p className="text-xs text-gray-400 mt-1">
-              Cabinet, présentation complète et mise en relation réservés aux membres.
+              {estEtablissement(m.profile) ? "Établissement" : ownerIsCabinet ? "Cabinet" : "Profil"}, présentation complète et mise en relation réservés aux membres.
             </p>
             {isLoggedIn ? (
               // Membre connecté → on ouvre DIRECTEMENT la fiche décisionnelle de cette annonce

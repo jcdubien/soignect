@@ -6,6 +6,7 @@ import Link from "next/link";
 import BottomSheet from "@/components/ui/md3/BottomSheet";
 import { fmtDayAuto } from "@/lib/dates";
 import { zoneOfCommune } from "@/lib/communes";
+import { libelleAuteur } from "@/lib/libellesPoste";
 
 // Type souple, compatible avec MissionWithProfile (carrousel) ET la réponse /card.
 export interface DetailMission {
@@ -39,11 +40,6 @@ export interface MissionRelation {
   aPublieUneRecherche?: boolean;
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  REMPLACANT: "Remplaçant",
-  ASSISTANT: "Assistant",
-  TITULAIRE: "Cabinet",
-};
 
 function fmt(d?: Date | string | null): string | null {
   if (!d) return null;
@@ -75,7 +71,8 @@ export default function MissionDetailSheet({
     mission.startDate && mission.endDate ? `${fmt(mission.startDate)} → ${fmt(mission.endDate)}`
     : mission.startDate ? `Dès le ${fmt(mission.startDate)}`
     : mission.minMonths ? `${mission.minMonths} mois min.` : null;
-  const typeLabel = TYPE_LABEL[p.type] ?? p.type;
+  // Même source que la carte : « Cabinet » nommait un EHPAD, « Remplaçant » un aide-soignant.
+  const typeLabel = libelleAuteur(p);
 
   const [summary, setSummary] = useState<{ extract: string; url?: string | null } | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);

@@ -228,14 +228,14 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
       // Section 298 : le prédicat unique — ni échue, ni déjà engagée.
       where: { id, ...offreOuverteLe(new Date()) },
       select: {
-        title: true, location: true, missionType: true,
+        title: true, location: true, missionType: true, natureSalariat: true,
         startDate: true, endDate: true, minMonths: true,
         // Rétrocession (section 295) — affichée sur les REMPLACEMENTS seulement, voir plus bas.
         retrocessionRate: true,
         // photoUrl : fond de la carte (section 158). type : cadre le badge (cabinet propose / candidat se propose).
         // titulaireKind : distingue un établissement d'un cabinet libéral, sans quoi le
         // badge traduit un CDI en vocabulaire libéral.
-        profile: { select: { type: true, titulaireKind: true, photoUrl: true } },
+        profile: { select: { type: true, titulaireKind: true, profession: true, photoUrl: true } },
       },
     });
   } catch (e) {
@@ -254,7 +254,7 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
   // Phrase d'intention, pas étiquette de poste (section 220). « Remplacement » ne disait pas si
   // un cabinet cherchait quelqu'un ou si quelqu'un se proposait — sur Facebook, le lecteur n'a
   // aucun contexte pour trancher. La table vit dans lib/libellesPoste, avec les autres.
-  const type = phraseIntentionPartage(m.missionType, m.profile);
+  const type = phraseIntentionPartage(m.missionType, m.profile, m.natureSalariat);
   const dates = datesLabel(m);
 
   // ── LA RÉTROCESSION, SUR LES REMPLACEMENTS SEULEMENT (section 295) ──────────────────────────

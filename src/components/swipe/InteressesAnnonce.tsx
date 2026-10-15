@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { libelleAuteur } from "@/lib/libellesPoste";
 
 // Liste nominative des intérêts reçus sur UNE annonce (section 207).
 //
@@ -18,17 +19,13 @@ interface Interesse {
   profileId: string;
   name: string | null;
   type: string;
+  profession?: string | null;
+  titulaireKind?: string | null;
   accroche: string | null;
   aPublieUneRecherche: boolean;
   date: string;
 }
 
-const TYPE_COURT: Record<string, string> = {
-  REMPLACANT: "Remplaçant",
-  ASSISTANT: "Assistant",
-  TITULAIRE: "Cabinet",
-  STRUCTURE: "Établissement",
-};
 
 function quand(iso: string): string {
   const j = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -76,7 +73,7 @@ export default function InteressesAnnonce({ missionId, onNavigate }: {
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-sm font-bold text-gray-900">{i.name ?? "Sans nom"}</span>
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-              {TYPE_COURT[i.type] ?? i.type}
+              {libelleAuteur(i)}
             </span>
             <span className="text-[11px] text-gray-400">{quand(i.date)}</span>
           </div>

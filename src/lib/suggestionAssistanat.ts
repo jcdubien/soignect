@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { MissionType, ProfileType, SwipeDirection } from "@prisma/client";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 // Section 191 — Repérer les remplaçants qui manifestent déjà un intérêt pour le long terme.
 //
@@ -20,23 +21,33 @@ export interface SignalAssistanat {
   // s'est réellement produit : dire « ou de collaboration » à quelqu'un qui n'a swipé que des
   // assistanats lui décrit une action qu'il n'a pas faite.
   avecCollaboration: boolean;
+  // Profession salariée seulement (section 304) : les postes retenus sont des CDI, et le bandeau
+  // parle de « postes durables », pas d'assistanat.
+  salarie: boolean;
 }
 
 export async function suggestionAssistanat(profileId: string): Promise<SignalAssistanat | null> {
   const profile = await prisma.profile.findUnique({
     where: { id: profileId },
-    select: { type: true, suggestionAssistanatVueAt: true },
+    select: { type: true, profession: true, suggestionAssistanatVueAt: true },
   });
   // Un assistant n'a rien à découvrir ici, et une suggestion écartée le reste (colonne portée
   // par le Profile, donc d'un appareil à l'autre).
   if (!profile || profile.type !== ProfileType.REMPLACANT) return null;
   if (profile.suggestionAssistanatVueAt) return null;
+  const salarie = contratFourniParEmployeur(profile.profession);
 
   const swipes = await prisma.swipe.findMany({
     where: {
       swiperId: profileId,
       direction: SwipeDirection.RIGHT,
-      swipedMission: { missionType: { in: [MissionType.ASSISTANAT, MissionType.COLLABORATION] } },
+      // Un aide-soignant ne voit que des établissements : leur CDI est rangé en COLLABORATION, et
+      // un ancien CDD en ASSISTANAT ne dit pas « poste durable ».
+      swipedMission: {
+        missionType: {
+          in: salarie ? [MissionType.COLLABORATION] : [MissionType.ASSISTANAT, MissionType.COLLABORATION],
+        },
+      },
     },
     select: { swipedMission: { select: { missionType: true } } },
   });
@@ -44,5 +55,6 @@ export async function suggestionAssistanat(profileId: string): Promise<SignalAss
   return {
     interets: swipes.length,
     avecCollaboration: swipes.some((s) => s.swipedMission.missionType === MissionType.COLLABORATION),
+    salarie,
   };
 }

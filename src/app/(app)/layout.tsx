@@ -145,10 +145,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             location: m.location,
             missionType: m.missionType as string,
             // Libellé résolu ici, où l'on connaît le titulaire : un établissement lit « CDI »,
-            // pas « Collaboration » (section 304). Un cabinet garde ses libellés d'avant.
+            // pas « Collaboration », un aide-soignant « Cherche un poste durable » (section 304). Un
+            // cabinet garde ses libellés d'avant.
             libelleType:
-              m.natureSalariat || profile?.titulaireKind === "STRUCTURE"
-                ? libelleTypePoste(m.missionType, { type: profileType, titulaireKind: profile?.titulaireKind }, m.natureSalariat)
+              m.natureSalariat || libelleRoleSalariat({ type: profileType, titulaireKind: profile?.titulaireKind, profession: profile?.profession })
+                ? libelleTypePoste(m.missionType, { type: profileType, titulaireKind: profile?.titulaireKind, profession: profile?.profession }, m.natureSalariat)
                 : undefined,
             updatedAt: m.updatedAt,
             confirmedCount: confirmed,

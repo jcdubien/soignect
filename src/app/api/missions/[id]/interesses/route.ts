@@ -44,7 +44,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       createdAt: true,
       swiper: {
         select: {
-          id: true, name: true, type: true, profession: true, bioTinder: true,
+          id: true, name: true, type: true, profession: true, titulaireKind: true, bioTinder: true,
           // Une seule suffit à trancher : a-t-il quelque chose de swipable en face ?
           missions: { where: { isActive: true }, select: { id: true }, take: 1 },
         },
@@ -71,6 +71,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       profileId: s.swiper.id,
       name: s.swiper.name,
       type: s.swiper.type,
+      // Pour nommer le rôle juste (lib/libellesPoste) : établissement, candidat salarié.
+      profession: s.swiper.profession,
+      titulaireKind: s.swiper.titulaireKind,
       accroche: s.swiper.bioTinder,
       aPublieUneRecherche: s.swiper.missions.length > 0,
       date: s.createdAt,

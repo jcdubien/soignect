@@ -107,6 +107,9 @@ function CouverturesPoste({ post, onRetire }: { post: LinkedPost; onRetire: (id:
 
 interface Props {
   profileName: string | null;
+  // Profession salariée seulement (aide-soignant, section 304) : ni remplacement libéral ni
+  // assistanat — une disponibilité datée vise des CDD et vacations, la longue un poste durable.
+  salarieSeul?: boolean;
   profileType: "REMPLACANT" | "ASSISTANT";
   profileLocation: string;
   missions: MissionSlot[];
@@ -402,7 +405,7 @@ function SlotEditModal({ slot, onClose, onSaved }: {
             <Link
               href={`/annonces?disponibiliteId=${encodeURIComponent(slot.id)}`}
               className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 transition"
-              title="Cabinets intéressés en attente de votre réponse"
+              title="Recruteurs intéressés en attente de votre réponse"
             >
               ⏳ {slot.pendingCount ?? 0} en attente
             </Link>
@@ -562,8 +565,8 @@ const POST_KIND_LABEL: Record<string, string> = {
   COLLABORATION: "Collaboration libérale",
 };
 
-function AssistantEditModal({ slot, onClose, onSaved }: {
-  slot: MissionSlot; onClose: () => void; onSaved: () => void;
+function AssistantEditModal({ slot, salarieSeul, onClose, onSaved }: {
+  slot: MissionSlot; salarieSeul: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const [title, setTitle] = useState(slot.title);
   const [kind, setKind] = useState<"ASSISTANAT" | "COLLABORATION">(
@@ -583,7 +586,7 @@ function AssistantEditModal({ slot, onClose, onSaved }: {
     const res = await fetch(`/api/missions/${slot.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title.trim(), missionType: kind, minMonths: parseInt(minMonths, 10), bioTinder: bioTinder.trim() }),
+      body: JSON.stringify({ title: title.trim(), missionType: salarieSeul ? "COLLABORATION" : kind, minMonths: parseInt(minMonths, 10), bioTinder: bioTinder.trim() }),
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
@@ -605,7 +608,8 @@ function AssistantEditModal({ slot, onClose, onSaved }: {
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100}
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400" />
           </div>
-          <div>
+          {/* Pas de choix pour un aide-soignant : l'assistanat n'existe pas pour lui. */}
+          {!salarieSeul && <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Type de poste</label>
             <div className="grid grid-cols-2 gap-2">
               {(["ASSISTANAT", "COLLABORATION"] as const).map((k) => (
@@ -615,7 +619,7 @@ function AssistantEditModal({ slot, onClose, onSaved }: {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Durée minimale</label>
             <select value={minMonths} onChange={(e) => setMinMonths(e.target.value)}
@@ -649,8 +653,9 @@ function AssistantEditModal({ slot, onClose, onSaved }: {
   );
 }
 
-function AssistantDispoView({ profileName, missions, linkedPost }: {
+function AssistantDispoView({ profileName, salarieSeul, missions, linkedPost }: {
   profileName: string | null;
+  salarieSeul: boolean;
   missions: MissionSlot[];
   linkedPost?: LinkedPost | null;
 }) {
@@ -698,14 +703,14 @@ function AssistantDispoView({ profileName, missions, linkedPost }: {
       <div className="max-w-2xl mx-auto w-full px-4 py-6 space-y-4">
         <div>
           <h1 className="text-lg font-bold text-gray-900">Ma recherche de poste</h1>
-          <p className="text-xs text-gray-400">{profileName ?? "Assistant"} · Poste long terme (assistanat / collaboration)</p>
+          <p className="text-xs text-gray-400">{salarieSeul ? `${profileName ?? "Candidat·e"} · Poste durable` : `${profileName ?? "Assistant"} · Poste long terme (assistanat / collaboration)`}</p>
         </div>
 
         {visible.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
             <div className="text-4xl mb-2">👩‍⚕️</div>
             <p className="text-sm font-semibold text-gray-700">Aucune recherche publiée</p>
-            <p className="text-xs text-gray-400 mt-1 mb-4">Publiez votre recherche pour être visible des cabinets qui recrutent en longue durée.</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">Publiez votre recherche pour être visible des {salarieSeul ? "établissements qui recrutent" : "cabinets qui recrutent en longue durée"}.</p>
             <Link href="/disponibilites/create" className="inline-block px-4 py-2.5 bg-kine-600 text-white rounded-xl text-sm font-bold hover:bg-kine-700 transition">+ Publier ma recherche</Link>
           </div>
         ) : (
@@ -734,7 +739,7 @@ function AssistantDispoView({ profileName, missions, linkedPost }: {
                   <div className="min-w-0">
                     <h2 className="text-sm font-bold text-gray-800 truncate">{m.title}</h2>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${isCollab ? "bg-violet-100 text-violet-700" : "bg-kine-100 text-kine-700"}`}>{isCollab ? "Collaboration" : "Assistanat"}</span>
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${isCollab ? "bg-violet-100 text-violet-700" : "bg-kine-100 text-kine-700"}`}>{salarieSeul ? "Poste durable" : isCollab ? "Collaboration" : "Assistanat"}</span>
                       <span className="text-[11px] text-gray-400">{m.minMonths ? `≥ ${m.minMonths} mois` : "Durée à préciser"}</span>
                     </div>
                   </div>
@@ -765,14 +770,14 @@ function AssistantDispoView({ profileName, missions, linkedPost }: {
         )}
       </div>
 
-      {editSlot && <AssistantEditModal slot={editSlot} onClose={() => setEditSlot(null)} onSaved={() => { setEditSlot(null); router.refresh(); }} />}
+      {editSlot && <AssistantEditModal slot={editSlot} salarieSeul={salarieSeul} onClose={() => setEditSlot(null)} onSaved={() => { setEditSlot(null); router.refresh(); }} />}
     </div>
   );
 }
 
 // ── DisponibilitesBoard principal ─────────────────────────────────────────────
 
-export default function DisponibilitesBoard({ profileName, profileType, missions, linkedPost }: Props) {
+export default function DisponibilitesBoard({ profileName, salarieSeul = false, profileType, missions, linkedPost }: Props) {
   const router = useRouter();
   const isAssistant = profileType === "ASSISTANT";
 
@@ -858,7 +863,7 @@ export default function DisponibilitesBoard({ profileName, profileType, missions
   // Assistant (section 179, Option 1) : vue « recherche de poste » sans timeline datée.
   // Placé après les hooks (règles des Hooks) — la logique timeline ci-dessus reste inerte ici.
   if (isAssistant) {
-    return <AssistantDispoView profileName={profileName} missions={missions} linkedPost={linkedPost} />;
+    return <AssistantDispoView profileName={profileName} salarieSeul={salarieSeul} missions={missions} linkedPost={linkedPost} />;
   }
 
   return (
@@ -955,7 +960,7 @@ export default function DisponibilitesBoard({ profileName, profileType, missions
         <div className="w-full sm:w-auto min-w-0">
           <h1 className="text-base sm:text-lg font-bold text-gray-900">Mes disponibilités</h1>
           <p className="text-xs text-gray-400 truncate">
-            {profileName} · {isAssistant ? "Poste long terme (min. 3 mois)" : "Remplaçant"}
+            {profileName} · {isAssistant ? "Poste long terme (min. 3 mois)" : salarieSeul ? "CDD, vacations" : "Remplaçant"}
           </p>
         </div>
 
@@ -989,7 +994,7 @@ export default function DisponibilitesBoard({ profileName, profileType, missions
               </p>
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
                 <p className="text-sm font-semibold text-gray-800 truncate mb-2">
-                  {profileName ?? (isAssistant ? "Assistant" : "Remplaçant")}
+                  {profileName ?? (isAssistant ? "Assistant" : salarieSeul ? "Candidat·e" : "Remplaçant")}
                 </p>
                 {/* Piste h-14 (56px) au lieu de h-9 : cible tactile confortable ≥44px pour
                     le tap « ajouter une disponibilité » (section 149). */}
@@ -1094,7 +1099,7 @@ export default function DisponibilitesBoard({ profileName, profileType, missions
                   style={{ width: labelWidth }}
                 >
                   <span className="text-xs font-semibold text-gray-700 truncate">
-                    {profileName ?? (isAssistant ? "Assistant" : "Remplaçant")}
+                    {profileName ?? (isAssistant ? "Assistant" : salarieSeul ? "Candidat·e" : "Remplaçant")}
                   </span>
                 </div>
 
