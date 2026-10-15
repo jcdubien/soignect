@@ -102,7 +102,9 @@ function RegisterForm() {
   const [profileType, setProfileType] = useState<ProfileTypeChoice | "">(preselected ?? "");
   // Titulaire de type Structure privée (EHPAD / clinique / SSR) — entrée « Établissement ».
   // Détermine titulaireKind = STRUCTURE dès l'inscription (sinon CABINET par défaut).
-  const [structure, setStructure] = useState(false);
+  // `?structure=1` (porte « emploi » des établissements) : sans lui, l'établissement retombait
+  // sur l'écran 1 et devait se retrouver parmi les profils libéraux.
+  const [structure, setStructure] = useState(preselected === "TITULAIRE" && searchParams.get("structure") === "1");
 
   // Step 2
   const [email, setEmail] = useState("");
@@ -154,6 +156,7 @@ function RegisterForm() {
     return p && p in PROFESSION_LABELS ? p : "";
   })();
   const [profession, setProfession] = useState<string>(professionInitiale);
+  const salarieSeul = contratFourniParEmployeur(profession);
   // Notifications (section 50-51)
   const [phoneCountry, setPhoneCountry] = useState("GP");
   const [phone, setPhone] = useState("");
@@ -313,6 +316,9 @@ function RegisterForm() {
               <p className="text-gray-400 text-sm mb-6">Choisissez votre profil pour commencer</p>
 
               <div className="space-y-3">
+                {/* Profession salariée seulement (section 304), connue par l'URL : ni cabinet, ni
+                    remplacement, ni assistanat. On ne propose que ce qui existe pour elle. */}
+                {!salarieSeul && (
                 <button
                   onClick={() => { setProfileType("TITULAIRE"); setStructure(false); setStep(2); }}
                   className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50 text-left transition group"
@@ -324,6 +330,7 @@ function RegisterForm() {
                   </div>
                   <span className="ml-auto text-gray-300 group-hover:text-emerald-500 text-xl">→</span>
                 </button>
+                )}
 
                 <button
                   onClick={() => { setProfileType("TITULAIRE"); setStructure(true); setStep(2); }}
@@ -332,7 +339,7 @@ function RegisterForm() {
                   <span className="text-3xl">🏨</span>
                   <div>
                     <p className="font-bold text-gray-800 text-base">Établissement</p>
-                    <p className="text-sm text-gray-400">EHPAD, clinique, SSR — vacations, CDD, CDI</p>
+                    <p className="text-sm text-gray-400">EHPAD, SSIAD, clinique, SSR — vacations, CDD, CDI</p>
                   </div>
                   <span className="ml-auto text-gray-300 group-hover:text-[#0B3D5C] text-xl">→</span>
                 </button>
@@ -343,12 +350,17 @@ function RegisterForm() {
                 >
                   <span className="text-3xl">🩺</span>
                   <div>
-                    <p className="font-bold text-gray-800 text-base">Remplaçant·e</p>
-                    <p className="text-sm text-gray-400">Je cherche des missions ponctuelles en Guadeloupe</p>
+                    <p className="font-bold text-gray-800 text-base">{salarieSeul ? "Candidat·e" : "Remplaçant·e"}</p>
+                    <p className="text-sm text-gray-400">
+                      {salarieSeul
+                        ? "Je cherche un poste salarié — CDI, CDD, vacations"
+                        : "Je cherche des missions ponctuelles en Guadeloupe"}
+                    </p>
                   </div>
                   <span className="ml-auto text-gray-300 group-hover:text-kine-500 text-xl">→</span>
                 </button>
 
+                {!salarieSeul && (
                 <button
                   onClick={() => { setProfileType("ASSISTANT"); setStructure(false); setStep(2); }}
                   className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-violet-400 hover:bg-violet-50 text-left transition group"
@@ -360,6 +372,7 @@ function RegisterForm() {
                   </div>
                   <span className="ml-auto text-gray-300 group-hover:text-violet-500 text-xl">→</span>
                 </button>
+                )}
               </div>
 
               <p className="text-center text-sm text-gray-400 mt-8">
@@ -384,7 +397,8 @@ function RegisterForm() {
                   paramètre d'URL : après un changement, il dit la vérité. */}
               {preselected && profileType && (
                 <p className="-mt-3 mb-5 text-sm text-gray-400">
-                  Inscription en tant que{" "}
+                  {/* Élision devant voyelle : « en tant qu'établissement », « qu'assistant·e ». */}
+                  Inscription en tant {(profileType === "TITULAIRE" && structure) || profileType === "ASSISTANT" ? "qu’" : "que "}
                   <span className="font-semibold text-gray-600">
                     {/* Un aide-soignant ne remplace pas (section 305) : même compte, mot juste. */}
                     {profileType === "REMPLACANT" && contratFourniParEmployeur(profession) ? "candidat·e à un poste salarié"
@@ -548,8 +562,9 @@ function RegisterForm() {
                     <span className="text-red-400 font-normal ml-1">(obligatoire)</span>
                   </p>
                   <PhotoUpload
-                    name={name || (profileType === "TITULAIRE" ? "Cabinet" : "Remplaçant")}
+                    name={name || (profileType === "TITULAIRE" ? (structure ? "Établissement" : "Cabinet") : "Candidat")}
                     profileType={profileType || undefined}
+                    structure={structure}
                     onBlobReady={setPendingPhotoBlob}
                   />
                   {!pendingPhotoBlob && (

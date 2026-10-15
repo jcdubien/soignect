@@ -42,7 +42,12 @@ export default async function PagePorte({
   // La porte du chercheur de poste SALARIÉ préselectionne le compte candidat (section 305) : sans
   // ça, un aide-soignant devrait choisir entre « remplaçant » et « assistant / collaborateur »,
   // deux mots qui ne décrivent pas son métier.
-  const typeCompte = porte.slug === "poste" ? "&profileType=REMPLACANT" : "";
+  // La porte « emploi » des établissements préselectionne de même le compte établissement : il
+  // devait sinon se retrouver lui-même parmi « Cabinet / Titulaire », « Remplaçant·e »…
+  const typeCompte =
+    porte.slug === "poste" ? "&profileType=REMPLACANT"
+    : porte.slug === "emploi" ? "&profileType=TITULAIRE&structure=1"
+    : "";
   const inscription = `/register?profession=${profession.enumBase}${typeCompte}&src=${cleTracePage(porte, profession, territoire)}`;
 
   const fmt = (d: Date | null) =>

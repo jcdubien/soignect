@@ -211,6 +211,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
           initialPhotoUrl={profile.photoUrl}
           name={profile.name}
           profileType={profile.type}
+          structure={kind === "STRUCTURE"}
         />
 
         {/* Photos secondaires optionnelles (section 3) — jusqu'à 2 */}
@@ -223,6 +224,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             initialPhotoUrl={profile.secondaryPhotoUrl1}
             name={profile.name}
             profileType={profile.type}
+            structure={kind === "STRUCTURE"}
             slot="secondary1"
           />
           <PhotoUpload
@@ -230,6 +232,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
             initialPhotoUrl={profile.secondaryPhotoUrl2}
             name={profile.name}
             profileType={profile.type}
+            structure={kind === "STRUCTURE"}
             slot="secondary2"
           />
         </div>

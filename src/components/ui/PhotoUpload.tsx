@@ -40,6 +40,8 @@ export interface PhotoUploadProps {
   onBlobReady?: (blob: Blob) => void;
   /** Emplacement d'upload (section 3) : "main" (défaut), "secondary1", "secondary2" */
   slot?: "main" | "secondary1" | "secondary2";
+  /** Titulaire de type établissement : sa photo est celle de l'établissement, pas d'un cabinet. */
+  structure?: boolean;
 }
 
 export function getInitials(name: string | null | undefined): string {
@@ -109,9 +111,16 @@ export default function PhotoUpload({
   onUploaded,
   onBlobReady,
   slot = "main",
+  structure = false,
 }: PhotoUploadProps) {
   const isCabinet = profileType === "TITULAIRE";
-  const wording = isCabinet
+  const wording = isCabinet && structure
+    ? {
+        label:  "Photo de mon établissement",
+        button: "Ajouter la photo de l'établissement",
+        tip:    "Montrez vos locaux ou votre équipe",
+      }
+    : isCabinet
     ? {
         label:  "Photo de mon cabinet",
         button: "Ajouter la photo du cabinet",
@@ -120,7 +129,8 @@ export default function PhotoUpload({
     : {
         label:  "Ma photo professionnelle",
         button: "Ajouter ma photo",
-        tip:    "Une photo de vous rassure les cabinets",
+        // « les recruteurs » : un candidat salarié s'adresse à des établissements, pas à des cabinets.
+        tip:    "Une photo de vous rassure les recruteurs",
       };
   const [photoUrl, setPhotoUrl] = useState<string | null>(
     initialPhotoUrl ?? null
