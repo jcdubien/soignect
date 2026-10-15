@@ -1317,7 +1317,9 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
             <input
               type="number"
               min={0}
-              step={100}
+              // À l'euro près : un pas de 100 faisait refuser 1 850 € par le navigateur, sans
+              // message de Soignect. Le serveur attend un entier, rien de plus.
+              step={1}
               value={annonceSalariee ? form.remunerationBrute : form.caMensuelEstime}
               onChange={(e) =>
                 setForm(annonceSalariee
