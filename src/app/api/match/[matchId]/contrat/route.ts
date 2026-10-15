@@ -15,7 +15,7 @@ import { buildInfirmierSalariatCddPdf } from "@/lib/contrats/template-infirmier-
 import { buildInfirmierSalariatCdiPdf } from "@/lib/contrats/template-infirmier-salariat-cdi";
 import { buildKineSalariatCddPdf } from "@/lib/contrats/template-kine-salariat-cdd";
 import { buildKineSalariatCdiPdf } from "@/lib/contrats/template-kine-salariat-cdi";
-import { NATURE_PAR_MISSION, gabaritsSalariePour, type NatureContratTravail } from "@/lib/contrats/gabaritsSalarie";
+import { NATURE_PAR_MISSION, gabaritsSalariePour, contratFourniParEmployeur, type NatureContratTravail } from "@/lib/contrats/gabaritsSalarie";
 import type { ContractParty } from "@/lib/contrats/types";
 import { sendContratEmail } from "@/lib/email";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
@@ -325,6 +325,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     // Trois des quatre gabarits salariés ne sont pas écrits. Refus explicite, jamais un repli
     // sur un gabarit voisin : un contrat de travail rendu avec un modèle libéral serait un
     // document faux et signé.
+    if (candidatsSalarie.length === 0 && contratFourniParEmployeur(profileTitulaire.profession)) {
+      return NextResponse.json(
+        { error: "Le contrat de travail de cette profession est établi par l'employeur : Soignect ne le génère pas." },
+        { status: 422 },
+      );
+    }
     if (candidatsSalarie.length === 0) {
       return NextResponse.json(
         {

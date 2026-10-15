@@ -49,6 +49,9 @@ export interface Profession {
   deCourt: string;
   /** Le modèle de contrat que la plateforme pré-remplit, nommé comme le connaît la profession. */
   contratPreRempli: string;
+  /** « kinés », « infirmiers », « aides-soignants » — en-tête de colonne. Ne se compose pas :
+   *  « aide-soignant » + « s » donnerait « aide-soignants ». */
+  courtPluriel: string;
 }
 
 export const KINESITHERAPEUTE: Profession = {
@@ -62,6 +65,7 @@ export const KINESITHERAPEUTE: Profession = {
   deSingulier: "de kinésithérapeute",
   deCourt: "de kiné",
   contratPreRempli: "contrat CNOMK pré-rempli",
+  courtPluriel: "kinés",
 };
 
 export const INFIRMIER: Profession = {
@@ -75,6 +79,25 @@ export const INFIRMIER: Profession = {
   deSingulier: "d'infirmier",
   deCourt: "d'infirmier",
   contratPreRempli: "contrat de l'Ordre des infirmiers pré-rempli",
+  courtPluriel: "infirmiers",
+};
+
+// Aides-soignants (section 304) : SALARIÉS SEULEMENT. Une seule porte publiée — ÉTABLISSEMENT.
+// Les portes chercheur, cabinet et MSP parlent remplacement et collaboration libérale, qui
+// n'existent pas pour ce métier ; `contratPreRempli` n'y est donc jamais lu, et il dit la vérité
+// au cas où il le serait.
+export const AIDE_SOIGNANT: Profession = {
+  singulier: "aide-soignant",
+  pluriel: "aides-soignants",
+  court: "aide-soignant",
+  discipline: "soins aides-soignants",
+  slug: "aide-soignant",
+  enumBase: ProfessionDb.AIDE_SOIGNANT,
+  unSingulier: "un aide-soignant",
+  deSingulier: "d'aide-soignant",
+  deCourt: "d'aide-soignant",
+  contratPreRempli: "contrat de travail établi par l'employeur",
+  courtPluriel: "aides-soignants",
 };
 
 // ── LES TYPES DE POSTE SE DÉRIVENT DES CONTRATS, ILS NE S'ÉCRIVENT PAS (section 299) ────────
@@ -91,6 +114,12 @@ function formesDuPoste(p: Profession): string {
   return proposeAssistanat(p)
     ? "Remplacement de quelques semaines, assistanat sur la durée ou collaboration libérale"
     : "Remplacement de quelques semaines ou collaboration libérale";
+}
+/** « les infirmiers ouverts au salariat », mais « les aides-soignants » : pour une profession
+ *  salariée seulement (section 304), la précision serait un pléonasme qui laisse croire à un
+ *  sous-ensemble. */
+function candidatsSalaries(p: Profession): string {
+  return missionTypesPour(p.enumBase).length === 0 ? `les ${p.pluriel}` : `les ${p.pluriel} ouverts au salariat`;
 }
 /** « Remplacement, assistanat, collaboration libérale ». */
 function listeTypes(p: Profession): string {
@@ -114,6 +143,7 @@ function listePersonnes(p: Profession): string {
 export const VOCABULAIRE_PROFESSION: Partial<Record<ProfessionDb, Profession>> = {
   [ProfessionDb.KINESITHERAPEUTE]: KINESITHERAPEUTE,
   [ProfessionDb.INFIRMIER]: INFIRMIER,
+  [ProfessionDb.AIDE_SOIGNANT]: AIDE_SOIGNANT,
 };
 
 export function libelleProfession(valeur: ProfessionDb): string {
@@ -243,14 +273,14 @@ export const PORTES: Record<string, Porte> = {
     cible: "Hôpitaux, cliniques, EHPAD, SSR, CAMSP — recrutement salarié",
     titre: (p, t) => `Nous recrutons ${p.unSingulier} pour notre établissement ${t.preposition} ${t.nom}`,
     accroche: (p, t) =>
-      `CDI, CDD, vacation : publiez votre offre et touchez les ${p.pluriel} ouverts au salariat ${t.preposition} ${t.nom}. Vous décrivez le poste et la rémunération ; le contrat reste le vôtre, Soignect ne s'y substitue pas.`,
+      `CDI, CDD, vacation : publiez votre offre et touchez ${candidatsSalaries(p)} ${t.preposition} ${t.nom}. Vous décrivez le poste et la rémunération ; le contrat reste le vôtre, Soignect ne s'y substitue pas.`,
     metaTitre: (p, t) => `Recrutement ${p.court} salarié ${t.preposition} ${t.nom} — CDI, CDD, vacation | Soignect`,
     metaDescription: (p, t) =>
-      `Établissements de ${t.nom} — hôpital, clinique, EHPAD, SSR, CAMSP : publiez vos postes ${p.deSingulier} salarié et touchez les candidats ouverts au salariat.`,
+      `Établissements de ${t.nom} — hôpital, clinique, EHPAD, SSR, CAMSP : publiez vos postes ${p.deSingulier} salarié et touchez ${candidatsSalaries(p)}.`,
     cta: "Publier une offre →",
     ctaSous: "Le contrat de travail relève de votre établissement.",
     ogTitre: (p) => `Recrutement ${p.court} salarié`,
-    ogSousTitre: (p) => `Hôpitaux, cliniques, EHPAD, SSR : vos offres en CDI, CDD ou vacation, présentées aux ${p.pluriel} ouverts au salariat.`,
+    ogSousTitre: (p) => `Hôpitaux, cliniques, EHPAD, SSR : vos offres en CDI, CDD ou vacation, présentées ${candidatsSalaries(p).replace(/^les /, "aux ")}.`,
     /** meme raison que la porte CABINET : un employeur vient voir qui est disponible. */
     montre: "CANDIDAT",
     offrePartenaire: true,
@@ -294,7 +324,7 @@ export const PORTES: Record<string, Porte> = {
       `Soignect donne à une CPTS ou à une collectivité une vue sur les postes ouverts, profession par profession, ${t.preposition} ${t.nom} — et un module à intégrer sur son propre site.`,
     metaTitre: (_p, t) => `Structurer l'offre de soins ${t.preposition} ${t.nom} — CPTS, collectivités | Soignect`,
     metaDescription: (_p, t) =>
-      `CPTS et collectivités de ${t.nom} : suivez les postes ouverts sur votre territoire, kinés et infirmiers, et intégrez-les à votre site.`,
+      `CPTS et collectivités de ${t.nom} : suivez les postes ouverts sur votre territoire, kinés, infirmiers et aides-soignants, et intégrez-les à votre site.`,
     cta: "Échanger sur un partenariat →",
     // La consultation reste gratuite ; la mise en avant des zones est l'offre partenaire, payante
     // (section 301). L'ancienne phrase — « gratuit pendant la bêta » — couvrait les deux.
@@ -395,6 +425,8 @@ export const PAGES_PUBLIEES: PagePubliee[] = [
   ...[PORTES.CHERCHEUR, PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.MAISON_DE_SANTE].map((porte) => ({
     porte, profession: INFIRMIER, territoire: TERRITOIRES.GUADELOUPE,
   })),
+  // Aides-soignants : la porte établissement seule (voir la déclaration de la profession).
+  { porte: PORTES.ETABLISSEMENT, profession: AIDE_SOIGNANT, territoire: TERRITOIRES.GUADELOUPE },
 ];
 
 /** Métadonnées d'une page composée par PagePorte — titre, description, canonique, Open Graph. */

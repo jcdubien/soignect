@@ -126,6 +126,30 @@ export function aDesGabaritsSalarie(profession: Profession): boolean {
   return GABARITS_SALARIE.some((g) => g.profession === profession);
 }
 
+// ── LE CONTRAT DE L'EMPLOYEUR (section 304) ──────────────────────────────────────────────────
+//
+// Les aides-soignants n'exercent QU'EN SALARIAT : pas de libéral, pas d'ordre, pas de modèle-type
+// d'ordre à transcrire. Leur contrat de travail est celui de l'établissement, rédigé selon SA
+// convention collective (FHP, FEHAP, CCN 51…) — ou, à l'hôpital public, un contrat de droit
+// public qu'aucun modèle privé ne remplacerait. En composer un ici produirait un document faux
+// pour la plupart des employeurs qui le recevraient.
+//
+// Pour ces professions, la publication salariée est donc OUVERTE sans gabarit, et l'écran de
+// contrat dit « contrat établi par l'employeur » au lieu de proposer une génération. C'est une
+// décision, pas un manque : `aDesGabaritsSalarie` reste faux pour elles, exprès.
+export const CONTRAT_FOURNI_PAR_L_EMPLOYEUR: readonly Profession[] = [Profession.AIDE_SOIGNANT];
+
+export function contratFourniParEmployeur(profession?: string | null): boolean {
+  return (CONTRAT_FOURNI_PAR_L_EMPLOYEUR as readonly string[]).includes(profession ?? "");
+}
+
+/** Un poste salarié de cette profession peut-il se publier ? Soit un gabarit existe, soit le
+ *  contrat est par nature celui de l'employeur. Prédicat unique des écrans de publication et
+ *  du fil — même raison que `aDesGabaritsSalarie` : deux définitions finiraient par diverger. */
+export function salariatPublicable(profession: Profession): boolean {
+  return aDesGabaritsSalarie(profession) || contratFourniParEmployeur(profession);
+}
+
 export function gabaritSalarieParId(id: string): GabaritSalarie | undefined {
   return GABARITS_SALARIE.find((g) => g.id === id);
 }

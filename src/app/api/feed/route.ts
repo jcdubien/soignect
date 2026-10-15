@@ -7,7 +7,7 @@ import { EST_UNE_OFFRE, offreOuverteLe } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
-import { aDesGabaritsSalarie } from "@/lib/contrats/gabaritsSalarie";
+import { salariatPublicable, contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { professionPluriel } from "@/lib/professions";
 import { logTraceEvent } from "@/lib/trace";
 import { TOLERANCE_DATES_MAX_JOURS } from "@/lib/compatibilite";
@@ -161,10 +161,14 @@ export async function GET(req: NextRequest) {
   const isCandidateViewer = myProfile.type !== ProfileType.TITULAIRE;
   const isStructureViewer =
     myProfile.type === ProfileType.TITULAIRE && myProfile.titulaireKind === TitulaireKind.STRUCTURE;
-  if (isCandidateViewer && !myProfile.ouvertSalariat) {
+  // Une profession qui n'exerce qu'en salariat (section 304) est ouverte au salariat PAR NATURE :
+  // la case « ouvert au salariat » n'a pas de sens pour elle, et la laisser décochée par défaut
+  // aurait caché tous les aides-soignants aux établissements — les seuls qui les emploient.
+  const salarieParNature = contratFourniParEmployeur(myProfile.profession);
+  if (isCandidateViewer && !myProfile.ouvertSalariat && !salarieParNature) {
     profileWhere.titulaireKind = { not: TitulaireKind.STRUCTURE };
   }
-  if (isStructureViewer) {
+  if (isStructureViewer && !salarieParNature) {
     profileWhere.ouvertSalariat = true;
   }
 
@@ -336,7 +340,7 @@ export async function GET(req: NextRequest) {
         // l'option » plutôt que « aucun ne correspond ». Compter les candidats d'une autre
         // profession y ferait répondre « il en existe » à un établissement qui n'en verra
         // jamais un seul — le message d'attente redeviendrait faux, dans l'autre sens.
-        where: { type: { in: oppositeTypes }, isActive: true, ouvertSalariat: true, profession: myProfile.profession, id: { not: myProfile.id } },
+        where: { type: { in: oppositeTypes }, isActive: true, ...(salarieParNature ? {} : { ouvertSalariat: true }), profession: myProfile.profession, id: { not: myProfile.id } },
       })
     : -1;
 
@@ -468,7 +472,7 @@ export async function GET(req: NextRequest) {
   const marcheFerme =
     isCandidateViewer
     && missionTypesPour(myProfile.profession).length === 0
-    && !aDesGabaritsSalarie(myProfile.profession);
+    && !salariatPublicable(myProfile.profession);
 
   const DUREE_LONGUE_JOURS = 30;
   const ECART_CONVERGENCE_JOURS = 30;

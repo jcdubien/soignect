@@ -7347,6 +7347,33 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 304 — LES AIDES-SOIGNANTS, PROFESSION SALARIÉE SEULEMENT (14/10)
+
+Demande de Jean-Charles, pour vendre l'offre partenaire aux EHPAD (premier besoin : IDE et AS).
+Enum `Profession` + `AIDE_SOIGNANT` (ajout appliqué en production le 14/10).
+
+**Décision : le contrat est celui de l'employeur.** Pas d'ordre, pas de libéral, pas de modèle-type
+à transcrire ; le contrat d'un AS dépend de la convention collective de l'établissement (FHP,
+FEHAP, CCN 51) ou du droit public à l'hôpital. En composer un serait faux pour la plupart des
+employeurs. `CONTRAT_FOURNI_PAR_L_EMPLOYEUR` (lib/contrats/gabaritsSalarie) l'écrit ;
+`salariatPublicable` remplace `aDesGabaritsSalarie` dans les prédicats de publication et du fil.
+`aDesGabaritsSalarie` reste faux pour les AS, exprès.
+
+- Publication : aucun type libéral (aucun gabarit), tuile « Salariat » ouverte.
+- Disponibilité candidat : « Vacations, CDD court » / « Poste durable » ; pas d'assistanat, pas
+  d'encart rétrocession ; « ouvert au salariat » n'est pas une case — toujours vrai.
+- Fil : un AS est ouvert au salariat par nature (filtres `ouvertSalariat` levés pour la profession).
+- Contrat : écran « établi par l'employeur », la route refuse en 422 avec la même phrase.
+- Diffusion : `AIDE_SOIGNANT` dans le vocabulaire, page `/emploi-aide-soignant-guadeloupe`
+  (porte établissement seule) avec image de partage ; colonne au tableau de la page CPTS
+  (`courtPluriel`). Pour une profession sans type libéral, les textes disent « les
+  aides-soignants », pas « ouverts au salariat ».
+
+**Limites** : l'inscription fait choisir « remplaçant » ou « assistant / collaborateur » avant la
+profession — vocabulaire libéral pour un AS candidat ; un établissement = une profession par
+compte, donc un EHPAD qui recrute IDE et AS ouvre deux comptes. Parcours non testé de bout en bout
+(inscription → publication → fil) : vérifié au typage, au build et au rendu des pages.
+
 ### SECTION 303 — L'OFFRE PARTENAIRE A UN PRIX (14/10)
 
 Grille arrêtée par Jean-Charles, affichée dans `BlocPartenaire` (portes territoire, MSP, emploi) ;

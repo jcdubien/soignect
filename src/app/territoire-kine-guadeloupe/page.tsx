@@ -99,7 +99,7 @@ export default async function Page() {
                 <tr className="border-b border-gray-100 text-xs text-gray-500">
                   <th className="text-left font-semibold py-2 px-1">Zone</th>
                   {PROFESSIONS_TABLEAU.map((p) => (
-                    <th key={p.slug} className="text-right font-semibold py-2 px-1 capitalize">{p.court}s</th>
+                    <th key={p.slug} className="text-right font-semibold py-2 px-1 capitalize">{p.courtPluriel}</th>
                   ))}
                   <th className="text-right font-semibold py-2 px-1">Total</th>
                 </tr>
@@ -195,8 +195,8 @@ export default async function Page() {
             résultat, aucun chiffre de marché : le compteur de postes ci-dessus est la seule
             donnée avancée, et elle est calculée en direct. */}
         <p>
-          Soignect référence les postes de kinésithérapie et de soins infirmiers publiés par les
-          cabinets, les structures et les professionnels eux-mêmes {TERR.preposition} {TERR.nom}. Les structures territoriales y
+          Soignect référence les postes de kinés, d&apos;infirmiers et d&apos;aides-soignants publiés
+          par les cabinets, les structures et les professionnels eux-mêmes {TERR.preposition} {TERR.nom}. Les structures territoriales y
           accèdent pour suivre l&apos;offre sur leur périmètre et l&apos;afficher sur leur propre
           site. L&apos;inscription est gratuite pour qui cherche un poste.
         </p>

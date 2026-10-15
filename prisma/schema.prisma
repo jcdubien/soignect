@@ -80,6 +80,7 @@ enum Profession {
   MEDECIN_RHUMATOLOGIE
   DENTISTE
   ORTHOPTISTE
+  AIDE_SOIGNANT
 }
 
 enum Region {

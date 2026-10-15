@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { exemplesPour } from "@/lib/exemplesPublication";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
-import { aDesGabaritsSalarie } from "@/lib/contrats/gabaritsSalarie";
+import { salariatPublicable } from "@/lib/contrats/gabaritsSalarie";
 import CreateDisponibiliteClient from "./CreateDisponibiliteClient";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export default async function CreateDisponibilitePage() {
   // peut déduire d'aucun écran, et qu'il vaut mieux lire avant de remplir quinze champs
   // qu'après trois semaines sans réponse.
   const sansModeleDeContrat =
-    missionTypesPour(profil.profession).length === 0 && !aDesGabaritsSalarie(profil.profession);
+    missionTypesPour(profil.profession).length === 0 && !salariatPublicable(profil.profession);
 
   return (
     <CreateDisponibiliteClient

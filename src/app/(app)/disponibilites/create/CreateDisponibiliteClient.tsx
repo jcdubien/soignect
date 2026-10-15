@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import type { ExemplesPublication } from "@/lib/exemplesPublication";
 import { professionLabel, libelleOrdre, mentionExerciceCoordonne } from "@/lib/professions";
 import { assistanceIADisponible } from "@/lib/annonceAI";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
@@ -27,6 +28,9 @@ export default function CreateDisponibiliteClient({
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Profession salariée seulement (section 304) : ni assistanat ni collaboration libérale, et
+  // « ouvert au salariat » n'est pas une option — c'est le seul mode d'exercice.
+  const salarieSeul = contratFourniParEmployeur(profession);
 
   const profileType = (session?.user as { profileType?: string })?.profileType;
 
@@ -129,6 +133,11 @@ export default function CreateDisponibiliteClient({
   // terme » — c'est déjà le sens de ses vingt lectures (dates masquées, durée minimale exigée,
   // libellés de projet). Il suit donc le type de poste choisi, plus le type de compte.
   const isAssistant = postKind !== "REMPLACEMENT";
+  // L'assistanat n'existe pas pour une profession salariée seulement : quelle que soit la source
+  // (compte ASSISTANT, brouillon, extraction IA, URL), le long terme s'y nomme « poste durable ».
+  useEffect(() => {
+    if (salarieSeul && postKind === "ASSISTANAT") setPostKind("COLLABORATION");
+  }, [salarieSeul, postKind]);
 
   // ── Assistance IA (refonte saisie) — chaque action = 1 appel serveur explicite ──
   const [aiBusy, setAiBusy] = useState<null | "extract" | "title" | "redaction" | "optimize">(null);
@@ -341,7 +350,7 @@ export default function CreateDisponibiliteClient({
         rechercheVehicule: form.rechercheVehicule,
         rechercheSecretariat: form.rechercheSecretariat,
         rechercheExerciceCoordonne: form.rechercheExerciceCoordonne,
-        ouvertSalariat: form.ouvertSalariat,
+        ouvertSalariat: salarieSeul ? true : form.ouvertSalariat,
         diffuserSurFacebook: form.diffuserSurFacebook,
       }),
     });
@@ -589,7 +598,9 @@ export default function CreateDisponibiliteClient({
           <h1 className="text-2xl font-bold text-gray-800">{isEdit ? "Modifier ma disponibilité" : "Publier mes disponibilités"}</h1>
         </div>
         <p className="text-gray-400 text-sm">
-          {isAssistant
+          {salarieSeul
+            ? "Visible par les établissements et les cabinets qui recrutent en Guadeloupe"
+            : isAssistant
             ? "Visible par les cabinets proposant des postes longue durée"
             : "Visible par les cabinets recherchant un remplaçant en Guadeloupe"}
         </p>
@@ -640,7 +651,7 @@ export default function CreateDisponibiliteClient({
             minimale imposée, sens de la rétrocession, modèles de contrat distincts.
             Déplié d'office quand on arrive par un lien qui impose le type — c'est le cas de la
             suggestion, donc de quelqu'un qui découvre. Replié sinon. ── */}
-        {isAssistant && (
+        {isAssistant && !salarieSeul && (
           <details open={!!typeInitial} className="rounded-2xl border border-violet-200 bg-violet-50/50 px-4 py-3">
             <summary className="cursor-pointer text-sm font-semibold text-violet-800 select-none">
               Ce qui change par rapport à un remplacement
@@ -762,7 +773,7 @@ export default function CreateDisponibiliteClient({
             <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-2">
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Ce que j&apos;ai compris</p>
               <div className="flex flex-wrap gap-1.5">
-                {isAssistant && <span className="px-2 py-0.5 rounded-full bg-kine-100 text-kine-700 text-[11px] font-semibold">{postKind === "COLLABORATION" ? "Collaboration" : "Assistanat"}</span>}
+                {isAssistant && <span className="px-2 py-0.5 rounded-full bg-kine-100 text-kine-700 text-[11px] font-semibold">{salarieSeul ? "Poste durable" : postKind === "COLLABORATION" ? "Collaboration" : "Assistanat"}</span>}
                 {form.zones.length > 0 && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📍 {form.zones.map((z) => ZONE_LABELS[z]).join(", ")}</span>}
                 {form.startDate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📅 {form.startDate}{form.endDate ? ` → ${form.endDate}` : ""}</span>}
                 {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
@@ -824,9 +835,13 @@ export default function CreateDisponibiliteClient({
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Type de poste recherché</label>
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-2">
-              {([["REMPLACEMENT", "Remplacement", "Dates précises, court terme"],
-                 ["ASSISTANAT", "Assistanat", "Long terme, patientèle du cabinet"],
-                 ["COLLABORATION", "Collaboration libérale", "Je me constitue ma patientèle"]] as const).map(([val, title, sub]) => (
+              {(salarieSeul
+                ? ([["REMPLACEMENT", "Vacations, CDD court", "Dates précises"],
+                    ["COLLABORATION", "Poste durable", "CDI ou CDD long"]] as const)
+                : ([["REMPLACEMENT", "Remplacement", "Dates précises, court terme"],
+                    ["ASSISTANAT", "Assistanat", "Long terme, patientèle du cabinet"],
+                    ["COLLABORATION", "Collaboration libérale", "Je me constitue ma patientèle"]] as const)
+              ).map(([val, title, sub]) => (
                 <button
                   key={val}
                   type="button"
@@ -1117,6 +1132,7 @@ export default function CreateDisponibiliteClient({
 
         {/* ── Ouverture au salariat (section 154) — opt-in : rend le profil visible/matchable
              avec les postes salariés (CDD/CDI/Stage/Vacation) publiés par les établissements ── */}
+        {!salarieSeul && (
         <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
           <input
             type="checkbox"
@@ -1129,6 +1145,7 @@ export default function CreateDisponibiliteClient({
             <span className="block text-xs text-gray-400">Vous serez alors proposé·e aux établissements (EHPAD, clinique, SSR…).</span>
           </span>
         </label>
+        )}
 
         {/* Taux de rétrocession retiré (section 88) — se négocie dans la discussion/le contrat */}
 

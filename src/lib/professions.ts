@@ -53,6 +53,7 @@ export const PROFESSION_LABELS: Record<Profession, string> = {
   SAGE_FEMME:       "Sage-femme",
   DENTISTE:         "Chirurgien-dentiste",
   ORTHOPTISTE:      "Orthoptiste",
+  AIDE_SOIGNANT:    "Aide-soignant·e",
   // Le libellé du MARCHÉ : c'est lui qui distingue, donc il s'écrit.
   MEDECIN_GENERALISTE:    "Médecin généraliste",
   MEDECIN_CARDIOLOGIE:    "Cardiologue",
@@ -77,6 +78,7 @@ export const PROFESSION_LABELS_CONTRAT: Record<Profession, string> = {
   SAGE_FEMME:       "Sage-femme",
   DENTISTE:         "Chirurgien-dentiste",
   ORTHOPTISTE:      "Orthoptiste",
+  AIDE_SOIGNANT:    "Aide-soignant diplômé d'État",
   // NON VÉRIFIÉ AUPRÈS DU CNOM : aucun gabarit médecin n'est transcrit, donc aucune de ces
   // valeurs n'est imprimée nulle part aujourd'hui. Forme descriptive, à confronter au modèle
   // de l'Ordre le jour où le premier contrat médecin sera écrit.
@@ -107,6 +109,9 @@ export const LIBELLE_NUMERO_ORDRE: Record<Profession, string> = {
   SAGE_FEMME:       "N° Ordre",
   DENTISTE:         "N° Ordre",
   ORTHOPTISTE:      "N° ADELI",   // les orthoptistes n'ont pas d'ordre : c'est ADELI qui les enregistre
+  // Pas d'ordre, pas d'enregistrement ordinal : la pièce qui atteste la qualification est le
+  // diplôme d'État (DEAS). Aucun contrat n'imprime ce libellé aujourd'hui (section 304).
+  AIDE_SOIGNANT:    "N° de diplôme (DEAS)",
   // Dérivé : un seul ordre pour les dix marchés, donc un seul vocabulaire.
   ...pourTousLesMedecins("N° Ordre"),
 };
@@ -132,6 +137,7 @@ export const LIBELLE_ORDRE: Record<Profession, string> = {
   // Pas d'ordre professionnel pour les orthoptistes — la formule neutre n'est pas un repli
   // paresseux ici, c'est le fait.
   ORTHOPTISTE:      "votre autorité d'enregistrement",
+  AIDE_SOIGNANT:    "votre employeur",   // aucun ordre : rien n'est communiqué à une instance ordinale
   // Dérivé : c'est exactement ce que la scission ne doit PAS recopier dix fois.
   ...pourTousLesMedecins("l'Ordre des médecins"),
 };
@@ -156,6 +162,7 @@ export const ARTICLE_NON_INSTALLATION: Record<Profession, string | null> = {
   SAGE_FEMME:       null,
   DENTISTE:         null,   // aucun gabarit transcrit, donc aucune référence vérifiée
   ORTHOPTISTE:      null,
+  AIDE_SOIGNANT:    null,   // salarié seulement : la non-installation après remplacement est sans objet
   // Dérivé à `null`, et c'est la règle du fichier : pas de gabarit médecin transcrit, donc
   // aucune référence vérifiée. Inventer un numéro d'article serait le défaut qu'on corrige ici.
   ...pourTousLesMedecins(null),
@@ -191,6 +198,7 @@ export const PROFESSION_PLURIEL: Record<Profession, string> = {
   SAGE_FEMME:       "sages-femmes",
   DENTISTE:         "chirurgiens-dentistes",
   ORTHOPTISTE:      "orthoptistes",
+  AIDE_SOIGNANT:    "aides-soignants",
   MEDECIN_GENERALISTE:    "médecins généralistes",
   MEDECIN_CARDIOLOGIE:    "cardiologues",
   MEDECIN_DERMATOLOGIE:   "dermatologues",
@@ -237,7 +245,7 @@ export function memeMarche(a?: string | null, b?: string | null): boolean {
 // choix (kiné et infirmier d'abord, ce sont les deux professions réellement ouvertes), pas une
 // propriété de l'enum.
 const GROUPES = [
-  { titre: "Rééducation et soins", valeurs: ["KINESITHERAPEUTE", "INFIRMIER", "ORTHOPHONISTE", "ORTHOPTISTE", "SAGE_FEMME"] },
+  { titre: "Rééducation et soins", valeurs: ["KINESITHERAPEUTE", "INFIRMIER", "AIDE_SOIGNANT", "ORTHOPHONISTE", "ORTHOPTISTE", "SAGE_FEMME"] },
   { titre: "Médecine de ville",    valeurs: MEDECINS },
   { titre: "Dentaire",             valeurs: ["DENTISTE"] },
 ] as const satisfies readonly { titre: string; valeurs: readonly Profession[] }[];

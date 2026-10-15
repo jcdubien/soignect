@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { fmtDateUTC } from "@/lib/contrats/date";
 import { libelleOrdre, articleNonInstallation } from "@/lib/professions";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import type { PeriodeContrat, SourcePeriode } from "@/lib/contrats/periode";
 
 export const dynamic = "force-dynamic";
@@ -577,12 +578,22 @@ export default function ContratPage() {
       <div className="max-w-lg mx-auto px-4 py-12 flex flex-col items-center gap-5 text-center">
         <span className="text-5xl">🏢</span>
         <h1 className="text-xl font-black text-gray-900">Poste salarié — contrat hors plateforme</h1>
+        {contratFourniParEmployeur(info.profession) ? (
+          // Section 304 : ce n'est pas un modèle manquant, c'est la règle de la profession.
+          <p className="text-gray-500 text-sm">
+            Le contrat de travail d&apos;un aide-soignant est{" "}
+            <strong>établi par l&apos;employeur</strong>, selon la convention collective qui
+            s&apos;applique chez lui (ou le statut de la fonction publique hospitalière).
+            Soignect ne le génère pas.
+          </p>
+        ) : (
         <p className="text-gray-500 text-sm">
           Cette mise en relation concerne un poste salarié, et{" "}
           <strong>aucun modèle de contrat de travail n&apos;est encore disponible</strong> pour
           cette profession et ce type de contrat. Le contrat est donc à établir par
           l&apos;établissement selon ses propres modalités.
         </p>
+        )}
         <p className="text-gray-400 text-xs">
           Poursuivez la discussion dans la messagerie pour convenir des modalités.
         </p>

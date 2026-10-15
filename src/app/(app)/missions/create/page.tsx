@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
-import { aDesGabaritsSalarie } from "@/lib/contrats/gabaritsSalarie";
+import { salariatPublicable } from "@/lib/contrats/gabaritsSalarie";
 import { exemplesPour } from "@/lib/exemplesPublication";
 import CreateMissionClient from "./CreateMissionClient";
 
@@ -38,7 +38,7 @@ export default async function CreateMissionPage() {
   return (
     <CreateMissionClient
       typesContractualisables={missionTypesPour(profil.profession)}
-      salariatContractualisable={aDesGabaritsSalarie(profil.profession)}
+      salariatContractualisable={salariatPublicable(profil.profession)}
       exemples={exemplesPour(profil.profession)}
       // La phrase de l'exercice coordonné en dépend (section 294) : « jusqu'à 8 séances » est
       // l'Avenant 7 des kinés, pas une règle commune.
