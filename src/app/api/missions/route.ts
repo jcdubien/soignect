@@ -214,9 +214,13 @@ export async function POST(req: NextRequest) {
   // sinon elle est créée en base mais n'apparaît sur AUCUN segment de la timeline (les briques
   // exigent startDate ET endDate). Les « dates bloquées » (INDISPONIBLE) en ont toujours ;
   // l'assistanat/collaboration se place via la durée, pas de dates exigées ici.
+  // Le CDD SANS terme précis est stocké en REMPLACEMENT mais n'a, par définition, pas de fin
+  // connue (jusqu'au retour de la personne remplacée) : l'exiger bloquait toute publication.
+  const cddSansTerme = salariat && natureSalariat === "CDD_SANS_TERME";
   if (
     effectiveBrique === BriqueStatus.RECHERCHE &&
     effectiveMissionType === MissionType.REMPLACEMENT &&
+    !cddSansTerme &&
     (!startDate || !endDate)
   ) {
     return NextResponse.json(
