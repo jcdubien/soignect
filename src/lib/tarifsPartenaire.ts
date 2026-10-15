@@ -28,21 +28,25 @@ export const TARIFS_PARTENAIRE: TarifPartenaire[] = [
     cle: "MSP", pour: "Maison de santé",
     contenu: "1 commune, toutes professions",
     prixAn: 590, lancementAn: 290, portes: ["maison-de-sante"],
+    lienPaiement: "https://buy.stripe.com/aFa5kE6uoghma6IdhleZ204",
   },
   {
     cle: "CPTS", pour: "CPTS, collectivité",
     contenu: "Tout votre territoire, module pour votre site, bilan trimestriel",
     prixAn: 1900, lancementAn: 950, portes: ["territoire"],
+    lienPaiement: "https://buy.stripe.com/9B6bJ22e83uAceQa59eZ205",
   },
   {
     cle: "ETABLISSEMENT", pour: "EHPAD, SSR, clinique",
     contenu: "1 établissement, 2 communes, forfait Structure inclus",
     prixAn: 1900, lancementAn: 950, portes: ["emploi"],
+    lienPaiement: "https://buy.stripe.com/fZu6oI9GA9SYdiUcdheZ203",
   },
   {
     cle: "HOPITAL", pour: "Hôpital",
     contenu: "Plusieurs sites et services, bilan trimestriel",
     prixAn: 4900, lancementAn: 2900, aPartirDe: true, portes: ["emploi"],
+    lienPaiement: "https://buy.stripe.com/aFa5kEdWQ4yEbaM0uzeZ202",
   },
 ];
 

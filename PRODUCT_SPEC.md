@@ -7364,7 +7364,8 @@ disparu. Le tarif de lancement se donne contre logo et retour d'expérience à s
 Nord Basse-Terre reste gratuite (conflit d'intérêts : JC en est secrétaire).
 
 **Paiement** : chaque ligne porte un `lienPaiement` (Payment Link Stripe, tarif de lancement,
-annuel) ; vide, la ligne n'a pas de bouton. Le webhook ignore ces paiements (aucun `profileId`) :
+annuel) ; vide, la ligne n'a pas de bouton. Les 4 liens sont créés et en ligne depuis le 14/10 (bouton « Souscrire
+en ligne »). Le webhook ignore ces paiements (aucun `profileId`) :
 l'administrateur saisit les communes à réception, et applique à la main le « forfait Structure
 inclus ». `TypeInstitution` gagne HOPITAL, EHPAD, SSR, CLINIQUE (14/10, ajout appliqué en production).
 
