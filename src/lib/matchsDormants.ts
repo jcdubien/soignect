@@ -18,7 +18,8 @@ import { sendPreavisExpirationEmail } from "@/lib/email";
 // `EN_ATTENTE` comme vivant, et `NO_ACTIVE_MATCH_FILTER` retire du fil de TOUS les autres
 // utilisateurs toute annonce engagée dans une telle relation. Une réciprocité obtenue puis
 // jamais suivie d'un mot **gelait donc les deux annonces indéfiniment** : le poste disparaissait
-// du marché sans que personne ne l'occupe.
+// du marché sans que personne ne l'occupe. (Depuis le 16/10, une relation non signée ne retire
+// plus l'annonce du marché ; l'expiration garde son sens pour les listes et les notifications.)
 //
 // ── LE PÉRIMÈTRE : LE SILENCE, PAS L'ABSENCE DE CONVERSATION (élargi le 06/10) ───────────────
 //

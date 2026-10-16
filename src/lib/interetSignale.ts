@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { createNotification } from "@/lib/notifications";
 import { sendInteretEmail } from "@/lib/email";
-import { offreOuverteLe, offreRecevableLe } from "@/lib/feedFilters";
+import { offreOuverteLe } from "@/lib/feedFilters";
 import { estEtablissement, estCandidatSalarie } from "@/lib/libellesPoste";
 
 // Signal « quelqu'un s'intéresse à votre annonce » (sections 223-224, différé le 15/09).
@@ -163,7 +163,7 @@ export async function signalerInteret(opts: {
     // portait sur l'annonce elle-même : 3 emails « quelqu'un s'intéresse à votre annonce » sont
     // partis pour des périodes terminées (mesuré le 13/10). Rien n'est envoyé, rien n'est tracé.
     const recevable = await prisma.mission.findFirst({
-      where: { id: mission.id, ...offreRecevableLe(new Date()) },
+      where: { id: mission.id, ...offreOuverteLe(new Date()) },
       select: { id: true },
     });
     if (!recevable) return "annonce_close";

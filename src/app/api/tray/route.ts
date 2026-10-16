@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { swipeExploitable } from "@/lib/camp";
 import { memeMarche } from "@/lib/professions";
-import { offreRecevableLe } from "@/lib/feedFilters";
+import { offreOuverteLe } from "@/lib/feedFilters";
 import { etatNouveauSignal } from "@/lib/interetSignale";
 import { contratConfirme } from "@/lib/matchEtat";
 
@@ -94,7 +94,7 @@ export async function GET(req: Request) {
     // Même garde que la route d'intérêt (section 298) : une annonce échue ne recrute plus, le
     // bouton « signaler à nouveau » doit le dire plutôt que d'échouer au clic.
     prisma.mission.findMany({
-      where: { id: { in: swipes.map((s) => s.swipedMissionId) }, ...offreRecevableLe(new Date()) },
+      where: { id: { in: swipes.map((s) => s.swipedMissionId) }, ...offreOuverteLe(new Date()) },
       select: { id: true },
     }),
   ]);

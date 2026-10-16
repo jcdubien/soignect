@@ -32,25 +32,15 @@ export const EST_UNE_OFFRE = {
   isSelfPresence: false,
 } as const;
 
-// Section 184 : une mission engagée dans une mise en relation ACTIVE (match réciproque, quel que
-// soit l'avancement du contrat) doit sortir du feed de TOUS les autres utilisateurs — sinon des
-// tiers swipent un poste déjà pourvu. Un match REFUSÉ/EXPIRÉ ne masque pas (poste redevenu
-// disponible ; un match annulé supprime carrément la ligne → réapparaît aussi).
-// Filtre via les relations Mission.matchesA / matchesB.
-// Exportée (section 276) : « cette mission est-elle engagée ? » se pose aussi hors du fil —
-// la route de mission s'en sert pour refuser les gestes qui appartiennent à la mise en relation.
-// Une seconde liste écrite à la main aurait fini par diverger de celle-ci.
+// Les statuts d'une mise en relation EN COURS — ni refusée, ni expirée. Ils servent à compter les
+// relations et à refuser les gestes qui appartiennent à la relation (section 276) ; ils ne
+// retirent PLUS l'annonce du marché (16/10, voir `offreOuverteLe`).
 export const ACTIVE_MATCH_STATUSES = [MatchStatus.EN_ATTENTE, MatchStatus.DISCUSSION, MatchStatus.CONFIRME];
-
-export const NO_ACTIVE_MATCH_FILTER = {
-  matchesA: { none: { status: { in: ACTIVE_MATCH_STATUSES } } },
-  matchesB: { none: { status: { in: ACTIVE_MATCH_STATUSES } } },
-} as const;
 
 // ── UNE OFFRE SUR LAQUELLE ON PEUT ENCORE AGIR AUJOURD'HUI (section 289) ─────────────────────
 //
 // Trois conditions vivaient côte à côte sans jamais être nommées ensemble : être une offre
-// (`EST_UNE_OFFRE`), ne pas être déjà engagée (`NO_ACTIVE_MATCH_FILTER`), et ne pas avoir une
+// (`EST_UNE_OFFRE`), ne pas être déjà engagée (alors une relation en cours), et ne pas avoir une
 // période écoulée. Chaque surface les recomposait à la main — et le rattrapage des intérêts
 // différés, lui, n'en appliquait AUCUNE hormis `isActive`.
 //
@@ -83,24 +73,28 @@ export const NO_ACTIVE_MATCH_FILTER = {
 // annonce qui se terminait le jour même sortait du fil. Voir `lib/jourLocal` : l'annonce reste
 // ouverte toute sa dernière journée, jusqu'à minuit en Guadeloupe.
 
+// ── UNE ANNONCE RESTE LIBRE JUSQU'À LA SIGNATURE (16/10, décision de Jean-Charles) ──────────
+//
+// Depuis la section 184, toute relation en cours — même `EN_ATTENTE`, où personne n'a encore
+// répondu — retirait l'annonce du fil de tous les autres, et depuis la 298 fermait sa page
+// publique (404). Constaté le 16/10 : le Planning proposait de partager « Assistant 4 », et le
+// lien menait à « page introuvable » — une relation en attente depuis huit jours suffisait. Les
+// liens déjà partagés sur Facebook ou WhatsApp mouraient de la même façon, sans que rien ne soit
+// conclu.
+//
+// Une relation n'engage rien tant que le contrat n'est pas signé. La signature pose `CONFIRME`
+// sur les missions du match (route de signature) : `EST_UNE_OFFRE` (`RECHERCHE`) les écarte
+// alors d'elle-même. Le filtre sur les relations en cours est donc retiré, pas remplacé.
+
 /**
- * Une offre sur laquelle un tiers peut encore agir à l'instant `instant`.
+ * Une offre sur laquelle un tiers peut encore agir à l'instant `instant` : publiée, en recherche
+ * (donc non signée), période non échue. Fil, page publique, partage, swipe, signal d'intérêt,
+ * rattrapages : toutes les surfaces lisent cette fonction.
  *
  * Contient un `OR` de premier niveau : à composer par `AND: [offreOuverteLe(now), { … }]` dès
  * que la requête porte son propre `OR`, sinon l'un écraserait l'autre en silence.
  */
 export function offreOuverteLe(instant: Date): Prisma.MissionWhereInput {
-  return { ...offreRecevableLe(instant), ...NO_ACTIVE_MATCH_FILTER };
-}
-
-/**
- * Une offre qui peut encore RECEVOIR un geste d'intérêt : publiée, en recherche, période non
- * échue — sans le filtre des relations en cours. C'est la garde du swipe, du signal d'intérêt et
- * de son bouton « signaler à nouveau » : la mise en relation depuis le tiroir des intérêts reçus
- * doit rester possible sur une annonce déjà engagée ailleurs, comme avant la section 298.
- * `offreOuverteLe` en dérive : la borne de date n'est écrite qu'une fois.
- */
-export function offreRecevableLe(instant: Date): Prisma.MissionWhereInput {
   return { ...EST_UNE_OFFRE, ...periodeNonEchueLe(instant) };
 }
 

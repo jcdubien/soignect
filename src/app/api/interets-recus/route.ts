@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileType, SwipeDirection } from "@prisma/client";
-import { offreRecevableLe } from "@/lib/feedFilters";
+import { offreOuverteLe } from "@/lib/feedFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +66,7 @@ export async function GET() {
     // Prédicat partagé (section 298) : la borne de date était recopiée ici, avec `setHours(0)`
     // — minuit UTC sur le serveur, donc une annonce sortait de cette liste dès 20 h locales le
     // jour même de sa fin.
-    where: { profileId, ...offreRecevableLe(maintenant) },
+    where: { profileId, ...offreOuverteLe(maintenant) },
     select: { id: true, title: true },
   });
   if (mesAnnonces.length === 0) return NextResponse.json({ items: [], sansPublication: 0 });
@@ -111,7 +111,7 @@ export async function GET() {
   // boucle, et c'est elle qui porte les dates et l'accroche à lire.
   const dispos = await prisma.mission.findMany({
     // Recevable, pas seulement offre : swiper une disponibilité échue serait refusé (section 298).
-    where: { profileId: { in: enAttente.map((s) => s.swiperId) }, ...offreRecevableLe(maintenant) },
+    where: { profileId: { in: enAttente.map((s) => s.swiperId) }, ...offreOuverteLe(maintenant) },
     include: { profile: true },
     orderBy: { updatedAt: "desc" },
   });

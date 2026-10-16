@@ -7408,6 +7408,35 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 307 — UNE ANNONCE RESTE LIBRE JUSQU'À LA SIGNATURE (16/10)
+
+**Signalé par Jean-Charles :** le Planning proposait de partager « Assistant 4 » (« Kiné assistant
+Pointe-Noire Guadeloupe 1600€/mois en MSP »), et le lien menait à « page introuvable ».
+
+**Cause :** une mise en relation `EN_ATTENTE` depuis le 08/10. Depuis la section 184, toute
+relation en cours (`EN_ATTENTE`, `DISCUSSION`, `CONFIRME`) retirait l'annonce du fil de tous les
+autres, et depuis la section 298 fermait sa page publique et son image de partage (404). Une
+relation sans réponse suffisait à tuer un lien partagé sur Facebook ou WhatsApp.
+
+**Décision de Jean-Charles :** « une annonce devrait être libre jusqu'à signature ».
+
+**Ce qui change :** `offreOuverteLe` (lib/feedFilters) ne filtre plus les relations en cours.
+`NO_ACTIVE_MATCH_FILTER` est supprimé, et `offreRecevableLe`, devenu identique, est fondu dans
+`offreOuverteLe`. La signature des deux côtés pose `briqueStatus = CONFIRME` sur les missions du
+match : `EST_UNE_OFFRE` (`RECHERCHE`) les écarte d'elle-même. Rien d'autre n'est nécessaire.
+
+`ACTIVE_MATCH_STATUSES` reste pour compter les relations et refuser les gestes qui appartiennent à
+la relation (section 276).
+
+**Mesuré au 16/10 :** 51 annonces ouvertes avant, 69 après. Les 18 rouvertes portent des relations
+`EN_ATTENTE` (5) ou `CONFIRME` (13). Une relation `CONFIRME` est un accord posé par le bouton
+« Confirmer » : aucune n'a de contrat signé des deux côtés (une seule signature titulaire, sur une
+relation en attente). Si l'une correspond à un poste pourvu hors plateforme, son annonce
+réapparaît : le titulaire la retire ou la passe en occupé depuis le Planning.
+
+**Vérifié :** build OK ; `/annonce/cmv6qf0o20009txlblmfwtvej` répond 200 (trace de ma visite
+supprimée).
+
 ### SECTION 306 — UN INTÉRÊT SE VÉRIFIE SUR LE PLANNING DU CANDIDAT (15/10)
 
 Demande de Jean-Charles : un chercheur de poste trouve un poste qui lui plaît, l'application
@@ -7719,6 +7748,7 @@ stockées restent à leur URL de stockage ; la page et la route d'image, elles, 
 
 **Changement de comportement à connaître** : la page publique et l'image de partage d'une annonce
 engagée dans une relation en cours répondent désormais 404, comme une annonce dépubliée.
+**Annulé le 16/10 (section 307)** : seule la signature ferme une annonce.
 
 ### SECTION 297 — LE REMPLAÇANT EN PLACE A SA PROPRE NUANCE (13/10)
 

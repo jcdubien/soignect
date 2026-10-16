@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SwipeDirection } from "@prisma/client";
 import { signalerInteret, etatNouveauSignal } from "@/lib/interetSignale";
-import { offreRecevableLe } from "@/lib/feedFilters";
+import { offreOuverteLe } from "@/lib/feedFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +58,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       orderBy: { occurredAt: "desc" },
       select: { occurredAt: true },
     }),
-    prisma.mission.findFirst({ where: { id: missionId, ...offreRecevableLe(new Date()) }, select: { id: true } }),
+    prisma.mission.findFirst({ where: { id: missionId, ...offreOuverteLe(new Date()) }, select: { id: true } }),
   ]);
 
   const etat = etatNouveauSignal({

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { offreRecevableLe } from "@/lib/feedFilters";
+import { offreOuverteLe } from "@/lib/feedFilters";
 import { z } from "zod";
 import { Prisma, ProfileType, SwipeDirection } from "@prisma/client";
 import { disponibiliteSurPeriode, finDePhrase, phraseConflit, type Disponibilite } from "@/lib/disponibiliteSurPeriode";
@@ -75,9 +75,9 @@ export async function POST(req: NextRequest) {
   // Un « pas intéressé » reste accepté — il ne fait qu'écarter la carte, sans effet pour l'autre.
   const maintenant = new Date();
   if (direction === SwipeDirection.RIGHT) {
-    // `offreRecevableLe` et non `offreOuverteLe` : voir feedFilters.
+    // Une relation en cours ne ferme pas l'annonce : seule la signature le fait (feedFilters).
     const ouverte = await prisma.mission.findFirst({
-      where: { id: swipedMissionId, ...offreRecevableLe(maintenant) },
+      where: { id: swipedMissionId, ...offreOuverteLe(maintenant) },
       select: { id: true },
     });
     if (!ouverte) {
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
     // swipeur, on écarte aussi ses annonces ÉCHUES : sans quoi la relation pouvait s'attacher
     // à un poste terminé.
     const mesOffres = await prisma.mission.findMany({
-      where: { profileId: swiperId, ...offreRecevableLe(maintenant) },
+      where: { profileId: swiperId, ...offreOuverteLe(maintenant) },
       select: { id: true },
     });
     const reciprocalMissionFilter = { swipedMissionId: { in: mesOffres.map((m) => m.id) } };
