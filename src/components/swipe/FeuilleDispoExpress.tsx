@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ZONE_ORDER, ZONE_LABELS, zoneOfCommune, type ZoneGeo } from "@/lib/communes";
+import { finDePhrase, intervalleCourt, nbJours, phraseConflit, type Disponibilite, type Intervalle } from "@/lib/disponibilitePure";
 
 // ── PUBLIER SA DISPONIBILITÉ SANS QUITTER LE FIL (section 288) ───────────────────────────────
 //
@@ -60,6 +61,13 @@ interface Props {
   /** Profession salariée seulement (aide-soignant, section 304) : ceux qui attendent sont des
    *  établissements, la recherche datée vise des CDD et vacations, la longue un poste durable. */
   salarieSeul?: boolean;
+  /** État du planning du candidat sur les dates de l'annonce retenue (15/10), tel que la route
+   *  de swipe l'a calculé. Présent : la feuille s'ouvre aussi pour qui a DÉJÀ publié, parce que
+   *  ses disponibilités ne couvrent pas ces dates, ou parce qu'il n'est libre qu'en partie. */
+  disponibilite?: Disponibilite | null;
+  /** Le lecteur a déjà au moins une annonce publiée : le texte « vous n'apparaissez dans aucun
+   *  fil » serait faux pour lui. */
+  dejaPublie?: boolean;
   onPublie: () => void;
   onReporte: () => void;
 }
@@ -98,6 +106,8 @@ export default function FeuilleDispoExpress({
   annonce,
   profileType,
   salarieSeul = false,
+  disponibilite = null,
+  dejaPublie = false,
   onPublie,
   onReporte,
 }: Props) {
@@ -114,9 +124,16 @@ export default function FeuilleDispoExpress({
       ? "POSTE"
       : "REMPLACEMENT";
 
-  const [forme, setForme] = useState<FormeRecherche>(formeInitiale);
-  const [debut, setDebut] = useState(pourChampDate(annonce?.startDate));
-  const [fin, setFin] = useState(pourChampDate(annonce?.endDate));
+  // Dates proposées : les jours libres ENCORE NON PUBLIÉS quand le planning est connu — le plus
+  // long d'abord. Proposer toute la période à quelqu'un déjà pris au milieu publierait une
+  // disponibilité fausse.
+  const plagesProposees: Intervalle[] = disponibilite
+    ? [...disponibilite.aPublier].sort((x, y) => nbJours([y]) - nbJours([x]))
+    : [];
+  const plageInitiale = plagesProposees[0] ?? null;
+  const [forme, setForme] = useState<FormeRecherche>(plageInitiale ? "REMPLACEMENT" : formeInitiale);
+  const [debut, setDebut] = useState(plageInitiale?.debut ?? pourChampDate(annonce?.startDate));
+  const [fin, setFin] = useState(plageInitiale?.fin ?? pourChampDate(annonce?.endDate));
   const [minMonths, setMinMonths] = useState("6");
   // Pré-sélection depuis la commune de l'annonce retenue, et d'elle seule. Cocher « toute la
   // Guadeloupe » par défaut serait plus rapide mais ferait promettre une mobilité que personne
@@ -194,8 +211,12 @@ export default function FeuilleDispoExpress({
 
   // Le titre dit ce qui est EN JEU, avec le nombre réel. « 7 cabinets attendent vos dates » est
   // un fait vérifiable ; « complétez votre profil » n'en est pas un.
+  const partiel = disponibilite?.etat === "PARTIEL";
   const titre =
-    cabinetsEnAttente > 1
+    partiel ? "Vous n'êtes libre qu'en partie sur ces dates"
+    : disponibilite?.etat === "LIBRE" && plageInitiale && cabinetsEnAttente <= 1 && dejaPublie
+      ? "Ouvrez ces dates pour ce poste"
+    : cabinetsEnAttente > 1
       ? `${cabinetsEnAttente} ${salarieSeul ? "établissements" : "cabinets"} attendent vos dates`
       : annonce
         ? salarieSeul ? "Cet établissement ne peut pas encore vous répondre" : "Ce cabinet ne peut pas encore vous répondre"
@@ -205,14 +226,51 @@ export default function FeuilleDispoExpress({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-3 pb-3 sm:pb-0">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100 p-5 max-h-[90vh] overflow-y-auto">
         <h2 className="text-base font-bold text-gray-800">{titre}</h2>
-        <p className="mt-1 text-[12px] leading-snug text-gray-500">
-          Votre intérêt est bien enregistré, mais vous n&apos;apparaissez dans aucun fil : sans
-          disponibilité publiée, personne n&apos;a de fiche à ouvrir pour vous répondre. Deux
-          champs suffisent.
-        </p>
+        {partiel ? (
+          <p className="mt-1 text-[12px] leading-snug text-gray-500">
+            Votre intérêt est enregistré. Vous êtes déjà pris :{" "}
+            {finDePhrase(disponibilite!.conflits.map(phraseConflit).join(", "))} Proposez-vous
+            sur vos jours libres ({disponibilite!.libres.map(intervalleCourt).join(", ")}) : le
+            recruteur jugera si une partie de la période lui convient.
+          </p>
+        ) : dejaPublie && plageInitiale ? (
+          <p className="mt-1 text-[12px] leading-snug text-gray-500">
+            Votre intérêt est enregistré, et vous êtes libre sur ces dates. Mais aucune de vos
+            disponibilités publiées ne les couvre : le recruteur ne vous retrouve pas dans son fil
+            pour cette période. Publiez-la pour qu&apos;il puisse vous répondre.
+          </p>
+        ) : (
+          <p className="mt-1 text-[12px] leading-snug text-gray-500">
+            Votre intérêt est bien enregistré, mais vous n&apos;apparaissez dans aucun fil : sans
+            disponibilité publiée, personne n&apos;a de fiche à ouvrir pour vous répondre. Deux
+            champs suffisent.
+          </p>
+        )}
 
-        {/* Forme de recherche — déduite, jamais imposée. */}
-        <div className="mt-4 flex gap-2">
+        {/* Plusieurs plages libres : on choisit laquelle publier (une disponibilité = une plage). */}
+        {plagesProposees.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {plagesProposees.map((p) => (
+              <button
+                key={p.debut}
+                type="button"
+                onClick={() => { setForme("REMPLACEMENT"); setDebut(p.debut); setFin(p.fin); }}
+                className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                  debut === p.debut && fin === p.fin
+                    ? "border-[#0B3D5C] bg-[#0B3D5C] text-white"
+                    : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                {intervalleCourt(p)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Forme de recherche — déduite, jamais imposée. Sauf quand la feuille s'ouvre sur les
+            jours libres d'une offre datée : il s'agit alors de publier CES dates, et proposer
+            « un poste long terme » n'aurait aucun rapport avec le geste. */}
+        <div className={`mt-4 flex gap-2 ${plageInitiale ? "hidden" : ""}`}>
           {(["REMPLACEMENT", "POSTE"] as FormeRecherche[]).map((f) => (
             <button
               key={f}

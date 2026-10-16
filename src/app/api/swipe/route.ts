@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { offreRecevableLe } from "@/lib/feedFilters";
 import { z } from "zod";
-import { Prisma, SwipeDirection } from "@prisma/client";
+import { Prisma, ProfileType, SwipeDirection } from "@prisma/client";
+import { disponibiliteSurPeriode, finDePhrase, phraseConflit, type Disponibilite } from "@/lib/disponibiliteSurPeriode";
 import { computeAffinityScore } from "@/lib/deepseek";
 import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { sendNewRelationEmail } from "@/lib/email";
@@ -82,6 +83,27 @@ export async function POST(req: NextRequest) {
     if (!ouverte) {
       return NextResponse.json(
         { error: "Cette annonce n'est plus proposée : sa période est terminée, ou elle a été retirée entre-temps.", plusProposee: true },
+        { status: 409 },
+      );
+    }
+  }
+
+  // ── LE CANDIDAT EST-IL LIBRE SUR CES DATES ? (15/10) ────────────────────────────────────
+  //
+  // Un candidat qui retient une offre datée la retient pour ses jours à lui. Déjà pris sur TOUTE
+  // la période (remplacement signé, dates bloquées), son intérêt est refusé AVANT toute
+  // écriture, en disant pourquoi : le cabinet ne doit pas recevoir un intérêt qui ne peut pas
+  // aboutir. Libre en partie ou sans disponibilité publiée sur ces dates, le geste passe, et
+  // l'état revient au client, qui propose de publier les jours libres (lib/disponibiliteSurPeriode).
+  let disponibilite: Disponibilite | null = null;
+  if (direction === SwipeDirection.RIGHT && swipedMission.profile.type === ProfileType.TITULAIRE) {
+    disponibilite = await disponibiliteSurPeriode(swiperId, swipedMission, maintenant);
+    if (disponibilite?.etat === "PRIS") {
+      return NextResponse.json(
+        {
+          error: finDePhrase(`Vous n'êtes pas libre sur ces dates : ${disponibilite.conflits.map(phraseConflit).join(", ")}`),
+          pasLibre: true,
+        },
         { status: 409 },
       );
     }
@@ -403,5 +425,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ swipe, match, affinityScore: affinityScore ?? null });
+  return NextResponse.json({ swipe, match, affinityScore: affinityScore ?? null, disponibilite });
 }

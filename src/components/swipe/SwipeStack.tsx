@@ -19,6 +19,7 @@ import { libelleAuteur } from "@/lib/libellesPoste";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import MissionDetailSheet from "./MissionDetailSheet";
 import FeuilleDispoExpress from "@/components/swipe/FeuilleDispoExpress";
+import type { Disponibilite } from "@/lib/disponibilitePure";
 
 // `convergenceJours` est posé par /api/feed (section 282) UNIQUEMENT devant un remplaçant dont
 // une disponibilité dépasse 30 jours, et seulement sur les postes longue durée dont le début
@@ -578,6 +579,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // Le lecteur a-t-il une publication active (section 227) ? `null` tant que le feed n'a pas
   // répondu : on n'affiche RIEN dans le doute, plutôt qu'un avertissement qui pourrait être faux.
   const [aPublie, setAPublie] = useState<boolean | null>(null);
+  // État du planning sur l'offre qui a ouvert la feuille (15/10) — voir enregistrerChoix.
+  const [dispoFeuille, setDispoFeuille] = useState<Disponibilite | null>(null);
 
   // ── SAISIE DE LA DISPONIBILITÉ SUR PLACE (section 288) ────────────────────────────────────
   //
@@ -931,7 +934,15 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           // enregistré : ouvrir un formulaire sur un swipe en échec demanderait de publier pour
           // un intérêt qui n'existe pas. Jamais par-dessus une mise en relation — et le cas ne
           // peut d'ailleurs pas se produire, une réciprocité exigeant une dispo publiée.
-          if (!data.match && aPublie === false && !sessionStorage.getItem(CLE_REPORT)) {
+          //
+          // Planning du candidat (15/10) : la route dit s'il est libre sur les dates de l'offre.
+          // Libre sans disponibilité qui les couvre, ou libre en partie, la feuille s'ouvre
+          // AUSSI pour qui a déjà publié — avec les jours libres pré-remplis. Une offre sans
+          // période fermée (`disponibilite` nul) garde la règle d'avant.
+          const dispo = (data.disponibilite ?? null) as Disponibilite | null;
+          const datesAOuvrir = dispo?.etat === "LIBRE" || dispo?.etat === "PARTIEL";
+          if (!data.match && (datesAOuvrir || (!dispo && aPublie === false)) && !sessionStorage.getItem(CLE_REPORT)) {
+            setDispoFeuille(dispo);
             setFeuilleDispo(mission);
           }
           if (data.match) {
@@ -1497,6 +1508,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
               : null
           }
           profileType={profileType}
+          disponibilite={feuilleDispo ? dispoFeuille : null}
+          dejaPublie={aPublie === true}
           onPublie={() => {
             setFeuilleDispo(false);
             // Le feed est la SEULE autorité sur ce qui a changé : `aPublie` passe à vrai, le

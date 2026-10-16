@@ -7408,6 +7408,41 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 306 — UN INTÉRÊT SE VÉRIFIE SUR LE PLANNING DU CANDIDAT (15/10)
+
+Demande de Jean-Charles : un chercheur de poste trouve un poste qui lui plaît, l'application
+vérifie sur son planning qu'il est libre, et lui propose de publier ses dates. S'il n'est libre
+qu'en partie, il se propose sur les jours libres. S'il n'est pas libre, son intérêt est refusé.
+
+**Planning lu** (`lib/disponibiliteSurPeriode`, calculs purs dans `lib/disponibilitePure`) : les
+briques actives du candidat. Sont **occupés** les jours d'un remplacement signé (`CONFIRME`) et
+les dates bloquées (`INDISPONIBLE`) ; une relation en attente n'occupe rien. Sont **couverts**
+les jours d'une disponibilité publiée (`RECHERCHE` datée). Jours civils inclusifs, lus en UTC.
+Une période déjà commencée n'est examinée qu'à partir d'aujourd'hui.
+
+**Quatre états**, calculés par `POST /api/swipe` sur tout « Intéressé » d'un candidat sur une
+offre à période fermée :
+
+| État | Condition | Effet |
+|---|---|---|
+| `PRIS` | aucun jour libre | **refus 409 avant toute écriture**, le message nomme le conflit (« dates bloquées du 25 janv. au 15 févr. ») ; rien n'est signalé au cabinet |
+| `PARTIEL` | des jours occupés, d'autres libres | intérêt enregistré ; feuille « Vous n'êtes libre qu'en partie » qui nomme le conflit, liste les jours libres et pré-remplit la plus longue plage non publiée (pastilles s'il y en a plusieurs) |
+| `LIBRE` | tout libre, une partie non publiée | intérêt enregistré ; feuille « Ouvrez ces dates pour ce poste », dates pré-remplies |
+| `COUVERT` | tout libre et déjà publié | rien de plus qu'avant |
+
+La feuille est `FeuilleDispoExpress` (section 288). Elle s'ouvrait seulement pour qui n'avait
+rien publié ; elle s'ouvre désormais aussi pour qui a publié, quand ses disponibilités ne
+couvrent pas les dates du poste. Sur une plage tirée du planning, le choix « poste long terme »
+est masqué. Une offre sans période fermée (poste durable) garde la règle d'avant.
+
+Vérifié à l'écran le 15/10 avec des comptes de test isolés (profession orthophoniste, absente de
+la base), supprimés ensuite : refus sur B, feuille partielle sur A avec publication du 6 au 8
+janvier, feuille « Ouvrez ces dates » sur C.
+
+**Pas encore couvert** : la fiche du module CPTS (« Je suis disponible sur ces dates ») ouvre le
+formulaire complet, qui ne vérifie pas le planning et ne pose pas d'intérêt sur le poste. Une
+offre refusée reste dans le fil du candidat.
+
 ### SECTION 305 — LES DEUX PAGES DES AIDES-SOIGNANTS (14/10)
 
 Demande de Jean-Charles : une page pour l'aide-soignant qui cherche un poste, une pour qui recrute.
