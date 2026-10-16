@@ -355,6 +355,16 @@ session.
 
 ---
 
+#### SUGGESTION ASSISTANAT — le bandeau nomme aussi le salariat (15/10)
+
+Le bandeau (désormais dans le fil, section 272) disait « postes d'assistanat ou de
+collaboration » à un kiné qui avait retenu des CDI d'établissement. `lib/suggestionAssistanat`
+distingue maintenant trois genres : assistanat et collaboration **libéraux**, et poste
+**salarié** (`estSalariat`, ou publié par un établissement — `titulaireKind STRUCTURE`).
+Le texte ne nomme que les genres retenus : « postes d'assistanat ou salariés », ou
+« postes durables » si tous sont salariés. Le seuil (≥ 2 intérêts) ne change pas.
+Mesuré en base le 15/10 : 9 kinés franchissent le seuil, dont 3 avec au moins un poste salarié.
+
 #### SUGGESTION ASSISTANAT — Livrée, vérification visuelle en attente (03/08, commit a70e454)
 
 ##### Ce qui est livré

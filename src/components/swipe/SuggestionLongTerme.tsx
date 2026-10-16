@@ -17,9 +17,20 @@ import Link from "next/link";
 // Conservé de la version d'origine : « Vous cherchez peut-être à vous poser ? » présuppose une
 // intention et sonne condescendant pour quelqu'un qui vient justement de l'exprimer trois fois.
 // On lui rappelle ce qu'il a fait, il en tire la conclusion.
+// « d'assistanat, de collaboration ou salariés » — seuls les genres réellement retenus.
+function genresRetenus(assistanat: boolean, collaboration: boolean, salariat: boolean): string {
+  const parts = [
+    assistanat && "d\u2019assistanat",
+    collaboration && "de collaboration",
+    salariat && "salariés",
+  ].filter(Boolean) as string[];
+  if (parts.length <= 1) return parts[0] ?? "d\u2019assistanat";
+  return `${parts.slice(0, -1).join(", ")} ou ${parts[parts.length - 1]}`;
+}
+
 export default function SuggestionLongTerme({
-  interets, avecCollaboration, salarie = false,
-}: { interets: number; avecCollaboration: boolean; salarie?: boolean }) {
+  interets, avecAssistanat, avecCollaboration, avecSalariat, salarie = false,
+}: { interets: number; avecAssistanat: boolean; avecCollaboration: boolean; avecSalariat: boolean; salarie?: boolean }) {
   const [ferme, setFerme] = useState(false);
   // L'affichage ne se compte qu'une fois par montage : React monte deux fois en développement
   // (StrictMode), et sans ce garde la mesure d'exposition serait doublée dès le premier jour.
@@ -44,16 +55,16 @@ export default function SuggestionLongTerme({
       <span className="text-lg leading-none mt-0.5">👩‍⚕️</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-700">
-          {salarie ? (
+          {salarie || (avecSalariat && !avecAssistanat && !avecCollaboration) ? (
             <>
               Vous avez marqué de l&apos;intérêt pour {interets} postes durables. Ces postes se
-              cherchent différemment d&apos;un CDD ou d&apos;une vacation — sur la durée, pas sur
-              des dates.
+              cherchent différemment {salarie ? <>d&apos;un CDD ou d&apos;une vacation</> : <>d&apos;un remplacement</>}
+              {" "}— sur la durée, pas sur des dates.
             </>
           ) : (
             <>
-              Vous avez marqué de l&apos;intérêt pour {interets} postes d&apos;assistanat
-              {avecCollaboration ? " ou de collaboration" : ""}. Ces postes se cherchent différemment
+              Vous avez marqué de l&apos;intérêt pour {interets} postes{" "}
+              {genresRetenus(avecAssistanat, avecCollaboration, avecSalariat)}. Ces postes se cherchent différemment
               d&apos;un remplacement — sur la durée, pas sur des dates.
             </>
           )}

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { MissionType, ProfileType, SwipeDirection } from "@prisma/client";
+import { MissionType, ProfileType, SwipeDirection, TitulaireKind } from "@prisma/client";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 // Section 191 — Repérer les remplaçants qui manifestent déjà un intérêt pour le long terme.
@@ -20,7 +20,13 @@ export interface SignalAssistanat {
   // Le seuil compte l'assistanat ET la collaboration, mais le bandeau ne doit nommer que ce qui
   // s'est réellement produit : dire « ou de collaboration » à quelqu'un qui n'a swipé que des
   // assistanats lui décrit une action qu'il n'a pas faite.
+  //
+  // Même règle pour le salariat : un kiné qui n'a retenu que des CDI d'établissement se voyait
+  // parler d'« assistanat ou collaboration ». Un poste est dit salarié s'il est publié comme tel
+  // (`estSalariat`) ou par un établissement — ce dernier ne propose jamais de poste libéral.
+  avecAssistanat: boolean;
   avecCollaboration: boolean;
+  avecSalariat: boolean;
   // Profession salariée seulement (section 304) : les postes retenus sont des CDI, et le bandeau
   // parle de « postes durables », pas d'assistanat.
   salarie: boolean;
@@ -49,12 +55,21 @@ export async function suggestionAssistanat(profileId: string): Promise<SignalAss
         },
       },
     },
-    select: { swipedMission: { select: { missionType: true } } },
+    select: {
+      swipedMission: {
+        select: { missionType: true, estSalariat: true, profile: { select: { titulaireKind: true } } },
+      },
+    },
   });
   if (swipes.length < SEUIL_INTERETS) return null;
+  const estSalarie = (m: (typeof swipes)[number]["swipedMission"]) =>
+    m.estSalariat || m.profile.titulaireKind === TitulaireKind.STRUCTURE;
+  const liberaux = swipes.map((s) => s.swipedMission).filter((m) => !estSalarie(m));
   return {
     interets: swipes.length,
-    avecCollaboration: swipes.some((s) => s.swipedMission.missionType === MissionType.COLLABORATION),
+    avecAssistanat: liberaux.some((m) => m.missionType === MissionType.ASSISTANAT),
+    avecCollaboration: liberaux.some((m) => m.missionType === MissionType.COLLABORATION),
+    avecSalariat: liberaux.length < swipes.length,
     salarie,
   };
 }

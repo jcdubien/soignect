@@ -18,7 +18,7 @@ interface Props {
   profileId: string;
   isPremium?: boolean;
   /** Suggestion « poste long terme » (section 272), null si non concerné. */
-  signalLongTerme?: { interets: number; avecCollaboration: boolean; salarie: boolean } | null;
+  signalLongTerme?: { interets: number; avecAssistanat: boolean; avecCollaboration: boolean; avecSalariat: boolean; salarie: boolean } | null;
   freeAccessMode?: boolean;
   titulaireMissions: TitulaireMission[];
   profession?: string | null;
@@ -186,7 +186,9 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
           {signalLongTerme && (
             <SuggestionLongTerme
               interets={signalLongTerme.interets}
+              avecAssistanat={signalLongTerme.avecAssistanat}
               avecCollaboration={signalLongTerme.avecCollaboration}
+              avecSalariat={signalLongTerme.avecSalariat}
               salarie={signalLongTerme.salarie}
             />
           )}
