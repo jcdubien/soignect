@@ -364,6 +364,9 @@ distingue maintenant trois genres : assistanat et collaboration **libéraux**, e
 Le texte ne nomme que les genres retenus : « postes d'assistanat ou salariés », ou
 « postes durables » si tous sont salariés. Le seuil (≥ 2 intérêts) ne change pas.
 Mesuré en base le 15/10 : 9 kinés franchissent le seuil, dont 3 avec au moins un poste salarié.
+Quand **tous** les postes retenus par un kiné sont salariés, le lien ajoute `&salariat=1` :
+le formulaire de recherche s'ouvre avec « ouvert au salariat » coché d'office. Ce paramètre
+l'emporte sur la préférence du profil et sur un brouillon repris, comme les dates passées en URL.
 
 #### SUGGESTION ASSISTANAT — Livrée, vérification visuelle en attente (03/08, commit a70e454)
 

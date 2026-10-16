@@ -48,6 +48,10 @@ export default function SuggestionLongTerme({
     void tracer("vue");
   }, []);
 
+  // Kiné qui n'a retenu que des postes salariés : même texte « postes durables », et le lien
+  // coche d'office « ouvert au salariat » dans le formulaire.
+  const toutSalarie = !salarie && avecSalariat && !avecAssistanat && !avecCollaboration;
+
   if (ferme) return null;
 
   return (
@@ -55,7 +59,7 @@ export default function SuggestionLongTerme({
       <span className="text-lg leading-none mt-0.5">👩‍⚕️</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-gray-700">
-          {salarie || (avecSalariat && !avecAssistanat && !avecCollaboration) ? (
+          {salarie || toutSalarie ? (
             <>
               Vous avez marqué de l&apos;intérêt pour {interets} postes durables. Ces postes se
               cherchent différemment {salarie ? <>d&apos;un CDD ou d&apos;une vacation</> : <>d&apos;un remplacement</>}
@@ -70,7 +74,7 @@ export default function SuggestionLongTerme({
           )}
         </p>
         <Link
-          href={`/disponibilites/create?type=${salarie ? "COLLABORATION" : "ASSISTANAT"}`}
+          href={`/disponibilites/create?type=${salarie ? "COLLABORATION" : "ASSISTANAT"}${toutSalarie ? "&salariat=1" : ""}`}
           onClick={() => void tracer("clic")}
           className="inline-block mt-1.5 text-sm font-semibold text-violet-700 hover:underline"
         >

@@ -26,6 +26,9 @@ export default function CreateDisponibiliteClient({
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Arrivée depuis le bandeau « postes durables » d'un kiné qui n'a retenu que des postes
+  // salariés : la case « ouvert au salariat » est cochée d'office.
+  const salariatDemande = searchParams.get("salariat") === "1";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   // Profession salariée seulement (section 304) : ni assistanat ni collaboration libérale, et
@@ -68,7 +71,9 @@ export default function CreateDisponibiliteClient({
         // Pré-cocher « ouvert au salariat » selon la préférence déjà enregistrée (section 154).
         // Sauf reprise de brouillon : cette écriture-ci est inconditionnelle, et décocher la case
         // puis revenir aurait silencieusement recoché ce qu'on venait de décocher.
-        if (typeof p?.ouvertSalariat === "boolean" && !brouillonRepris.current) {
+        // Ni quand l'URL le demande (?salariat=1, bandeau de suggestion du fil) : intention plus
+        // récente que la préférence enregistrée.
+        if (typeof p?.ouvertSalariat === "boolean" && !brouillonRepris.current && !salariatDemande) {
           setForm((prev) => ({ ...prev, ouvertSalariat: p.ouvertSalariat }));
         }
       })
@@ -89,7 +94,7 @@ export default function CreateDisponibiliteClient({
     rechercheVehicule: false,
     rechercheSecretariat: false,       // privilégie un cabinet avec secrétariat (section 190)
     rechercheExerciceCoordonne: false, // souhaite exercer en structure coordonnée (section 190)
-    ouvertSalariat: false,
+    ouvertSalariat: salariatDemande,
     // Diffusion Facebook (section 234) — coché par défaut, mais VISIBLE et décochable. Une
     // diffusion silencieuse serait un réglage caché ; une case décochée par défaut serait un
     // canal que personne n'active. Le choix existe et il est fait sciemment.
@@ -197,6 +202,7 @@ export default function CreateDisponibiliteClient({
       // désigner à l'écran.
       startDate: searchParams.get("startDate") ?? b.form.startDate,
       endDate: searchParams.get("endDate") ?? b.form.endDate,
+      ouvertSalariat: salariatDemande || b.form.ouvertSalariat,
     }));
     if (!typeInitial && b.postKind) setPostKind(b.postKind);
     setBrouillonRestaure(true);
