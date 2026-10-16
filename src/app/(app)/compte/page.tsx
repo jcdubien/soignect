@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ACTIVE_MATCH_STATUSES } from "@/lib/feedFilters";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CompteForm from "./CompteForm";
@@ -57,21 +58,28 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
     startDate: Date | null;
     endDate: Date | null;
     location: string | null;
+    confirme: boolean;
   }[] = [];
 
   if (profile.type === "REMPLACANT" || profile.type === "ASSISTANT") {
     const matchesA = await prisma.match.findMany({
-      where: { profileAId: profileId },
+      // Relations vivantes seulement : une relation déclinée ou expirée n'a rien à faire sur
+      // une frise de missions.
+      where: { profileAId: profileId, status: { in: ACTIVE_MATCH_STATUSES } },
       select: {
         id: true,
+        status: true,
         missionA: { select: { title: true, startDate: true, endDate: true, location: true } },
         profileB: { select: { name: true } },
       },
     });
     const matchesB = await prisma.match.findMany({
-      where: { profileBId: profileId },
+      // Relations vivantes seulement : une relation déclinée ou expirée n'a rien à faire sur
+      // une frise de missions.
+      where: { profileBId: profileId, status: { in: ACTIVE_MATCH_STATUSES } },
       select: {
         id: true,
+        status: true,
         missionB: { select: { title: true, startDate: true, endDate: true, location: true } },
         profileA: { select: { name: true } },
       },
@@ -87,6 +95,7 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
           startDate: m.missionA!.startDate,
           endDate: m.missionA!.endDate,
           location: m.missionA!.location,
+          confirme: m.status === "CONFIRME",
         })),
       ...matchesB
         .filter(m => m.missionB)
@@ -97,6 +106,7 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
           startDate: m.missionB!.startDate,
           endDate: m.missionB!.endDate,
           location: m.missionB!.location,
+          confirme: m.status === "CONFIRME",
         })),
     ];
   }

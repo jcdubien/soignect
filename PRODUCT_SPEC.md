@@ -2441,6 +2441,23 @@ existera : `detachAssistantPostForMatch` (détache par cabinet + assistant) et l
 `enRelation` de `api/missions/[id]/interesses` (exclut une personne dès qu'une relation existe,
 quelle qu'elle soit).
 
+#### Le mot « confirmée » est réservé au contrat signé (15/10) — livré
+
+Constaté pendant le parcours aide-soignant testé à l'écran : une relation encore `EN_ATTENTE`
+s'affichait « Mise en relation confirmée » sur sa fiche, et la frise du Compte annonçait
+« 1 mission confirmée ». Or `MatchStatus.CONFIRME` n'est posé qu'à la seconde signature
+(`signature/route.ts`) — un poste salarié, sans contrat sur la plateforme, ne l'atteint jamais.
+
+- Fiche `/match/[id]` : titre selon `match.status` — « Mise en relation confirmée » (CONFIRME),
+  « Mise en relation close » (DECLINE, EXPIRE), « Mise en relation » sinon.
+- Feuille de détail du fil : « Vous êtes en relation » au lieu de « confirmée ».
+- Frise du Compte : ne charge plus que les relations vivantes (`ACTIVE_MATCH_STATUSES`) ; le
+  compteur dit « N mises en relation · M confirmées », M ne comptant que les CONFIRME.
+
+Dans le même lot : après une publication (offre ou disponibilité), le client appelle
+`router.refresh()` en plus de la navigation. Le layout serveur n'étant pas recalculé par une
+navigation client, l'en-tête affichait « 0 annonces » juste après la première publication.
+
 ---
 
 ### Contrat, identité contractuelle, déontologie

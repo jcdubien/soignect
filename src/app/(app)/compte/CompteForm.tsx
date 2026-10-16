@@ -59,6 +59,7 @@ interface MatchedMission {
   startDate: Date | string | null;
   endDate: Date | string | null;
   location: string | null;
+  confirme: boolean;
 }
 
 export default function CompteForm({ profile, matchedMissions = [] }: { profile: ProfileData; matchedMissions?: MatchedMission[] }) {

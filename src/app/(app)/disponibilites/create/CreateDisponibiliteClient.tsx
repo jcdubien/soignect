@@ -375,7 +375,10 @@ export default function CreateDisponibiliteClient({
     // compte. Effacé APRÈS la réponse favorable, jamais avant : un échec doit laisser la reprise.
     effacerBrouillon(CLE_BROUILLON);
     const publishedId = created?.id ? String(created.id) : "";
+    // L'en-tête (layout serveur) n'est pas recalculé par une navigation client : sans ce
+    // refresh, il affichait « 0 annonces » juste après la première publication.
     router.push(`/annonces?published=1&pid=${encodeURIComponent(publishedId)}&pt=${encodeURIComponent(form.title)}`);
+    router.refresh();
   }
 
   // ── Assistance IA (candidat) ────────────────────────────────────────────────────

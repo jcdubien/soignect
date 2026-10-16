@@ -141,7 +141,7 @@ export default function MissionDetailSheet({
       return (
         <div className="mt-4 rounded-2xl bg-emerald-50 border border-emerald-200 p-3.5 flex items-center justify-between gap-3">
           <div>
-            <p className="text-emerald-700 font-semibold text-sm">Mise en relation confirmée</p>
+            <p className="text-emerald-700 font-semibold text-sm">Vous êtes en relation</p>
             <p className="text-emerald-500 text-xs mt-0.5">Poursuivez la conversation.</p>
           </div>
           <Link

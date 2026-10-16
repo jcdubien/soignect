@@ -619,7 +619,10 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
     // Enregistré : il n'y a plus rien à protéger. Levé AVANT la navigation, sans quoi la garde
     // du header se déclencherait sur une publication réussie.
     marquerSaisieEnCours(false);
+    // L'en-tête (layout serveur) n'est pas recalculé par une navigation client : sans ce
+    // refresh, il affichait « 0 annonces » juste après la première publication.
     router.push(`/annonces?published=1&pid=${encodeURIComponent(publishedId)}&pt=${encodeURIComponent(form.title)}`);
+    router.refresh();
   }
 
   // ── Assistance IA ────────────────────────────────────────────────────────────────

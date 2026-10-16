@@ -12,6 +12,7 @@ interface MatchedMission {
   startDate: Date | string | null;
   endDate: Date | string | null;
   location: string | null;
+  confirme: boolean;
 }
 
 interface Props {
@@ -97,7 +98,7 @@ export default function CompteTimeline({ matches }: Props) {
       <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
         <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Ma timeline</h2>
         <div className="text-center py-8">
-          <p className="text-gray-400 text-sm">Aucune mise en relation confirmée pour l&apos;instant.</p>
+          <p className="text-gray-400 text-sm">Aucune mise en relation en cours pour l&apos;instant.</p>
           <Link href="/annonces" className="inline-block mt-3 text-xs font-semibold text-kine-600 hover:underline">
             Voir les annonces →
           </Link>
@@ -106,6 +107,7 @@ export default function CompteTimeline({ matches }: Props) {
     );
   }
 
+  const nbConfirmees = matches.filter(m => m.confirme).length;
   const DAY_WIDTH = 4; // px par jour
   const TRACK_H   = 40;
   const { rangeStart, totalDays } = computeRange(matches);
@@ -123,7 +125,12 @@ export default function CompteTimeline({ matches }: Props) {
   return (
     <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
       <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">Ma timeline</h2>
-      <p className="text-xs text-gray-400 mb-3">{matches.length} mission{matches.length !== 1 ? "s" : ""} confirmée{matches.length !== 1 ? "s" : ""}</p>
+      {/* Le compteur disait « N missions confirmées » en comptant toute relation, même en
+          attente : seules celles au contrat signé sont dites confirmées. */}
+      <p className="text-xs text-gray-400 mb-3">
+        {matches.length} mise{matches.length !== 1 ? "s" : ""} en relation
+        {nbConfirmees > 0 && <> · {nbConfirmees} confirmée{nbConfirmees !== 1 ? "s" : ""}</>}
+      </p>
 
       {/* Légende */}
       <div className="flex items-center gap-4 mb-3">

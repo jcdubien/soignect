@@ -110,8 +110,12 @@ export default async function MatchPage({ params, searchParams }: Props) {
           <Avatar name={theirProfile.name} photoUrl={theirProfile.photoUrl} />
         </div>
 
+        {/* Le titre suit l'état réel du match : il annonçait « confirmée » dès l'intérêt
+            réciproque, alors que rien n'était encore conclu (relation EN_ATTENTE). */}
         <h1 className="text-center text-xl font-black text-gray-900 mb-0.5">
-          Mise en relation confirmée
+          {match.status === "CONFIRME" ? "Mise en relation confirmée"
+            : match.status === "DECLINE" || match.status === "EXPIRE" ? "Mise en relation close"
+            : "Mise en relation"}
         </h1>
         <p className="text-center text-gray-400 text-sm mb-4">
           {theirProfile.name ?? "Profil"} et vous êtes compatibles
