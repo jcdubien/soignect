@@ -17,7 +17,7 @@
 // `FENETRE_TENSION_GUADELOUPE`.
 
 import { ZoneGeographique } from "@prisma/client";
-import { KINESITHERAPEUTE, type Profession } from "@/lib/pagesDiffusion";
+import { VOCABULAIRE_PROFESSION, type Profession } from "@/lib/pagesDiffusion";
 
 export interface InstanceEmbed {
   /** Segment d'URL — `/embed/territoire/{slug}`. Déclaré, jamais dérivé du nom de la zone :
@@ -25,24 +25,30 @@ export interface InstanceEmbed {
    *  deux formes divergent. Même règle que le slug de profession (14/08). */
   slug: string;
   zone: ZoneGeographique;
-  /** Page de campagne vers laquelle le module renvoie, hors iframe. */
-  page: string;
-  /** Profession affichée ET filtrée — les deux doivent rester d'accord, sans quoi le titre
-   *  contredirait la liste (défaut trouvé le 14/08). */
-  profession: Profession;
-  /** Nom de l'institution destinataire, pour l'écran d'administration. Purement descriptif :
-   *  aucune logique ne le lit, et il n'est PAS relié à `ClientInstitutionnel` — le module
-   *  embarquable ne dépend d'aucune relation client, il liste des annonces publiques. */
+  /** Professions affichées ET filtrées — les deux doivent rester d'accord, sans quoi le titre
+   *  contredirait la liste (défaut trouvé le 14/08). Le 15/10, la CPTS Nord Basse-Terre passe
+   *  de « kinés seulement » à toutes les professions déclarées : une CPTS pilote toute l'offre
+   *  de soins de son territoire (même raison que la page territoire, section 302). Le module
+   *  ne renvoie plus vers une page de campagne kiné, mais vers l'inscription — il n'existe pas
+   *  de page publique commune à toutes les professions. */
+  professions: Profession[];
+  /** Nom de l'institution destinataire, tel qu'affiché (écran d'administration, module). */
   destinataire: string;
+  /** `ClientInstitutionnel.nom` de cette institution — relie le module à ses zones prioritaires
+   *  déclarées (15/10). Le module listait jusque-là des annonces à plat, sans rien de propre à
+   *  la CPTS qui l'héberge. Facultatif : sans relation client active, aucune priorité ne
+   *  s'affiche et le module reste une liste — on ne met pas en avant ce que personne n'a
+   *  déclaré. */
+  clientNom?: string;
 }
 
 export const INSTANCES_EMBED: InstanceEmbed[] = [
   {
     slug: "nord-basse-terre",
     zone: ZoneGeographique.NORD_BASSE_TERRE,
-    page: "/remplacement-kine-guadeloupe",
-    profession: KINESITHERAPEUTE,
+    professions: Object.values(VOCABULAIRE_PROFESSION) as Profession[],
     destinataire: "CPTS Nord Basse-Terre",
+    clientNom: "CPTS NORD BASSE TERRE",
   },
 ];
 

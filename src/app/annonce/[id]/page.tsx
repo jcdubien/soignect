@@ -137,8 +137,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-export default async function PublicAnnoncePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PublicAnnoncePage({ params, searchParams }: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ src?: string }>;
+}) {
   const { id } = await params;
+  // Provenance déclarée par le lien (ex. `embed-nord-basse-terre`, module d'une CPTS) : sans
+  // elle, une arrivée depuis le site d'une CPTS se comptait comme un clic venu de Facebook.
+  const src = ((await searchParams).src ?? "").replace(/[^a-z0-9_-]/gi, "").slice(0, 40) || undefined;
   const m = await getMission(id);
   if (!m) return notFound();
 
@@ -151,7 +157,7 @@ export default async function PublicAnnoncePage({ params }: { params: Promise<{ 
     missionId: m.id,
     commune: m.location,
     missionType: m.missionType,
-    metadata: { authed: isLoggedIn },
+    metadata: { authed: isLoggedIn, ...(src ? { src } : {}) },
   });
 
   const type = typeLabel(m);

@@ -54,7 +54,9 @@ const TYPES_DU_CAMP: Record<Camp, ProfileType[]> = {
 export function filtreAnnoncesVivantes(
   zones: ZoneGeographique[],
   communes: string[],
-  profession: Profession,
+  // Une liste reste explicite : le module d'une CPTS montre toutes les professions déclarées,
+  // mais les nomme une à une — jamais « toutes » par absence de filtre (voir point 3).
+  profession: Profession | Profession[],
   camp: Camp,
   maintenant: Date = new Date(),
 ) {
@@ -62,7 +64,7 @@ export function filtreAnnoncesVivantes(
     // Même prédicat que le feed (section 265). Ces pages retenaient `isActive` seul : une brique
     // d'OCCUPATION — l'enregistrement de qui tient un poste — y passait pour une annonce, comme
     // elle passait au feed. `isSelfPresence` était déjà exclu ; `RECHERCHE` manquait.
-    profile: { profession, type: { in: TYPES_DU_CAMP[camp] } },
+    profile: { profession: Array.isArray(profession) ? { in: profession } : profession, type: { in: TYPES_DU_CAMP[camp] } },
     AND: [
       // Prédicat unique (section 298). La borne était `endDate >= maintenant` : `endDate` étant
       // stockée à 00:00 UTC, soit 20 h la VEILLE en Guadeloupe, une annonce sortait de ces pages

@@ -2,8 +2,12 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
-import { EMBED_PAR_SLUG } from "@/lib/embedTerritoire";
-import { COMMUNE_ZONE, ZONE_LABELS } from "@/lib/communes";
+import { EMBED_PAR_SLUG, cleTraceEmbed } from "@/lib/embedTerritoire";
+import { libelleTypePoste } from "@/lib/libellesPoste";
+import { libelleProfession, VOCABULAIRE_PROFESSION } from "@/lib/pagesDiffusion";
+import { zonesPrioritairesDuClient } from "@/lib/territoire";
+import PostesEmbed, { type PosteEmbed } from "./PostesEmbed";
+import { COMMUNE_ZONE, ZONE_LABELS, inseeOfCommune } from "@/lib/communes";
 import { tracerVueLanding } from "@/lib/traceLanding";
 
 export const dynamic = "force-dynamic";
@@ -57,23 +61,72 @@ export default async function EmbedTerritoirePage(
     .filter(([, z]) => z === cfg.zone)
     .map(([commune]) => commune);
 
-  const missions = await prisma.mission.findMany({
-    where: // Le module montre les POSTES d'un territoire à des candidats : camp EMPLOYEUR.
-    filtreAnnoncesVivantes([cfg.zone], communes, cfg.profession.enumBase, "EMPLOYEUR"),
-    include: { profile: { select: { type: true, name: true } } },
-    orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
-    take: 10,
-  });
+  // Toutes les offres vivantes du territoire, sans plafond à la requête : le plafond de 10
+  // coupait au hasard du tri, et pouvait écarter justement un poste de zone prioritaire. Les
+  // volumes d'un territoire restent faibles ; le plafond s'applique plus bas, aux AUTRES postes.
+  const [missions, zonesDeclarees] = await Promise.all([
+    prisma.mission.findMany({
+      where: // Le module montre les POSTES d'un territoire à des candidats : camp EMPLOYEUR.
+      filtreAnnoncesVivantes([cfg.zone], communes, cfg.professions.map((p) => p.enumBase), "EMPLOYEUR"),
+      include: { profile: { select: { type: true, name: true, titulaireKind: true, profession: true } } },
+      orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
+      take: 100,
+    }),
+    cfg.clientNom ? zonesPrioritairesDuClient(cfg.clientNom) : Promise.resolve([]),
+  ]);
 
-  await tracerVueLanding(`embed-${zone}`, missions.length);
+  await tracerVueLanding(cleTraceEmbed(cfg), missions.length);
+
+  // ZONES PRIORITAIRES D'ABORD (15/10). Une CPTS qui héberge ce module ne gagne rien à une liste
+  // de postes à plat : ce qu'elle veut, c'est répartir les soignants vers les communes où elle a
+  // déclaré un manque. Ses déclarations (`PrioriteTerritoriale`, les mêmes que celles qui
+  // remontent ces annonces dans le fil) ouvrent donc le module, avec leurs postes — et une
+  // commune prioritaire SANS poste reste affichée : c'est le message de la CPTS, qu'un poste
+  // soit publié ou non.
+  const professionsModule = new Set(cfg.professions.map((p) => p.enumBase));
+  const zonesPrio = zonesDeclarees.filter((z) => professionsModule.has(z.profession));
+  const zoneDe = (m: (typeof missions)[number]) =>
+    zonesPrio.find((z) => z.codeInsee === inseeOfCommune(m.location) && z.profession === m.profile.profession);
+  const postesPrio = missions.filter((m) => zoneDe(m));
+  const autres = missions.filter((m) => !zoneDe(m)).slice(0, 10);
 
   const jour = (d: Date | null) =>
-    d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : null;
+    // Les dates sont stockées à 00:00 UTC : formatées à l'heure locale du serveur (Guadeloupe,
+    // UTC−4), elles reculaient d'un jour — « 27 déc. » pour une annonce du 28/12.
+    d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" }) : null;
 
-  const TYPE: Record<string, string> = {
-    REMPLACEMENT: "Remplacement",
-    ASSISTANAT: "Assistanat",
-    COLLABORATION: "Collaboration",
+  // Une seule profession déclarée : le titre la nomme. Plusieurs : « Postes de santé », et
+  // chaque ligne porte sa profession.
+  const uneSeule = cfg.professions.length === 1 ? cfg.professions[0] : null;
+  const inscription = `/register?src=${cleTraceEmbed(cfg)}`;
+
+  // Ce que la fiche montre est ce que la page publique montre SANS compte — rien de plus.
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const aujourdhui = iso(new Date());
+  const versPoste = (m: (typeof missions)[number], prioritaire: boolean): PosteEmbed => {
+    const accroche = (m.pitch ?? m.bioTinder ?? "").trim();
+    return {
+      id: m.id,
+      titre: m.title,
+      libelle: libelleTypePoste(m.missionType, m.profile, m.natureSalariat)
+        + (!uneSeule && m.profile.profession ? ` · ${libelleProfession(m.profile.profession)}` : ""),
+      lieu: m.location,
+      periode:
+        m.startDate && m.endDate ? `${jour(m.startDate)} → ${jour(m.endDate)}`
+        : m.startDate ? `dès le ${jour(m.startDate)}`
+        : m.minMonths ? `${m.minMonths} mois min.`
+        : null,
+      // Une disponibilité ne peut pas commencer dans le passé (section 250) : un poste déjà
+      // commencé propose ses jours restants.
+      debut: m.startDate && m.endDate ? (iso(m.startDate) < aujourdhui ? aujourdhui : iso(m.startDate)) : null,
+      fin: m.startDate && m.endDate ? iso(m.endDate) : null,
+      remuneration:
+        m.remunerationBrute != null ? `${m.remunerationBrute.toLocaleString("fr-FR")} €/mois brut`
+        : m.caMensuelEstime != null ? `CA estimé ~ ${m.caMensuelEstime.toLocaleString("fr-FR")} €/mois`
+        : null,
+      accroche: accroche ? (accroche.length > 120 ? accroche.slice(0, 120).trimEnd() + "…" : accroche) : null,
+      prioritaire,
+    };
   };
 
   return (
@@ -87,7 +140,7 @@ export default async function EmbedTerritoirePage(
       <div className="p-4 text-[#1f2937]" style={{ fontSize: 14 }}>
       <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
         <h2 className="text-base font-bold m-0">
-          Postes de {cfg.profession.discipline} — {ZONE_LABELS[cfg.zone]}
+          Postes {uneSeule ? `de ${uneSeule.discipline}` : "de santé"} — {ZONE_LABELS[cfg.zone]}
         </h2>
         <span className="text-xs text-gray-400">
           {missions.length} poste{missions.length > 1 ? "s" : ""} ouvert{missions.length > 1 ? "s" : ""}
@@ -102,44 +155,66 @@ export default async function EmbedTerritoirePage(
           Ne rien afficher tant que la source n'est pas tranchée : un indicateur de tension faux
           sur le site d'une CPTS coûterait plus cher que son absence. */}
 
+      {zonesPrio.length > 0 && (
+        <section className="rounded-xl bg-[#0B3D5C]/[0.06] border border-[#0B3D5C]/20 p-3 mb-4">
+          <p className="text-sm font-bold m-0 text-[#0B3D5C]">
+            Zones prioritaires de la {cfg.destinataire}
+          </p>
+          <p className="text-xs text-gray-600 m-0 mt-0.5 mb-2">
+            La {cfg.destinataire} y recherche en priorité des professionnels de santé.
+          </p>
+          <ul className="list-none p-0 m-0 mb-2 space-y-1">
+            {zonesPrio.map((z) => {
+              const n = postesPrio.filter((m) => zoneDe(m) === z).length;
+              return (
+                <li key={`${z.codeInsee}-${z.profession}`} className="text-sm flex items-baseline justify-between gap-2 flex-wrap">
+                  <span>
+                    <strong>{z.commune}</strong>
+                    <span className="text-gray-500"> · {VOCABULAIRE_PROFESSION[z.profession]?.courtPluriel ?? libelleProfession(z.profession)}</span>
+                  </span>
+                  {n > 0 ? (
+                    <span className="text-xs font-semibold text-[#0B3D5C]">
+                      {n} poste{n > 1 ? "s" : ""} ouvert{n > 1 ? "s" : ""}
+                    </span>
+                  ) : (
+                    <a href={inscription} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-[#0B3D5C] underline">
+                      Aucun poste publié — proposez-vous →
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {postesPrio.length > 0 && (
+            <PostesEmbed postes={postesPrio.map((m) => versPoste(m, true))} src={cleTraceEmbed(cfg)} />
+          )}
+        </section>
+      )}
+
       {missions.length === 0 ? (
         <p className="text-sm text-gray-500 m-0">
           Aucun poste ouvert sur le territoire pour le moment.
         </p>
-      ) : (
-        <ul className="list-none p-0 m-0 space-y-2">
-          {missions.map((m) => {
-            const periode =
-              m.startDate && m.endDate ? `${jour(m.startDate)} → ${jour(m.endDate)}`
-              : m.startDate ? `dès le ${jour(m.startDate)}`
-              : m.minMonths ? `${m.minMonths} mois min.`
-              : null;
-            return (
-              <li key={m.id} className="border border-gray-200 rounded-lg px-3 py-2">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                    {TYPE[m.missionType] ?? m.missionType}
-                  </span>
-                  <span className="text-[11px] text-gray-400">
-                    {m.location}{periode ? ` · ${periode}` : ""}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold m-0 mt-0.5">{m.title}</p>
-              </li>
-            );
-          })}
-        </ul>
+      ) : autres.length > 0 && (
+        <>
+          {zonesPrio.length > 0 && (
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide m-0 mb-2">
+              Autres postes du territoire
+            </p>
+          )}
+          <PostesEmbed postes={autres.map((m) => versPoste(m, false))} src={cleTraceEmbed(cfg)} />
+        </>
       )}
 
       {/* Le lien s'ouvre HORS de l'iframe : enfermer un parcours d'inscription dans un cadre de
           quelques centaines de pixels, sur un site tiers, ne mènerait nulle part. */}
       <a
-        href={cfg.page}
+        href={inscription}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-3 inline-block w-full text-center px-4 py-2.5 rounded-lg bg-[#0B3D5C] text-white text-sm font-semibold no-underline"
       >
-        Voir tous les postes et publier une annonce →
+        Créer mon compte gratuit →
       </a>
       <p className="text-[11px] text-gray-400 text-center mt-2 mb-0">
         Propulsé par Soignect · gratuit pour les professionnels en recherche

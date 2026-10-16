@@ -189,12 +189,7 @@ export async function chargerPrioritesTerritoriales(
     where: {
       codeInsee: { in: Array.from(parCode.keys()) },
       profession,
-      OR: [{ expireLe: null }, { expireLe: { gt: maintenant } }],
-      client: {
-        clotureLe: null,
-        debutLe: { lte: maintenant },
-        revueLe: { gt: maintenant },
-      },
+      ...declarationVivante(maintenant),
     },
     select: { codeInsee: true, niveau: true, client: { select: { nom: true } } },
   });
@@ -207,4 +202,43 @@ export async function chargerPrioritesTerritoriales(
     }
   }
   return resultat;
+}
+
+/** Les deux conditions ci-dessus — déclaration non échue, relation client active —, partagées
+ *  avec le module embarquable : une priorité éteinte dans le fil ne doit pas rester affichée
+ *  sur le site de la CPTS. */
+function declarationVivante(maintenant: Date) {
+  return {
+    OR: [{ expireLe: null }, { expireLe: { gt: maintenant } }],
+    client: {
+      clotureLe: null,
+      debutLe: { lte: maintenant },
+      revueLe: { gt: maintenant },
+    },
+  };
+}
+
+export interface ZonePrioritaire {
+  /** Libellé figé à la déclaration — affiché tel quel. */
+  commune: string;
+  codeInsee: string;
+  profession: Profession;
+  niveau: number;
+}
+
+/**
+ * Les priorités VIVANTES déclarées par une institution, plus fortes d'abord — ce que le module
+ * embarquable de cette institution met en tête (15/10). Une CPTS qui répartit ses ressources n'a
+ * que faire d'une liste de postes à plat : elle veut que ses zones prioritaires se voient.
+ */
+export async function zonesPrioritairesDuClient(
+  clientNom: string,
+  maintenant: Date = new Date(),
+): Promise<ZonePrioritaire[]> {
+  const v = declarationVivante(maintenant);
+  return prisma.prioriteTerritoriale.findMany({
+    where: { OR: v.OR, client: { ...v.client, nom: clientNom } },
+    select: { commune: true, codeInsee: true, profession: true, niveau: true },
+    orderBy: [{ niveau: "desc" }, { commune: "asc" }],
+  });
 }

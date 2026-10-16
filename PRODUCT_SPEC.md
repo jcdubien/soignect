@@ -3169,6 +3169,37 @@ code. En attente d'envoi.
 
 ### Module embarquable pour sites de territoire
 
+#### LE MODULE DE LA CPTS NORD BASSE-TERRE MET SES ZONES PRIORITAIRES EN AVANT (15/10) — livré
+
+Constat de Jean-Charles : la CPTS Nord Basse-Terre est la CPTS témoin, et une simple liste de
+postes ne lui apporte rien. Elle veut répartir ses ressources vers les communes où elle manque
+de soignants.
+
+- **Toutes les professions.** L'instance déclarait « kiné » seulement (titre « Postes de
+  kinésithérapie »). Elle couvre désormais `VOCABULAIRE_PROFESSION` (kinés, infirmiers,
+  aides-soignants) : titre « Postes de santé », profession écrite sur chaque ligne, libellé
+  `libelleTypePoste` (un CDI d'établissement n'est plus une « Collaboration »).
+  `filtreAnnoncesVivantes` accepte une liste de professions, toujours explicite.
+- **Zones prioritaires en tête.** `InstanceEmbed.clientNom` relie le module à
+  `ClientInstitutionnel`. `zonesPrioritairesDuClient` (lib/territoire) lit ses
+  `PrioriteTerritoriale` vivantes, avec les mêmes conditions que le fil (déclaration non échue,
+  relation client active). Le bloc « Zones prioritaires de la CPTS » liste chaque commune ×
+  profession, avec ses postes mis en évidence (« Zone prioritaire »). Une commune prioritaire
+  sans poste reste affichée : « Aucun poste publié — proposez-vous ». Viennent ensuite les
+  « Autres postes du territoire » (10 au plus). La requête n'a plus de plafond de 10 qui
+  pouvait couper un poste prioritaire.
+- **Postes cliquables.** Un clic ouvre une fiche dans l'iframe (`PostesEmbed`). Elle montre ce
+  que la page publique montre sans compte : type, lieu, période, rémunération, accroche
+  tronquée. Elle propose « Je suis disponible sur ces dates », qui ouvre
+  `/disponibilites/create?startDate&endDate` pré-rempli (la connexion garde le chemin,
+  section 290 ; un poste commencé propose ses jours restants), et « Voir l'annonce sur
+  Soignect ».
+- **Provenance.** Liens et inscription portent `src=embed-nord-basse-terre`. La page
+  `/annonce/[id]` enregistre ce `src` dans sa trace : sans lui, une arrivée depuis le site de
+  la CPTS se comptait comme un clic Facebook.
+- Les dates du module sont formatées en UTC : à l'heure locale, elles reculaient d'un jour
+  (visible en local seulement, le serveur de prod tournant en UTC).
+
 #### QUATRE PORTES D'ENTRÉE — troisième axe du module (14/08) — livré
 
 ##### Ce qui empêche l'explosion en matrice
