@@ -2,11 +2,15 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { contratConfirme } from "@/lib/matchEtat";
+import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
+import { contratSalarie, natureDuContrat, modelesDuMatch } from "@/lib/contrats/registre";
 import Link from "next/link";
 import { SubscriptionPlan } from "@prisma/client";
 import { hasPremiumAccess } from "@/lib/platform";
 import MatchChatButton from "@/components/chat/MatchChatButton";
 import MatchScoreBlock from "@/components/matches/MatchScoreBlock";
+import MatchStatusActions from "@/components/matches/MatchStatusActions";
+import { estRecruteur } from "@/lib/relationConclue";
 import { missingContractLabels } from "@/lib/contractProfile";
 
 export const dynamic = "force-dynamic";
@@ -73,18 +77,26 @@ export default async function MatchPage({ params, searchParams }: Props) {
   // affiché continuait de décrire un état disparu. Match.aiScore, lui, est recalculable.
   const affinityScore = match.aiScore;
 
-  // Salariat (section 161) : même règle que contrat-info — le recruteur est un établissement.
-  // Calculé ici plutôt qu'appelé, la page ayant déjà les deux profils complets en main.
-  const titulaireParty =
-    match.profileA.type === "TITULAIRE" ? match.profileA :
-    match.profileB.type === "TITULAIRE" ? match.profileB : null;
-  const isSalariat = titulaireParty?.titulaireKind === "STRUCTURE";
+  // Registre et modèles du contrat : MÊME calcul que l'écran de contrat et la génération du PDF
+  // (lib/contrats/registre, 16/10). La fiche avait sa propre règle — la structure seule — et
+  // proposait « Générer le contrat PDF — Modèle CNOMK » à toute profession libérale, alors que
+  // seuls les kinés et les infirmiers ont des modèles.
+  const { profilTitulaire, profilCandidat, missionTitulaire, missionCandidat } = cotesDuMatch(match);
+  const missionType = typeDeMissionDuContrat(missionTitulaire, missionCandidat);
+  const isSalariat = contratSalarie(missionTitulaire, profilTitulaire);
+  const modeles = modelesDuMatch({
+    professionTitulaire: profilTitulaire.profession,
+    professionCandidat: profilCandidat.profession,
+    missionType,
+    salarie: isSalariat,
+    nature: natureDuContrat(missionTitulaire, missionType),
+  });
+  // Sources des modèles, sans doublon : « CNOMK (15/11/2024) », « Modèle-type CNOI… ».
+  const sourcesModeles = Array.from(new Set(modeles.map((g) => g.source))).join(" · ");
 
-  // Identité contractuelle (section 150) — même source de vérité que le garde serveur.
-  // On prévient AVANT le clic : sans ça, l'utilisateur découvrait l'exigence au moment du
-  // refus, sur un écran qui promettait un PDF. Sans objet pour un poste salarié, qui ne
-  // génère aucun contrat ici.
-  const identiteManquante = isSalariat ? [] : missingContractLabels(myProfile);
+  // Identité contractuelle (section 150) — même source de vérité que le garde serveur. On
+  // prévient AVANT le clic, et seulement quand un contrat peut sortir d'ici.
+  const identiteManquante = modeles.length > 0 && !isSalariat ? missingContractLabels(myProfile) : [];
 
   const isPremium = await hasPremiumAccess({
     subscriptionPlan: (myProfile as typeof myProfile & { subscriptionPlan?: SubscriptionPlan }).subscriptionPlan,
@@ -113,7 +125,8 @@ export default async function MatchPage({ params, searchParams }: Props) {
         {/* Le titre suit l'état réel du match : il annonçait « confirmée » dès l'intérêt
             réciproque, alors que rien n'était encore conclu (relation EN_ATTENTE). */}
         <h1 className="text-center text-xl font-black text-gray-900 mb-0.5">
-          {match.status === "CONFIRME" ? "Mise en relation confirmée"
+          {contratConfirme(match) ? "Contrat signé"
+            : match.status === "CONFIRME" ? "Mise en relation confirmée"
             : match.status === "DECLINE" || match.status === "EXPIRE" ? "Mise en relation close"
             : "Mise en relation"}
         </h1>
@@ -180,16 +193,22 @@ export default async function MatchPage({ params, searchParams }: Props) {
           </div>
         )}
 
-        {isSalariat ? (
+        {modeles.length === 0 ? (
+          // Aucun modèle Soignect pour ce cas : le contrat se signe ailleurs, et sa conclusion se
+          // déclare juste en dessous. Pas de bouton PDF, et surtout pas derrière l'abonnement.
           <Link
             href={`/match/${match.id}/contrat`}
             className="w-full flex items-center justify-between px-5 py-4 bg-white border border-gray-200 text-gray-700 rounded-2xl hover:bg-gray-50 active:scale-[0.98] transition"
           >
             <div>
-              <p className="font-semibold text-sm">Poste salarié — contrat hors plateforme</p>
-              <p className="text-gray-400 text-xs">Le contrat de travail est établi par l&apos;établissement</p>
+              <p className="font-semibold text-sm">{isSalariat ? "Poste salarié — contrat hors plateforme" : "Contrat hors plateforme"}</p>
+              <p className="text-gray-400 text-xs">
+                {isSalariat
+                  ? "Le contrat de travail est établi par l'établissement"
+                  : "Soignect n'a pas encore de modèle de contrat pour ce poste"}
+              </p>
             </div>
-            <span className="text-lg">🏢</span>
+            <span className="text-lg">{isSalariat ? "🏢" : "📝"}</span>
           </Link>
         ) : isPremium ? (
           <Link
@@ -198,7 +217,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
           >
             <div>
               <p className="font-semibold text-sm">Générer le contrat PDF</p>
-              <p className="text-kine-500 text-xs">Modèle CNOMK officiel pré-rempli</p>
+              <p className="text-kine-500 text-xs">Modèle {sourcesModeles} pré-rempli</p>
             </div>
             <span className="text-lg">📄</span>
           </Link>
@@ -214,6 +233,18 @@ export default async function MatchPage({ params, searchParams }: Props) {
             </div>
             <span className="px-2.5 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">Premium</span>
           </Link>
+        )}
+
+        {/* 3. Contrat signé hors Soignect (16/10) — le chemin de conclusion de tous ceux qui ne
+             signent pas ici : compte gratuit, poste salarié, aide-soignant. Réservé au recruteur. */}
+        {estRecruteur(myProfile.type) && (match.status === "EN_ATTENTE" || match.status === "DISCUSSION") && (
+          <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
+            <p className="text-xs text-gray-500 mb-2">
+              Contrat signé en dehors de Soignect ? Déclarez-le pour fermer votre annonce et réserver
+              les dates de {theirProfile.name ?? "votre interlocuteur"}.
+            </p>
+            <MatchStatusActions matchId={match.id} status={match.status} recruteur />
+          </div>
         )}
 
         {/* Recommandation retirée (section 78/79) — la notation vivra dans un

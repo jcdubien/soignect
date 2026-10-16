@@ -11,11 +11,12 @@ import { buildRemplacementInfirmierAutorisePdf } from "@/lib/contrats/template-i
 import { buildRemplacementInfirmierConfrerePdf } from "@/lib/contrats/template-infirmier-remplacement-confrere";
 import { buildCollaborationInfirmierPdf } from "@/lib/contrats/template-infirmier-collaboration";
 import { gabaritsPour } from "@/lib/contrats/gabarits";
+import { contratSalarie, natureDuContrat } from "@/lib/contrats/registre";
 import { buildInfirmierSalariatCddPdf } from "@/lib/contrats/template-infirmier-salariat-cdd";
 import { buildInfirmierSalariatCdiPdf } from "@/lib/contrats/template-infirmier-salariat-cdi";
 import { buildKineSalariatCddPdf } from "@/lib/contrats/template-kine-salariat-cdd";
 import { buildKineSalariatCdiPdf } from "@/lib/contrats/template-kine-salariat-cdi";
-import { NATURE_PAR_MISSION, gabaritsSalariePour, contratFourniParEmployeur, type NatureContratTravail } from "@/lib/contrats/gabaritsSalarie";
+import { gabaritsSalariePour, contratFourniParEmployeur, type NatureContratTravail } from "@/lib/contrats/gabaritsSalarie";
 import type { ContractParty } from "@/lib/contrats/types";
 import { sendContratEmail } from "@/lib/email";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
@@ -309,17 +310,18 @@ export async function GET(req: NextRequest, { params }: Params) {
   // forme : les deux établissements en base ont publié AVANT cette section, donc avec
   // `estSalariat = false`. Retirer l'ancienne porte aurait basculé leurs contrats en libéral,
   // sans erreur et sans que rien ne le signale.
-  const estSalariat =
-    missionTitulaire?.estSalariat === true || profileTitulaire.titulaireKind === "STRUCTURE";
+  //
+  // Règle commune avec l'écran de contrat et la fiche de mise en relation (16/10,
+  // lib/contrats/registre) : le repli sur la structure ne vaut que pour une annonce d'avant le
+  // 22/09. Mesuré le 09/10 : les 4 annonces de structure sont toutes antérieures — aucun contrat
+  // ne change de registre.
+  const estSalariat = contratSalarie(missionTitulaire, profileTitulaire);
 
   if (estSalariat) {
     // La nature déclarée À LA PUBLICATION prime sur la dérivation par type de poste. Cette
     // dérivation (NATURE_PAR_MISSION) reste le repli des annonces d'avant, qui n'en portent pas.
     const natureAnnoncee = missionTitulaire?.natureSalariat;
-    const nature: NatureContratTravail =
-      natureAnnoncee === "CDI" ? "CDI"
-      : natureAnnoncee === "CDD_TERME" || natureAnnoncee === "CDD_SANS_TERME" ? "CDD"
-      : NATURE_PAR_MISSION[missionType];
+    const nature: NatureContratTravail = natureDuContrat(missionTitulaire, missionType);
     const candidatsSalarie = gabaritsSalariePour(profileTitulaire.profession, nature);
 
     // Trois des quatre gabarits salariés ne sont pas écrits. Refus explicite, jamais un repli

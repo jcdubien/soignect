@@ -3,7 +3,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { computeAffinityScore } from "@/lib/deepseek";
 import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
-import { logMatchCancelled } from "@/lib/trace";
+import { logMatchCancelled, logTraceEvent } from "@/lib/trace";
+import { conclureRelation, estRecruteur } from "@/lib/relationConclue";
+import { createNotification } from "@/lib/notifications";
 import { MatchStatus, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +75,42 @@ export async function PATCH(
         origine: "DECLINE",
         initiateur: acteur?.type === "TITULAIRE" ? "CABINET" : "CANDIDAT",
       });
+    }
+    // « Contrat signé hors Soignect » (16/10) : CONFIRME n'est plus un simple statut. Le bouton
+    // « Confirmer » le posait de l'une ou l'autre partie, sans rien fermer — ni l'annonce, ni les
+    // dates du candidat. Il devient la signature déclarée : réservée au RECRUTEUR (c'est son
+    // annonce qui se ferme), et elle fait exactement ce que fait la double signature dans
+    // Soignect (lib/relationConclue), facturation exceptée (décision du 16/10).
+    if (status === MatchStatus.CONFIRME) {
+      const viewerId = session.user.profileId as string;
+      const moi = await prisma.profile.findUnique({ where: { id: viewerId }, select: { type: true } });
+      if (!estRecruteur(moi?.type)) {
+        return NextResponse.json(
+          { error: "Seul le recruteur déclare le contrat signé : c'est son annonce qui se ferme." },
+          { status: 403 },
+        );
+      }
+      if (match.status !== MatchStatus.EN_ATTENTE && match.status !== MatchStatus.DISCUSSION) {
+        return NextResponse.json({ error: "Cette mise en relation n'est plus en cours." }, { status: 409 });
+      }
+      await conclureRelation(id);
+      const cote = match.missionA?.profileId === viewerId ? match.missionA : match.missionB ?? match.missionA;
+      logTraceEvent({
+        eventType: "CONTRACT_SIGNED_HORS_SOIGNECT",
+        matchId: id,
+        missionId: cote?.id ?? null,
+        commune: cote?.location ?? null,
+        missionType: cote?.missionType ?? null,
+      });
+      const autreId = viewerId === profileAId ? profileBId : profileAId;
+      const autre = await prisma.profile.findUnique({ where: { id: autreId }, select: { user: { select: { id: true } } } });
+      await createNotification({
+        userId: autre?.user?.id,
+        type: "signature",
+        message: "Le recruteur a indiqué que le contrat est signé — vos dates sont réservées.",
+        linkUrl: `/match/${id}`,
+      });
+      return NextResponse.json({ status: MatchStatus.CONFIRME });
     }
     const updated = await prisma.match.update({ where: { id }, data: { status: status as MatchStatus } });
     return NextResponse.json({ status: updated.status });

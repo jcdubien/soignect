@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { BriqueStatus, MatchStatus } from "@prisma/client";
 import { logTraceEvent } from "@/lib/trace";
 import { triggerBillingIfNeeded } from "@/lib/billing";
 import { sendBillingTriggeredEmail, sendSignatureAppliedEmail, sendContratAnnuleEmail } from "@/lib/email";
 import { reportStructureContractUsage } from "@/lib/stripe-usage";
-import { attachAssistantPostForMatch } from "@/lib/assistantPost";
+import { conclureRelation } from "@/lib/relationConclue";
 import { createNotification } from "@/lib/notifications";
 import { isContractProfileEnforced } from "@/lib/platform";
 import { missingContractFields, missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
@@ -314,33 +313,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
     })
     .catch(() => {});
 
-  // Contrat confirmé quand les DEUX signatures photo sont présentes (section 61) :
-  // remplit la timeline (missions liées → CONFIRME) et confirme le match.
+  // Contrat confirmé quand les DEUX signatures photo sont présentes (section 61). Ce que la
+  // conclusion change (missions, match, rattachement) est commun avec la signature déclarée hors
+  // Soignect : lib/relationConclue. Facturation et trace restent propres au contrat signé ici.
   if (bothSigned) {
-    // Noms des deux parties pour renseigner matchedName sur chaque poste (section 1c / 6) :
-    // le poste de A est rempli par B, et inversement.
-    const full = await prisma.match.findUnique({
-      where: { id: matchId },
-      select: {
-        missionAId: true, missionBId: true,
-        profileA: { select: { name: true } },
-        profileB: { select: { name: true } },
-      },
-    });
-    if (full?.missionAId) {
-      await prisma.mission.update({
-        where: { id: full.missionAId },
-        data: { briqueStatus: BriqueStatus.CONFIRME, statusUpdatedAt: now, matchedName: full.profileB?.name ?? null },
-      });
-    }
-    if (full?.missionBId) {
-      await prisma.mission.update({
-        where: { id: full.missionBId },
-        data: { briqueStatus: BriqueStatus.CONFIRME, statusUpdatedAt: now, matchedName: full.profileA?.name ?? null },
-      });
-    }
+    await conclureRelation(matchId, now);
     const missionIds = [updated.missionAId, updated.missionBId].filter((x): x is string => !!x);
-    await prisma.match.update({ where: { id: matchId }, data: { status: MatchStatus.CONFIRME } });
 
     // Bascule individuelle vers le payant — critère 1 (contrat signé), section 100.
     // Le cabinet = partie TITULAIRE du match. Détection synchrone.
@@ -378,10 +356,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
         })
       )
       .catch(() => logTraceEvent({ eventType: "CONTRACT_SIGNED", matchId, missionId: traceMissionId }));
-
-    // Rattachement automatique du poste à l'assistant (section 153, point 1) — pour un
-    // contrat d'ASSISTANAT uniquement. Non bloquant (le helper avale ses erreurs).
-    await attachAssistantPostForMatch(matchId);
   }
 
   return NextResponse.json({ ok: true, mySide: side, bothSigned }, { status: 201 });

@@ -573,12 +573,20 @@ export default function ContratPage() {
   // salarié séparé en fournit — mais il est encore incomplet (1 gabarit sur 4). L'écran ne bloque
   // donc plus le salariat EN TANT QUE TEL : il bloque l'absence de modèle applicable, ce qui est
   // la vraie raison et reste vrai pour les trois cas non encore écrits.
-  if (info?.isSalariat && (info?.gabarits?.length ?? 0) === 0) {
+  // Étendu le 16/10 à TOUT cas sans modèle, libéral compris (lib/contrats/registre) : un
+  // orthophoniste tombait sur l'offre Premium pour un contrat qu'aucun abonnement ne produit.
+  if (info && Array.isArray(info.gabarits) && info.gabarits.length === 0) {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 flex flex-col items-center gap-5 text-center">
-        <span className="text-5xl">🏢</span>
-        <h1 className="text-xl font-black text-gray-900">Poste salarié — contrat hors plateforme</h1>
-        {contratFourniParEmployeur(info.profession) ? (
+        <span className="text-5xl">{info.isSalariat ? "🏢" : "📝"}</span>
+        <h1 className="text-xl font-black text-gray-900">{info.isSalariat ? "Poste salarié — contrat hors plateforme" : "Contrat hors plateforme"}</h1>
+        {!info.isSalariat ? (
+          <p className="text-gray-500 text-sm">
+            Soignect n&apos;a <strong>pas encore de modèle de contrat</strong> pour cette profession
+            et ce type de poste. Le contrat est à établir entre vous ; une fois signé, le recruteur
+            le déclare sur la mise en relation, ce qui ferme son annonce.
+          </p>
+        ) : contratFourniParEmployeur(info.profession) ? (
           // Section 304 : ce n'est pas un modèle manquant, c'est la règle de la profession.
           <p className="text-gray-500 text-sm">
             Le contrat de travail d&apos;un aide-soignant est{" "}

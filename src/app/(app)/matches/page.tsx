@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import MatchChatButton from "@/components/chat/MatchChatButton";
 import MatchStatusActions from "@/components/matches/MatchStatusActions";
+import { estRecruteur } from "@/lib/relationConclue";
 import { ProfileType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -263,12 +264,12 @@ export default async function MatchesPage() {
                   />
                 </div>
 
-                {/* Actions statut — Confirmer / Décliner (item 12) */}
+                {/* Actions statut — Contrat signé hors Soignect (recruteur) / Décliner (item 12, 16/10) */}
                 {((m as { status?: string }).status ?? "EN_ATTENTE") !== "CONFIRME" &&
                  ((m as { status?: string }).status ?? "EN_ATTENTE") !== "DECLINE" &&
                  ((m as { status?: string }).status ?? "EN_ATTENTE") !== "EXPIRE" && (
                   <div className="px-4 py-2.5 border-t border-gray-50">
-                    <MatchStatusActions matchId={m.id} status={(m as { status?: string }).status ?? "EN_ATTENTE"} />
+                    <MatchStatusActions matchId={m.id} status={(m as { status?: string }).status ?? "EN_ATTENTE"} recruteur={estRecruteur(viewerType)} />
                   </div>
                 )}
                 {/* Recommandation retirée (section 78/79) — la notation vivra dans un

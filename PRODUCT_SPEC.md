@@ -7408,6 +7408,72 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 308 — UNE SEULE CONCLUSION, UN SEUL REGISTRE DE CONTRAT, POUR TOUTES LES PROFESSIONS (16/10)
+
+Suite de la 307, demande de Jean-Charles : « factorise et assure-toi du comportement homogène sur
+tout le scope de professions ».
+
+#### Le trou que la 307 ouvrait
+
+« Libre jusqu'à signature » ne valait que pour qui PEUT signer dans Soignect : contrat PDF réservé
+aux abonnés, 3 natures salariées sur 4 sans modèle, aide-soignant (contrat de l'employeur),
+professions sans modèle libéral (tout sauf kiné et infirmier). Pour tous les autres, l'annonce ne
+se fermait plus jamais. Mesuré : **1** contrat signé des deux côtés dans Soignect, **11** accords
+passés par l'ancien bouton « Confirmer », qui ne fermait rien et pouvait venir de l'une ou l'autre
+partie.
+
+#### Une seule conclusion — `lib/relationConclue.ts`
+
+`conclureRelation(matchId)` : missions du match en `CONFIRME` (avec le nom de l'autre partie),
+match en `CONFIRME`, rattachement de l'assistant. Deux chemins y mènent :
+
+| Chemin | Qui | Facturation / trace |
+|---|---|---|
+| Double signature dans Soignect (route de signature) | les deux parties | bascule payant + décompte établissement ; `CONTRACT_SIGNED` |
+| **« Contrat signé hors Soignect »** (`PATCH /api/matches/[id]` `status: CONFIRME`) | **le recruteur seul** (décision JC) | **aucune** (décision JC) ; `CONTRACT_SIGNED_HORS_SOIGNECT` |
+
+Le geste remplace « Confirmer » sur l'écran Relations, et apparaît aussi sur la fiche de mise en
+relation, côté recruteur, tant que la relation est en attente. Seconde pression demandée. Le
+candidat reçoit une notification (« vos dates sont réservées »). Côté API : 403 pour le candidat,
+409 sur une relation close.
+
+Une conclusion occupe les dates du candidat : sa disponibilité passe en `CONFIRME`, que la
+vérification de planning (section 306) lit comme « pris ». Comme pour la signature, c'est toute
+sa disponibilité liée au match qui passe en confirmé, pas seulement les jours du poste
+(comportement préexistant, inchangé).
+
+Titre de la fiche : « Contrat signé » quand les briques sont confirmées ; « Mise en relation
+confirmée » reste pour les 11 relations confirmées d'avant, qui ne sont pas reprises
+automatiquement.
+
+#### Un seul registre de contrat — `lib/contrats/registre.ts`
+
+« Salarié ou libéral, et quels modèles ? » avait trois réponses :
+- **écran de contrat** : règle de la section 294 ;
+- **génération du PDF** : structure en repli toujours ;
+- **fiche** : structure seule, et « Générer le contrat PDF — Modèle CNOMK » proposé à toute
+  profession libérale.
+
+Un orthophoniste se voyait donc proposer l'abonnement pour un contrat qui n'existe pas.
+
+Désormais `contratSalarie`, `natureDuContrat` et `modelesDuMatch` servent les trois écrans :
+- **sans modèle**, la fiche affiche « Contrat hors plateforme » et l'écran de contrat l'explique,
+  avant toute offre Premium ;
+- **avec modèle**, le sous-titre nomme la vraie source (CNOMK ou CNOI).
+
+Vérifié sur les 20 relations en base : aucune ne change de registre, et les kinés gardent tous
+leur modèle.
+
+**Testé à l'écran** (comptes orthophonistes isolés, supprimés ensuite, traces comprises) :
+- candidat : geste absent, API 403 ;
+- recruteur : geste, confirmation, « Contrat signé », « 0 annonces actives » ;
+- en base : 2 briques `CONFIRME`, notification au candidat ;
+- page publique de l'annonce : 404 ; candidat PRIS sur la période ;
+- fiche et écran de contrat : « Contrat hors plateforme ».
+
+**Reste à trancher par JC :** les 11 relations « confirmées » d'avant. Lesquelles ont abouti, pour
+les passer en conclues ?
+
 ### SECTION 307 — UNE ANNONCE RESTE LIBRE JUSQU'À LA SIGNATURE (16/10)
 
 **Signalé par Jean-Charles :** le Planning proposait de partager « Assistant 4 » (« Kiné assistant

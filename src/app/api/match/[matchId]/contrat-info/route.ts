@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { gabaritsPour } from "@/lib/contrats/gabarits";
-import { gabaritsSalariePour, NATURE_PAR_MISSION } from "@/lib/contrats/gabaritsSalarie";
+import { contratSalarie, natureDuContrat, modelesDuMatch } from "@/lib/contrats/registre";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
@@ -61,7 +60,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   // Côtés du match — MÊME fonction que la route de génération (section 238). Ce fichier les
   // déduisait auparavant par ses propres moyens, et n'en tirait pas les mêmes conclusions.
-  const { profilTitulaire, missionTitulaire, missionCandidat } = cotesDuMatch(match);
+  const { profilTitulaire, profilCandidat, missionTitulaire, missionCandidat } = cotesDuMatch(match);
 
   // Même logique que la route de génération PDF (fce5be5) : partenaire institutionnel OU
   // accès premium effectif (hasPremiumAccess prend en compte freeAccessMode, fondateur,
@@ -87,41 +86,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const missingOther = missingContractLabels(theirProfile);
   const enforce = await isContractProfileEnforced();
 
-  // ── LE SALARIAT EST UNE PROPRIÉTÉ DE L'ANNONCE, PAS DU RECRUTEUR (section 294) ───────────
-  //
-  // Le test portait sur `titulaireKind === "STRUCTURE"`. Il datait d'un temps où seules les
-  // structures employaient. La section 262 a ouvert le salariat aux cabinets LIBÉRAUX — le
-  // modèle CNOMK du CDD est écrit mot pour mot pour « le masseur-kinésithérapeute libéral » qui
-  // embauche son remplaçant — mais ce test-ci n'a pas suivi : un cabinet libéral publiant un
-  // poste salarié se voyait proposer les gabarits LIBÉRAUX, c'est-à-dire exactement le contraire
-  // de ce qu'il a publié.
-  //
-  // REPLI SUR LA STRUCTURE, ET SEULEMENT POUR L'ANCIEN. Avant le 22/09, `estSalariat` n'existait
-  // pas : une annonce de structure ne pouvait pas le porter, et la déduire du recruteur était la
-  // seule lecture possible. Après cette date, l'annonce dit elle-même ce qu'elle propose, et la
-  // déduire à nouveau écraserait un choix explicite.
-  //
-  // Mesuré le 09/10 avant bascule : 41 annonces de titulaires, 4 publiées par une structure,
-  // TOUTES antérieures au 22/09 — donc couvertes par le repli. Zéro annonce change de registre.
-  const DEBUT_SALARIAT_EN_BASE = new Date("2026-09-22T00:00:00Z");
-  const annonceAnterieure =
-    !missionTitulaire || missionTitulaire.createdAt < DEBUT_SALARIAT_EN_BASE;
-  const isSalariat =
-    missionTitulaire?.estSalariat === true ||
-    (annonceAnterieure && profilTitulaire.titulaireKind === "STRUCTURE");
-
-  // La NATURE vient de l'annonce quand elle la porte. `NATURE_PAR_MISSION` déduit du type de
-  // mission — un assistanat devient un CDD — ce qui reste juste faute de mieux, mais un cabinet
-  // qui a coché « CDI » ne doit pas se voir proposer un CDD parce que son annonce est rangée en
-  // assistanat. `CDD_TERME` et `CDD_SANS_TERME` désignent deux variantes du même gabarit CDD.
-  const natureContrat =
-    missionTitulaire?.natureSalariat === "CDI"
-      ? ("CDI" as const)
-      : missionTitulaire?.natureSalariat?.startsWith("CDD")
-        ? ("CDD" as const)
-        : missionType
-          ? NATURE_PAR_MISSION[missionType]
-          : ("CDD" as const);
+  // Registre et nature du contrat : règle unique (section 294), partagée avec la génération du
+  // PDF et la fiche de mise en relation — voir lib/contrats/registre.
+  const isSalariat = contratSalarie(missionTitulaire, profilTitulaire);
+  const natureContrat = natureDuContrat(missionTitulaire, missionType);
 
   // Période par défaut du contrat (section 237) — MÊME fonction que la route de génération, pour
   // que l'écran ne puisse pas annoncer une date que le PDF ne reprendrait pas. Le repli
@@ -161,27 +129,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
   };
 
   // Modèles de contrat applicables (section 216). Le formulaire en a besoin AVANT de générer :
-  // quand la paire (profession, type de mission) en compte plusieurs — le remplacement infirmier
-  // en a deux —, c'est aux parties de choisir, pas au produit. Une liste vide dit qu'aucun modèle
-  // n'existe pour ce statut dans cette profession ; l'écran doit le dire plutôt que de laisser
-  // cliquer sur un bouton qui échouera.
-  // Registre LIBÉRAL ou SALARIÉ selon le camp du recruteur (section 217). `isSalariat` ne bloque
-  // plus aveuglément la génération : il oriente vers l'autre registre. Une liste vide continue de
-  // signifier « aucun modèle pour ce cas », ce que l'écran doit dire plutôt que de laisser
-  // cliquer sur un bouton qui échouera.
-  const memeProfession = match.profileA.profession === match.profileB.profession;
-  const gabarits =
-    !missionType || !memeProfession
-      ? []
-      : isSalariat
-        ? gabaritsSalariePour(profilTitulaire.profession, natureContrat).map((g) => ({
-            id: g.id, libelle: g.libelle, quandLUtiliser: null,
-            source: g.source, composeSansModele: g.composeSansModele ?? false,
-          }))
-        : gabaritsPour(profilTitulaire.profession, missionType).map((g) => ({
-            id: g.id, libelle: g.libelle, quandLUtiliser: g.quandLUtiliser ?? null,
-            source: g.source, composeSansModele: false,
-          }));
+  // quand la paire (profession, type de mission) en compte plusieurs, c'est aux parties de
+  // choisir. Une liste vide dit qu'aucun modèle n'existe pour ce cas ; l'écran doit le dire
+  // plutôt que de laisser cliquer sur un bouton qui échouera.
+  const gabarits = modelesDuMatch({
+    professionTitulaire: profilTitulaire.profession,
+    professionCandidat: profilCandidat.profession,
+    missionType,
+    salarie: isSalariat,
+    nature: natureContrat,
+  });
 
   // Durée, préavis et non-concurrence (section 237, lot 4). Mêmes constantes que la génération.
   // `dureeMois` est la seule qui dépende des annonces : la durée déclarée y prime sur le défaut.
