@@ -7439,9 +7439,23 @@ Vérifié à l'écran le 15/10 avec des comptes de test isolés (profession orth
 la base), supprimés ensuite : refus sur B, feuille partielle sur A avec publication du 6 au 8
 janvier, feuille « Ouvrez ces dates » sur C.
 
-**Pas encore couvert** : la fiche du module CPTS (« Je suis disponible sur ces dates ») ouvre le
-formulaire complet, qui ne vérifie pas le planning et ne pose pas d'intérêt sur le poste. Une
-offre refusée reste dans le fil du candidat.
+**Complété le 15/10, même jour :**
+
+- **Le fil n'affiche plus une offre où le candidat est entièrement pris.** Le filtre est
+  `sansOffresOuJeSuisPris`, une requête pour tout le lot. Libre en partie, il la voit toujours.
+- **La fiche ouverte par lien (`/annonces?card=<id>`) applique la même règle.** Elle appelait la
+  route de swipe sans la feuille. Elle ouvre désormais `FeuilleDispoExpress` sur les jours
+  libres, puis se referme, sans quoi elle couvrirait la feuille. `/api/missions/[id]/card`
+  renvoie `estSalariat`.
+- **Module CPTS : le bouton « Ça m'intéresse » remplace « Je suis disponible sur ces dates ».**
+  Il mène à `/annonces?card=<id>`, où l'intérêt se vérifie sur le planning et parvient au
+  recruteur. L'ancien lien ouvrait le formulaire complet, qui ne vérifiait rien et ne disait
+  rien au recruteur. Hors connexion, la connexion garde le chemin.
+
+Vérifié à l'écran avec des comptes orthophonistes isolés, supprimés ensuite :
+- arrivée non connectée sur `/annonces?card=`, connexion, retour sur la fiche ;
+- « Intéressé », puis feuille partielle ;
+- offre « entièrement prise » absente du fil.
 
 ### SECTION 305 — LES DEUX PAGES DES AIDES-SOIGNANTS (14/10)
 

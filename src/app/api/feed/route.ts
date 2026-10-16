@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { sansOffresOuJeSuisPris } from "@/lib/disponibiliteSurPeriode";
 import { prisma } from "@/lib/prisma";
 import { ProfileType, TitulaireKind, MissionType, Prisma } from "@prisma/client";
 import { stripMissionProfiles } from "@/lib/publicProfile";
@@ -172,7 +173,7 @@ export async function GET(req: NextRequest) {
     profileWhere.ouvertSalariat = true;
   }
 
-  const missions = await prisma.mission.findMany({
+  const missionsLues = await prisma.mission.findMany({
     where: {
       // Prédicat unique (sections 265, 298) : offre, non engagée, période non échue au jour
       // local. Composé par AND : `dateFilter` et `filtreTypes` peuvent porter leur propre OR.
@@ -194,6 +195,13 @@ export async function GET(req: NextRequest) {
     ],
     take: limit,
   });
+
+  // Une offre où le candidat est ENTIÈREMENT pris (remplacement signé, dates bloquées) sort de
+  // son fil (15/10) : la route de swipe refuserait son intérêt, la lui montrer ne sert à rien.
+  // Libre en partie, il la voit — il peut s'y proposer sur ses jours libres (section 306).
+  const missions = isCandidateViewer
+    ? await sansOffresOuJeSuisPris(myProfile.id, missionsLues, maintenant)
+    : missionsLues;
 
   // Mise en avant commerciale — ELLE VIT ICI, dans l'ordre d'affichage, et nulle part ailleurs.
   // Elle sortait auparavant du score de compatibilité, où elle affirmait une chose fausse : le

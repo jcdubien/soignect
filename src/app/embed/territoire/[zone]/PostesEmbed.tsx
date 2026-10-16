@@ -19,7 +19,7 @@ export interface PosteEmbed {
   libelle: string;        // « Remplacement · Kinésithérapeute », « CDI »…
   lieu: string;
   periode: string | null;
-  /** Bornes ISO (AAAA-MM-JJ) pour pré-remplir la disponibilité ; null si le poste n'a pas de dates. */
+  /** Bornes ISO (AAAA-MM-JJ) ; null si le poste n'a pas de période fermée. */
   debut: string | null;
   fin: string | null;
   remuneration: string | null;
@@ -107,33 +107,32 @@ export default function PostesEmbed({ postes, src }: { postes: PosteEmbed[]; src
             )}
 
             <div className="mt-4 flex flex-col gap-2">
-              {ouvert.debut && ouvert.fin && (
-                <a
-                  href={`/disponibilites/create?startDate=${ouvert.debut}&endDate=${ouvert.fin}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-center px-4 py-2.5 rounded-lg bg-[#0B3D5C] text-white text-sm font-semibold no-underline"
-                >
-                  Je suis disponible sur ces dates →
-                </a>
-              )}
+              {/* « Ça m'intéresse » ouvre la fiche de CE poste dans Soignect (`/annonces?card=`),
+                  là où le geste se vérifie sur le planning du candidat (section 306) : refusé
+                  s'il est pris, proposition de publier ses jours libres sinon. Il menait au
+                  formulaire de disponibilité, qui ne vérifiait rien et ne disait rien au
+                  recruteur. Hors connexion, la connexion garde le chemin (section 290). */}
+              <a
+                href={`/annonces?card=${ouvert.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center px-4 py-2.5 rounded-lg bg-[#0B3D5C] text-white text-sm font-semibold no-underline"
+              >
+                Ça m&apos;intéresse →
+              </a>
               <a
                 href={`/annonce/${ouvert.id}?src=${src}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`block text-center px-4 py-2.5 rounded-lg text-sm font-semibold no-underline ${
-                  ouvert.debut && ouvert.fin
-                    ? "border border-[#0B3D5C] text-[#0B3D5C] bg-white"
-                    : "bg-[#0B3D5C] text-white"
-                }`}
+                className="block text-center px-4 py-2.5 rounded-lg text-sm font-semibold no-underline border border-[#0B3D5C] text-[#0B3D5C] bg-white"
               >
                 Voir l&apos;annonce sur Soignect →
               </a>
-              {ouvert.debut && ouvert.fin && (
-                <p className="text-[11px] text-gray-400 text-center m-0">
-                  Votre disponibilité sur ces dates apparaîtra dans le fil des recruteurs du territoire.
-                </p>
-              )}
+              <p className="text-[11px] text-gray-400 text-center m-0">
+                {ouvert.debut && ouvert.fin
+                  ? "Soignect vérifie vos dates sur votre planning et vous propose de publier vos jours libres."
+                  : "Connectez-vous ou créez votre compte gratuit pour signaler votre intérêt."}
+              </p>
             </div>
           </div>
         </div>

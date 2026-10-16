@@ -55,3 +55,37 @@ export async function disponibiliteSurPeriode(
   return evaluerDisponibilite(periode, briques);
 }
 
+
+/**
+ * Retire d'une liste d'offres celles où le candidat est entièrement pris (15/10). Le fil les
+ * proposait, puis la route de swipe refusait l'intérêt : une carte qu'on ne peut que se voir
+ * refuser n'a rien à faire dans le fil. UNE requête pour tout le lot ; une offre sans période
+ * fermée est gardée — il n'y a rien à vérifier.
+ */
+export async function sansOffresOuJeSuisPris<T extends { startDate: Date | null; endDate: Date | null }>(
+  profileId: string,
+  offres: T[],
+  maintenant: Date = new Date(),
+): Promise<T[]> {
+  const datees = offres.filter((o) => o.startDate && o.endDate);
+  if (datees.length === 0) return offres;
+  const occupees = await prisma.mission.findMany({
+    where: {
+      profileId,
+      isActive: true,
+      briqueStatus: { in: [BriqueStatus.CONFIRME, BriqueStatus.INDISPONIBLE] },
+      startDate: { not: null },
+      endDate: { gte: maintenant },
+    },
+    select: { briqueStatus: true, startDate: true, endDate: true },
+  });
+  if (occupees.length === 0) return offres;
+  const aujourdhui = jourIso(maintenant);
+  return offres.filter((o) => {
+    if (!o.startDate || !o.endDate) return true;
+    const debut = jourIso(o.startDate);
+    const periode = { debut: debut < aujourdhui ? aujourdhui : debut, fin: jourIso(o.endDate) };
+    if (periode.fin < periode.debut) return true;
+    return evaluerDisponibilite(periode, occupees).etat !== "PRIS";
+  });
+}

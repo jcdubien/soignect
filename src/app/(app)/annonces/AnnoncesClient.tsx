@@ -12,6 +12,9 @@ import { TitulaireMission } from "@/components/swipe/MissionSelector";
 import InteressesSansRecherche from "@/components/swipe/InteressesSansRecherche";
 import PartageApresPublication from "@/components/share/PartageApresPublication";
 import SuggestionLongTerme from "@/components/swipe/SuggestionLongTerme";
+import FeuilleDispoExpress from "@/components/swipe/FeuilleDispoExpress";
+import type { Disponibilite } from "@/lib/disponibilitePure";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 interface Props {
   profileType: string;
@@ -99,6 +102,19 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
       throw new Error(typeof d?.error === "string" ? d.error : "Le swipe n'a pas pu être enregistré. Réessayez.");
     }
     const data = await res.json();
+    // Planning du candidat (section 306) : même règle que dans la pile — libre sans
+    // disponibilité qui couvre ces dates, ou libre en partie, la feuille propose de publier les
+    // jours libres. C'est par cette fiche qu'arrive le visiteur du module CPTS.
+    const dispo = (data?.disponibilite ?? null) as Disponibilite | null;
+    const aPublie = current.relation.aPublieUneRecherche === true;
+    if (direction === "RIGHT" && !data?.match && (dispo?.etat === "LIBRE" || dispo?.etat === "PARTIEL" || (!dispo && !aPublie))) {
+      setFeuille({ mission: current.mission as DetailMission & { missionType?: string | null; estSalariat?: boolean | null }, dispo, aPublie });
+      // La fiche se referme : elle couvrirait la feuille (z-[70]), et l'intérêt est déjà
+      // enregistré — la feuille prend le relais du geste.
+      setDetail(null);
+      setTrayKey((k) => k + 1);
+      return;
+    }
     setDetail((cur) =>
       cur
         ? { ...cur, relation: { ...cur.relation, swipeDirection: direction, matchId: data?.match?.id ?? cur.relation.matchId ?? null } }
@@ -106,6 +122,12 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
     );
     if (direction === "RIGHT") setTrayKey((k) => k + 1); // rafraîchit le tray "Vos mises en relation"
   }, [detail]);
+
+  const [feuille, setFeuille] = useState<{
+    mission: DetailMission & { missionType?: string | null; estSalariat?: boolean | null };
+    dispo: Disponibilite | null;
+    aPublie: boolean;
+  } | null>(null);
 
   // Annulation d'un choix déjà enregistré (section 218). Même route que « Retirer ce choix »
   // du MatchTray : DELETE /api/swipe supprime la ligne sans regarder sa direction, donc un pass
@@ -225,6 +247,24 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
           onSwipe={handleSheetSwipe}
           onUndoSwipe={handleSheetUndo}
           onClose={() => setDetail(null)}
+        />
+      )}
+      {feuille && (
+        <FeuilleDispoExpress
+          cabinetsEnAttente={0}
+          salarieSeul={contratFourniParEmployeur(profession)}
+          annonce={{
+            missionType: feuille.mission.missionType ?? null,
+            estSalariat: feuille.mission.estSalariat ?? null,
+            location: feuille.mission.location,
+            startDate: feuille.mission.startDate ? String(feuille.mission.startDate) : null,
+            endDate: feuille.mission.endDate ? String(feuille.mission.endDate) : null,
+          }}
+          profileType={profileType}
+          disponibilite={feuille.dispo}
+          dejaPublie={feuille.aPublie}
+          onPublie={() => { setFeuille(null); setFeedKey((k) => k + 1); }}
+          onReporte={() => setFeuille(null)}
         />
       )}
     </div>
