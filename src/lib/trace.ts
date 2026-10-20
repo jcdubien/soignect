@@ -5,6 +5,12 @@ import type { Prisma } from "@prisma/client";
 // Back-office de traçabilité (section 86).
 // Insert fire-and-forget : ne bloque JAMAIS ni ne ralentit la route appelante,
 // et n'échoue jamais visiblement (toute erreur est avalée). À appeler SANS await.
+//
+// PROFESSION DÉDUITE DE L'ACTEUR (20/10, section 313). Une trace qui nomme un `profileId` sans
+// dire sa profession ne se rapporte à aucun marché : la mesure d'une priorité territoriale, qui
+// n'a de sens que par profession, ne pouvait pas compter les swipes. Quand l'appelant ne la
+// fournit pas (`undefined`), elle est lue sur le profil, dans la même chaîne fire-and-forget. Un
+// `null` explicite reste `null`. Pas de rattrapage des lignes passées.
 export function logTraceEvent(input: {
   eventType: string;
   missionId?: string | null;
@@ -15,19 +21,25 @@ export function logTraceEvent(input: {
   missionType?: string | null;
   metadata?: Prisma.InputJsonValue;
 }): void {
-  prisma.traceEvent
-    .create({
+  const profession: Promise<string | null> =
+    input.profession !== undefined || !input.profileId
+      ? Promise.resolve(input.profession ?? null)
+      : prisma.profile
+          .findUnique({ where: { id: input.profileId }, select: { profession: true } })
+          .then((p) => p?.profession ?? null, () => null);
+  profession
+    .then((profession) => prisma.traceEvent.create({
       data: {
         eventType: input.eventType,
         missionId: input.missionId ?? null,
         matchId: input.matchId ?? null,
         profileId: input.profileId ?? null,
         commune: input.commune ?? null,
-        profession: input.profession ?? null,
+        profession,
         missionType: input.missionType ?? null,
         ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
       },
-    })
+    }))
     .catch((err) => {
       console.error("[TraceEvent] insert échoué (ignoré):", err);
     });

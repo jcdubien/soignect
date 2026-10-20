@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
   logTraceEvent({
     eventType: "SIGNUP",
     profileId: user.profile?.id ?? null,
+    profession: user.profile?.profession ?? null,
     metadata: { type, src: src ?? "direct", parInvitation: !!inviteToken },
   });
 

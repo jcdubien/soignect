@@ -7408,6 +7408,22 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 313 — TRACES : LA PROFESSION DE L'ACTEUR SUR SWIPE ET SIGNUP (20/10)
+
+Prérequis n°2 de l'offre CPTS/MSP : sans profession, une trace ne se rapporte à aucun marché, et
+la mesure d'une priorité territoriale (par profession) ne pouvait pas compter les intérêts.
+
+- `logTraceEvent` (lib/trace) : quand l'appelant ne fournit pas `profession` (`undefined`) et
+  nomme un `profileId`, la profession est lue sur le profil dans la même chaîne
+  fire-and-forget. Un `null` explicite reste `null`. Vaut pour tous les appelants du logger.
+- `SIGNUP` la passe explicitement (profil tout juste créé) ; `SWIPE_RIGHT` la reçoit du logger.
+- Pas de rattrapage des lignes passées.
+- Vérifié en local (comptes `.invalid`, envoi d'email désactivé) : `SWIPE_RIGHT` →
+  KINESITHERAPEUTE, `SIGNUP` → INFIRMIER.
+- **Hors périmètre, à savoir** : le swipe à gauche n'est pas tracé (la ligne `Swipe` existe) ;
+  six écritures directes de `TraceEvent` contournent le logger (`DEEPSEEK_CALL`, préavis,
+  intérêt signalé…) et restent sans profession.
+
 ### SECTION 312 — FIL : REQUÊTE DE FUSION DES ANNONCES À PRIORITÉ TERRITORIALE (20/10)
 
 Prérequis n°1 de l'offre CPTS/MSP, sans nouveau boost.
