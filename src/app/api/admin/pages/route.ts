@@ -16,6 +16,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("perimetre"), clientId: z.string(), communes: z.array(z.string()).min(1) }),
   z.object({ action: z.literal("jeton"), clientId: z.string(), quel: z.enum(["public", "edition"]) }),
   z.object({ action: z.literal("apl"), clientId: z.string() }),
+  z.object({ action: z.literal("demo"), clientId: z.string(), demo: z.boolean() }),
 ]);
 
 export async function POST(req: NextRequest) {
@@ -58,6 +59,16 @@ export async function POST(req: NextRequest) {
       data: d.quel === "public" ? { jetonPublic: nouveauJeton() } : { jetonEdition: nouveauJeton() },
     });
     return NextResponse.json({ ok: true });
+  }
+
+  if (d.action === "demo") {
+    await prisma.pageClient.update({ where: { clientId: client.id }, data: { demo: d.demo } });
+    // Vers la démo : les priorités APL écrites sortent de la base (elles agissaient sur le fil).
+    // Vers le réel : elles y entrent. Les priorités DÉCLARÉES ne bougent pas.
+    if (d.demo) {
+      const retirees = (await prisma.prioriteTerritoriale.deleteMany({ where: { clientId: client.id, origine: "APL" } })).count;
+      return NextResponse.json({ ok: true, bilan: { creees: 0, modifiees: 0, retirees, ignorees: 0 } });
+    }
   }
 
   const bilan = await synchroniserPrioritesApl(client.id, session.user.id);

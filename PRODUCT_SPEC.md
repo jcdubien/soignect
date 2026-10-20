@@ -7475,6 +7475,20 @@ Décisions du 20/10 :
   - écran admin et recalcul.
 
   Les écritures de test ont été annulées, le compte admin de test supprimé, les traces effacées.
+#### Page de démonstration (20/10, CPTS Horizon Santé Guadeloupe)
+
+- **`PageClient.demo`** : les priorités sont calculées à l'affichage depuis l'APL
+  (`prioritesDeLaPage`). Rien n'est écrit dans `PrioriteTerritoriale`, donc aucun effet sur le
+  fil réel.
+- **Rien n'est attribué au client**, qui n'a rien déclaré : le bloc s'intitule « Là où l'accès aux
+  soins est le plus faible », sans « Zones prioritaires — <client> ».
+- Le lien d'édition refuse l'ajout de priorités (409). L'admin bascule entre démo et page réelle :
+  vers la démo, les lignes `APL` du client sont retirées ; vers le réel, elles sont écrites.
+- **Client créé** : « CPTS Horizon Santé Guadeloupe » (CPTS, POC_GRATUIT, du 20/10/2026 au
+  20/01/2027, avec une note « prospect »). Périmètre : Petit-Bourg, Goyave, Capesterre-Belle-Eau.
+  Aucune priorité en base.
+- **Titre du territoire** : les noms des communes jusqu'à trois, puis la zone, sinon le nombre.
+
 - **Après chaque import APL** (`scripts/sync-commune-apl.mjs`), cliquer « Recalculer depuis
   l'APL » pour chaque client. Le script ne peut pas le faire lui-même (.mjs sans accès au code TS).
 

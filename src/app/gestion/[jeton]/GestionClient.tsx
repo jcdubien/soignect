@@ -22,6 +22,7 @@ export default function GestionClient(props: {
   jeton: string;
   nom: string;
   active: boolean;
+  demo: boolean;
   revueLe: string;
   lienPublic: string;
   communes: { code: string; libelle: string }[];
@@ -90,6 +91,13 @@ export default function GestionClient(props: {
         <p className="text-[11px] text-gray-400 mt-2 mb-0">
           Gardez pour vous le lien de cet écran : il permet de modifier la page.
         </p>
+        {props.demo && (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-3 mb-0">
+            Page de démonstration : les zones prioritaires sont calculées depuis l&apos;APL et ne
+            sont pas présentées comme les vôtres. Avec l&apos;abonnement, elles deviennent vos
+            priorités déclarées, remontent vos postes dans Soignect, et vous pouvez en ajouter.
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
@@ -148,7 +156,7 @@ export default function GestionClient(props: {
             </li>
           ))}
         </ul>
-        <div className="flex gap-2 flex-wrap items-end">
+        {!props.demo && <div className="flex gap-2 flex-wrap items-end">
           <select value={ajout.codeInsee} onChange={(e) => setAjout({ ...ajout, codeInsee: e.target.value })} className="text-xs border border-gray-200 rounded-lg px-2 py-2">
             {props.communes.map((c) => <option key={c.code} value={c.code}>{c.libelle}</option>)}
           </select>
@@ -163,7 +171,7 @@ export default function GestionClient(props: {
           <button onClick={() => appel("POST", ajout, "Priorité ajoutée.")} className="px-3 py-2 rounded-lg border border-[#0B3D5C] text-[#0B3D5C] text-xs font-bold">
             Ajouter
           </button>
-        </div>
+        </div>}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">

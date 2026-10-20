@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 interface Client {
   id: string; nom: string; type: string; nature: string; active: boolean; revueLe: string;
   max: number | null; priorites: number;
-  page: { communes: string[]; lienPublic: string; lienEdition: string } | null;
+  page: { communes: string[]; demo: boolean; lienPublic: string; lienEdition: string } | null;
 }
 
 export default function PagesClient({ clients, zones }: {
@@ -49,7 +49,10 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
-        <p className="font-bold m-0">{client.nom}</p>
+        <p className="font-bold m-0">
+          {client.nom}
+          {client.page?.demo && <span className="ml-2 text-[10px] font-bold uppercase bg-amber-100 text-amber-800 rounded px-1.5 py-0.5">Démo</span>}
+        </p>
         <p className="text-xs text-gray-500 m-0">
           {client.type} · {client.nature} · {client.active ? `actif jusqu'au ${new Date(client.revueLe).toLocaleDateString("fr-FR", { timeZone: "UTC" })}` : "inactif"} · {client.priorites} priorité{client.priorites > 1 ? "s" : ""}
         </p>
@@ -101,6 +104,12 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
           <button onClick={() => poster({ action: "apl" }, bilan)}
             className="px-3 py-2 rounded-lg border border-[#0B3D5C] text-[#0B3D5C] text-xs font-bold">
             Recalculer depuis l&apos;APL
+          </button>
+        )}
+        {client.page && (
+          <button onClick={() => poster({ action: "demo", demo: !client.page!.demo }, bilan)}
+            className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-bold">
+            {client.page.demo ? "Passer en page réelle (priorités dans le fil)" : "Passer en démonstration"}
           </button>
         )}
       </div>

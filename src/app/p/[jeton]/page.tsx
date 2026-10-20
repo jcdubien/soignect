@@ -2,9 +2,8 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
-import { zonesPrioritairesDuClient } from "@/lib/territoire";
 import { ZONE_LABELS, zoneOfCommune } from "@/lib/communes";
-import { libellesDuCode, relationActive } from "@/lib/pageClient";
+import { libellesDuCode, prioritesDeLaPage, relationActive } from "@/lib/pageClient";
 import PostesDuTerritoire from "@/components/territoire/PostesDuTerritoire";
 
 export const dynamic = "force-dynamic";
@@ -61,17 +60,16 @@ export default async function PageClientPublique({ params }: { params: Promise<{
 
   const communes = page.communes.flatMap(libellesDuCode);
   const professions = page.professions.length > 0 ? page.professions : Object.values(Profession);
-  const codes = new Set(page.communes);
   const [priorites, apl] = await Promise.all([
-    zonesPrioritairesDuClient(page.client.nom).then((zs) => zs.filter((z) => codes.has(z.codeInsee))),
+    prioritesDeLaPage(page, page.client.nom),
     prisma.communeAPL.aggregate({ where: { codeInsee: { in: page.communes } }, _max: { aplAnnee: true } }),
   ]);
 
-  // « Pointe-Noire » pour une MSP, « Nord Basse-Terre » pour une CPTS dont les communes forment
-  // une zone, sinon le nombre de communes.
+  // Les noms jusqu'à trois communes (« Pointe-Noire » pour une MSP), puis la zone si elles en
+  // forment une (« Nord Basse-Terre »), sinon leur nombre.
   const zones = Array.from(new Set(communes.map(zoneOfCommune)));
   const territoire =
-    communes.length === 1 ? communes[0]
+    communes.length <= 3 ? communes.join(", ")
     : zones.length === 1 && zones[0] ? ZONE_LABELS[zones[0]]
     : `${page.communes.length} communes`;
 
@@ -93,6 +91,7 @@ export default async function PageClientPublique({ params }: { params: Promise<{
           territoire={territoire}
           trace={`page-${page.id}`}
           anneeApl={apl._max.aplAnnee}
+          attribuee={!page.demo}
         />
       </div>
     </>,

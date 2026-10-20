@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
 import { PROFESSION_LABELS } from "@/lib/professions";
 import { paliersApl } from "@/lib/aplPalier";
-import { libellesDuCode, relationActive } from "@/lib/pageClient";
+import { libellesDuCode, prioritesDeLaPage, relationActive } from "@/lib/pageClient";
 import { appBaseUrl } from "@/lib/appUrl";
 import GestionClient from "./GestionClient";
 
@@ -24,11 +24,16 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
 
   const active = relationActive(page.client);
   const [priorites, paliers, vues] = await Promise.all([
-    prisma.prioriteTerritoriale.findMany({
-      where: { codeInsee: { in: page.communes } },
-      select: { id: true, codeInsee: true, commune: true, profession: true, niveau: true, origine: true, clientId: true },
-      orderBy: [{ niveau: "desc" }, { commune: "asc" }],
-    }),
+    // Démonstration : rien en base, les priorités affichées sont celles que la page calcule.
+    page.demo
+      ? prioritesDeLaPage(page, page.client.nom).then((zs) => zs.map((z) => ({
+          ...z, id: `${z.codeInsee}-${z.profession}`, origine: "APL" as const, clientId: page.clientId,
+        })))
+      : prisma.prioriteTerritoriale.findMany({
+          where: { codeInsee: { in: page.communes } },
+          select: { id: true, codeInsee: true, commune: true, profession: true, niveau: true, origine: true, clientId: true },
+          orderBy: [{ niveau: "desc" }, { commune: "asc" }],
+        }),
     paliersApl(page.communes),
     prisma.traceEvent.findMany({
       where: { eventType: "LANDING_VIEW", metadata: { path: ["page"], equals: `page-${page.id}` } },
@@ -45,6 +50,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
           jeton={jeton}
           nom={page.client.nom}
           active={active}
+          demo={page.demo}
           revueLe={page.client.revueLe.toISOString()}
           lienPublic={`${appBaseUrl()}/p/${page.jetonPublic}`}
           communes={page.communes.map((c) => ({ code: c, libelle: libellesDuCode(c)[0] ?? c }))}

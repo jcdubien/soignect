@@ -32,6 +32,7 @@ export default async function AdminPagesPage() {
         priorites: c._count.priorites,
         page: c.page ? {
           communes: c.page.communes,
+          demo: c.page.demo,
           lienPublic: `${base}/p/${c.page.jetonPublic}`,
           lienEdition: `${base}/gestion/${c.page.jetonEdition}`,
         } : null,

@@ -31,10 +31,14 @@ export interface PropsPostesDuTerritoire {
   /** Clé de trace (LANDING_VIEW) et paramètre `src` des liens. */
   trace: string;
   anneeApl: number | null;
+  /** false = page de démonstration : les priorités viennent de l'APL seul, et le bloc ne les
+   *  attribue PAS au client, qui n'a rien déclaré (même règle que « par sa CPTS », retiré le
+   *  18/08 : on n'attribue à une institution que ce qu'elle a posé). */
+  attribuee?: boolean;
 }
 
 export default async function PostesDuTerritoire({
-  zones, communes, professions, priorites, destinataire, territoire, trace, anneeApl,
+  zones, communes, professions, priorites, destinataire, territoire, trace, anneeApl, attribuee = true,
 }: PropsPostesDuTerritoire) {
   // Toutes les offres vivantes du périmètre, sans plafond à la requête : le plafond de 10
   // coupait au hasard du tri, et pouvait écarter justement un poste de zone prioritaire. Les
@@ -118,11 +122,13 @@ export default async function PostesDuTerritoire({
       {zonesPrio.length > 0 && (
         <section className="rounded-xl bg-[#0B3D5C]/[0.06] border border-[#0B3D5C]/20 p-3 mb-4">
           <p className="text-sm font-bold m-0 text-[#0B3D5C]">
-            Zones prioritaires — {destinataire}
+            {attribuee ? `Zones prioritaires — ${destinataire}` : "Là où l'accès aux soins est le plus faible"}
           </p>
           <p className="text-xs text-gray-600 m-0 mt-0.5 mb-2">
-            {destinataire} y recherche en priorité ces professionnels, là où l&apos;accès aux soins
-            est le plus faible{anneeApl ? ` (APL de la DREES, ${anneeApl})` : ""}.
+            {attribuee
+              ? `${destinataire} y recherche en priorité ces professionnels, là où l'accès aux soins est le plus faible`
+              : "Communes et professions les moins bien dotées du département"}
+            {anneeApl ? ` (APL de la DREES, ${anneeApl})` : ""}.
           </p>
           <ul className="list-none p-0 m-0 mb-2 space-y-1.5">
             {communesPrio.map((c) => {

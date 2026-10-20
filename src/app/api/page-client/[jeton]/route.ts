@@ -52,6 +52,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ jet
   if (!page) return NextResponse.json({ error: "Lien inconnu ou page inactive." }, { status: 404 });
   const parsed = ajout.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Priorité invalide." }, { status: 400 });
+  // Une page de démonstration n'écrit aucune priorité : elle agirait sur le fil réel.
+  if (page.demo) return NextResponse.json({ error: "Page de démonstration : l'ajout de priorités s'ouvre avec l'abonnement." }, { status: 409 });
   const { codeInsee, profession, niveau } = parsed.data;
   if (!page.communes.includes(codeInsee)) {
     return NextResponse.json({ error: "Cette commune n'est pas dans votre périmètre." }, { status: 400 });

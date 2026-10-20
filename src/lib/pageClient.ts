@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { Profession, TypeInstitution } from "@prisma/client";
 import { COMMUNE_INSEE } from "@/lib/communes";
 import { paliersApl } from "@/lib/aplPalier";
+import { zonesPrioritairesDuClient, type ZonePrioritaire } from "@/lib/territoire";
 
 // Page hébergée d'un client institutionnel (20/10) — voir le modèle `PageClient`.
 //
@@ -52,6 +53,8 @@ export async function synchroniserPrioritesApl(
   saisiParId: string,
 ): Promise<{ creees: number; modifiees: number; retirees: number; ignorees: number }> {
   const page = await prisma.pageClient.findUniqueOrThrow({ where: { clientId } });
+  // Une page de démonstration n'écrit rien : ses priorités se calculent à l'affichage.
+  if (page.demo) return { creees: 0, modifiees: 0, retirees: 0, ignorees: 0 };
   const paliers = await paliersApl(page.communes);
   const existantes = await prisma.prioriteTerritoriale.findMany({
     where: { codeInsee: { in: page.communes } },
@@ -93,4 +96,24 @@ export async function synchroniserPrioritesApl(
     bilan.retirees = (await prisma.prioriteTerritoriale.deleteMany({ where: { id: { in: ids } } })).count;
   }
   return bilan;
+}
+
+/** Les zones prioritaires qu'une page affiche, plus fortes d'abord.
+ *  · page réelle : les déclarations vivantes du client (APL et déclarées), sur son périmètre ;
+ *  · page de démonstration : l'APL seul, calculé à l'affichage — rien n'est en base. */
+export async function prioritesDeLaPage(
+  page: { demo: boolean; communes: string[] },
+  clientNom: string,
+): Promise<ZonePrioritaire[]> {
+  if (page.demo) {
+    return (await paliersApl(page.communes))
+      .filter((p) => p.niveau > 0)
+      .sort((a, b) => b.niveau - a.niveau)
+      .map((p) => ({
+        commune: libellesDuCode(p.codeInsee)[0] ?? p.commune,
+        codeInsee: p.codeInsee, profession: p.profession, niveau: p.niveau,
+      }));
+  }
+  const codes = new Set(page.communes);
+  return (await zonesPrioritairesDuClient(clientNom)).filter((z) => codes.has(z.codeInsee));
 }

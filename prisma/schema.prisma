@@ -881,6 +881,10 @@ model PageClient {
   // Administrateur qui a ouvert la page : `saisiParId` des priorités que le client ajoute
   // lui-même (une déclaration nomme toujours l'administrateur qui en répond).
   creeParId     String
+  // Page de DÉMONSTRATION (20/10) : priorités calculées à l'affichage depuis l'APL, rien
+  // d'écrit dans `PrioriteTerritoriale` — donc aucun effet sur le fil — et rien d'attribué au
+  // client, qui n'a rien déclaré. Pour montrer la page à un prospect.
+  demo          Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
