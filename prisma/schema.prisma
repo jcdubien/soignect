@@ -794,6 +794,10 @@ model PrioriteTerritoriale {
   expireLe    DateTime?  // NULL = sans échéance déclarée
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  // D'où vient le niveau (20/10). `APL` : calculé depuis l'APL DREES sur le périmètre d'une page
+  // client (lib/aplPalier) — recalculé à chaque millésime, jamais retiré à la main par le client.
+  // `DECLAREE` : saisie par un administrateur ou ajoutée par le client sur sa page.
+  origine     OriginePriorite @default(DECLAREE)
 
   // Une seule déclaration vivante par commune ET par profession : deux lignes concurrentes
   // poseraient la question « laquelle gagne ? », à laquelle aucune réponse ne serait honnête.
@@ -845,6 +849,40 @@ model ClientInstitutionnel {
   updatedAt DateTime  @updatedAt
 
   priorites PrioriteTerritoriale[]
+  page      PageClient?
+}
+
+enum OriginePriorite {
+  APL
+  DECLAREE
+}
+
+// Page hébergée d'un client institutionnel (20/10, demande de JC) — CPTS, MSP, établissement.
+//
+// Le module embarquable dépend du bon vouloir d'un webmaster. Cette page se sert par un LIEN :
+// le client la diffuse lui-même (mail, réseaux, affiche), sans rien intégrer. Deux jetons :
+//   · `jetonPublic`  — la page vue par les soignants (/p/{jeton}) ;
+//   · `jetonEdition` — le réglage par le client lui-même (/gestion/{jeton}) : message d'accueil,
+//     contact, professions montrées, priorités ajoutées. Le périmètre reste à l'administrateur,
+//     parce qu'il découle de l'offre souscrite (lib/pageClient : PERIMETRE_MAX).
+// Un jeton se régénère depuis /admin/pages : l'ancien lien cesse aussitôt de répondre.
+model PageClient {
+  id            String   @id @default(cuid())
+  clientId      String   @unique
+  client        ClientInstitutionnel @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  jetonPublic   String   @unique
+  jetonEdition  String   @unique
+  // Codes INSEE du périmètre — la clé, jamais le libellé (même règle que PrioriteTerritoriale).
+  communes      String[]
+  // Vide = toutes les professions.
+  professions   Profession[]
+  messageAccueil String? @db.VarChar(700)
+  contact       String?  @db.VarChar(200)
+  // Administrateur qui a ouvert la page : `saisiParId` des priorités que le client ajoute
+  // lui-même (une déclaration nomme toujours l'administrateur qui en répond).
+  creeParId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // Poste du Planning Board (section 28) — un poste = une ligne de timeline

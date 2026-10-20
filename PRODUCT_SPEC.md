@@ -7408,6 +7408,76 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 310 — PAGE CLIENT HÉBERGÉE, SERVIE PAR LIEN (20/10)
+
+Demande de Jean-Charles : plutôt qu'un module à intégrer, qui dépend « du bon vouloir du
+webmaster », une page par client (CPTS, MSP, établissement), servie par un lien avec un jeton,
+avec un étage de réglages minimal, et qui tient compte de l'abonnement et de l'APL des communes.
+
+Décisions du 20/10 :
+- le client règle lui-même sa page, depuis son propre lien d'édition ;
+- les priorités sont calculées par l'APL ;
+- le module embarquable est gardé, avec le même rendu.
+
+#### Modèle
+
+- **`PageClient`** (1 par `ClientInstitutionnel`) porte :
+  - `jetonPublic` et `jetonEdition`, régénérables ;
+  - `communes`, en codes INSEE ;
+  - `professions` (vide = toutes) ;
+  - `messageAccueil` (700) et `contact` (200) ;
+  - `creeParId`, l'admin qui répond des priorités ajoutées par le client.
+
+  RLS activée.
+- **`PrioriteTerritoriale.origine`** vaut `APL` (calculée) ou `DECLAREE`. Les 12 priorités de la
+  CPTS Nord Basse-Terre sont marquées `APL`.
+- La migration `20261020120000_page_client` a été appliquée à la main (additive, idempotente).
+
+#### Règles
+
+- **`lib/aplPalier`** : la règle du rang (section 309) écrite une seule fois. Le classement se fait
+  sur le département entier, jamais sur le seul périmètre du client.
+- **`lib/pageClient`** :
+  - `PERIMETRE_MAX` découle de la grille tarifaire : MSP 1 commune, établissements 2,
+    CPTS/collectivité/hôpital sans plafond ;
+  - `relationActive` est la même règle que celle du fil ;
+  - `synchroniserPrioritesApl` crée, met à jour et retire les lignes `APL` du client. Elle ne
+    touche jamais une ligne `DECLAREE`, ni la ligne d'un autre client.
+- **Hors abonnement**, la page publique affiche « n'est plus active », et le lien d'édition
+  n'écrit plus rien.
+
+#### Écrans
+
+- **`/p/{jetonPublic}`** : la page des soignants, avec le nom du client, son message et son
+  contact, puis le composant commun. Non indexée.
+- **`/gestion/{jetonEdition}`** : réglages du client.
+  - Il peut :
+    - copier le lien public ;
+    - modifier son message, son contact et les professions affichées ;
+    - ajouter une priorité déclarée dans son périmètre ;
+    - retirer seulement les priorités qu'il a lui-même déclarées.
+  - Il voit aussi le tableau APL de ses communes (valeur, rang, accès) et ses visites humaines
+    (total et sur 30 jours).
+  - API : `/api/page-client/{jeton}` (PATCH, POST, DELETE).
+- **`/admin/pages`** : ouvrir la page d'un client, régler son périmètre (refusé au-delà de
+  l'offre, avec un recalcul APL dans le même geste), régénérer un jeton, recalculer depuis l'APL.
+- **`components/territoire/PostesDuTerritoire`** : rendu unique pour le module et la page. Les
+  communes prioritaires portent leur niveau d'accès (« accès très faible »…).
+
+#### État
+
+- La page de la CPTS Nord Basse-Terre est ouverte (4 communes). Ses liens sont dans `/admin/pages`.
+- Testé en local sur la base de prod :
+  - page publique ;
+  - écran d'édition ;
+  - API : ajout, doublon refusé, commune hors périmètre refusée, jeton faux refusé, priorité APL
+    non retirable, retrait d'une priorité déclarée ;
+  - écran admin et recalcul.
+
+  Les écritures de test ont été annulées, le compte admin de test supprimé, les traces effacées.
+- **Après chaque import APL** (`scripts/sync-commune-apl.mjs`), cliquer « Recalculer depuis
+  l'APL » pour chaque client. Le script ne peut pas le faire lui-même (.mjs sans accès au code TS).
+
 ### SECTION 309 — PRIORITÉS CPTS SELON L'APL DE CHAQUE PROFESSION, MODULE OUVERT À TOUTES LES PROFESSIONS (20/10)
 
 Décisions de Jean-Charles du 20/10 : « toutes les communes de la CPTS Nord Basse-Terre sont

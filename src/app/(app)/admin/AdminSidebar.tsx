@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/ratings", label: "Recommandations" },
   { href: "/admin/deepseek", label: "Appels DeepSeek" },
   { href: "/admin/priorites", label: "Priorités territoriales" },
+  { href: "/admin/pages", label: "Pages clients" },
   { href: "/admin/apl", label: "Données APL" },
   { href: "/admin/config", label: "Configuration" },
 ];

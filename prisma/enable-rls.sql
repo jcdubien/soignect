@@ -44,3 +44,7 @@ ALTER TABLE "public"."PrioriteTerritoriale" ENABLE ROW LEVEL SECURITY;
 -- territorial. Nomme une institution et la nature commerciale du lien — rien qui ait a sortir
 -- par PostgREST avec la cle anon.
 ALTER TABLE "public"."ClientInstitutionnel" ENABLE ROW LEVEL SECURITY;
+
+-- PageClient (section 310) : porte les jetons des pages clients — rien qui ait a sortir par
+-- PostgREST avec la cle anon.
+ALTER TABLE "public"."PageClient" ENABLE ROW LEVEL SECURITY;
