@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import type { Profession, TypeInstitution } from "@prisma/client";
-import { COMMUNE_INSEE } from "@/lib/communes";
+import { libellesDuCode } from "@/lib/communes";
 import { paliersApl } from "@/lib/aplPalier";
 import { zonesPrioritairesDuClient, type ZonePrioritaire } from "@/lib/territoire";
 
@@ -23,11 +23,7 @@ export const PERIMETRE_MAX: Record<TypeInstitution, number | null> = {
   CPTS: null, COLLECTIVITE: null, HOPITAL: null, ARS: null, CGSS: null, AUTRE: null,
 };
 
-/** Les libellés produit (ceux de `Mission.location`) d'un code INSEE. Plusieurs libellés peuvent
- *  partager un code (Marigot et Grand Case → Saint-Martin) : on les garde tous. */
-export function libellesDuCode(code: string): string[] {
-  return Object.entries(COMMUNE_INSEE).filter(([, c]) => c === code).map(([l]) => l);
-}
+export { libellesDuCode };
 
 /** Une relation client vivante — la même règle que celle qui active les priorités dans le fil
  *  (lib/territoire, `declarationVivante`). Hors abonnement, la page ne sert plus rien. */

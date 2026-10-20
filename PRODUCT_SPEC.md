@@ -7408,6 +7408,26 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 312 — FIL : REQUÊTE DE FUSION DES ANNONCES À PRIORITÉ TERRITORIALE (20/10)
+
+Prérequis n°1 de l'offre CPTS/MSP, sans nouveau boost.
+
+- **Défaut.** Le fil lisait `limit` annonces (20 par défaut, 50 au plus), triées en SQL par note
+  puis date, et la priorité territoriale ne réordonnait QUE cette page. Une annonce de commune
+  prioritaire classée au-delà n'apparaissait jamais.
+- **Correctif** (`api/feed`). Le prédicat du fil devient une valeur unique, `whereFil`. Une
+  seconde requête lit, avec ce même prédicat, les annonces des communes à priorité vivante pour
+  la profession du lecteur (`communesAvecPrioriteVivante`, mêmes conditions que
+  `chargerPrioritesTerritoriales` via `declarationVivante`), hors première page. Les deux sont
+  fusionnées, triées comme avant, puis recoupées à `limit`. Mention de transparence, trace et
+  en-têtes portent sur la page servie, après recoupage.
+- **Candidat seulement**, comme la priorité elle-même.
+- **Non-régression vérifiée** (comptes `.invalid` kiné, infirmier, aide-soignant, cinq requêtes
+  chacun) : seul `limit=3` kiné change, la 3e annonce boostée entrant dans la page. Fil par
+  défaut, `limit=50`, filtres REMPLACEMENT et POSTES, fils infirmier et aide-soignant :
+  identiques.
+- `libellesDuCode` passe dans `lib/communes` (source unique, partagée par le fil et les pages).
+
 ### SECTION 311 — PAGE CLIENT : CE QUI EST VISIBLE, ET LE NOM SOUS ACCORD (20/10)
 
 Corrections demandées après lecture de la page Horizon en ligne. Elles valent pour la page

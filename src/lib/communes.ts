@@ -324,3 +324,9 @@ export function libelleCommune(saisie: string): string {
   const k = cle(saisie);
   return Object.keys(COMMUNE_INSEE).find((c) => cle(c) === k) ?? saisie.trim();
 }
+
+/** Les libellés produit (ceux de `Mission.location`) d'un code INSEE. Plusieurs libellés peuvent
+ *  partager un code (Marigot et Grand Case → Saint-Martin) : on les garde tous. */
+export function libellesDuCode(code: string): string[] {
+  return Object.entries(COMMUNE_INSEE).filter(([, c]) => c === code).map(([l]) => l);
+}

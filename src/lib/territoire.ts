@@ -58,7 +58,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
-import { inseeOfCommune } from "@/lib/communes";
+import { inseeOfCommune, libellesDuCode } from "@/lib/communes";
 
 // ── Dosage ───────────────────────────────────────────────────────────────────
 //
@@ -203,6 +203,22 @@ export async function chargerPrioritesTerritoriales(
     }
   }
   return resultat;
+}
+
+/**
+ * Les libellés de commune où une priorité VIVANTE porte sur cette profession — ce que la
+ * requête de fusion du fil (section 312) doit aller chercher au-delà de la première page.
+ * Mêmes conditions que `chargerPrioritesTerritoriales`, par construction : `declarationVivante`.
+ */
+export async function communesAvecPrioriteVivante(
+  profession: Profession,
+  maintenant: Date = new Date(),
+): Promise<string[]> {
+  const lignes = await prisma.prioriteTerritoriale.findMany({
+    where: { profession, niveau: { gt: 0 }, ...declarationVivante(maintenant) },
+    select: { codeInsee: true },
+  });
+  return Array.from(new Set(lignes.flatMap((l) => libellesDuCode(l.codeInsee))));
 }
 
 /** Les deux conditions ci-dessus — déclaration non échue, relation client active —, partagées

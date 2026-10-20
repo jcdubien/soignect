@@ -6,7 +6,7 @@ import { ProfileType, TitulaireKind, MissionType, Prisma } from "@prisma/client"
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { EST_UNE_OFFRE, offreOuverteLe } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
-import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
+import { chargerPrioritesTerritoriales, communesAvecPrioriteVivante, type PrioriteAppliquee } from "@/lib/territoire";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
 import { salariatPublicable, contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { professionPluriel } from "@/lib/professions";
@@ -173,28 +173,43 @@ export async function GET(req: NextRequest) {
     profileWhere.ouvertSalariat = true;
   }
 
-  const missionsLues = await prisma.mission.findMany({
-    where: {
-      // Prédicat unique (sections 265, 298) : offre, non engagée, période non échue au jour
-      // local. Composé par AND : `dateFilter` et `filtreTypes` peuvent porter leur propre OR.
-      AND: [
-        offreOuverteLe(maintenant),
-        {
-          id: { notIn: excludeMissionIds },
-          profile: profileWhere,
-          ...(location ? { location } : {}),
-          ...dateFilter,
-          ...filtreTypes,
-        },
-      ],
-    },
-    include: { profile: true },
-    orderBy: [
-      { profile: { ratingAvg: "desc" } },
-      { createdAt: "desc" },
+  const whereFil: Prisma.MissionWhereInput = {
+    // Prédicat unique (sections 265, 298) : offre, non engagée, période non échue au jour
+    // local. Composé par AND : `dateFilter` et `filtreTypes` peuvent porter leur propre OR.
+    AND: [
+      offreOuverteLe(maintenant),
+      {
+        id: { notIn: excludeMissionIds },
+        profile: profileWhere,
+        ...(location ? { location } : {}),
+        ...dateFilter,
+        ...filtreTypes,
+      },
     ],
-    take: limit,
+  };
+  const ordreSql: Prisma.MissionOrderByWithRelationInput[] = [
+    { profile: { ratingAvg: "desc" } },
+    { createdAt: "desc" },
+  ];
+  const premierePage = await prisma.mission.findMany({
+    where: whereFil, include: { profile: true }, orderBy: ordreSql, take: limit,
   });
+
+  // REQUÊTE DE FUSION (section 312). La priorité territoriale réordonne la page APRÈS lecture :
+  // une annonce boostée classée au-delà de `limit` par le tri SQL (note, puis date) n'entrait
+  // jamais dans la page, donc jamais dans le fil. On va chercher, avec EXACTEMENT le même
+  // prédicat `whereFil`, les annonces des communes à priorité vivante pour la profession du
+  // lecteur, et on les fusionne avant le tri. La page est recoupée à `limit` après le tri :
+  // sans annonce boostée hors de la première page, le fil est identique à l'octet près.
+  // Candidat seulement — la priorité ne joue que dans ce sens (voir plus bas).
+  const communesBoostees = isCandidateViewer ? await communesAvecPrioriteVivante(myProfile.profession, maintenant) : [];
+  const supplement = communesBoostees.length > 0
+    ? await prisma.mission.findMany({
+        where: { AND: [whereFil, { location: { in: communesBoostees } }, { id: { notIn: premierePage.map((m) => m.id) } }] },
+        include: { profile: true }, orderBy: ordreSql, take: limit,
+      })
+    : [];
+  const missionsLues = [...premierePage, ...supplement];
 
   // Une offre où le candidat est ENTIÈREMENT pris (remplacement signé, dates bloquées) sort de
   // son fil (15/10) : la route de swipe refuserait son intérêt, la lui montrer ne sert à rien.
@@ -236,18 +251,6 @@ export async function GET(req: NextRequest) {
     ? await chargerPrioritesTerritoriales(missions.map((m) => m.location), myProfile.profession)
     : new Map<string, PrioriteAppliquee>();
 
-  /** Annonces de CE feed réellement remontées par une priorité territoriale. Calculé une fois :
-   *  la mention de transparence, la trace et l'en-tête doivent parler du MÊME ensemble, sinon la
-   *  phrase affichée finirait par décrire autre chose que ce qui a été mesuré. */
-  const misesEnAvantTerritoire = missions.filter(
-    (m) => (prioritesTerritoriales.get(m.location ?? "")?.points ?? 0) > 0,
-  );
-  /** Institutions distinctes à créditer devant CE lecteur — c'est ce qui autorise B2 à écrire
-   *  « déclarée prioritaire par X » plutôt qu'une formule sans auteur. */
-  const institutionsTerritoire = Array.from(
-    new Set(misesEnAvantTerritoire.map((m) => prioritesTerritoriales.get(m.location ?? "")!.institution)),
-  );
-
   const desirabilite = new Map<string, number>();
   for (const m of missions) {
     desirabilite.set(
@@ -258,6 +261,21 @@ export async function GET(req: NextRequest) {
     );
   }
   missions.sort((a, b) => (desirabilite.get(b.id) ?? 0) - (desirabilite.get(a.id) ?? 0));
+  // La page servie garde sa taille : le supplément de fusion entre en concurrence, il ne
+  // l'allonge pas.
+  missions.splice(limit);
+
+  /** Annonces de CE feed réellement remontées par une priorité territoriale — calculé APRÈS le
+   *  recoupage : la mention de transparence, la trace et l'en-tête doivent parler de ce qui est
+   *  servi, pas de ce qui a été lu. */
+  const misesEnAvantTerritoire = missions.filter(
+    (m) => (prioritesTerritoriales.get(m.location ?? "")?.points ?? 0) > 0,
+  );
+  /** Institutions distinctes à créditer devant CE lecteur — c'est ce qui autorise B2 à écrire
+   *  « déclarée prioritaire par X » plutôt qu'une formule sans auteur. */
+  const institutionsTerritoire = Array.from(
+    new Set(misesEnAvantTerritoire.map((m) => prioritesTerritoriales.get(m.location ?? "")!.institution)),
+  );
 
   // Trace du bonus saisonnier (section 197). Une regle qui MODIFIE l'ordre vu par les cabinets
   // doit pouvoir se mesurer, sinon on ne saura jamais si elle sert a quelque chose — et la
