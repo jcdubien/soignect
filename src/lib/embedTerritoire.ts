@@ -51,7 +51,7 @@ export const INSTANCES_EMBED: InstanceEmbed[] = [
     zone: ZoneGeographique.NORD_BASSE_TERRE,
     professions: Object.values(Profession),
     destinataire: "CPTS Nord Basse-Terre",
-    clientNom: "CPTS NORD BASSE TERRE",
+    clientNom: "CPTS Nord Basse-Terre",
   },
 ];
 
