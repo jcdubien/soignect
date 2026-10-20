@@ -18,8 +18,9 @@
 // dans /admin/apl). On a mesuré le 18/08 que ces valeurs n'étaient DÉCLARÉES PAR PERSONNE : les
 // 112 lignes portent un `updatedAt` identique à la milliseconde (28/06/2026 18:16:37.780), et
 // la colonne est `@updatedAt` — une seule saisie en aurait décalé une. Aucune ne l'est. Les
-// valeurs viennent de l'import initial et suivent l'indicateur APL de la DREES (boost 3 ↔ apl 0,
-// boost 2 ↔ apl ≤ 166, boost 1 ↔ apl ≤ 203,7), uniformément sur les quatre départements.
+// valeurs viennent de l'import initial et suivent l'indicateur APL de la DREES : un RANG dans le
+// département, par profession (APL nul → 3, premier quart → 2, deuxième quart → 1, reste → 0 ;
+// vérifié sans écart le 20/10), pas un seuil fixe.
 //
 // LE DÉFAUT N'ÉTAIT PAS LA VALEUR, C'ÉTAIT LE SUPPORT. Un entier nu ne dit ni qui a déclaré, ni
 // quand, ni sur quelle base : rien dans `boostKine = 2` ne distingue un jugement de santé

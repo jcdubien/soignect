@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import { EMBED_PAR_SLUG, cleTraceEmbed } from "@/lib/embedTerritoire";
 import { libelleTypePoste } from "@/lib/libellesPoste";
-import { libelleProfession, VOCABULAIRE_PROFESSION } from "@/lib/pagesDiffusion";
+import { VOCABULAIRE_PROFESSION } from "@/lib/pagesDiffusion";
+import { PROFESSION_LABELS, PROFESSION_PLURIEL } from "@/lib/professions";
 import { zonesPrioritairesDuClient } from "@/lib/territoire";
 import PostesEmbed, { type PosteEmbed } from "./PostesEmbed";
 import { COMMUNE_ZONE, ZONE_LABELS, inseeOfCommune } from "@/lib/communes";
@@ -64,16 +65,23 @@ export default async function EmbedTerritoirePage(
   // Toutes les offres vivantes du territoire, sans plafond à la requête : le plafond de 10
   // coupait au hasard du tri, et pouvait écarter justement un poste de zone prioritaire. Les
   // volumes d'un territoire restent faibles ; le plafond s'applique plus bas, aux AUTRES postes.
-  const [missions, zonesDeclarees] = await Promise.all([
+  const [missions, zonesDeclarees, aplDuTerritoire] = await Promise.all([
     prisma.mission.findMany({
       where: // Le module montre les POSTES d'un territoire à des candidats : camp EMPLOYEUR.
-      filtreAnnoncesVivantes([cfg.zone], communes, cfg.professions.map((p) => p.enumBase), "EMPLOYEUR"),
+      filtreAnnoncesVivantes([cfg.zone], communes, cfg.professions, "EMPLOYEUR"),
       include: { profile: { select: { type: true, name: true, titulaireKind: true, profession: true } } },
       orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
       take: 100,
     }),
     cfg.clientNom ? zonesPrioritairesDuClient(cfg.clientNom) : Promise.resolve([]),
+    // Millésime de l'APL du territoire : les priorités de la CPTS en sont tirées (20/10), et le
+    // module le dit. NULL tant qu'aucun import daté n'est passé — alors il ne cite rien.
+    prisma.communeAPL.aggregate({
+      where: { codeInsee: { in: communes.map(inseeOfCommune).filter((c): c is string => !!c) } },
+      _max: { aplAnnee: true },
+    }),
   ]);
+  const anneeApl = aplDuTerritoire._max.aplAnnee;
 
   await tracerVueLanding(cleTraceEmbed(cfg), missions.length);
 
@@ -83,8 +91,16 @@ export default async function EmbedTerritoirePage(
   // remontent ces annonces dans le fil) ouvrent donc le module, avec leurs postes — et une
   // commune prioritaire SANS poste reste affichée : c'est le message de la CPTS, qu'un poste
   // soit publié ou non.
-  const professionsModule = new Set(cfg.professions.map((p) => p.enumBase));
+  const professionsModule = new Set<string>(cfg.professions);
   const zonesPrio = zonesDeclarees.filter((z) => professionsModule.has(z.profession));
+  // Une ligne PAR COMMUNE, ses professions à la suite (20/10) : avec une priorité par profession,
+  // Sainte-Rose occupait quatre lignes, et l'iframe se remplissait de répétitions. Les communes
+  // gardent l'ordre de `zonesPrioritairesDuClient` (niveau le plus haut d'abord), leurs
+  // professions aussi.
+  const communesPrio = Array.from(new Set(zonesPrio.map((z) => z.codeInsee))).map((code) => {
+    const zs = zonesPrio.filter((z) => z.codeInsee === code);
+    return { codeInsee: code, commune: zs[0].commune, professions: zs.map((z) => z.profession) };
+  });
   const zoneDe = (m: (typeof missions)[number]) =>
     zonesPrio.find((z) => z.codeInsee === inseeOfCommune(m.location) && z.profession === m.profile.profession);
   const postesPrio = missions.filter((m) => zoneDe(m));
@@ -97,7 +113,7 @@ export default async function EmbedTerritoirePage(
 
   // Une seule profession déclarée : le titre la nomme. Plusieurs : « Postes de santé », et
   // chaque ligne porte sa profession.
-  const uneSeule = cfg.professions.length === 1 ? cfg.professions[0] : null;
+  const uneSeule = cfg.professions.length === 1 ? VOCABULAIRE_PROFESSION[cfg.professions[0]] ?? null : null;
   const inscription = `/register?src=${cleTraceEmbed(cfg)}`;
 
   // Ce que la fiche montre est ce que la page publique montre SANS compte — rien de plus.
@@ -109,7 +125,7 @@ export default async function EmbedTerritoirePage(
       id: m.id,
       titre: m.title,
       libelle: libelleTypePoste(m.missionType, m.profile, m.natureSalariat)
-        + (!uneSeule && m.profile.profession ? ` · ${libelleProfession(m.profile.profession)}` : ""),
+        + (!uneSeule && m.profile.profession ? ` · ${PROFESSION_LABELS[m.profile.profession]}` : ""),
       lieu: m.location,
       periode:
         m.startDate && m.endDate ? `${jour(m.startDate)} → ${jour(m.endDate)}`
@@ -161,16 +177,17 @@ export default async function EmbedTerritoirePage(
             Zones prioritaires de la {cfg.destinataire}
           </p>
           <p className="text-xs text-gray-600 m-0 mt-0.5 mb-2">
-            La {cfg.destinataire} y recherche en priorité des professionnels de santé.
+            La {cfg.destinataire} y recherche en priorité ces professionnels, là où l&apos;accès
+            aux soins est le plus faible{anneeApl ? ` (APL de la DREES, ${anneeApl})` : ""}.
           </p>
           <ul className="list-none p-0 m-0 mb-2 space-y-1">
-            {zonesPrio.map((z) => {
-              const n = postesPrio.filter((m) => zoneDe(m) === z).length;
+            {communesPrio.map((c) => {
+              const n = postesPrio.filter((m) => zoneDe(m)?.codeInsee === c.codeInsee).length;
               return (
-                <li key={`${z.codeInsee}-${z.profession}`} className="text-sm flex items-baseline justify-between gap-2 flex-wrap">
+                <li key={c.codeInsee} className="text-sm flex items-baseline justify-between gap-2 flex-wrap">
                   <span>
-                    <strong>{z.commune}</strong>
-                    <span className="text-gray-500"> · {VOCABULAIRE_PROFESSION[z.profession]?.courtPluriel ?? libelleProfession(z.profession)}</span>
+                    <strong>{c.commune}</strong>
+                    <span className="text-gray-500"> · {c.professions.map((p) => PROFESSION_PLURIEL[p]).join(", ")}</span>
                   </span>
                   {n > 0 ? (
                     <span className="text-xs font-semibold text-[#0B3D5C]">

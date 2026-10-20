@@ -7408,6 +7408,44 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 309 — PRIORITÉS CPTS SELON L'APL DE CHAQUE PROFESSION, MODULE OUVERT À TOUTES LES PROFESSIONS (20/10)
+
+Décisions de Jean-Charles du 20/10 : « toutes les communes de la CPTS Nord Basse-Terre sont
+prioritaires », pour chaque profession « en fonction de l'APL », puisque « chaque profession a son
+APL distinct ». Lamentin a été retirée pour les kinés, Pointe-Noire est gardée.
+
+#### Données (en base, sans commit)
+
+- **APL actualisés** : millésime DREES 2024 (jeu 530, publié le 22/07/2026), importé avec
+  `scripts/sync-commune-apl.mjs --apply` pour 112 communes. Les lignes portent désormais leur
+  millésime et leur source.
+- **Calcul du niveau** : celui que suivaient les anciens `boost*`, retrouvé et vérifié sans aucun
+  écart sur les 4 professions. Les communes du département sont classées par APL croissant :
+  - APL nul → niveau 3 ;
+  - premier quart → niveau 2 ;
+  - deuxième quart → niveau 1 ;
+  - reste → 0, sans déclaration.
+
+  C'est un **rang**, pas un seuil fixe. Le commentaire « boost 2 ↔ apl ≤ 166 » était faux et a été
+  corrigé dans `lib/territoire.ts`.
+- **12 déclarations** `PrioriteTerritoriale` (client CPTS NORD BASSE TERRE) :
+  - kiné : Deshaies, Pointe-Noire et Sainte-Rose (2) ;
+  - infirmier : Deshaies et Sainte-Rose (1) ;
+  - médecin généraliste : Deshaies (1), Pointe-Noire (1), Sainte-Rose (2) ;
+  - sage-femme : Deshaies (2), Pointe-Noire, Sainte-Rose et Lamentin (1).
+
+  Les orthophonistes et les autres professions n'ont pas d'APL DREES, donc aucune priorité.
+- Le script n'écrit pas les `boost*`. `/admin/apl` affiche donc encore les anciens paliers, que le
+  produit ne lit plus.
+
+#### Module CPTS
+
+- **Toutes les professions** de l'enum, et non plus les trois qui ont un vocabulaire de campagne.
+  Avant, la moitié des priorités (médecins et sages-femmes) étaient filtrées.
+- **Une ligne par commune**, avec ses professions à la suite, au lieu d'une ligne par profession.
+- La **source est citée** (« APL de la DREES, 2024 »). Le millésime est lu en base, et rien n'est
+  cité s'il est inconnu.
+
 ### SECTION 308 — UNE SEULE CONCLUSION, UN SEUL REGISTRE DE CONTRAT, POUR TOUTES LES PROFESSIONS (16/10)
 
 Suite de la 307, demande de Jean-Charles : « factorise et assure-toi du comportement homogène sur

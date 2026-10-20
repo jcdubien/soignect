@@ -16,8 +16,7 @@
 // interrogeable ce qui était déjà là — même intention que `pagesDiffusion` et
 // `FENETRE_TENSION_GUADELOUPE`.
 
-import { ZoneGeographique } from "@prisma/client";
-import { VOCABULAIRE_PROFESSION, type Profession } from "@/lib/pagesDiffusion";
+import { Profession, ZoneGeographique } from "@prisma/client";
 
 export interface InstanceEmbed {
   /** Segment d'URL — `/embed/territoire/{slug}`. Déclaré, jamais dérivé du nom de la zone :
@@ -30,7 +29,11 @@ export interface InstanceEmbed {
    *  de « kinés seulement » à toutes les professions déclarées : une CPTS pilote toute l'offre
    *  de soins de son territoire (même raison que la page territoire, section 302). Le module
    *  ne renvoie plus vers une page de campagne kiné, mais vers l'inscription — il n'existe pas
-   *  de page publique commune à toutes les professions. */
+   *  de page publique commune à toutes les professions.
+   *  Le 20/10, « toutes les professions » cesse de vouloir dire « celles qui ont un vocabulaire
+   *  de campagne » (kinés, infirmiers, aides-soignants) : les priorités de la CPTS suivent
+   *  l'APL de chaque profession, et la moitié d'entre elles portent sur des médecins
+   *  généralistes et des sages-femmes, qui s'inscrivent déjà. Le module les filtrait. */
   professions: Profession[];
   /** Nom de l'institution destinataire, tel qu'affiché (écran d'administration, module). */
   destinataire: string;
@@ -46,7 +49,7 @@ export const INSTANCES_EMBED: InstanceEmbed[] = [
   {
     slug: "nord-basse-terre",
     zone: ZoneGeographique.NORD_BASSE_TERRE,
-    professions: Object.values(VOCABULAIRE_PROFESSION) as Profession[],
+    professions: Object.values(Profession),
     destinataire: "CPTS Nord Basse-Terre",
     clientNom: "CPTS NORD BASSE TERRE",
   },
