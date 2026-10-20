@@ -48,3 +48,6 @@ ALTER TABLE "public"."ClientInstitutionnel" ENABLE ROW LEVEL SECURITY;
 -- PageClient (section 310) : porte les jetons des pages clients — rien qui ait a sortir par
 -- PostgREST avec la cle anon.
 ALTER TABLE "public"."PageClient" ENABLE ROW LEVEL SECURITY;
+
+-- EditeurClient (section 314) : rattache des comptes nommés aux clients institutionnels.
+ALTER TABLE "public"."EditeurClient" ENABLE ROW LEVEL SECURITY;

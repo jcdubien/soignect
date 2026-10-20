@@ -9,6 +9,10 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
+  // Lien d'activation d'un éditeur de page client (section 314) : après le mot de passe, la
+  // connexion le ramène à sa page. Chemin interne seulement, comme à la connexion.
+  const rawReturnTo = searchParams.get("return_to");
+  const returnTo = rawReturnTo && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//") ? rawReturnTo : null;
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -37,7 +41,7 @@ function ResetPasswordForm() {
 
     if (res.ok) {
       setDone(true);
-      setTimeout(() => router.push("/login"), 2500);
+      setTimeout(() => router.push(returnTo ? `/login?return_to=${encodeURIComponent(returnTo)}` : "/login"), 2500);
     } else {
       const data = await res.json();
       setError(data.error ?? "Lien invalide ou expiré. Recommencez.");

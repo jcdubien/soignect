@@ -7408,6 +7408,36 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 314 — ÉDITEURS NOMMÉS DES PAGES CLIENTS ; LE LIEN D'ÉDITION NE FAIT QUE CONSULTER (20/10)
+
+Point 6 de l'offre CPTS/MSP, prérequis à tout classement payant : une priorité agit sur le fil,
+et le lien `/gestion/{jeton}` n'identifiait personne.
+
+- **Modèle `EditeurClient`** (client, compte, nom, fonction, administrateur qui a rattaché,
+  `retireLe`). Un retrait se date, la ligne reste : ce qu'un éditeur a saisi garde son auteur.
+  RLS activée.
+- **Le plus petit dispositif** : un compte Soignect ordinaire, sans profil soignant quand la
+  personne n'exerce pas. Depuis `/admin/pages` (« Éditeurs nommés ») :
+  - email d'un compte existant → rattaché, sans que le compte soit modifié ;
+  - sinon → compte créé (mot de passe aléatoire inconnu de tous, `emailOptIn` faux) et **lien
+    d'activation** valable 7 jours, affiché une fois à l'administrateur, qui le transmet
+    lui-même. Soignect n'envoie aucun email. Le lien mène au choix du mot de passe
+    (`/reset-password`), puis à la connexion, puis à la page de gestion.
+- **`/gestion/{jeton}`** : sans session d'éditeur, consultation seule (champs désactivés, aucun
+  bouton) et un lien de connexion. Connecté : « Connecté·e : <nom> ».
+- **API `/api/page-client/{jeton}`** : PATCH, POST, DELETE exigent un éditeur non retiré du client
+  (`editeurConnecte`, lib/pageClient) ou un administrateur ; sinon 403. Une priorité ajoutée a
+  pour `saisiParId` l'éditeur lui-même, et sa note le nomme.
+- **Connexion** : un compte sans profil qui revient vers `/gestion/…` y retourne au lieu de
+  partir vers l'inscription.
+- **Vérifié en local** (comptes `.invalid`, envoi d'email désactivé) : anonyme → consultation
+  seule et 403 ; ajout → lien d'activation ; activation → 200 ; éditeur → page modifiable,
+  PATCH 200, ajout de priorité 409 (page démo), API admin 403 ; retrait → 403 et consultation
+  seule ; administrateur → 200. Non vérifié à l'écran : la redirection navigateur après connexion.
+- **À noter** : la page de la CPTS Nord Basse-Terre n'a aucun éditeur — elle ne se modifie plus
+  que depuis l'administration tant qu'il n'en est pas ajouté un. L'éditeur créé ici n'a accepté
+  aucunes CGU (« à vérifier » avec la relecture juridique).
+
 ### SECTION 313 — TRACES : LA PROFESSION DE L'ACTEUR SUR SWIPE ET SIGNUP (20/10)
 
 Prérequis n°2 de l'offre CPTS/MSP : sans profession, une trace ne se rapporte à aucun marché, et

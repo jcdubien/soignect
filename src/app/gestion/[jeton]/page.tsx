@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
 import { PROFESSION_LABELS } from "@/lib/professions";
 import { paliersApl } from "@/lib/aplPalier";
-import { libellesDuCode, prioritesDeLaPage, relationActive } from "@/lib/pageClient";
+import { editeurConnecte, libellesDuCode, prioritesDeLaPage, relationActive } from "@/lib/pageClient";
 import { appBaseUrl } from "@/lib/appUrl";
 import GestionClient from "./GestionClient";
 
@@ -14,6 +14,8 @@ export const metadata: Metadata = { title: "Réglages de votre page | Soignect",
 
 // Réglages d'une page client par son lien d'édition (20/10) — voir le modèle `PageClient`.
 // Le client y voit ce que sa page montre, pourquoi (l'APL de chaque commune), et qui la visite.
+// Le lien seul ne donne que la CONSULTATION (section 314) : les réglages s'ouvrent à un éditeur
+// nommé connecté.
 export default async function GestionPage({ params }: { params: Promise<{ jeton: string }> }) {
   const { jeton } = await params;
   const page = await prisma.pageClient.findUnique({
@@ -23,6 +25,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
   if (!page) notFound();
 
   const active = relationActive(page.client);
+  const editeur = await editeurConnecte(page.clientId);
   const [priorites, paliers, vues] = await Promise.all([
     // Démonstration : rien en base, les priorités affichées sont celles que la page calcule.
     page.demo
@@ -48,6 +51,8 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
       <div className="max-w-3xl mx-auto px-4 py-6">
         <GestionClient
           jeton={jeton}
+          editeur={editeur ? { nom: editeur.nom } : null}
+          lienConnexion={`/login?return_to=${encodeURIComponent(`/gestion/${jeton}`)}`}
           nom={page.client.nom}
           active={active}
           demo={page.demo}

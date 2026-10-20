@@ -207,6 +207,7 @@ model User {
   notifications    Notification[]
   // Priorités territoriales co-saisies par cet administrateur (section 214, B3).
   prioritesSaisies PrioriteTerritoriale[] @relation("PrioritesSaisies")
+  editeurDe        EditeurClient[]
   demandesPriorite DemandePriorite[]      @relation("DemandesPriorite")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -850,6 +851,7 @@ model ClientInstitutionnel {
 
   priorites PrioriteTerritoriale[]
   page      PageClient?
+  editeurs  EditeurClient[]
 }
 
 enum OriginePriorite {
@@ -898,6 +900,31 @@ model PageClient {
   accord        AccordClient @default(NON)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// Éditeur NOMMÉ d'un client institutionnel (20/10, section 314) — la personne qui règle sa page
+// et ses priorités. Le lien /gestion/{jeton} ne suffit plus à modifier quoi que ce soit : il
+// n'identifie personne, et une priorité agit sur le classement du fil. Il reste un lien de
+// consultation ; modifier exige une session sur un compte rattaché ici.
+//
+// Un compte Soignect ordinaire (email + mot de passe), SANS profil soignant quand la personne
+// n'exerce pas : rien d'autre à créer. Le nom et la fonction vivent ICI, pas sur `User`, qui n'a
+// pas de nom — c'est le rattachement qui dit « Mme X, coordinatrice de la CPTS Y ».
+// Un retrait se date (`retireLe`) au lieu d'effacer la ligne : ce qu'un éditeur a saisi garde
+// son auteur lisible.
+model EditeurClient {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      ClientInstitutionnel @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nom         String   @db.VarChar(120)
+  fonction    String?  @db.VarChar(120)
+  ajouteParId String   // User.id de l'administrateur qui a rattaché
+  createdAt   DateTime @default(now())
+  retireLe    DateTime?
+
+  @@unique([clientId, userId])
 }
 
 // Poste du Planning Board (section 28) — un poste = une ligne de timeline

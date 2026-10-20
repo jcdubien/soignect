@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 interface Client {
   id: string; nom: string; type: string; nature: string; active: boolean; revueLe: string;
   max: number | null; priorites: number;
+  editeurs: { id: string; nom: string; fonction: string | null; email: string }[];
   page: { communes: string[]; demo: boolean; accord: "OUI" | "NON" | "DEMO"; lienPublic: string; lienEdition: string } | null;
 }
 
@@ -33,9 +34,12 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
   const router = useRouter();
   const [communes, setCommunes] = useState<string[]>(client.page?.communes ?? []);
   const [etat, setEtat] = useState<string | null>(null);
+  const [nouvel, setNouvel] = useState({ email: "", nom: "", fonction: "" });
+  const [activation, setActivation] = useState<string | null>(null);
 
-  async function poster(body: object, ok: (r: { bilan?: Record<string, number> }) => string) {
+  async function poster(body: object, ok: (r: { bilan?: Record<string, number>; activation?: string | null }) => string) {
     setEtat(null);
+    setActivation(null);
     const res = await fetch("/api/admin/pages", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientId: client.id, ...body }),
@@ -81,6 +85,43 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
           </div>
         </div>
       )}
+
+      <details>
+        <summary className="text-sm font-semibold cursor-pointer">
+          Éditeurs nommés — {client.editeurs.length}
+          <span className="font-normal text-gray-500"> (seuls à pouvoir modifier ; le lien d&apos;édition seul ne fait que consulter)</span>
+        </summary>
+        <div className="mt-2 space-y-2 text-xs">
+          {client.editeurs.length === 0 && <p className="text-gray-500 m-0">Aucun éditeur : la page ne se modifie que depuis l&apos;administration.</p>}
+          {client.editeurs.map((e) => (
+            <div key={e.id} className="flex gap-2 items-baseline flex-wrap">
+              <span className="font-semibold">{e.nom}</span>
+              {e.fonction && <span className="text-gray-500">{e.fonction}</span>}
+              <span className="text-gray-400">{e.email}</span>
+              <button onClick={() => poster({ action: "editeur-retrait", editeurId: e.id }, () => "Éditeur retiré.")} className="text-red-600 underline">
+                Retirer
+              </button>
+            </div>
+          ))}
+          <div className="flex gap-2 flex-wrap items-end pt-1">
+            <input placeholder="Email" value={nouvel.email} onChange={(e) => setNouvel({ ...nouvel, email: e.target.value })} className="border border-gray-200 rounded-lg px-2 py-1" />
+            <input placeholder="Nom et prénom" value={nouvel.nom} onChange={(e) => setNouvel({ ...nouvel, nom: e.target.value })} className="border border-gray-200 rounded-lg px-2 py-1" />
+            <input placeholder="Fonction (facultatif)" value={nouvel.fonction} onChange={(e) => setNouvel({ ...nouvel, fonction: e.target.value })} className="border border-gray-200 rounded-lg px-2 py-1" />
+            <button disabled={!nouvel.email || nouvel.nom.trim().length < 2}
+              onClick={() => poster({ action: "editeur-ajout", ...nouvel, fonction: nouvel.fonction || undefined }, (r) => {
+                setNouvel({ email: "", nom: "", fonction: "" });
+                if (r.activation) { setActivation(r.activation); return "Compte créé. Transmettez le lien d'activation ci-dessous à la personne, vous-même (valable 7 jours, affiché une seule fois)."; }
+                return "Compte existant rattaché : la personne se connecte avec son mot de passe habituel.";
+              })}
+              className="px-3 py-1.5 rounded-lg border border-[#0B3D5C] text-[#0B3D5C] font-bold disabled:opacity-40">
+              Ajouter l&apos;éditeur
+            </button>
+          </div>
+          {activation && (
+            <input readOnly value={activation} onFocus={(e) => e.target.select()} className="w-full border border-amber-300 bg-amber-50 rounded-lg px-2 py-1" />
+          )}
+        </div>
+      </details>
 
       <details>
         <summary className="text-sm font-semibold cursor-pointer">

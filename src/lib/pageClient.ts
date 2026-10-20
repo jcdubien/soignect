@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import type { Profession, TypeInstitution } from "@prisma/client";
 import { libellesDuCode } from "@/lib/communes";
 import { paliersApl } from "@/lib/aplPalier";
@@ -32,6 +33,23 @@ export function relationActive(
   maintenant: Date = new Date(),
 ): boolean {
   return client.clotureLe === null && client.debutLe <= maintenant && client.revueLe > maintenant;
+}
+
+/**
+ * L'éditeur NOMMÉ connecté pour ce client (section 314), ou null. Le jeton d'édition ne fait que
+ * désigner la page ; modifier exige une session sur un compte rattaché (`EditeurClient`, non
+ * retiré). Un administrateur Soignect peut toujours modifier : il est lui aussi nommé.
+ */
+export async function editeurConnecte(clientId: string): Promise<{ userId: string; nom: string } | null> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return null;
+  if (session.user.role === "ADMIN") return { userId, nom: "Administrateur Soignect" };
+  const e = await prisma.editeurClient.findFirst({
+    where: { clientId, userId, retireLe: null },
+    select: { nom: true },
+  });
+  return e ? { userId, nom: e.nom } : null;
 }
 
 /**

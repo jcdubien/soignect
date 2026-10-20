@@ -20,6 +20,9 @@ const ACCES: Record<number, string> = {
 
 export default function GestionClient(props: {
   jeton: string;
+  /** Éditeur nommé connecté — null = consultation seule (section 314). */
+  editeur: { nom: string } | null;
+  lienConnexion: string;
   nom: string;
   active: boolean;
   demo: boolean;
@@ -39,6 +42,7 @@ export default function GestionClient(props: {
   const [etat, setEtat] = useState<string | null>(null);
   const [ajout, setAjout] = useState({ codeInsee: props.communes[0]?.code ?? "", profession: props.professionsToutes[0]?.value ?? "", niveau: 1 });
   const [copie, setCopie] = useState(false);
+  const peutModifier = props.editeur !== null;
   const label = (p: string) => props.professionsToutes.find((x) => x.value === p)?.label ?? p;
 
   async function appel(method: string, body: unknown, ok: string) {
@@ -91,6 +95,17 @@ export default function GestionClient(props: {
         <p className="text-[11px] text-gray-400 mt-2 mb-0">
           Gardez pour vous le lien de cet écran : il permet de modifier la page.
         </p>
+        {peutModifier ? (
+          <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-2 mt-3 mb-0">
+            Connecté·e : <strong>{props.editeur!.nom}</strong> — vos modifications sont enregistrées à votre nom.
+          </p>
+        ) : (
+          <p className="text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-2 mt-3 mb-0">
+            Consultation seule. Pour modifier la page,{" "}
+            <a href={props.lienConnexion} className="underline font-semibold text-[#0B3D5C]">connectez-vous avec votre compte éditeur</a>.
+            Les comptes éditeurs sont ouverts par Soignect, à votre nom.
+          </p>
+        )}
         {props.demo && (
           <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-3 mb-0">
             Page de démonstration : les zones prioritaires sont calculées depuis l&apos;APL et ne
@@ -104,12 +119,12 @@ export default function GestionClient(props: {
         <p className="text-sm font-bold m-0">Ce que votre page affiche</p>
         <label className="block text-xs font-semibold text-gray-600">
           Message d&apos;accueil
-          <textarea value={message} maxLength={700} rows={4} onChange={(e) => setMessage(e.target.value)}
+          <textarea value={message} maxLength={700} rows={4} disabled={!peutModifier} onChange={(e) => setMessage(e.target.value)}
             className="mt-1 w-full border border-gray-200 rounded-lg p-2 text-sm font-normal" />
         </label>
         <label className="block text-xs font-semibold text-gray-600">
           Contact (téléphone, email…)
-          <input value={contact} maxLength={200} onChange={(e) => setContact(e.target.value)}
+          <input value={contact} maxLength={200} disabled={!peutModifier} onChange={(e) => setContact(e.target.value)}
             className="mt-1 w-full border border-gray-200 rounded-lg p-2 text-sm font-normal" />
         </label>
         <div>
@@ -117,19 +132,19 @@ export default function GestionClient(props: {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 mt-1">
             {props.professionsToutes.map((p) => (
               <label key={p.value} className="text-xs flex items-center gap-1.5">
-                <input type="checkbox" checked={professions.includes(p.value)}
+                <input type="checkbox" checked={professions.includes(p.value)} disabled={!peutModifier}
                   onChange={(e) => setProfessions(e.target.checked ? [...professions, p.value] : professions.filter((x) => x !== p.value))} />
                 {p.label}
               </label>
             ))}
           </div>
         </div>
-        <button
+        {peutModifier && <button
           onClick={() => appel("PATCH", { messageAccueil: message, contact, professions }, "Réglages enregistrés.")}
           className="px-4 py-2 rounded-lg bg-[#0B3D5C] text-white text-sm font-bold"
         >
           Enregistrer
-        </button>
+        </button>}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -148,7 +163,7 @@ export default function GestionClient(props: {
                 <strong>{p.commune}</strong> · {label(p.profession)}
                 <span className="text-[11px] text-gray-400"> — {ACCES[p.niveau] ?? `niveau ${p.niveau}`} · {p.origine === "APL" ? "APL" : "ajoutée"}</span>
               </span>
-              {p.retirable && (
+              {p.retirable && peutModifier && (
                 <button onClick={() => appel("DELETE", { id: p.id }, "Priorité retirée.")} className="text-xs text-red-600 underline">
                   Retirer
                 </button>
@@ -156,7 +171,7 @@ export default function GestionClient(props: {
             </li>
           ))}
         </ul>
-        {!props.demo && <div className="flex gap-2 flex-wrap items-end">
+        {!props.demo && peutModifier && <div className="flex gap-2 flex-wrap items-end">
           <select value={ajout.codeInsee} onChange={(e) => setAjout({ ...ajout, codeInsee: e.target.value })} className="text-xs border border-gray-200 rounded-lg px-2 py-2">
             {props.communes.map((c) => <option key={c.code} value={c.code}>{c.libelle}</option>)}
           </select>

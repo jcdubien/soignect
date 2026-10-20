@@ -50,7 +50,10 @@ function LoginForm() {
       // connecté. N'en durcir que certaines aurait laissé le défaut vivant sur les autres, et
       // c'est exactement ainsi qu'il a survécu jusqu'ici.
       const cible =
-        !su?.profileId
+        // Un ÉDITEUR de page client (section 314) n'a souvent pas de profil soignant : il revient
+        // à sa page, pas à l'inscription.
+        !su?.profileId && returnTo?.startsWith("/gestion/") ? returnTo
+        : !su?.profileId
           // Profil incomplet → onboarding (en conservant la cible de retour)
           ? (returnTo ? `/register?return_to=${encodeURIComponent(returnTo)}` : "/register")
           // Retour vers l'annonce d'origine (section 3)

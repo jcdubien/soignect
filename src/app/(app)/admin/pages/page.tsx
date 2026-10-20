@@ -12,7 +12,11 @@ export const dynamic = "force-dynamic";
 export default async function AdminPagesPage() {
   const clients = await prisma.clientInstitutionnel.findMany({
     orderBy: { nom: "asc" },
-    include: { page: true, _count: { select: { priorites: true } } },
+    include: {
+      page: true,
+      _count: { select: { priorites: true } },
+      editeurs: { where: { retireLe: null }, orderBy: { createdAt: "asc" }, include: { user: { select: { email: true } } } },
+    },
   });
   const base = appBaseUrl();
   const zones = COMMUNES_BY_ZONE.map((z) => ({
@@ -30,6 +34,7 @@ export default async function AdminPagesPage() {
         active: relationActive(c), revueLe: c.revueLe.toISOString(),
         max: PERIMETRE_MAX[c.type],
         priorites: c._count.priorites,
+        editeurs: c.editeurs.map((e) => ({ id: e.id, nom: e.nom, fonction: e.fonction, email: e.user.email })),
         page: c.page ? {
           communes: c.page.communes,
           demo: c.page.demo,
