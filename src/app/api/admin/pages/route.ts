@@ -17,6 +17,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("jeton"), clientId: z.string(), quel: z.enum(["public", "edition"]) }),
   z.object({ action: z.literal("apl"), clientId: z.string() }),
   z.object({ action: z.literal("demo"), clientId: z.string(), demo: z.boolean() }),
+  z.object({ action: z.literal("accord"), clientId: z.string(), accord: z.enum(["OUI", "NON", "DEMO"]) }),
 ]);
 
 export async function POST(req: NextRequest) {
@@ -58,6 +59,12 @@ export async function POST(req: NextRequest) {
       where: { clientId: client.id },
       data: d.quel === "public" ? { jetonPublic: nouveauJeton() } : { jetonEdition: nouveauJeton() },
     });
+    return NextResponse.json({ ok: true });
+  }
+
+  // L'accord ne touche qu'à ce que la page PUBLIE (le nom) : rien à recalculer.
+  if (d.action === "accord") {
+    await prisma.pageClient.update({ where: { clientId: client.id }, data: { accord: d.accord } });
     return NextResponse.json({ ok: true });
   }
 

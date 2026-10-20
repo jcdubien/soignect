@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 interface Client {
   id: string; nom: string; type: string; nature: string; active: boolean; revueLe: string;
   max: number | null; priorites: number;
-  page: { communes: string[]; demo: boolean; lienPublic: string; lienEdition: string } | null;
+  page: { communes: string[]; demo: boolean; accord: "OUI" | "NON" | "DEMO"; lienPublic: string; lienEdition: string } | null;
 }
 
 export default function PagesClient({ clients, zones }: {
@@ -69,6 +69,16 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
               </button>
             </div>
           ))}
+          <div className="flex gap-2 items-center flex-wrap pt-1">
+            <label htmlFor={`accord-${client.id}`} className="text-gray-500 w-48 shrink-0">Accord de la CPTS (nom publié)</label>
+            <select id={`accord-${client.id}`} value={client.page.accord}
+              onChange={(e) => poster({ action: "accord", accord: e.target.value }, () => "Accord enregistré.")}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1">
+              <option value="OUI">Oui — le nom figure sur la page</option>
+              <option value="NON">Non — page sans le nom</option>
+              <option value="DEMO">Démo — sans le nom, bandeau « Démonstration »</option>
+            </select>
+          </div>
         </div>
       )}
 

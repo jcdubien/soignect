@@ -857,6 +857,15 @@ enum OriginePriorite {
   DECLAREE
 }
 
+// Accord du client à ce que son NOM figure sur sa page (20/10). Une page circule : le nom
+// d'une CPTS n'y paraît que si son accord est noté (OUI). DEMO : page montrée à un prospect,
+// sous bandeau « Démonstration » tant que l'accord n'est pas OUI.
+enum AccordClient {
+  OUI
+  NON
+  DEMO
+}
+
 // Page hébergée d'un client institutionnel (20/10, demande de JC) — CPTS, MSP, établissement.
 //
 // Le module embarquable dépend du bon vouloir d'un webmaster. Cette page se sert par un LIEN :
@@ -885,6 +894,8 @@ model PageClient {
   // d'écrit dans `PrioriteTerritoriale` — donc aucun effet sur le fil — et rien d'attribué au
   // client, qui n'a rien déclaré. Pour montrer la page à un prospect.
   demo          Boolean  @default(false)
+  // Le nom du client n'est publié sur la page que si `accord` vaut OUI — noté dans /admin/pages.
+  accord        AccordClient @default(NON)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

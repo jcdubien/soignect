@@ -14,6 +14,11 @@ export const dynamic = "force-dynamic";
 // ce qui la distingue du module embarquable, dont elle reprend le rendu (PostesDuTerritoire).
 // Hors du groupe (app) : pas de navigation Soignect, la page est celle du client.
 // Non indexée : le jeton n'a pas vocation à circuler au-delà de ceux à qui le client l'envoie.
+//
+// LE NOM DU CLIENT (20/10). Une page circule : elle ne publie le nom d'une CPTS que si son
+// accord est noté dans /admin/pages (`accord` = OUI). Sans lui, ni en-tête, ni titre d'onglet,
+// ni « zones prioritaires de … » — la page parle du territoire. Une page de démonstration porte
+// un bandeau « Démonstration » tant que l'accord n'est pas OUI.
 
 async function charger(jeton: string) {
   return prisma.pageClient.findUnique({
@@ -28,7 +33,7 @@ export async function generateMetadata(
   const { jeton } = await params;
   const page = await charger(jeton);
   return {
-    title: page ? `Postes de santé — ${page.client.nom}` : "Soignect",
+    title: page?.accord === "OUI" ? `Postes de santé — ${page.client.nom}` : "Postes de santé — Soignect",
     robots: { index: false, follow: false },
   };
 }
@@ -37,11 +42,18 @@ export default async function PageClientPublique({ params }: { params: Promise<{
   const { jeton } = await params;
   const page = await charger(jeton);
   if (!page) notFound();
+  const nomPublie = page.accord === "OUI" ? page.client.nom : null;
+  const demonstration = (page.demo || page.accord === "DEMO") && page.accord !== "OUI";
 
   const enveloppe = (contenu: React.ReactNode) => (
     <main className="min-h-screen bg-white text-[#1f2937]">
       <div className="max-w-2xl mx-auto px-4 py-6" style={{ fontSize: 14 }}>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide m-0">{page.client.nom}</p>
+        {demonstration && (
+          <p className="text-xs font-bold text-amber-900 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 mt-0 mb-3">
+            Démonstration — page d&apos;exemple, non publiée par une institution.
+          </p>
+        )}
+        {nomPublie && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide m-0">{nomPublie}</p>}
         {contenu}
       </div>
     </main>
@@ -87,11 +99,11 @@ export default async function PageClientPublique({ params }: { params: Promise<{
           communes={communes}
           professions={professions}
           priorites={priorites}
-          destinataire={page.client.nom}
+          destinataire={nomPublie ?? ""}
           territoire={territoire}
           trace={`page-${page.id}`}
           anneeApl={apl._max.aplAnnee}
-          attribuee={!page.demo}
+          attribuee={!page.demo && nomPublie !== null}
         />
       </div>
     </>,

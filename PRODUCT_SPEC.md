@@ -7408,6 +7408,31 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 311 — PAGE CLIENT : CE QUI EST VISIBLE, ET LE NOM SOUS ACCORD (20/10)
+
+Corrections demandées après lecture de la page Horizon en ligne. Elles valent pour la page
+(`/p/{jeton}`) et le module embarqué, qui partagent `PostesDuTerritoire`.
+
+1. **Compteur** : « N postes dans le territoire », N = postes réellement affichés (zones
+   prioritaires + autres postes, plafond compris). Masqué à 0. Il annonçait « 2 postes ouverts »
+   au-dessus de trois « Aucun poste publié ».
+2. **Se proposer, par profession** : sous chaque commune prioritaire, une ligne par profession.
+   - des postes s'y trouvent → « N postes ci-dessous » ;
+   - profession ouverte (vocabulaire déclaré dans `VOCABULAIRE_PROFESSION` : kiné, infirmier,
+     aide-soignant) → « Proposez-vous → », `/register?profession=…&src=…` ;
+   - sinon (médecins, sages-femmes…) → « Bientôt sur Soignect », sans lien : il n'existe pas de
+     page d'intérêt à ce jour.
+3. **Dates** (`lib/datesPoste`) : l'année s'écrit si une borne n'est pas dans l'année en cours,
+   ou si le poste commence dans plus de six mois ; dans une période, une seule fois à la fin
+   quand les deux bornes la partagent.
+4. **Lieu** : le titre libre reste tel que saisi ; la ligne de contexte passe par
+   `libelleCommune` (libellé canonique, « Petit-Bourg »).
+5. **Nom du client** : `PageClient.accord` (`OUI` / `NON` / `DEMO`, défaut `NON`), réglé dans
+   `/admin/pages`. Le nom (en-tête, titre d'onglet, « zones prioritaires de … ») n'est publié que
+   sur `OUI`. Une page `demo` ou d'accord `DEMO` porte le bandeau « Démonstration » tant que
+   l'accord n'est pas `OUI`. Migration : pages démo → `DEMO`, les autres → `NON` — la page de la
+   CPTS Nord Basse-Terre ne montre donc plus son nom tant que l'accord n'est pas noté.
+
 ### SECTION 310 — PAGE CLIENT HÉBERGÉE, SERVIE PAR LIEN (20/10)
 
 Demande de Jean-Charles : plutôt qu'un module à intégrer, qui dépend « du bon vouloir du

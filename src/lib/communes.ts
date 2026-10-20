@@ -315,3 +315,12 @@ export const ZONAGE_LABELS: Record<string, { label: string; color: string; dot: 
     dot: "bg-emerald-600",
   },
 };
+
+/** Libellé canonique d'une commune saisie (« Petit Bourg », « petit-bourg » → « Petit-Bourg ») :
+ *  rapprochement sans casse, accents, tirets ni espaces. Rend la saisie telle quelle si rien ne
+ *  correspond — on ne fabrique pas une commune. */
+export function libelleCommune(saisie: string): string {
+  const cle = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const k = cle(saisie);
+  return Object.keys(COMMUNE_INSEE).find((c) => cle(c) === k) ?? saisie.trim();
+}

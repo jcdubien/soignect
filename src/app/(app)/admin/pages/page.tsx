@@ -33,6 +33,7 @@ export default async function AdminPagesPage() {
         page: c.page ? {
           communes: c.page.communes,
           demo: c.page.demo,
+          accord: c.page.accord,
           lienPublic: `${base}/p/${c.page.jetonPublic}`,
           lienEdition: `${base}/gestion/${c.page.jetonEdition}`,
         } : null,

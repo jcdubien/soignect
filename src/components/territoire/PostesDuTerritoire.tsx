@@ -4,7 +4,8 @@ import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import { libelleTypePoste } from "@/lib/libellesPoste";
 import { VOCABULAIRE_PROFESSION } from "@/lib/pagesDiffusion";
 import { PROFESSION_LABELS, PROFESSION_PLURIEL } from "@/lib/professions";
-import { inseeOfCommune } from "@/lib/communes";
+import { inseeOfCommune, libelleCommune } from "@/lib/communes";
+import { periodePoste } from "@/lib/datesPoste";
 import { libelleAcces } from "@/lib/aplPalier";
 import type { ZonePrioritaire } from "@/lib/territoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
@@ -69,10 +70,16 @@ export default async function PostesDuTerritoire({
     return { codeInsee: code, commune: zs[0].commune, zs };
   });
 
-  const jour = (d: Date | null) =>
-    // Les dates sont stockées à 00:00 UTC : formatées à l'heure locale du serveur (Guadeloupe,
-    // UTC−4), elles reculaient d'un jour — « 27 déc. » pour une annonce du 28/12.
-    d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" }) : null;
+  // Ce que le compteur annonce est ce que la page MONTRE (20/10) : il comptait toutes les offres
+  // du périmètre, y compris celles coupées par le plafond des « autres postes ».
+  const visibles = postesPrio.length + autres.length;
+
+  // Se proposer, profession par profession (20/10) : un lien vers l'inscription avec SA
+  // profession préselectionnée. Une profession que Soignect n'ouvre pas encore (pas de
+  // vocabulaire déclaré : médecins, sages-femmes) n'a pas de lien d'inscription — l'y envoyer
+  // serait l'inscrire dans un marché vide. Pas de page d'intérêt à ce jour : « Bientôt » seul.
+  const lienProfession = (p: Profession) =>
+    VOCABULAIRE_PROFESSION[p] ? `/register?profession=${p}&src=${trace}` : null;
 
   // Une seule profession déclarée : le titre la nomme. Plusieurs : « Postes de santé », et
   // chaque ligne porte sa profession.
@@ -89,12 +96,9 @@ export default async function PostesDuTerritoire({
       titre: m.title,
       libelle: libelleTypePoste(m.missionType, m.profile, m.natureSalariat)
         + (!uneSeule && m.profile.profession ? ` · ${PROFESSION_LABELS[m.profile.profession]}` : ""),
-      lieu: m.location,
-      periode:
-        m.startDate && m.endDate ? `${jour(m.startDate)} → ${jour(m.endDate)}`
-        : m.startDate ? `dès le ${jour(m.startDate)}`
-        : m.minMonths ? `${m.minMonths} mois min.`
-        : null,
+      // Le titre reste tel que saisi ; la ligne de contexte, elle, porte le libellé canonique.
+      lieu: libelleCommune(m.location),
+      periode: periodePoste(m.startDate, m.endDate) ?? (m.minMonths ? `${m.minMonths} mois min.` : null),
       // Une disponibilité ne peut pas commencer dans le passé (section 250) : un poste déjà
       // commencé propose ses jours restants.
       debut: m.startDate && m.endDate ? (iso(m.startDate) < aujourdhui ? aujourdhui : iso(m.startDate)) : null,
@@ -115,7 +119,7 @@ export default async function PostesDuTerritoire({
           Postes {uneSeule ? `de ${uneSeule.discipline}` : "de santé"} — {territoire}
         </h2>
         <span className="text-xs text-gray-400">
-          {missions.length} poste{missions.length > 1 ? "s" : ""} ouvert{missions.length > 1 ? "s" : ""}
+          {visibles > 0 ? `${visibles} poste${visibles > 1 ? "s" : ""} dans le territoire` : ""}
         </span>
       </div>
 
@@ -131,35 +135,39 @@ export default async function PostesDuTerritoire({
             {anneeApl ? ` (APL de la DREES, ${anneeApl})` : ""}.
           </p>
           <ul className="list-none p-0 m-0 mb-2 space-y-1.5">
-            {communesPrio.map((c) => {
-              const n = postesPrio.filter((m) => zoneDe(m)?.codeInsee === c.codeInsee).length;
-              return (
-                <li key={c.codeInsee} className="text-sm flex items-baseline justify-between gap-2 flex-wrap">
-                  <span>
-                    <strong>{c.commune}</strong>
-                    <span className="text-gray-500">
-                      {" · "}
-                      {c.zs.map((z, i) => (
-                        <span key={z.profession}>
-                          {i > 0 && ", "}
+            {communesPrio.map((c) => (
+              <li key={c.codeInsee} className="text-sm">
+                <strong>{c.commune}</strong>
+                <ul className="list-none p-0 m-0 mt-0.5 space-y-0.5">
+                  {c.zs.map((z) => {
+                    const n = postesPrio.filter((m) => {
+                      const zm = zoneDe(m);
+                      return zm?.codeInsee === c.codeInsee && zm.profession === z.profession;
+                    }).length;
+                    const lien = lienProfession(z.profession);
+                    return (
+                      <li key={z.profession} className="flex items-baseline justify-between gap-2 flex-wrap pl-3">
+                        <span className="text-gray-600">
                           {PROFESSION_PLURIEL[z.profession]}
                           <span className="text-[11px] text-gray-400"> ({libelleAcces(z.niveau)})</span>
                         </span>
-                      ))}
-                    </span>
-                  </span>
-                  {n > 0 ? (
-                    <span className="text-xs font-semibold text-[#0B3D5C]">
-                      {n} poste{n > 1 ? "s" : ""} ouvert{n > 1 ? "s" : ""}
-                    </span>
-                  ) : (
-                    <a href={inscription} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-[#0B3D5C] underline">
-                      Aucun poste publié — proposez-vous →
-                    </a>
-                  )}
-                </li>
-              );
-            })}
+                        {n > 0 ? (
+                          <span className="text-xs font-semibold text-[#0B3D5C]">
+                            {n} poste{n > 1 ? "s" : ""} ci-dessous
+                          </span>
+                        ) : lien ? (
+                          <a href={lien} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-[#0B3D5C] underline">
+                            Proposez-vous →
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-400">Bientôt sur Soignect</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            ))}
           </ul>
           {postesPrio.length > 0 && (
             <PostesEmbed postes={postesPrio.map((m) => versPoste(m, true))} src={trace} />
