@@ -38,18 +38,19 @@ export function relationActive(
 /**
  * L'éditeur NOMMÉ connecté pour ce client (section 314), ou null. Le jeton d'édition ne fait que
  * désigner la page ; modifier exige une session sur un compte rattaché (`EditeurClient`, non
- * retiré). Un administrateur Soignect peut toujours modifier : il est lui aussi nommé.
+ * retiré). Un administrateur Soignect peut toujours modifier : il est lui aussi nommé — sous son
+ * nom d'éditeur s'il est rattaché à ce client, sinon « Administrateur Soignect ».
  */
 export async function editeurConnecte(clientId: string): Promise<{ userId: string; nom: string } | null> {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return null;
-  if (session.user.role === "ADMIN") return { userId, nom: "Administrateur Soignect" };
   const e = await prisma.editeurClient.findFirst({
     where: { clientId, userId, retireLe: null },
     select: { nom: true },
   });
-  return e ? { userId, nom: e.nom } : null;
+  if (e) return { userId, nom: e.nom };
+  return session.user.role === "ADMIN" ? { userId, nom: "Administrateur Soignect" } : null;
 }
 
 /**

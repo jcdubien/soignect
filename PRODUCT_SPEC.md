@@ -7427,7 +7427,9 @@ et le lien `/gestion/{jeton}` n'identifiait personne.
   bouton) et un lien de connexion. Connecté : « Connecté·e : <nom> ».
 - **API `/api/page-client/{jeton}`** : PATCH, POST, DELETE exigent un éditeur non retiré du client
   (`editeurConnecte`, lib/pageClient) ou un administrateur ; sinon 403. Une priorité ajoutée a
-  pour `saisiParId` l'éditeur lui-même, et sa note le nomme.
+  pour `saisiParId` l'éditeur lui-même, et sa note le nomme. Un administrateur rattaché comme
+  éditeur du client apparaît sous son nom d'éditeur (bandeau, note) ; sinon sous « Administrateur
+  Soignect » (21/10).
 - **Connexion** : un compte sans profil qui revient vers `/gestion/…` y retourne au lieu de
   partir vers l'inscription.
 - **Vérifié en local** (comptes `.invalid`, envoi d'email désactivé) : anonyme → consultation
