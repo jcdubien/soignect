@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 interface Client {
   id: string; nom: string; type: string; nature: string; active: boolean; revueLe: string;
-  max: number | null; priorites: number;
+  max: number | null; casesMax: number | null; priorites: number;
   editeurs: { id: string; nom: string; fonction: string | null; email: string }[];
   page: { communes: string[]; demo: boolean; accord: "OUI" | "NON" | "DEMO"; lienPublic: string; lienEdition: string } | null;
 }
@@ -48,7 +48,7 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
     if (res.ok) { setEtat(ok(r)); router.refresh(); } else setEtat(r.error ?? "Action impossible.");
   }
   const bilan = (r: { bilan?: Record<string, number> }) =>
-    r.bilan ? `Priorités APL : ${r.bilan.creees} créées, ${r.bilan.modifiees} modifiées, ${r.bilan.retirees} retirées${r.bilan.ignorees ? `, ${r.bilan.ignorees} déjà tenues par une autre déclaration` : ""}.` : "Fait.";
+    r.bilan ? `Priorités APL : ${r.bilan.creees} créées${r.bilan.reprises ? ` (dont ${r.bilan.reprises} reprises d'une déclaration éteinte)` : ""}, ${r.bilan.modifiees} modifiées, ${r.bilan.retirees} retirées${r.bilan.ignorees ? `, ${r.bilan.ignorees} tenues par une autre structure (premier arrivé)` : ""}${r.bilan.horsPlafond ? `, ${r.bilan.horsPlafond} au-delà du plafond de cases de l'offre` : ""}.` : "Fait.";
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
@@ -58,7 +58,7 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
           {client.page?.demo && <span className="ml-2 text-[10px] font-bold uppercase bg-amber-100 text-amber-800 rounded px-1.5 py-0.5">Démo</span>}
         </p>
         <p className="text-xs text-gray-500 m-0">
-          {client.type} · {client.nature} · {client.active ? `actif jusqu'au ${new Date(client.revueLe).toLocaleDateString("fr-FR", { timeZone: "UTC" })}` : "inactif"} · {client.priorites} priorité{client.priorites > 1 ? "s" : ""}
+          {client.type} · {client.nature} · {client.active ? `actif jusqu'au ${new Date(client.revueLe).toLocaleDateString("fr-FR", { timeZone: "UTC" })}` : "inactif"} · {client.priorites} priorité{client.priorites > 1 ? "s" : ""}{client.casesMax !== null ? ` (offre : ${client.casesMax} cases au plus)` : ""}
         </p>
       </div>
 

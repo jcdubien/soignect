@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { controlerCase, poserCase } from "@/lib/casesPriorite";
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
 import { z } from "zod";
@@ -68,20 +69,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ jet
   if (!page.communes.includes(codeInsee)) {
     return NextResponse.json({ error: "Cette commune n'est pas dans votre périmètre." }, { status: 400 });
   }
-  // Une seule déclaration par commune et par profession (contrainte d'unicité) : une priorité
-  // déjà posée — par l'APL ou par quelqu'un d'autre — ne se double ni ne s'écrase.
-  const existe = await prisma.prioriteTerritoriale.findUnique({
-    where: { codeInsee_profession: { codeInsee, profession } },
+  // Unicité, chevauchement (premier arrivé) et plafond de cases de l'offre : lib/casesPriorite.
+  const client = await prisma.clientInstitutionnel.findUniqueOrThrow({
+    where: { id: page.clientId }, select: { id: true, nom: true, type: true },
   });
-  if (existe) return NextResponse.json({ error: "Cette commune est déjà prioritaire pour cette profession." }, { status: 409 });
-  await prisma.prioriteTerritoriale.create({
+  const controle = await controlerCase(client, codeInsee, profession);
+  if (!controle.ok) return NextResponse.json({ error: controle.error, conflit: controle.conflit }, { status: 409 });
+  await poserCase(controle, (db, noteReprise) => db.prioriteTerritoriale.create({
     data: {
       codeInsee, profession, niveau, origine: "DECLAREE",
       commune: libellesDuCode(codeInsee)[0] ?? codeInsee,
       clientId: page.clientId, saisiParId: editeur.userId, declareLe: new Date(),
-      note: `Ajoutée par ${editeur.nom} depuis la page du client.`,
+      note: `Ajoutée par ${editeur.nom} depuis la page du client.${noteReprise ? ` ${noteReprise}` : ""}`,
     },
-  });
+  }));
   return NextResponse.json({ ok: true });
 }
 

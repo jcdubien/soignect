@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import type { Profession, TypeInstitution } from "@prisma/client";
 import { libellesDuCode } from "@/lib/communes";
 import { paliersApl } from "@/lib/aplPalier";
+import { PALIER_DU_TYPE, limitesDuType } from "@/lib/tarifsPartenaire";
+import { controlerCase, poserCase } from "@/lib/casesPriorite";
 import { zonesPrioritairesDuClient, type ZonePrioritaire } from "@/lib/territoire";
 
 // Page hébergée d'un client institutionnel (20/10) — voir le modèle `PageClient`.
@@ -16,13 +18,11 @@ export function nouveauJeton(): string {
   return randomBytes(18).toString("base64url");
 }
 
-/** Nombre de communes que l'offre souscrite couvre (grille lib/tarifsPartenaire) — null = sans
- *  plafond (CPTS, collectivité : « tout votre territoire » ; hôpital : sur devis). */
-export const PERIMETRE_MAX: Record<TypeInstitution, number | null> = {
-  MSP: 1,
-  EHPAD: 2, SSIAD: 2, SSR: 2, CLINIQUE: 2,
-  CPTS: null, COLLECTIVITE: null, HOPITAL: null, ARS: null, CGSS: null, AUTRE: null,
-};
+/** Nombre de communes que l'offre souscrite couvre — dérivé de la grille (lib/tarifsPartenaire,
+ *  source unique), null = sans plafond. */
+export const PERIMETRE_MAX = Object.fromEntries(
+  (Object.keys(PALIER_DU_TYPE) as TypeInstitution[]).map((t) => [t, limitesDuType(t).communesMax]),
+) as Record<TypeInstitution, number | null>;
 
 export { libellesDuCode };
 
@@ -55,52 +55,31 @@ export async function editeurConnecte(clientId: string): Promise<{ userId: strin
 
 /**
  * Aligne les priorités `APL` du client sur l'APL en base, pour son périmètre.
- *   · crée ou met à jour une ligne par commune × profession au niveau > 0 ;
- *   · retire les lignes `APL` du client tombées à 0 ou sorties du périmètre ;
+ *   · retire d'abord les lignes `APL` du client tombées à 0 ou sorties du périmètre ;
+ *   · met à jour ses lignes `APL` restantes, crée les manquantes — les plus fortes d'abord,
+ *     jusqu'au plafond de cases de son offre (point 7 : `horsPlafond` compte le reste) ;
  *   · ne touche JAMAIS une ligne `DECLAREE` : ce qu'un humain a déclaré n'est pas un calcul ;
- *   · ne touche jamais la ligne d'un AUTRE client (une commune ne porte qu'une déclaration par
- *     profession — contrainte d'unicité) : elle est comptée dans `ignorees`.
+ *   · une case tenue par un AUTRE client vivant est comptée dans `ignorees` (premier arrivé) ;
+ *     tenue par une déclaration éteinte, elle est reprise (`reprises`) — lib/casesPriorite.
  * À relancer après chaque import de millésime (scripts/sync-commune-apl.mjs), ou après un
  * changement de périmètre.
  */
 export async function synchroniserPrioritesApl(
   clientId: string,
   saisiParId: string,
-): Promise<{ creees: number; modifiees: number; retirees: number; ignorees: number }> {
-  const page = await prisma.pageClient.findUniqueOrThrow({ where: { clientId } });
-  // Une page de démonstration n'écrit rien : ses priorités se calculent à l'affichage.
-  if (page.demo) return { creees: 0, modifiees: 0, retirees: 0, ignorees: 0 };
-  const paliers = await paliersApl(page.communes);
-  const existantes = await prisma.prioriteTerritoriale.findMany({
-    where: { codeInsee: { in: page.communes } },
+): Promise<{ creees: number; modifiees: number; retirees: number; ignorees: number; reprises: number; horsPlafond: number }> {
+  const page = await prisma.pageClient.findUniqueOrThrow({
+    where: { clientId },
+    include: { client: { select: { id: true, nom: true, type: true } } },
   });
+  const bilan = { creees: 0, modifiees: 0, retirees: 0, ignorees: 0, reprises: 0, horsPlafond: 0 };
+  // Une page de démonstration n'écrit rien : ses priorités se calculent à l'affichage.
+  if (page.demo) return bilan;
   const cle = (code: string, p: Profession) => `${code}|${p}`;
-  const parCle = new Map(existantes.map((e) => [cle(e.codeInsee, e.profession), e]));
-  const bilan = { creees: 0, modifiees: 0, retirees: 0, ignorees: 0 };
-  const voulues = new Set<string>();
-
-  for (const p of paliers) {
-    if (p.niveau <= 0) continue;
-    const k = cle(p.codeInsee, p.profession);
-    voulues.add(k);
-    const note = `APL DREES${p.annee ? ` ${p.annee}` : ""} : ${p.apl}, rang ${p.rang}/${p.sur} dans le département.`;
-    const e = parCle.get(k);
-    if (!e) {
-      await prisma.prioriteTerritoriale.create({
-        data: {
-          codeInsee: p.codeInsee, commune: libellesDuCode(p.codeInsee)[0] ?? p.commune,
-          profession: p.profession, niveau: p.niveau, origine: "APL", note,
-          clientId, saisiParId, declareLe: new Date(),
-        },
-      });
-      bilan.creees++;
-    } else if (e.clientId !== clientId || e.origine !== "APL") {
-      bilan.ignorees++;
-    } else if (e.niveau !== p.niveau || e.note !== note) {
-      await prisma.prioriteTerritoriale.update({ where: { id: e.id }, data: { niveau: p.niveau, note } });
-      bilan.modifiees++;
-    }
-  }
+  const paliers = (await paliersApl(page.communes))
+    .filter((p) => p.niveau > 0)
+    .sort((a, b) => b.niveau - a.niveau);
+  const voulues = new Set(paliers.map((p) => cle(p.codeInsee, p.profession)));
 
   const aRetirer = await prisma.prioriteTerritoriale.findMany({
     where: { clientId, origine: "APL" },
@@ -109,6 +88,38 @@ export async function synchroniserPrioritesApl(
   const ids = aRetirer.filter((e) => !voulues.has(cle(e.codeInsee, e.profession))).map((e) => e.id);
   if (ids.length > 0) {
     bilan.retirees = (await prisma.prioriteTerritoriale.deleteMany({ where: { id: { in: ids } } })).count;
+  }
+
+  const existantes = await prisma.prioriteTerritoriale.findMany({
+    where: { codeInsee: { in: page.communes }, clientId },
+  });
+  const parCle = new Map(existantes.map((e) => [cle(e.codeInsee, e.profession), e]));
+
+  for (const p of paliers) {
+    const note = `APL DREES${p.annee ? ` ${p.annee}` : ""} : ${p.apl}, rang ${p.rang}/${p.sur} dans le département.`;
+    const e = parCle.get(cle(p.codeInsee, p.profession));
+    if (e) {
+      if (e.origine === "APL" && (e.niveau !== p.niveau || e.note !== note)) {
+        await prisma.prioriteTerritoriale.update({ where: { id: e.id }, data: { niveau: p.niveau, note } });
+        bilan.modifiees++;
+      }
+      continue;
+    }
+    const controle = await controlerCase(page.client, p.codeInsee, p.profession);
+    if (!controle.ok) {
+      if (controle.conflit === "plafond") bilan.horsPlafond++; else bilan.ignorees++;
+      continue;
+    }
+    await poserCase(controle, (db, noteReprise) => db.prioriteTerritoriale.create({
+      data: {
+        codeInsee: p.codeInsee, commune: libellesDuCode(p.codeInsee)[0] ?? p.commune,
+        profession: p.profession, niveau: p.niveau, origine: "APL",
+        note: noteReprise ? `${note} ${noteReprise}` : note,
+        clientId, saisiParId, declareLe: new Date(),
+      },
+    }));
+    bilan.creees++;
+    if (controle.reprise) bilan.reprises++;
   }
   return bilan;
 }

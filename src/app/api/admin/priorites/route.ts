@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { controlerCase, poserCase } from "@/lib/casesPriorite";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
   // passe son temps à fermer.
   const client = await prisma.clientInstitutionnel.findUnique({
     where: { id: clientId },
-    select: { nom: true, clotureLe: true, revueLe: true, debutLe: true },
+    select: { id: true, nom: true, type: true, clotureLe: true, revueLe: true, debutLe: true },
   });
   if (!client) {
     return NextResponse.json({ error: "Relation institutionnelle introuvable." }, { status: 400 });
@@ -100,24 +101,16 @@ export async function POST(req: NextRequest) {
   // territoires qui se chevauchent visent la même commune : modifier la déclaration de l'une
   // ferait passer le jugement de l'autre sous son nom. C'est l'erreur d'attribution que toute
   // cette section existe pour empêcher, refaite par un administrateur suivant une consigne.
-  const existante = await prisma.prioriteTerritoriale.findUnique({
-    where: { codeInsee_profession: { codeInsee, profession } },
-    select: { id: true, clientId: true, client: { select: { nom: true } } },
-  });
-  if (existante) {
-    const memeInstitution = existante.clientId === clientId;
-    return NextResponse.json(
-      {
-        error: memeInstitution
-          ? `${client.nom} a déjà déclaré ${commune} pour cette profession. Modifier la déclaration existante plutôt que d'en ajouter une seconde.`
-          : `${commune} est déjà déclarée pour cette profession par ${existante.client.nom}, une autre institution. Le produit ne peut pas porter deux priorités concurrentes sur une même commune : il faudrait trancher laquelle fait foi, et aucune réponse automatique ne serait honnête. Ne PAS modifier la déclaration de ${existante.client.nom} au nom de ${client.nom} — le territoire est à arbitrer entre les deux institutions.`,
-        conflit: memeInstitution ? "meme-institution" : "chevauchement",
-      },
-      { status: 409 },
-    );
+  //
+  // Depuis le point 7 (21/10), la règle vit dans lib/casesPriorite, partagée avec /gestion et le
+  // recalcul APL : premier arrivé tant que sa déclaration est vivante, case reprise si elle est
+  // éteinte, plafond de cases selon l'offre.
+  const controle = await controlerCase(client, codeInsee, profession);
+  if (!controle.ok) {
+    return NextResponse.json({ error: controle.error, conflit: controle.conflit }, { status: 409 });
   }
 
-  const cree = await prisma.prioriteTerritoriale.create({
+  const cree = await poserCase(controle, (db, noteReprise) => db.prioriteTerritoriale.create({
     data: {
       codeInsee,
       commune,
@@ -125,12 +118,12 @@ export async function POST(req: NextRequest) {
       niveau,
       clientId,
       declareLe: new Date(declareLe),
-      note: note || null,
+      note: [note, noteReprise].filter(Boolean).join(" ") || null,
       expireLe: expireLe ? new Date(expireLe) : null,
       saisiParId: session!.user!.id as string,
     },
     include: { saisiPar: { select: { email: true } }, client: { select: { nom: true, nature: true, revueLe: true, clotureLe: true } } },
-  });
+  }));
 
   console.log(`[admin] priorité territoriale déclarée — ${commune} (${codeInsee}) ${profession} niveau ${niveau}, ${client.nom}`);
   return NextResponse.json(cree, { status: 201 });

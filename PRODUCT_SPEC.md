@@ -7408,6 +7408,45 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 316 — CASES PRIORITAIRES : UNICITÉ, CHEVAUCHEMENT (PREMIER ARRIVÉ), PLAFOND PAR PALIER (21/10)
+
+Point 7 de l'offre CPTS/MSP. Une CASE = une ligne `PrioriteTerritoriale` (commune × profession).
+
+- **Source unique des paliers** : `TARIFS_PARTENAIRE` (lib/tarifsPartenaire) porte désormais
+  `communesMax` et `casesMax` à côté des prix ; `PALIER_DU_TYPE` rattache chaque type de
+  structure à sa ligne. `PERIMETRE_MAX` (lib/pageClient) en est dérivé — valeurs inchangées.
+
+  | Palier | Types | Communes | Cases |
+  |---|---|---|---|
+  | MSP | MSP | 1 | 8 |
+  | Établissement | EHPAD, SSIAD, SSR, clinique | 2 | 16 |
+  | CPTS | CPTS, collectivité | sans plafond | sans plafond, soumise à la densité du fil (section 315) |
+  | Hôpital | hôpital | sur devis | sur devis — à vérifier |
+  | — | ARS, CGSS, autre | sans plafond codé | sans plafond codé (aucune offre publiée) |
+
+- **Un seul contrôle** (`controlerCase` / `poserCase`, lib/casesPriorite) pour les trois chemins
+  qui créent une case : ajout depuis `/gestion`, déclaration dans `/admin/priorites`, recalcul
+  APL dans `/admin/pages`.
+- **Règle de chevauchement, premier arrivé** :
+  1. une case n'a qu'un titulaire (`@@unique([codeInsee, profession])`) — pas de double
+     étiquette, pas de cumul de boosts ;
+  2. tant que la déclaration du titulaire est vivante (non échue, relation active), la case lui
+     reste, même face à une structure plus locale (MSP dans le territoire d'une CPTS) : refus
+     409 qui nomme le titulaire ;
+  3. éteinte (échéance, revue dépassée, clôture), la case se libère : la structure suivante la
+     reprend, la ligne éteinte est remplacée dans la même transaction et sa trace gardée dans la
+     note (« Case reprise de X (déclaration éteinte) ») ;
+  4. le produit ne tranche jamais entre deux structures vivantes ; l'administrateur retire une
+     case à la demande de son titulaire.
+- **Plafond** : au-delà de `casesMax` (cases non échues du client), refus 409 ; au recalcul APL,
+  les cases les plus fortes passent d'abord, le reste est compté `horsPlafond` dans le bilan.
+- **Recalcul APL** : retire d'abord les lignes APL devenues inutiles, puis crée — le plafond ne
+  compte pas des lignes sur le point de partir.
+- **Essais** (21/10, clients et compte `.invalid` purgés) : MSP sur Pointe-Noire → 3 cases
+  ignorées (tenues par Nord Basse-Terre), refus nommant NBT ; reprise d'une case éteinte ;
+  doublon refusé ; MSP 9e case refusée ; CPTS sans plafond ; les 12 priorités de NBT identiques
+  à l'octet. Testé au niveau de la bibliothèque, pas par appel HTTP des routes.
+
 ### SECTION 315 — BOOST TERRITORIAL : FORMULE, PLAFOND 35, DENSITÉ 1 SUR 3 ; ÉTIQUETTE « ZONE PRIORITAIRE » SOUS ACCORD (21/10)
 
 Points 4 et 5 de l'offre CPTS/MSP. Source unique : `src/lib/boostTerritorial.ts` (pur, sans
