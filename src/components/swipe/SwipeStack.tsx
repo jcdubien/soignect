@@ -1,5 +1,6 @@
 "use client";
 
+import { LIBELLE_ZONE_PRIORITAIRE, mentionMiseEnAvant } from "@/lib/boostTerritorial";
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   motion,
@@ -27,7 +28,7 @@ import type { Disponibilite } from "@/lib/disponibilitePure";
 // carte non étiquetée ne porte aucune trace du mécanisme, ce qui permet de mesurer l'écart de
 // conversion entre cartes étiquetées et non étiquetées sans les confondre avec un mécanisme
 // inactif.
-type MissionWithProfile = Mission & { profile: Profile; convergenceJours?: number };
+type MissionWithProfile = Mission & { profile: Profile; convergenceJours?: number; zonePrioritaire?: string };
 // `POSTES` n'est pas une valeur de MissionType : c'est l'union de ce qui engage dans la
 // durée, salariat compris (section 282). Le serveur en tient la définition — ici on ne fait
 // que la nommer.
@@ -390,6 +391,17 @@ function Card({
           <div className="flex items-center gap-1.5 bg-kine-50 rounded-xl px-2.5 py-1.5 shrink-0">
             <span className="text-sm">📅</span>
             <span className="text-kine-700 text-xs font-semibold">{dateRange}</span>
+          </div>
+        )}
+
+        {/* ── Zone prioritaire (point 5, 21/10) ── posée par /api/feed seulement quand
+            l'institution a donné son accord de publication ; jamais d'étiquette anonyme. */}
+        {mission.zonePrioritaire && (
+          <div className="bg-kine-50 border border-kine-200 rounded-xl px-2.5 py-1.5 shrink-0">
+            <p className="text-kine-800 text-xs font-bold leading-snug m-0">
+              📍 {LIBELLE_ZONE_PRIORITAIRE} — {mission.zonePrioritaire}
+            </p>
+            <p className="text-kine-700 text-[10px] leading-snug m-0">{mentionMiseEnAvant(mission.zonePrioritaire)}</p>
           </div>
         )}
 

@@ -7408,6 +7408,41 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 315 — BOOST TERRITORIAL : FORMULE, PLAFOND 35, DENSITÉ 1 SUR 3 ; ÉTIQUETTE « ZONE PRIORITAIRE » SOUS ACCORD (21/10)
+
+Points 4 et 5 de l'offre CPTS/MSP. Source unique : `src/lib/boostTerritorial.ts` (pur, sans
+Prisma), lue par le fil, l'écran `/admin/priorites` (qui portait sa propre copie du facteur ×3,
+retirée) et la carte du candidat.
+
+- **Formule.** Niveau 1 → 15 points, 2 → 25, 3 et au-delà → 35 (`POINTS_BOOST_PAR_NIVEAU`,
+  `PLAFOND_BOOST = 35`). Remplace l'ancien `niveau × 3` (6 points pour un niveau 2).
+- **Maximum, pas somme** (`boostRetenu`). Plusieurs boosts sur une annonce : seul le plus fort
+  compte. Aujourd'hui l'unicité commune × profession n'en laisse qu'un ; le bonus saisonnier ne
+  joue que devant un cabinet et reste dans le score de base.
+- **Un boost ne remplace pas un plan.** Gratuit boosté = 35 < Premium = 50. En revanche un
+  Premium en zone prioritaire (85) passe devant un plan Boost hors zone (80) — à trancher si
+  ce n'est pas voulu.
+- **Densité** (`DENSITE_BOOST = 3`, paramètre unique) : au plus 1 annonce REMONTÉE par le boost
+  par fenêtre de 3 cartes (`ordonnerAvecDensite`, glouton, stable). Une annonce qui serait
+  passée sans boost (cabinet fondateur, Premium en zone) n'est pas « remontée » et ne consomme
+  pas la fenêtre ; une annonce boostée en trop reprend son score de base. Sans boost
+  applicable, l'ordre est exactement l'ancien tri. Côté cabinet, rien ne change.
+- **Périmètre** (point 5) : toutes les annonces de la commune × profession, sans liste de
+  membres — c'était déjà le cas, inchangé.
+- **Étiquette** sur la carte du candidat : « 📍 Zone prioritaire — <institution> » et « Mise en
+  avant demandée par <institution> », UNIQUEMENT si `PageClient.accord` = OUI ; aucune
+  étiquette anonyme sinon (champ `zonePrioritaire` absent de la réponse du fil). Posée sur
+  toute annonce de la zone, remontée ou non.
+- **Mention de bas de pile** : elle ne nomme plus l'institution sans accord. CPTS Nord
+  Basse-Terre (accord NON) n'y est donc plus nommée : formule « où votre profession est
+  signalée comme manquante ».
+- **Trace** `FEED_PRIORITE_TERRITORIALE` : ajoute `remontees` (annonces réellement passées
+  devant) à côté de `misesEnAvant` (annonces de la zone).
+- **Effet mesuré sur le fil kiné réel** (candidat `.invalid`, 20 offres) : seules les positions
+  7 à 9 changent — la 2e annonce de Sainte-Rose passe de 7 à 9 (densité). Le cabinet fondateur
+  reste 1 à 5. Essai sage-femme (profession sans utilisateur réel, client d'essai accord OUI) :
+  ordre B · · B · · B B, étiquette sur les 4 annonces de Bouillante. Tout purgé.
+
 ### SECTION 314 — ÉDITEURS NOMMÉS DES PAGES CLIENTS ; LE LIEN D'ÉDITION NE FAIT QUE CONSULTER (20/10)
 
 Point 6 de l'offre CPTS/MSP, prérequis à tout classement payant : une priorité agit sur le fil,

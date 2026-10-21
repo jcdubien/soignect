@@ -59,26 +59,14 @@
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
 import { inseeOfCommune, libellesDuCode } from "@/lib/communes";
+import { boostRetenu, pointsBoost } from "@/lib/boostTerritorial";
 
 // ── Dosage ───────────────────────────────────────────────────────────────────
 //
-// Le niveau déclaré est un entier 1..10. La désirabilité est un pourcentage 0-100 et le bonus
-// saisonnier vaut 30. Un niveau ajouté tel quel serait noyé : un 2 sur Deshaies ne déplacerait
-// rien face à un palier Premium de 50. Il faut donc une échelle, et la choisir est un
-// arbitrage, pas un détail d'implémentation.
-//
-// FACTEUR 3 → l'amplitude maximale vaut +30, soit exactement le bonus saisonnier, et reste
-// sous le palier Premium (50). Ce qui se dit en une phrase défendable devant une CPTS ET
-// devant un abonné : une commune déclarée prioritaire au maximum pèse autant que la fenêtre de
-// tension du territoire, et jamais autant qu'un abonnement payé.
-//
-// L'ÉCHELLE EST DEVENUE POSITIVE (19/08). `boost*` allait de −10 à +10 ; le niveau déclaré va
-// de 1 à 10. Une institution déclare qu'il MANQUE des soignants quelque part — elle ne déclare
-// pas qu'une commune mérite d'être enfoncée dans le classement. Le négatif n'était pas un
-// réglage plus fin, c'était une capacité dont personne n'a jamais su quoi faire.
-//
-// Le jour où ce dosage se rediscute, c'est cette constante qu'on change — pas la logique.
-export const FACTEUR_PRIORITE_TERRITORIALE = 3;
+// Le dosage (points par niveau, plafond 35, maximum plutôt que somme, densité 1 sur 3) vit
+// dans `lib/boostTerritorial`, source unique lue aussi par l'écran admin (point 4, 21/10).
+// L'ancien facteur ×3 (3..30 points) y est remplacé : à 6 points pour un niveau 2, une
+// priorité ne déplaçait rien face à un palier à 50.
 
 // ── ARBITRAGE isFounding (100) CONTRE LEVIER INSTITUTIONNEL (±30) — tranché le 18/08 ─────────
 //
@@ -115,10 +103,9 @@ export const FACTEUR_PRIORITE_TERRITORIALE = 3;
 // (`Profession.enumBase`, `COMMUNE_INSEE`, slug d'URL) — c'est le besoin qui a disparu, pas
 // la règle.
 
-/** Convertit un niveau déclaré (1..10) en points d'ordre (3..30). Pure, testable seule. */
+/** Niveau → points d'ordre : voir `pointsBoost` (lib/boostTerritorial). */
 export function bonusTerritorial(niveau: number | null | undefined): number {
-  if (!niveau || niveau <= 0) return 0;
-  return Math.min(niveau, 10) * FACTEUR_PRIORITE_TERRITORIALE;
+  return pointsBoost(niveau);
 }
 
 /**
@@ -153,6 +140,9 @@ export interface PrioriteAppliquee {
    *  puisse la NOMMER (B2, 20/08). C'est toute la différence avec les deux versions fausses
    *  précédentes : la phrase affichée s'adosse à une ligne qu'on peut montrer. */
   institution: string;
+  /** L'institution a donné son accord pour que son nom soit publié (`PageClient.accord` = OUI).
+   *  Sans lui, ni l'étiquette « Zone prioritaire — <nom> » ni la mention ne la nomment (point 5). */
+  nomPublie: boolean;
 }
 
 export async function chargerPrioritesTerritoriales(
@@ -192,14 +182,18 @@ export async function chargerPrioritesTerritoriales(
       profession,
       ...declarationVivante(maintenant),
     },
-    select: { codeInsee: true, niveau: true, client: { select: { nom: true } } },
+    select: { codeInsee: true, niveau: true, client: { select: { nom: true, page: { select: { accord: true } } } } },
   });
 
   for (const ligne of lignes) {
     const points = bonusTerritorial(ligne.niveau);
     if (points === 0) continue;
     for (const libelle of parCode.get(ligne.codeInsee) ?? []) {
-      resultat.set(libelle, { points, institution: ligne.client.nom });
+      // Maximum, jamais la somme (point 4) : si deux lignes portaient sur la même commune, la
+      // plus forte l'emporte. L'unicité commune × profession l'interdit aujourd'hui.
+      const deja = resultat.get(libelle);
+      if (deja && boostRetenu([deja.points, points]) === deja.points) continue;
+      resultat.set(libelle, { points, institution: ligne.client.nom, nomPublie: ligne.client.page?.accord === "OUI" });
     }
   }
   return resultat;

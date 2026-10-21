@@ -7,6 +7,7 @@ import { stripMissionProfiles } from "@/lib/publicProfile";
 import { EST_UNE_OFFRE, offreOuverteLe } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 import { chargerPrioritesTerritoriales, communesAvecPrioriteVivante, type PrioriteAppliquee } from "@/lib/territoire";
+import { boostRetenu, ordonnerAvecDensite } from "@/lib/boostTerritorial";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
 import { salariatPublicable, contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { professionPluriel } from "@/lib/professions";
@@ -251,30 +252,37 @@ export async function GET(req: NextRequest) {
     ? await chargerPrioritesTerritoriales(missions.map((m) => m.location), myProfile.profession)
     : new Map<string, PrioriteAppliquee>();
 
-  const desirabilite = new Map<string, number>();
-  for (const m of missions) {
-    desirabilite.set(
-      m.id,
-      getDesirabilityPercent(m.profile)
-        + bonusSaisonnier({ startDate: m.startDate, endDate: m.endDate }, besoinPeriode)
-        + (prioritesTerritoriales.get(m.location ?? "")?.points ?? 0),
-    );
-  }
-  missions.sort((a, b) => (desirabilite.get(b.id) ?? 0) - (desirabilite.get(a.id) ?? 0));
+  // FORMULE ET DENSITÉ (point 4, 21/10) — lib/boostTerritorial. Le score de base (plan,
+  // partenaire, saisonnier) trie comme avant ; le boost territorial (maximum des priorités, 35
+  // au plus) ne fait passer une annonce devant qu'une fois par fenêtre de 3 cartes. Sans
+  // priorité applicable, l'ordre est exactement le tri décroissant du score de base.
+  const scoreBase = (m: (typeof missions)[number]) =>
+    getDesirabilityPercent(m.profile) + bonusSaisonnier({ startDate: m.startDate, endDate: m.endDate }, besoinPeriode);
+  const { ordre, remontees } = ordonnerAvecDensite(
+    missions,
+    scoreBase,
+    (m) => boostRetenu([prioritesTerritoriales.get(m.location ?? "")?.points ?? 0]),
+  );
   // La page servie garde sa taille : le supplément de fusion entre en concurrence, il ne
   // l'allonge pas.
-  missions.splice(limit);
+  missions.splice(0, missions.length, ...ordre.slice(0, limit));
 
-  /** Annonces de CE feed réellement remontées par une priorité territoriale — calculé APRÈS le
-   *  recoupage : la mention de transparence, la trace et l'en-tête doivent parler de ce qui est
-   *  servi, pas de ce qui a été lu. */
+  /** Annonces de CE feed situées en zone prioritaire — calculé APRÈS le recoupage : la mention
+   *  de transparence, la trace et l'en-tête parlent de ce qui est servi, pas de ce qui a été lu.
+   *  Toutes ne sont pas forcément remontées (densité) : `remontees` dit lesquelles l'ont été. */
   const misesEnAvantTerritoire = missions.filter(
     (m) => (prioritesTerritoriales.get(m.location ?? "")?.points ?? 0) > 0,
   );
-  /** Institutions distinctes à créditer devant CE lecteur — c'est ce qui autorise B2 à écrire
-   *  « déclarée prioritaire par X » plutôt qu'une formule sans auteur. */
+  const remonteesServies = missions.filter((m) => remontees.has(m));
+  /** Institutions distinctes à créditer devant CE lecteur — UNIQUEMENT celles dont l'accord de
+   *  publication du nom est noté (point 5). Les autres laissent la mention sans auteur. */
   const institutionsTerritoire = Array.from(
-    new Set(misesEnAvantTerritoire.map((m) => prioritesTerritoriales.get(m.location ?? "")!.institution)),
+    new Set(
+      misesEnAvantTerritoire
+        .map((m) => prioritesTerritoriales.get(m.location ?? "")!)
+        .filter((p) => p.nomPublie)
+        .map((p) => p.institution),
+    ),
   );
 
   // Trace du bonus saisonnier (section 197). Une regle qui MODIFIE l'ordre vu par les cabinets
@@ -320,6 +328,8 @@ export async function GET(req: NextRequest) {
         profession: myProfile.profession,
         metadata: {
           misesEnAvant: misesEnAvant.length,
+          // Celles que le boost a réellement fait passer devant (densité 1 sur 3, point 4).
+          remontees: remonteesServies.length,
           surTotal: missions.length,
           communes: Array.from(new Set(misesEnAvant.map((m) => m.location).filter(Boolean))),
           // Les institutions créditées sont tracées avec les communes : c'est ce qui rendra le
@@ -541,7 +551,11 @@ export async function GET(req: NextRequest) {
     // Champ ABSENT plutôt que `null` quand il n'y a rien à dire : une carte non étiquetée ne
     // porte aucune trace de l'étiquetage, et la mesure ne peut pas confondre « pas de
     // convergence » avec « mécanisme inactif ».
-    return ecart === undefined ? m : { ...m, convergenceJours: ecart };
+    const avecEcart = ecart === undefined ? m : { ...m, convergenceJours: ecart };
+    // ÉTIQUETTE « Zone prioritaire — <institution> » (point 5) : seulement si l'institution a
+    // donné son accord de publication. Champ absent sinon — pas d'étiquette anonyme.
+    const prio = prioritesTerritoriales.get((m as { location?: string | null }).location ?? "");
+    return prio?.nomPublie ? { ...avecEcart, zonePrioritaire: prio.institution } : avecEcart;
   });
 
   return NextResponse.json(charge, {

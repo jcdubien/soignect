@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { pointsBoost } from "@/lib/boostTerritorial";
 
 // La liste des professions n'est plus écrite ici : elle est DÉRIVÉE DE L'ENUM Prisma par la
 // page serveur et reçue en prop (19/08, audit de généricité). Recopiée à la main, une 6ᵉ
@@ -17,7 +18,6 @@ const NATURES = [
 
 const LIBELLE_NATURE: Record<string, string> = Object.fromEntries(NATURES.map((n) => [n.value, n.label]));
 
-const FACTEUR = 3; // FACTEUR_PRIORITE_TERRITORIALE — voir src/lib/territoire.ts
 
 interface Client {
   id: string;
@@ -451,7 +451,7 @@ export default function PrioritesClient({
                 <input required type="date" value={form.declareLe} onChange={(e) => setForm({ ...form, declareLe: e.target.value })} className={champ} />
               </label>
               <label className="text-xs text-gray-500 space-y-1 block">
-                Intensité (1 à 10) — pèse {form.niveau * FACTEUR} points d&apos;ordre
+                Intensité (1 à 10) — pèse {pointsBoost(form.niveau)} points d&apos;ordre
                 <input required type="number" min={1} max={10} value={form.niveau}
                   onChange={(e) => setForm({ ...form, niveau: Number(e.target.value) })} className={champ} />
               </label>
@@ -504,7 +504,7 @@ export default function PrioritesClient({
                     <td className="px-3 py-2.5 text-gray-600 text-xs">{libelleProfession(p.profession)}</td>
                     <td className="px-3 py-2.5">
                       <span className="text-xs font-semibold text-kine-600">
-                        {p.niveau} <span className="text-gray-400 font-normal">(+{p.niveau * FACTEUR} pts)</span>
+                        {p.niveau} <span className="text-gray-400 font-normal">(+{pointsBoost(p.niveau)} pts)</span>
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-gray-700 text-xs">{p.client?.nom ?? "—"}</td>
