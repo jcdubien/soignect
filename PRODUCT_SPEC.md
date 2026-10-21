@@ -7420,8 +7420,9 @@ retirée) et la carte du candidat.
   compte. Aujourd'hui l'unicité commune × profession n'en laisse qu'un ; le bonus saisonnier ne
   joue que devant un cabinet et reste dans le score de base.
 - **Un boost ne remplace pas un plan.** Gratuit boosté = 35 < Premium = 50. En revanche un
-  Premium en zone prioritaire (85) passe devant un plan Boost hors zone (80) — à trancher si
-  ce n'est pas voulu.
+  Premium en zone prioritaire (85) passe devant un plan Boost hors zone (80) — VOULU (JC,
+  21/10) : le boost corrige un manque d'accès aux soins là où il existe ; un cabinet qui paie
+  le plan Boost garde la tête partout ailleurs, et devant tout gratuit boosté.
 - **Densité** (`DENSITE_BOOST = 3`, paramètre unique) : au plus 1 annonce REMONTÉE par le boost
   par fenêtre de 3 cartes (`ordonnerAvecDensite`, glouton, stable). Une annonce qui serait
   passée sans boost (cabinet fondateur, Premium en zone) n'est pas « remontée » et ne consomme
@@ -7433,9 +7434,9 @@ retirée) et la carte du candidat.
   avant demandée par <institution> », UNIQUEMENT si `PageClient.accord` = OUI ; aucune
   étiquette anonyme sinon (champ `zonePrioritaire` absent de la réponse du fil). Posée sur
   toute annonce de la zone, remontée ou non.
-- **Mention de bas de pile** : elle ne nomme plus l'institution sans accord. CPTS Nord
-  Basse-Terre (accord NON) n'y est donc plus nommée : formule « où votre profession est
-  signalée comme manquante ».
+- **Mention de bas de pile** : elle ne nomme l'institution qu'avec son accord. CPTS Nord
+  Basse-Terre : accord passé à OUI le 21/10 (JC) — nommée sur sa page, dans la mention et sur
+  l'étiquette.
 - **Trace** `FEED_PRIORITE_TERRITORIALE` : ajoute `remontees` (annonces réellement passées
   devant) à côté de `misesEnAvant` (annonces de la zone).
 - **Effet mesuré sur le fil kiné réel** (candidat `.invalid`, 20 offres) : seules les positions

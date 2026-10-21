@@ -9,7 +9,9 @@
 //      Aujourd'hui l'unicité commune × profession n'en laisse qu'un, et le bonus saisonnier ne
 //      joue que devant un cabinet : la règle est écrite pour qu'un futur levier n'empile pas.
 //   2. PLAFOND 35. Une annonce gratuite boostée (0 + 35) reste sous le palier Premium (50) :
-//      le boost accélère l'accès, il ne remplace pas un plan supérieur.
+//      le boost accélère l'accès, il ne remplace pas un plan supérieur. Un Premium en zone (85)
+//      passe devant un plan Boost hors zone (80) : voulu (JC, 21/10) — le plan Boost garde la
+//      tête partout ailleurs et devant tout gratuit boosté.
 //   3. DENSITÉ : au plus 1 annonce REMONTÉE PAR LE BOOST sur 3 consécutives dans le fil. Paramètre
 //      unique, ajustable après mesure.
 
