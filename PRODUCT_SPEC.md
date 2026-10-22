@@ -7408,6 +7408,36 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 321 — PARCOURS ÉTABLISSEMENT (1) : ENTRÉE CLAIRE DEPUIS LES PAGES « EMPLOI » (22/10)
+
+Contexte : 17 emails de prospection (21/10) renvoient vers /emploi-kine, /emploi-infirmier,
+/emploi-aide-soignant-guadeloupe. Audit du 22/10 : le bouton « Publier une offre » ouvrait déjà
+l'inscription établissement (profession préremplie) — le constat inverse ne s'est pas reproduit —
+mais « Devenir partenaire » retombait sur « Je suis… », et l'établissement arrivait sur le fil.
+
+- **Libellés** (`lib/inscription`, source unique, lue par /register) :
+  - « Inscription en tant qu'établissement qui recrute des infirmiers » (profession au pluriel,
+    `professionPluriel`) ; « … cabinet qui recrute des kinésithérapeutes » ; candidats
+    inchangés (remplaçant·e, assistant·e / collaborateur·rice, candidat·e à un poste salarié) ;
+  - l'en-tête au-dessus de la carte disait « Votre identité » à un établissement : il dit
+    « Votre établissement » (« Votre cabinet », « Votre identité » selon le compte).
+- **« Devenir partenaire »** sur la porte « emploi » porte le même type de compte que « Publier
+  une offre » (`profileType=TITULAIRE&structure=1`). Autres portes inchangées (vérifié : liens
+  d'inscription identiques à la production sur les pages maison de santé et territoire).
+- **Arrivée après inscription** (`destinationApresInscription`) : un établissement arrive sur
+  `/missions/create` (« Ouvrir un poste ») ; cabinets sur le fil, candidats sur leur
+  disponibilité — inchangé (section 225).
+- **Essai** (22/10, schéma temporaire `essai_p11`, serveur local sans email, sans DeepSeek et
+  sans jeton Facebook) : page infirmier → « Publier une offre » → compte établissement créé
+  (TITULAIRE / STRUCTURE / INFIRMIER, SIGNUP avec `src=emploi-infirmier-guadeloupe`) → arrivée
+  sur « Ouvrir un poste » → offre CDI salariée publiée. Libellés vérifiés à l'écran pour les pages
+  aide-soignant et kiné (partenaire) et pour un candidat aide-soignant. Photo et vignette
+  d'essai supprimées du stockage, schéma supprimé.
+- **Relevé en chemin, non traité ici** : le formulaire salarié dit « Le contrat généré suit le
+  modèle-type de votre ordre professionnel » quand la page infirmier dit « Soignect ne le génère
+  pas » ; les filtres du fil d'un établissement restent « Remplacement / Assistant /
+  Collaboration » ; l'écran 3 de l'inscription dit « les premiers verront votre profil ».
+
 ### SECTION 320 — VALEURS APL : CE QUI EST INCERTAIN (22/10)
 
 Point 11 de l'offre CPTS/MSP. Inventaire, sans code nouveau : ce que l'on sait des chiffres APL

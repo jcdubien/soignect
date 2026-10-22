@@ -10,6 +10,7 @@ import { accrocheProfilExemple } from "@/lib/exemplesPublication";
 import { signIn, getSession } from "next-auth/react";
 import Image from "next/image";
 import { bioLimitFor } from "@/lib/bio";
+import { destinationApresInscription, enTantQue, libelleInscription, titreIdentite } from "@/lib/inscription";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
 
@@ -273,8 +274,8 @@ function RegisterForm() {
     // titulaires sur 8 n'ont jamais publié non plus, mais ils convertissent à 50 % contre 25 %
     // pour les candidats : deux situations d'ampleur différente, et le périmètre demandé porte
     // sur le parcours candidat. À trancher séparément.
-    const apresInscription =
-      profileType === "TITULAIRE" ? "/annonces" : "/disponibilites/create";
+    // Un établissement arrive sur la publication d'offre (lib/inscription, 22/10).
+    const apresInscription = destinationApresInscription(profileType, structure);
     window.location.assign(
       photoUploaded ? (returnTo ?? apresInscription) : "/compte?photoError=1",
     );
@@ -288,7 +289,7 @@ function RegisterForm() {
           <Image src="/GeminiLogo.png" alt="Soignect" width={132} height={132} priority className="rounded-2xl shadow-xl" />
         </Link>
         <p className="text-kine-100 text-xs font-medium tracking-wide">
-          {step === 1 ? "Bienvenue !" : step === 2 ? "Votre identité" : "Votre présentation"}
+          {step === 1 ? "Bienvenue !" : step === 2 ? titreIdentite(profileType, structure) : "Votre présentation"}
         </p>
       </div>
 
@@ -389,7 +390,7 @@ function RegisterForm() {
             <>
               <StepIndicator current={1} total={2} />
               <h2 className="text-lg font-bold text-gray-800 mb-5">
-                {profileType === "TITULAIRE" ? (structure ? "Votre établissement" : "Votre cabinet") : "Votre identité"}
+                {titreIdentite(profileType, structure)}
               </h2>
 
               {/* L'écran 1 ayant été sauté, rien ne dirait sous quel profil on s'inscrit. On
@@ -397,15 +398,9 @@ function RegisterForm() {
                   paramètre d'URL : après un changement, il dit la vérité. */}
               {preselected && profileType && (
                 <p className="-mt-3 mb-5 text-sm text-gray-400">
-                  {/* Élision devant voyelle : « en tant qu'établissement », « qu'assistant·e ». */}
-                  Inscription en tant {(profileType === "TITULAIRE" && structure) || profileType === "ASSISTANT" ? "qu’" : "que "}
-                  <span className="font-semibold text-gray-600">
-                    {/* Un aide-soignant ne remplace pas (section 305) : même compte, mot juste. */}
-                    {profileType === "REMPLACANT" && contratFourniParEmployeur(profession) ? "candidat·e à un poste salarié"
-                      : profileType === "REMPLACANT" ? "remplaçant·e"
-                      : profileType === "ASSISTANT" ? "assistant·e / collaborateur·rice"
-                      : structure ? "établissement" : "cabinet"}
-                  </span>.{" "}
+                  {/* Le type de compte ET, côté recruteur, la profession recherchée (lib/inscription). */}
+                  Inscription {enTantQue(libelleInscription(profileType, structure, profession))}
+                  <span className="font-semibold text-gray-600">{libelleInscription(profileType, structure, profession)}</span>.{" "}
                   <button type="button" onClick={() => setStep(1)} className="text-kine-600 font-semibold hover:underline">
                     Changer
                   </button>

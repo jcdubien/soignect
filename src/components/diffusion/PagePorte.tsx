@@ -154,7 +154,9 @@ export default async function PagePorte({
       })()}
 
       {porte.offrePartenaire && (
-        <BlocPartenaire profession={profession} inscription={`/register?profession=${profession.enumBase}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />
+        // Sur la porte « emploi », « Devenir partenaire » ouvre lui aussi le compte établissement
+        // (22/10) : sans le type, l'établissement retombait sur « Je suis… » parmi les libéraux.
+        <BlocPartenaire profession={profession} inscription={`/register?profession=${profession.enumBase}${porte.slug === "emploi" ? typeCompte : ""}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />
       )}
 
       {/* NE GARDER ICI QUE CE QUI EST VRAI PAR CONSTRUCTION (règle du 10/08, réaffirmée le
