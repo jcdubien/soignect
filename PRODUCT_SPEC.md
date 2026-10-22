@@ -7415,7 +7415,9 @@ disposition ne le montre ; seul un partage depuis un téléphone tranche.
   établissement, robot, domaine référent ; aucune adresse publique à écriture libre. La trace
   `SIGNUP` porte `etablissement`. `/admin/diffusion` affiche par page : visites, clics vers
   l'inscription (humains), inscriptions. L'ancienne page `remplacement-kine-guadeloupe` envoie la
-  provenance `gp-landing` : ses clics n'apparaissent pas sur sa ligne.
+  provenance `gp-landing` : ses clics n'apparaissent pas sur sa ligne. L'écriture est ATTENDUE
+  (`logTraceEventAttendu`, bornée à 1,5 s) : lancée sans attendre, elle n'aboutissait pas sur
+  Vercel — la page répond trop vite et la fonction est figée (constaté en production le 22/10).
 - **Inventaire des emails** (rendu réel, 15 emails, envoi intercepté, rien n'est parti) :
   - « Un cabinet / Un remplaçant a retenu votre profil » pour un EHPAD ou un aide-soignant →
     `unActeur` (lib/libellesPoste, source unique, partagée avec le signal d'intérêt) : « Un

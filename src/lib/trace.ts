@@ -11,7 +11,7 @@ import type { Prisma } from "@prisma/client";
 // n'a de sens que par profession, ne pouvait pas compter les swipes. Quand l'appelant ne la
 // fournit pas (`undefined`), elle est lue sur le profil, dans la même chaîne fire-and-forget. Un
 // `null` explicite reste `null`. Pas de rattrapage des lignes passées.
-export function logTraceEvent(input: {
+type TraceInput = {
   eventType: string;
   missionId?: string | null;
   matchId?: string | null;
@@ -20,14 +20,27 @@ export function logTraceEvent(input: {
   profession?: string | null;
   missionType?: string | null;
   metadata?: Prisma.InputJsonValue;
-}): void {
+};
+
+export function logTraceEvent(input: TraceInput): void {
+  void insererTrace(input);
+}
+
+/** Même insertion, ATTENDUE (22/10). Sur Vercel, une page qui répond très vite (la page
+ *  serveur mince de /register) voit sa fonction figée avant la fin d'une écriture lancée sans
+ *  attendre : constaté en production, aucune trace n'arrivait. Ne lève jamais. */
+export function logTraceEventAttendu(input: TraceInput): Promise<void> {
+  return insererTrace(input);
+}
+
+function insererTrace(input: TraceInput): Promise<void> {
   const profession: Promise<string | null> =
     input.profession !== undefined || !input.profileId
       ? Promise.resolve(input.profession ?? null)
       : prisma.profile
           .findUnique({ where: { id: input.profileId }, select: { profession: true } })
           .then((p) => p?.profession ?? null, () => null);
-  profession
+  return profession
     .then((profession) => prisma.traceEvent.create({
       data: {
         eventType: input.eventType,
@@ -40,7 +53,7 @@ export function logTraceEvent(input: {
         ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
       },
     }))
-    .catch((err) => {
+    .then(() => undefined, (err) => {
       console.error("[TraceEvent] insert échoué (ignoré):", err);
     });
 }

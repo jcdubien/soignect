@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { logTraceEvent } from "@/lib/trace";
+import { logTraceEvent, logTraceEventAttendu } from "@/lib/trace";
 
 // Trace de fréquentation des pages d'entrée publiques (section 86).
 //
@@ -50,7 +50,9 @@ export async function tracerVueLanding(page: string, annonces: number): Promise<
 export async function tracerOuvertureInscription(o: { src: string | null; type: string | null; etablissement: boolean; profession: string | null }): Promise<void> {
   try {
     const h = await headers();
-    logTraceEvent({
+    // ATTENDUE, bornée à 1,5 s : cette page répond trop vite pour qu'une écriture lancée sans
+    // attendre aboutisse sur Vercel (voir logTraceEventAttendu).
+    await Promise.race([logTraceEventAttendu({
       eventType: "INSCRIPTION_OUVERTE",
       profession: o.profession?.slice(0, 40) ?? null,
       metadata: {
@@ -60,7 +62,7 @@ export async function tracerOuvertureInscription(o: { src: string | null; type: 
         robot: ROBOTS.test(h.get("user-agent") ?? ""),
         referent: domaine(h.get("referer")),
       },
-    });
+    }), new Promise((r) => setTimeout(r, 1500))]);
   } catch {
     // Une trace ne doit jamais empêcher la page de s'afficher.
   }
