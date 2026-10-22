@@ -563,16 +563,25 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // durable) — mêmes valeurs filtrées, mots de son métier. Le recruteur lit les choix que le
   // candidat a faits (« Dates précises », « Poste durable »), le candidat la nature des offres.
   const salarieSeul = contratFourniParEmployeur(profession);
+  // Un ÉTABLISSEMENT (22/10) lisait « Remplacement · Assistanat · Collaboration » : les formes
+  // libérales des disponibilités. Il recrute en salarié — il lit, comme pour une profession
+  // salariée seulement, ce que le candidat a choisi : des dates précises ou un poste durable
+  // (« POSTES » réunit les formes durables, voir le fil).
+  const etablissement = isTitulaire && titulaireKind === "STRUCTURE";
   const filtresProposes: MissionFilter[] = salarieSeul
     ? ["ALL", "REMPLACEMENT", "COLLABORATION"]
-    : ["ALL", "POSTES", "REMPLACEMENT", "ASSISTANAT", "COLLABORATION"];
+    : etablissement
+      ? ["ALL", "REMPLACEMENT", "POSTES"]
+      : ["ALL", "POSTES", "REMPLACEMENT", "ASSISTANAT", "COLLABORATION"];
   const libellesFiltres: Record<MissionFilter, string> = salarieSeul
     ? {
         ...FILTER_LABELS,
         REMPLACEMENT:  isTitulaire ? "Dates précises" : "CDD, vacations",
         COLLABORATION: isTitulaire ? "Poste durable" : "CDI",
       }
-    : FILTER_LABELS;
+    : etablissement
+      ? { ...FILTER_LABELS, REMPLACEMENT: "Dates précises", POSTES: "Poste durable" }
+      : FILTER_LABELS;
 
   const [detailMission,    setDetailMission]    = useState<MissionWithProfile | null>(null);
   const [missions,         setMissions]         = useState<MissionWithProfile[]>([]);
@@ -607,6 +616,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   //     11 personnes déjà passées par le geste, sans aucun envoi sortant.
   const [feuilleDispo, setFeuilleDispo] = useState<MissionWithProfile | null | false>(false);
   const [cabinetsEnAttente, setCabinetsEnAttente] = useState(0);
+  const [etablissementsEnAttente, setEtablissementsEnAttente] = useState(0);
   // `sessionStorage`, pas de colonne en base : « Plus tard » doit tenir le temps de la visite,
   // pas éteindre définitivement un rappel que la personne a intérêt à revoir. Elle la retrouve
   // à la prochaine session — et elle disparaît pour de bon dès qu'il y a quelque chose de publié.
@@ -789,6 +799,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       if (publieHdr != null) setAPublie(publieHdr === "1");
       const attenteHdr = r.headers.get("x-feed-cabinets-en-attente");
       if (attenteHdr != null) setCabinetsEnAttente(parseInt(attenteHdr, 10) || 0);
+      const etabHdr = r.headers.get("x-feed-etablissements-en-attente");
+      if (etabHdr != null) setEtablissementsEnAttente(parseInt(etabHdr, 10) || 0);
       const cabProfHdr = r.headers.get("x-feed-cabinets-profession");
       if (cabProfHdr != null) setCabinetsProfession(parseInt(cabProfHdr, 10));
       const plurielHdr = r.headers.get("x-feed-ma-profession-pluriel");
@@ -1507,6 +1519,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       {feuilleDispo !== false && (
         <FeuilleDispoExpress
           cabinetsEnAttente={cabinetsEnAttente}
+          etablissementsEnAttente={etablissementsEnAttente}
+          annonceEtablissement={!!feuilleDispo && feuilleDispo.profile?.titulaireKind === "STRUCTURE"}
           salarieSeul={salarieSeul}
           annonce={
             feuilleDispo

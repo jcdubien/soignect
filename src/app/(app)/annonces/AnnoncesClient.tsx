@@ -252,6 +252,7 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
       {feuille && (
         <FeuilleDispoExpress
           cabinetsEnAttente={0}
+          annonceEtablissement={feuille.mission.profile?.titulaireKind === "STRUCTURE"}
           salarieSeul={contratFourniParEmployeur(profession)}
           annonce={{
             missionType: feuille.mission.missionType ?? null,

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendBillingTriggeredEmail } from "@/lib/email";
+import { isFreeAccessMode } from "@/lib/platform";
+import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
 
 // Bascule individuelle vers le payant (sections 99/100). Seuils configurables (pas de
 // valeur codée en dur dispersée dans le code).
@@ -10,6 +12,16 @@ export const BILLING_GRACE_DAYS = 14;        // délai de grâce avant coupure e
 // Marque le déclenchement de facturation individuelle pour un cabinet, si pas déjà fait.
 // Idempotent (updateMany filtré sur billingTriggeredAt null). Retourne true si nouvellement déclenché.
 export async function triggerBillingIfNeeded(profileId: string): Promise<boolean> {
+  // ── PAS DE BASCULE QUAND IL N'Y A RIEN À PAYER (22/10) ─────────────────────────────────────
+  // Rien ne lisait le mode lancement ici : signer un contrat en mode gratuit posait la bascule
+  // et envoyait « Votre accès Premium — action requise sous 14 jours », alors que tout est
+  // gratuit et que les pages le disent (lib/gratuite). Et un établissement était invité à
+  // « choisir un plan » dont l'abonnement est fermé (VENTE_EN_LIGNE_OUVERTE). Les deux
+  // appelants (signature, usage du Planning) passent par ici : un seul garde, et ni bascule
+  // ni email. Les bascules déjà posées ne sont pas touchées.
+  if (await isFreeAccessMode()) return false;
+  const p = await prisma.profile.findUnique({ where: { id: profileId }, select: { titulaireKind: true } });
+  if (p?.titulaireKind === "STRUCTURE" && !VENTE_EN_LIGNE_OUVERTE) return false;
   const res = await prisma.profile.updateMany({
     where: { id: profileId, type: "TITULAIRE", billingTriggeredAt: null },
     data: { billingTriggeredAt: new Date() },

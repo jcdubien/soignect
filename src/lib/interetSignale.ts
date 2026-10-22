@@ -3,7 +3,7 @@ import { SwipeDirection } from "@prisma/client";
 import { createNotification } from "@/lib/notifications";
 import { sendInteretEmail } from "@/lib/email";
 import { offreOuverteLe } from "@/lib/feedFilters";
-import { estEtablissement, estCandidatSalarie } from "@/lib/libellesPoste";
+import { unActeur } from "@/lib/libellesPoste";
 
 // Signal « quelqu'un s'intéresse à votre annonce » (sections 223-224, différé le 15/09).
 //
@@ -193,7 +193,7 @@ export async function signalerInteret(opts: {
 
     const proprio = await prisma.profile.findUnique({
       where: { id: mission.profileId },
-      select: { type: true, user: { select: { id: true, email: true, notifyConsultation: true } } },
+      select: { type: true, titulaireKind: true, user: { select: { id: true, email: true, notifyConsultation: true } } },
     });
     if (!proprio?.user?.email) return "sans_destinataire";
 
@@ -204,12 +204,7 @@ export async function signalerInteret(opts: {
       select: { titulaireKind: true, profession: true },
     });
     const publieur = { type: swiperType, titulaireKind: visiteur?.titulaireKind, profession: visiteur?.profession };
-    const libelleVisiteur =
-      estEtablissement(publieur) ? "Un établissement"
-      : swiperType === "TITULAIRE" ? "Un cabinet"
-      : estCandidatSalarie(publieur) ? "Un candidat"
-      : swiperType === "ASSISTANT" ? "Un assistant"
-      : "Un remplaçant";
+    const libelleVisiteur = unActeur(publieur, proprio);
     const motAnnonce = proprio.type === "TITULAIRE" ? "annonce" : "disponibilité";
     const cta = {
       label: swiperType === "TITULAIRE" ? "Voir son annonce →" : "Voir sa recherche →",

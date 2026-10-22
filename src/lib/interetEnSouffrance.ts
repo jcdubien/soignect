@@ -4,6 +4,7 @@ import { offreOuverteLe } from "@/lib/feedFilters";
 import { adresseEnvoyable, EVENT_RELANCE } from "@/lib/relancePublication";
 import { sendInteretEnSouffranceEmail } from "@/lib/email";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
+import { quiAttend, type QuiAttend } from "@/lib/libellesPoste";
 
 // ── DES CABINETS ATTENDENT DES DATES, ET PERSONNE NE LE SAIT (section 290) ───────────────────
 //
@@ -59,6 +60,9 @@ export interface CibleSouffrance {
   nbCabinets: number;
   /** Profession salariée seulement (section 304) : ceux qui attendent sont des établissements. */
   salarieSeul: boolean;
+  /** Qui attend (22/10) : un infirmier peut avoir signalé son intérêt à des établissements, et
+   *  lire « 2 cabinets » lui décrivait un marché qui n'était pas celui de ses gestes. */
+  recruteurs: QuiAttend;
   nbAnnonces: number;
   premierInteret: Date;
   derniereActivite: Date;
@@ -93,7 +97,7 @@ export async function ciblesInteretEnSouffrance(): Promise<{
       swiperId: true,
       swipedMissionId: true,
       createdAt: true,
-      swipedMission: { select: { profileId: true } },
+      swipedMission: { select: { profileId: true, profile: { select: { titulaireKind: true } } } },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -101,16 +105,17 @@ export async function ciblesInteretEnSouffrance(): Promise<{
 
   const parCandidat = new Map<
     string,
-    { annonces: Set<string>; cabinets: Set<string>; premier: Date; dernier: Date }
+    { annonces: Set<string>; cabinets: Set<string>; etablissements: Set<string>; premier: Date; dernier: Date }
   >();
   for (const s of interets) {
     let e = parCandidat.get(s.swiperId);
     if (!e) {
-      e = { annonces: new Set(), cabinets: new Set(), premier: s.createdAt, dernier: s.createdAt };
+      e = { annonces: new Set(), cabinets: new Set(), etablissements: new Set(), premier: s.createdAt, dernier: s.createdAt };
       parCandidat.set(s.swiperId, e);
     }
     e.annonces.add(s.swipedMissionId);
     e.cabinets.add(s.swipedMission.profileId);
+    if (s.swipedMission.profile.titulaireKind === "STRUCTURE") e.etablissements.add(s.swipedMission.profileId);
     if (s.createdAt > e.dernier) e.dernier = s.createdAt;
   }
 
@@ -190,6 +195,7 @@ export async function ciblesInteretEnSouffrance(): Promise<{
       type: pr.type,
       nbCabinets: e.cabinets.size,
       salarieSeul: contratFourniParEmployeur(pr.profession),
+      recruteurs: quiAttend(contratFourniParEmployeur(pr.profession), e.etablissements.size, e.cabinets.size),
       nbAnnonces: e.annonces.size,
       premierInteret: e.premier,
       derniereActivite: new Date(Math.max(e.dernier.getTime(), pr.updatedAt.getTime())),
@@ -239,6 +245,7 @@ export async function envoyerInteretEnSouffrance(
         firstName: c.prenom,
         nbCabinets: c.nbCabinets,
         salarieSeul: c.salarieSeul,
+        recruteurs: c.recruteurs,
         optIn: c.optIn,
       });
       if (resultat === "refuse") {

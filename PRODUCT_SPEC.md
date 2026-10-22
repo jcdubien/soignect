@@ -7408,6 +7408,50 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 329 — PARCOURS ÉTABLISSEMENT (6) : MESURE DU CLIC, EMAILS, BASCULE PAYANTE, VOCABULAIRE (22/10)
+
+- **Mesure** : `/register` devient une page serveur mince (écran inchangé, `RegisterClient`) qui
+  trace `INSCRIPTION_OUVERTE` — provenance `src`, type et profession présélectionnés, drapeau
+  établissement, robot, domaine référent ; aucune adresse publique à écriture libre. La trace
+  `SIGNUP` porte `etablissement`. `/admin/diffusion` affiche par page : visites, clics vers
+  l'inscription (humains), inscriptions. L'ancienne page `remplacement-kine-guadeloupe` envoie la
+  provenance `gp-landing` : ses clics n'apparaissent pas sur sa ligne.
+- **Inventaire des emails** (rendu réel, 15 emails, envoi intercepté, rien n'est parti) :
+  - « Un cabinet / Un remplaçant a retenu votre profil » pour un EHPAD ou un aide-soignant →
+    `unActeur` (lib/libellesPoste, source unique, partagée avec le signal d'intérêt) : « Un
+    établissement », « Un candidat » (un infirmier vu par un établissement inclus) ;
+  - « 2 cabinets attendent vos dates » à un candidat qui s'est adressé à des établissements →
+    `quiAttend` / `motsRecruteurs` : cabinets, établissements ou « recruteurs » si mélange — même
+    règle pour l'email et la feuille de saisie du fil (en-tête `x-feed-etablissements-en-attente`).
+- **Bascule payante** : `triggerBillingIfNeeded` ne lisait pas le mode gratuit — signer un contrat
+  pendant le lancement posait la bascule et envoyait « Votre accès Premium — action requise sous
+  14 jours ». Désormais : rien en mode gratuit ; jamais pour un établissement tant que son
+  abonnement est fermé (`VENTE_EN_LIGNE_OUVERTE`). La bascule déjà posée en production (1 compte)
+  n'est pas touchée — **à décider (JC)**. La pastille « Gratuit · Premium » de l'en-tête est masquée
+  pour un établissement dans le même cas.
+- **Vocabulaire** : filtres du fil d'un établissement « Tout · Dates précises · Poste durable »
+  (au lieu de Remplacement · Assistanat · Collaboration) ; écran 3 de l'inscription : « le début
+  s'affiche sur votre carte, soignez-le » (au lieu de « les premiers verront votre profil en
+  premier »).
+- **Contrat salarié d'un établissement — à trancher (JC)** : les pages « emploi » disent « le
+  contrat reste le vôtre », le formulaire « le contrat généré suit le modèle-type de votre ordre ».
+  Le gabarit CDD kiné est le modèle CNOMK « pour le remplacement d'un masseur-kinésithérapeute
+  libéral » (l'employeur y est « le masseur-kinésithérapeute remplacé ») : faux pour un EHPAD.
+  CDI kiné et gabarits infirmier : employeur générique, usage par un établissement sous
+  convention collective **à vérifier**. Non modifié.
+- **Correction de la section 327** : les 4 offres des 2 établissements existants sont antérieures
+  au 22/09 ; le registre (`contratSalarie`) les traite en contrat de TRAVAIL (CDI / CDD) et le fil
+  ne les montre qu'aux candidats ouverts au salariat. Elles ne portent pas le drapeau
+  `estSalariat`, mais ne sont pas des collaborations libérales au contrat.
+- **Essai** (22/10, schéma `essai_p18`, supprimé ; 3 vignettes retirées du stockage de
+  production) : ouvertures de l'inscription depuis les trois pages « emploi » et une page
+  candidat (robot repéré), inscriptions avec drapeau ; intérêts d'un infirmier non publié pour un
+  établissement et un cabinet (en-têtes 2 / 1) ; mise en relation — notifications « Un
+  établissement a retenu votre profil », « Un candidat s'intéresse à votre annonce » ; garde de
+  bascule (gratuit : rien ; payant : cabinet oui une fois, établissement non) ; entonnoir de
+  /admin/diffusion ; filtres et en-tête de l'établissement à l'écran ; fils kiné, infirmier,
+  aide-soignant 200.
+
 ### SECTION 328 — PARCOURS ÉTABLISSEMENT (5) : SOIGNECT.VERCEL.APP REDIRIGÉ VERS L'ADRESSE PUBLIQUE (22/10)
 
 - **Constat** : `soignect.vercel.app` servait tout le site (canonical déjà sur www.soignect.fr) ;
@@ -7431,9 +7475,9 @@ disposition ne le montre ; seul un partage depuis un téléphone tranche.
   Salariat ». Les trois premières cartes étaient les types LIBÉRAUX renommés (remplacement,
   assistanat, collaboration). La carte « CDD » publiait un assistanat libéral, affiché « CDD » sur
   la carte et la page publique, vu des seuls candidats ouverts au salariat, et menant au contrat
-  d'assistanat CNOMK. Le vrai contrat de travail était sous « Salariat ». Les 4 offres « CDI » des
-  2 établissements existants sont des collaborations libérales : **laissées telles quelles**
-  (décision de JC).
+  d'assistanat CNOMK. Le vrai contrat de travail était sous « Salariat ». Les 4 offres des 2
+  établissements existants : **laissées telles quelles** (décision de JC) ; antérieures au 22/09,
+  elles relèvent du contrat de travail par repli (voir section 329).
 - **Formulaire établissement** : quatre cartes, toutes salariées — Vacation, CDD à terme précis,
   CDD sans terme précis, CDI. **La vacation est salariée** (décision de JC) : un CDD court, dates
   fixées, enregistré en CDD à terme précis (même contrat, mêmes dates exigées). Qualification

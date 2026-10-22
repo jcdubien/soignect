@@ -62,6 +62,26 @@ export default async function AdminDiffusionPage() {
   // d'administration consultée quelques fois par mois.
   const jeton = await etatJetonPage();
 
+  // Entonnoir (22/10) : ouvertures de l'inscription et inscriptions abouties, par provenance.
+  // La clé `src` d'un bouton de page est la clé de trace de la page (cleTracePage) ; l'offre
+  // partenaire porte « partenaire-… » et n'est pas comptée ici. Traces disponibles depuis le
+  // 22/10 pour les ouvertures ; les inscriptions portent leur provenance depuis la section 86.
+  const [ouvertures, inscriptions] = await Promise.all([
+    prisma.traceEvent.findMany({ where: { eventType: "INSCRIPTION_OUVERTE" }, select: { metadata: true } }),
+    prisma.traceEvent.findMany({ where: { eventType: "SIGNUP" }, select: { metadata: true } }),
+  ]);
+  const parSource = (lignes: { metadata: unknown }[], humainsSeuls: boolean) => {
+    const m = new Map<string, number>();
+    for (const l of lignes) {
+      const md = l.metadata as { src?: string; robot?: boolean } | null;
+      if (!md?.src || (humainsSeuls && md.robot)) continue;
+      m.set(md.src, (m.get(md.src) ?? 0) + 1);
+    }
+    return m;
+  };
+  const ouvertesPar = parSource(ouvertures, true);
+  const inscritsPar = parSource(inscriptions, false);
+
   const compteur = new Map<string, { humains: number; robots: number }>();
   for (const v of vues) {
     const m = v.metadata as { page?: string; robot?: boolean } | null;
@@ -185,6 +205,12 @@ export default async function AdminDiffusionPage() {
                     </span>
                     <span className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 font-semibold">
                       🤖 {c?.robots ?? 0} robot{(c?.robots ?? 0) > 1 ? "s" : ""}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 font-semibold" title="Ouvertures de l'inscription depuis les boutons de la page (humains), depuis le 22/10">
+                      ➡️ {ouvertesPar.get(p.trace) ?? 0} clic{(ouvertesPar.get(p.trace) ?? 0) > 1 ? "s" : ""} vers l&apos;inscription
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 font-semibold">
+                      ✅ {inscritsPar.get(p.trace) ?? 0} inscription{(inscritsPar.get(p.trace) ?? 0) > 1 ? "s" : ""}
                     </span>
                   </>
                 ) : (

@@ -130,7 +130,8 @@ export async function POST(req: NextRequest) {
     eventType: "SIGNUP",
     profileId: user.profile?.id ?? null,
     profession: user.profile?.profession ?? null,
-    metadata: { type, src: src ?? "direct", parInvitation: !!inviteToken },
+    // `etablissement` (22/10) : le type seul ne distinguait pas un établissement d'un cabinet.
+    metadata: { type, etablissement: kind === "STRUCTURE", src: src ?? "direct", parInvitation: !!inviteToken },
   });
 
   // Ce qui rend RÉELLEMENT visible, par camp (section 225) — source unique dans lib/camp,

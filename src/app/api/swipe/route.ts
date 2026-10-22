@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unActeur } from "@/lib/libellesPoste";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { offreOuverteLe } from "@/lib/feedFilters";
@@ -403,8 +404,12 @@ export async function POST(req: NextRequest) {
           select: { user: { select: { id: true, email: true, emailOptIn: true } } },
         });
         if (recipient?.user) {
-          const actorType = (session.user as { profileType?: string }).profileType;
-          const actorLabel = actorType === "TITULAIRE" ? "Un cabinet" : "Un remplaçant";
+          // Le rôle de celui qui retient, avec sa nature et sa profession (lib/libellesPoste) :
+          // « Un cabinet » pour un EHPAD, « Un remplaçant » pour un aide-soignant (22/10).
+          const acteur = await prisma.profile.findUnique({
+            where: { id: swiperId }, select: { type: true, titulaireKind: true, profession: true },
+          });
+          const actorLabel = unActeur(acteur, swipedMission.profile);
           // Notification in-app (section 155) — en parallèle de l'email.
           createNotification({
             userId: recipient.user.id,

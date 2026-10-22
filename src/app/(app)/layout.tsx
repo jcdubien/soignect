@@ -25,6 +25,7 @@ import ActiveAnnoncesMobile from "./ActiveAnnoncesMobile";
 import NotificationBell from "@/components/ui/NotificationBell";
 import { EST_UNE_OFFRE } from "@/lib/feedFilters";
 import { libelleRoleSalariat, libelleTypePoste } from "@/lib/libellesPoste";
+import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
 
 export const dynamic = "force-dynamic";
 
@@ -260,7 +261,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Pendant le mode lancement gratuit (freeAccess) : masquée ENTIÈREMENT (section
               132) — afficher « Premium » (ou « Gratuit ») laisserait croire à un statut payant
               actif alors que tout est débloqué pour tous. Réapparaît dès freeAccessMode=false. */}
-          {profileType === "TITULAIRE" && !freeAccess && (
+          {/* …et masquée pour un établissement tant que son abonnement est fermé (22/10) : elle
+              l'invitait à « passer Premium » vers une offre qu'il ne peut pas souscrire. */}
+          {profileType === "TITULAIRE" && !freeAccess && !(profile?.titulaireKind === "STRUCTURE" && !VENTE_EN_LIGNE_OUVERTE) && (
             <Link
               href="/premium"
               title={isPaid ? "Votre abonnement" : "Vous êtes en plan Gratuit — découvrir Premium"}

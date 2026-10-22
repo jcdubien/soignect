@@ -44,3 +44,24 @@ export async function tracerVueLanding(page: string, annonces: number): Promise<
     // Une trace ne doit jamais empêcher la page de s'afficher.
   }
 }
+
+/** Ouverture de l'inscription (22/10) : la provenance (`src`, clé de la page d'entrée) et ce que
+ *  le lien présélectionnait. Le visiteur n'est pas identifié — il n'a pas encore de compte. */
+export async function tracerOuvertureInscription(o: { src: string | null; type: string | null; etablissement: boolean; profession: string | null }): Promise<void> {
+  try {
+    const h = await headers();
+    logTraceEvent({
+      eventType: "INSCRIPTION_OUVERTE",
+      profession: o.profession?.slice(0, 40) ?? null,
+      metadata: {
+        src: o.src?.slice(0, 80) ?? "direct",
+        type: o.type?.slice(0, 20) ?? null,
+        etablissement: o.etablissement,
+        robot: ROBOTS.test(h.get("user-agent") ?? ""),
+        referent: domaine(h.get("referer")),
+      },
+    });
+  } catch {
+    // Une trace ne doit jamais empêcher la page de s'afficher.
+  }
+}

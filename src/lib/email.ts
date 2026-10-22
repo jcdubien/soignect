@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import * as Sentry from "@sentry/nextjs";
 import { appBaseUrl } from "@/lib/appUrl";
+import { motsRecruteurs, type QuiAttend } from "@/lib/libellesPoste";
 
 // ── Configuration ────────────────────────────────────────────────────────────
 // Expéditeur pilotable par variable d'environnement : Resend REFUSE tout envoi depuis un
@@ -591,15 +592,18 @@ export async function sendPosteInvitationEmail(
 // formulaire long — le détour que la 288 vient précisément de supprimer.
 export async function sendInteretEnSouffranceEmail(
   to: string,
-  opts: { firstName: string | null; nbCabinets: number; optIn: boolean; salarieSeul?: boolean }
+  opts: { firstName: string | null; nbCabinets: number; optIn: boolean; salarieSeul?: boolean; recruteurs?: QuiAttend }
 ): Promise<ResultatEnvoi> {
   if (!opts.optIn) return "optout";
 
   const unSeul = opts.nbCabinets <= 1;
+  // Qui attend : des établissements (aide-soignant, ou candidat qui ne s'est adressé qu'à eux),
+  // des cabinets, ou les deux (22/10). Un seul destinataire n'est jamais « mixte ».
+  const mots = motsRecruteurs(opts.salarieSeul ? "etablissements" : (opts.recruteurs ?? "cabinets"));
   // Un aide-soignant (section 304) a signalé son intérêt à des ÉTABLISSEMENTS : « cabinet » lui
   // décrirait un marché libéral qui n'est pas le sien. Même règle : les deux formes en entier.
-  const unRecruteur = opts.salarieSeul ? "un établissement" : "un cabinet";
-  const desRecruteurs = opts.salarieSeul ? "établissements" : "cabinets";
+  const unRecruteur = mots.un;
+  const desRecruteurs = mots.des;
   const salutation = opts.firstName ? `Bonjour ${escapeHtml(opts.firstName)},` : "Bonjour,";
 
   // LES DEUX FORMES SONT ÉCRITES EN ENTIER, phrase par phrase. Un accord posé au mot près
@@ -631,7 +635,7 @@ export async function sendInteretEnSouffranceEmail(
   );
 
   const sujet = unSeul
-    ? (opts.salarieSeul ? "Un établissement attend vos dates" : "Un cabinet attend vos dates")
+    ? `${mots.Un} attend vos dates`
     : `${opts.nbCabinets} ${desRecruteurs} attendent vos dates`;
   return (await sendEmail(to, sujet, html)) ? "envoye" : "refuse";
 }

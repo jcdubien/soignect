@@ -23,6 +23,8 @@ export interface DetailMission {
   profile: {
     name: string | null;
     type: string;
+    /** Établissement ou cabinet (22/10) — envoyé par le fil, facultatif ailleurs. */
+    titulaireKind?: string | null;
     photoUrl: string | null;
     secondaryPhotoUrl1?: string | null;
     secondaryPhotoUrl2?: string | null;

@@ -439,6 +439,7 @@ export async function GET(req: NextRequest) {
   }
 
   let cabinetsEnAttente = 0;
+  let etablissementsEnAttente = 0;
   if (aPublie === 0) {
     const interets = await prisma.swipe.findMany({
       where: {
@@ -451,9 +452,14 @@ export async function GET(req: NextRequest) {
         // auraient divergé sans que rien ne le signale.
         swipedMission: offreOuverteLe(maintenant),
       },
-      select: { swipedMission: { select: { profileId: true } } },
+      select: { swipedMission: { select: { profileId: true, profile: { select: { titulaireKind: true } } } } },
     });
     cabinetsEnAttente = new Set(interets.map((s) => s.swipedMission.profileId)).size;
+    // Parmi eux, les établissements (22/10) : la feuille dit « établissements », « cabinets » ou
+    // « recruteurs », comme l'email (lib/libellesPoste, quiAttend).
+    etablissementsEnAttente = new Set(
+      interets.filter((s) => s.swipedMission.profile.titulaireKind === "STRUCTURE").map((s) => s.swipedMission.profileId),
+    ).size;
   }
 
   // ── CONVERGENCE DE DATES — UN ÉTIQUETAGE, PAS UN CLASSEMENT (section 282) ─────────────────
@@ -575,6 +581,7 @@ export async function GET(req: NextRequest) {
       // et c'est exact plutôt qu'économe : l'intérêt en souffrance est, par définition, le fait
       // de quelqu'un qui n'apparaît nulle part.
       "x-feed-cabinets-en-attente": String(cabinetsEnAttente),
+      "x-feed-etablissements-en-attente": String(etablissementsEnAttente),
       // -1 = non calculé (le fil n'est pas vide). 0 = aucun cabinet de cette profession n'existe
       // encore. L'écran distingue les deux : un compte non calculé ne doit rien faire dire.
       "x-feed-cabinets-profession": String(cabinetsDeMaProfession),

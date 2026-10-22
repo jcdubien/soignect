@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ZONE_ORDER, ZONE_LABELS, zoneOfCommune, type ZoneGeo } from "@/lib/communes";
 import { finDePhrase, intervalleCourt, nbJours, phraseConflit, type Disponibilite, type Intervalle } from "@/lib/disponibilitePure";
+import { motsRecruteurs, quiAttend } from "@/lib/libellesPoste";
 
 // ── PUBLIER SA DISPONIBILITÉ SANS QUITTER LE FIL (section 288) ───────────────────────────────
 //
@@ -46,6 +47,11 @@ interface Props {
   /** Nombre de CABINETS qui attendent des dates. 0 = la feuille s'ouvre sur un geste qui vient
    *  d'être fait, sans historique à rappeler. */
   cabinetsEnAttente: number;
+  /** Parmi eux, les établissements (22/10) — décide de « cabinets », « établissements » ou
+   *  « recruteurs », comme l'email (lib/libellesPoste, quiAttend). */
+  etablissementsEnAttente?: number;
+  /** L'annonce retenue vient d'un établissement. */
+  annonceEtablissement?: boolean;
   /** L'annonce qui vient d'être retenue, quand il y en a une : elle sert de pré-remplissage
    *  légitime — c'est à ces dates et à ce secteur que la personne vient de dire oui. Absente
    *  quand la feuille s'ouvre sur un intérêt ancien (le rattrapage des 11). */
@@ -103,6 +109,8 @@ function formatJour(valeur: string): string {
 
 export default function FeuilleDispoExpress({
   cabinetsEnAttente,
+  etablissementsEnAttente = 0,
+  annonceEtablissement = false,
   annonce,
   profileType,
   salarieSeul = false,
@@ -212,15 +220,17 @@ export default function FeuilleDispoExpress({
   // Le titre dit ce qui est EN JEU, avec le nombre réel. « 7 cabinets attendent vos dates » est
   // un fait vérifiable ; « complétez votre profil » n'en est pas un.
   const partiel = disponibilite?.etat === "PARTIEL";
+  const mots = motsRecruteurs(quiAttend(salarieSeul, etablissementsEnAttente, cabinetsEnAttente));
+  const ceRecruteur = salarieSeul || annonceEtablissement ? "Cet établissement" : "Ce cabinet";
   const titre =
     partiel ? "Vous n'êtes libre qu'en partie sur ces dates"
     : disponibilite?.etat === "LIBRE" && plageInitiale && cabinetsEnAttente <= 1 && dejaPublie
       ? "Ouvrez ces dates pour ce poste"
     : cabinetsEnAttente > 1
-      ? `${cabinetsEnAttente} ${salarieSeul ? "établissements" : "cabinets"} attendent vos dates`
+      ? `${cabinetsEnAttente} ${mots.des} attendent vos dates`
       : annonce
-        ? salarieSeul ? "Cet établissement ne peut pas encore vous répondre" : "Ce cabinet ne peut pas encore vous répondre"
-        : salarieSeul ? "Un établissement attend vos dates" : "Un cabinet attend vos dates";
+        ? `${ceRecruteur} ne peut pas encore vous répondre`
+        : `${mots.Un} attend vos dates`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-3 pb-3 sm:pb-0">
@@ -378,7 +388,7 @@ export default function FeuilleDispoExpress({
           {envoi
             ? "Publication…"
             : cabinetsEnAttente > 1
-              ? `Publier — prévenir les ${cabinetsEnAttente} ${salarieSeul ? "établissements" : "cabinets"}`
+              ? `Publier — prévenir les ${cabinetsEnAttente} ${mots.des}`
               : "Publier ma disponibilité"}
         </button>
         <button

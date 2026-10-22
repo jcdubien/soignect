@@ -163,3 +163,30 @@ export function libelleAuteur(publieur?: Publieur | null, court = false): string
   if (publieur?.type === "REMPLACANT") return court ? "Rempl." : "Remplaçant";
   return "Profil";
 }
+
+/** Sujet d'une phrase de notification ou d'email : « Un établissement a retenu votre profil »,
+ *  « Un candidat s'intéresse… ». Source unique (22/10) : l'email de mise en relation disait
+ *  « Un cabinet » pour un EHPAD et « Un remplaçant » pour un aide-soignant, pendant que le
+ *  signal d'intérêt, lui, avait sa propre copie juste. */
+export function unActeur(publieur?: Publieur | null, destinataire?: Publieur | null): string {
+  if (estEtablissement(publieur)) return "Un établissement";
+  if (publieur?.type === "TITULAIRE") return "Un cabinet";
+  // Vu par un établissement, qui recrute en salarié, un infirmier n'est pas « un remplaçant ».
+  if (estCandidatSalarie(publieur) || (estCandidat(publieur) && estEtablissement(destinataire))) return "Un candidat";
+  if (publieur?.type === "ASSISTANT") return "Un assistant";
+  return "Un remplaçant";
+}
+
+/** Qui attend les dates d'un candidat (22/10) : un infirmier peut avoir signalé son intérêt à
+ *  des établissements, et « 2 cabinets attendent vos dates » lui décrivait un autre marché.
+ *  Source unique de l'email (lib/interetEnSouffrance) et de la feuille de saisie du fil. */
+export type QuiAttend = "cabinets" | "etablissements" | "mixte";
+export function quiAttend(salarieSeul: boolean, nbEtablissements: number, nbTotal: number): QuiAttend {
+  if (salarieSeul || (nbTotal > 0 && nbEtablissements === nbTotal)) return "etablissements";
+  return nbEtablissements === 0 ? "cabinets" : "mixte";
+}
+/** « un établissement » / « établissements »… Un seul destinataire n'est jamais « mixte ». */
+export function motsRecruteurs(qui: QuiAttend): { un: string; Un: string; des: string } {
+  if (qui === "etablissements") return { un: "un établissement", Un: "Un établissement", des: "établissements" };
+  return { un: "un cabinet", Un: "Un cabinet", des: qui === "mixte" ? "recruteurs" : "cabinets" };
+}
