@@ -21,6 +21,7 @@ const TYPE_ICON: Record<string, string> = {
   signature: "✍️",
   consultation: "👀", // historique : signal émis sur une simple vue, avant la section 223
   interet: "🙋",
+  partenariat: "🤝", // demande du formulaire /partenaire — administrateurs seulement
 };
 
 function timeAgo(iso: string): string {

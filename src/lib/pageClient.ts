@@ -7,6 +7,8 @@ import { paliersApl } from "@/lib/aplPalier";
 import { AUTEUR_RECALCUL, controlerCase, poserCase, reglerCase, retirerCases } from "@/lib/casesPriorite";
 import { erreurReglage } from "@/lib/boostTerritorial";
 import { zonesPrioritairesDuClient, type ZonePrioritaire } from "@/lib/territoire";
+import { appBaseUrl } from "@/lib/appUrl";
+import { hash } from "bcryptjs";
 
 // Page hébergée d'un client institutionnel (20/10) — voir le modèle `PageClient`.
 //
@@ -19,6 +21,46 @@ export function nouveauJeton(): string {
 }
 
 export { libellesDuCode };
+
+/** Validité du lien d'activation d'un éditeur créé — transmis par l'administrateur lui-même. */
+export const ACTIVATION_JOURS = 7;
+
+/**
+ * Rattache un éditeur NOMMÉ à un client (section 314). Un compte existant est rattaché sans être
+ * modifié ; sinon un compte sans profil est créé, avec un lien d'activation (choix du mot de
+ * passe) rendu à l'appelant, une fois : l'administrateur le transmet lui-même — Soignect
+ * n'envoie aucun email. Partagé par /admin/pages et la conversion d'une demande de partenariat.
+ */
+export async function rattacherEditeur(
+  client: { id: string; page: { jetonEdition: string } | null },
+  e: { email: string; nom: string; fonction?: string | null },
+  adminId: string,
+): Promise<{ activation: string | null }> {
+  let user = await prisma.user.findUnique({ where: { email: e.email }, select: { id: true } });
+  let activation: string | null = null;
+  if (!user) {
+    const jeton = randomBytes(32).toString("hex");
+    user = await prisma.user.create({
+      data: {
+        email: e.email,
+        // Mot de passe inconnu de tous : le compte ne s'ouvre que par le lien d'activation.
+        passwordHash: await hash(randomBytes(24).toString("base64url"), 12),
+        emailOptIn: false,
+        resetToken: jeton,
+        resetTokenExpiry: new Date(Date.now() + ACTIVATION_JOURS * 86400_000),
+      },
+      select: { id: true },
+    });
+    const retour = client.page ? `&return_to=${encodeURIComponent(`/gestion/${client.page.jetonEdition}`)}` : "";
+    activation = `${appBaseUrl()}/reset-password?token=${jeton}${retour}`;
+  }
+  await prisma.editeurClient.upsert({
+    where: { clientId_userId: { clientId: client.id, userId: user.id } },
+    update: { nom: e.nom, fonction: e.fonction || null, retireLe: null },
+    create: { clientId: client.id, userId: user.id, nom: e.nom, fonction: e.fonction || null, ajouteParId: adminId },
+  });
+  return { activation };
+}
 
 /** Une relation client vivante — la même règle que celle qui active les priorités dans le fil
  *  (lib/territoire, `declarationVivante`). Hors abonnement, la page ne sert plus rien. */

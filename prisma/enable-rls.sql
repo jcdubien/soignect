@@ -54,3 +54,6 @@ ALTER TABLE "public"."EditeurClient" ENABLE ROW LEVEL SECURITY;
 
 -- JournalReglage (point 8) : journal des réglages de cases, en ajout seul (déclencheur SQL).
 ALTER TABLE "public"."JournalReglage" ENABLE ROW LEVEL SECURITY;
+
+-- DemandePartenariat (22/10) : demandes du formulaire public /partenaire.
+ALTER TABLE "public"."DemandePartenariat" ENABLE ROW LEVEL SECURITY;

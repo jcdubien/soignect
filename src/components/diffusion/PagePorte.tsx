@@ -5,6 +5,7 @@ import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import { Porte, Profession, Territoire, cleTracePage, cheminPage, PAGES_PUBLIEES } from "@/lib/pagesDiffusion";
 import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
+import { lienPartenariat } from "@/lib/partenariat";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { isFreeAccessMode } from "@/lib/platform";
 import { mentionGratuite } from "@/lib/gratuite";
@@ -165,7 +166,11 @@ export default async function PagePorte({
       {porte.offrePartenaire && (
         // Sur la porte « emploi », « Devenir partenaire » ouvre lui aussi le compte établissement
         // (22/10) : sans le type, l'établissement retombait sur « Je suis… » parmi les libéraux.
-        <BlocPartenaire profession={profession} facultative={gratuite !== null} inscription={`/register?profession=${profession.enumBase}${porte.slug === "emploi" ? typeCompte : ""}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />
+        // Sur la porte « maison de santé », il ouvre la demande de partenariat (lib/partenariat) :
+        // l'offre partenaire d'une MSP se convient avec l'administrateur, pas à l'inscription.
+        <BlocPartenaire profession={profession} facultative={gratuite !== null} inscription={porte.slug === "maison-de-sante"
+          ? lienPartenariat("MSP", `partenaire-${porte.slug}-${profession.slug}`)
+          : `/register?profession=${profession.enumBase}${porte.slug === "emploi" ? typeCompte : ""}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />
       )}
 
       {/* NE GARDER ICI QUE CE QUI EST VRAI PAR CONSTRUCTION (règle du 10/08, réaffirmée le

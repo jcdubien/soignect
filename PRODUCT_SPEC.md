@@ -7408,6 +7408,35 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 326 — DEMANDE DE PARTENARIAT : FORMULAIRE CPTS / MSP ET CONVERSION EN UN GESTE (22/10)
+
+- **Pourquoi** : sur la page territoire, « Échanger sur un partenariat » et « Devenir partenaire »
+  menaient à `/register` sans type ; sur les pages maison de santé, « Devenir partenaire » aussi.
+  Une CPTS tombait sur « Je suis… Cabinet / Remplaçant » : elle n'a pas de compte soignant.
+- **Formulaire public `/partenaire`** (hors index) : type de structure (présélectionné par le
+  lien), nom, contact, fonction, email, téléphone, professions (kiné, infirmier, aide-soignant),
+  communes (facultatif), besoin, accord de conservation (lien confidentialité). Champ piège
+  anti-robot, 3 demandes par email et par 24 h. Confirmation : « rien n'est engagé ni facturé à ce
+  stade ». Source unique : `lib/partenariat` (types, professions, limites, libellés, lien).
+- **Aucun email** : la demande est enregistrée (`DemandePartenariat`, RLS) et signalée dans la
+  cloche des administrateurs (🤝). Trace `PARTENARIAT_DEMANDE` sans donnée personnelle (type,
+  provenance).
+- **Automatisé** : `/admin/partenariats` — « Convertir » crée en un geste le client institutionnel
+  (nature au choix, revue à 6 mois), sa page en **démonstration** (priorités calculées à
+  l'affichage, rien dans le fil, accord DEMO : nom non publié), et rattache le contact comme éditeur
+  nommé ; le lien d'activation s'affiche une fois, à transmettre par l'administrateur. Périmètre
+  borné par l'offre (MSP : 1 commune). Palier payant, priorités réelles et accord OUI restent des
+  décisions de `/admin/pages`. « Classer sans suite » archive la demande. Le rattachement d'éditeur
+  est partagé avec `/admin/pages` (`rattacherEditeur`, lib/pageClient).
+- **Liens** : territoire (deux boutons) → `/partenaire?type=CPTS` ; maison de santé, « Devenir
+  partenaire » → `/partenaire?type=MSP`. Inchangés : « Publier le poste de la MSP » (inscription
+  cabinet), « Devenir partenaire » des pages emploi (compte établissement, point 1).
+- **Essai** (22/10, schéma `essai_p15`, supprimé) : liens des pages vérifiés ; demande valide 201,
+  sans accord 400, type ARS 400, robot ignoré, 4e demande du même email 429, commune et profession
+  hors liste filtrées ; notification admin ; conversion CPTS (2 communes) et MSP (2 refusées, 1
+  acceptée), nom en double 409, demande déjà traitée 409 ; page démo avec bandeau, 0 priorité,
+  0 ligne de journal ; inscription kiné, infirmier, aide-soignant, cabinet et fil inchangés.
+
 ### SECTION 325 — FUITE DES PAGES /ADMIN SANS SESSION, CORRIGÉE (22/10)
 
 - **Constat** (22/10, en production, en lecture) : sans session, `GET /admin/users` répondait par une

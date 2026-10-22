@@ -6,6 +6,7 @@ import type { Profession } from "@/lib/pagesDiffusion";
 import { filtreAnnoncesVivantes, PERIMETRE_GUADELOUPE } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
+import { lienPartenariat } from "@/lib/partenariat";
 import { ZONE_LABELS, COMMUNE_ZONE } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
@@ -166,9 +167,9 @@ export default async function Page() {
           <p className="text-kine-100 text-sm">{PORTE.ctaSous}</p>
         </div>
         <Link
-          // Provenance seule (section 86), sans profession : une CPTS n'en exerce pas une, et
-          // présélectionner « kiné » parce que la page en parle fausserait son inscription.
-          href={`/register?src=${cleTracePage(PORTE, PRO, TERR)}`}
+          // Une CPTS n'a pas de compte soignant à créer : le bouton ouvre la demande de
+          // partenariat (22/10, lib/partenariat), avec la provenance de la page.
+          href={lienPartenariat("CPTS", cleTracePage(PORTE, PRO, TERR))}
           className="flex-shrink-0 px-5 py-3 bg-white text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition"
         >
           {PORTE.cta}
@@ -176,7 +177,7 @@ export default async function Page() {
       </div>
 
       <div className="mb-8 -mt-2">
-        <BlocPartenaire profession={PRO} inscription={`/register?src=partenaire-${PORTE.slug}-${PRO.slug}`} porteSlug={PORTE.slug} />
+        <BlocPartenaire profession={PRO} inscription={lienPartenariat("CPTS", `partenaire-${PORTE.slug}-${PRO.slug}`)} porteSlug={PORTE.slug} />
       </div>
 
       {/* Une MSP ou un établissement recrute : leur page est celle d'un employeur, pas celle-ci

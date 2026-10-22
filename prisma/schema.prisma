@@ -1090,3 +1090,40 @@ model JournalReglage {
 
   @@index([clientId, createdAt])
 }
+
+// Demande de partenariat (22/10) — formulaire public /partenaire, ouvert depuis les pages
+// territoire (CPTS, collectivité) et maison de santé. Les boutons « Devenir partenaire » de ces
+// pages menaient à l'inscription d'un SOIGNANT : une CPTS n'a pas de compte soignant. La demande
+// est enregistrée ici, signalée à l'administrateur dans l'application (aucun email), et
+// convertie en un geste dans /admin/partenariats : client institutionnel + page en
+// DÉMONSTRATION (aucun effet sur le fil) + éditeur nommé. Rien de payant ne s'active seul.
+enum StatutPartenariat {
+  NOUVELLE
+  CONVERTIE
+  CLASSEE
+}
+
+model DemandePartenariat {
+  id          String            @id @default(cuid())
+  type        TypeInstitution
+  structure   String            @db.VarChar(160)
+  contactNom  String            @db.VarChar(120)
+  fonction    String?           @db.VarChar(120)
+  email       String            @db.VarChar(200)
+  telephone   String?           @db.VarChar(30)
+  // Codes INSEE — la clé, jamais le libellé (même règle que PageClient).
+  communes    String[]
+  professions Profession[]
+  message     String?           @db.VarChar(1000)
+  // Page d'origine (paramètre `src`) : documente une provenance, n'accorde aucun droit.
+  source      String?           @db.VarChar(80)
+  statut      StatutPartenariat @default(NOUVELLE)
+  // Client institutionnel créé à la conversion — pas de relation Prisma : la demande garde sa
+  // trace même si le client est supprimé ensuite.
+  clientId    String?
+  traiteeLe   DateTime?
+  createdAt   DateTime          @default(now())
+
+  @@index([statut, createdAt])
+  @@index([email, createdAt])
+}

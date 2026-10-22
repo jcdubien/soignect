@@ -5,14 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { PalierOffre } from "@prisma/client";
 import { inseeOfCommune, COMMUNES_GUADELOUPE } from "@/lib/communes";
-import { nouveauJeton, synchroniserPrioritesApl } from "@/lib/pageClient";
+import { nouveauJeton, rattacherEditeur, synchroniserPrioritesApl } from "@/lib/pageClient";
 import { LIBELLE_PALIER, limitesDuClient } from "@/lib/tarifsPartenaire";
-import { appBaseUrl } from "@/lib/appUrl";
-import { hash } from "bcryptjs";
-import { randomBytes } from "node:crypto";
-
-/** Validité du lien d'activation d'un éditeur créé ici — transmis par l'administrateur lui-même. */
-const ACTIVATION_JOURS = 7;
 
 export const dynamic = "force-dynamic";
 
@@ -51,29 +45,7 @@ export async function POST(req: NextRequest) {
   // compte sans profil est créé, avec un lien d'activation (choix du mot de passe) rendu ICI,
   // une fois : l'administrateur le transmet lui-même — Soignect n'envoie aucun email.
   if (d.action === "editeur-ajout") {
-    let user = await prisma.user.findUnique({ where: { email: d.email }, select: { id: true } });
-    let activation: string | null = null;
-    if (!user) {
-      const jeton = randomBytes(32).toString("hex");
-      user = await prisma.user.create({
-        data: {
-          email: d.email,
-          // Mot de passe inconnu de tous : le compte ne s'ouvre que par le lien d'activation.
-          passwordHash: await hash(randomBytes(24).toString("base64url"), 12),
-          emailOptIn: false,
-          resetToken: jeton,
-          resetTokenExpiry: new Date(Date.now() + ACTIVATION_JOURS * 86400_000),
-        },
-        select: { id: true },
-      });
-      const retour = client.page ? `&return_to=${encodeURIComponent(`/gestion/${client.page.jetonEdition}`)}` : "";
-      activation = `${appBaseUrl()}/reset-password?token=${jeton}${retour}`;
-    }
-    await prisma.editeurClient.upsert({
-      where: { clientId_userId: { clientId: client.id, userId: user.id } },
-      update: { nom: d.nom, fonction: d.fonction || null, retireLe: null },
-      create: { clientId: client.id, userId: user.id, nom: d.nom, fonction: d.fonction || null, ajouteParId: session.user.id },
-    });
+    const { activation } = await rattacherEditeur(client, d, session.user.id);
     return NextResponse.json({ ok: true, activation });
   }
   if (d.action === "editeur-retrait") {
