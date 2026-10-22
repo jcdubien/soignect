@@ -7408,6 +7408,52 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 320 — VALEURS APL : CE QUI EST INCERTAIN (22/10)
+
+Point 11 de l'offre CPTS/MSP. Inventaire, sans code nouveau : ce que l'on sait des chiffres APL
+qui fixent le niveau par défaut des cases (`CommuneAPL`, `lib/aplPalier`), et ce qui reste à
+vérifier. Mesuré sur la base le 22/10.
+
+**Ce qui est établi (lu dans la base et le script d'import)**
+- Source : DREES, jeu Opendatasoft 530, pièces XLSX une par profession, millésime 2024, import
+  du 20/10/2026 (`scripts/sync-commune-apl.mjs`). 112 communes : 971 (32), 972 (34), 973 (22),
+  974 (24).
+- Quatre professions ont une valeur : kiné, infirmier, médecin généraliste, sage-femme.
+- **Aucune valeur par défaut** : une profession ou une commune sans APL donne `niveauApl = null`
+  (`paliersApl` écarte les valeurs nulles, `niveauAplDe` rend null) ; la case exige alors une
+  justification écrite (section 317). Aucun `?? 0` sur une valeur APL dans le code (vérifié).
+
+**Incertain — à vérifier**
+1. **Unités non homogènes.** Kiné, infirmier, sage-femme : ETP pour 100 000 habitants
+   standardisés ; médecin généraliste : consultations-visites accessibles par habitant et par an
+   (ordre de grandeur en base : kiné 67 à 323, médecin 1,6 à 5,2 en Guadeloupe). Noté dans le
+   script d'import, **non revérifié sur la documentation DREES — à vérifier**. Sans conséquence
+   aujourd'hui : chaque profession est classée séparément, jamais comparée à une autre.
+2. **Médecins : variante retenue.** Le classeur publie quatre variantes (tous âges, hors
+   médecins de 65, 62 et 60 ans et plus) ; seule « tous âges » est reprise. Choix d'import, **à
+   valider** (la variante hors 65 ans décrit mieux l'offre à venir).
+3. **Millésime.** « 2024 » est l'année affichée par la DREES ; l'année d'activité et l'année de
+   population sous-jacentes **sont à vérifier**.
+4. **Saint-Martin et Saint-Barthélemy absents.** Collectivités 978 et 977 depuis 2007, hors des
+   départements publiés ; les anciens codes 97127 et 97123 manquent aussi dans 971. Leurs cases
+   n'ont donc pas d'APL : tout niveau s'y justifie par écrit. Une autre source pour ces deux
+   territoires **reste à chercher** ; aucune valeur n'est empruntée à la Guadeloupe.
+5. **Professions sans APL.** Orthophoniste (colonne prévue, vide : non publiée dans le jeu 530),
+   aide-soignant, orthoptiste, spécialités médicales, chirurgien-dentiste. **Le jeu 530 publie
+   les chirurgiens-dentistes** selon le script d'import, mais ils ne sont pas importés : à
+   ajouter si l'offre vise les dentistes (**à vérifier** dans la source).
+6. **APL = 0 lu comme « aucun professionnel accessible ».** Le niveau 3 est donné à toute valeur
+   nulle. En Guadeloupe : infirmier à Terre-de-Bas ; sage-femme à Capesterre-de-Marie-Galante,
+   Terre-de-Bas, La Désirade, Grand-Bourg et Saint-Louis. Que 0 signifie « personne dans le
+   rayon » et non une valeur masquée ou arrondie **est à vérifier** dans la documentation DREES.
+7. **Les paliers 1 et 2 sont une convention Soignect, pas un seuil DREES.** Rang dans le
+   département : premier quart → 2, deuxième quart → 1, reste → 0 (`paliersApl`). Rien dans la
+   source ne dit qu'une commune du premier quart « manque » de soignants ; le libellé « accès
+   très faible » est le nôtre. **À faire relire** avant de le présenter comme un constat.
+8. **Recalcul manuel.** Un nouveau millésime n'agit qu'après « Recalculer depuis l'APL » dans
+   `/admin/pages`, client par client (section 317 : les réglages humains sont conservés,
+   comptés « à revoir » si l'écart devient injustifié).
+
 ### SECTION 319 — MESURE DE LA MISE EN AVANT : SEUIL DE 5, LECTURE VERROUILLÉE 6 MOIS (22/10)
 
 Point 10 de l'offre CPTS/MSP. Aucune migration : tout passe par `TraceEvent.metadata`.
