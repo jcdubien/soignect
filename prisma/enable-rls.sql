@@ -51,3 +51,6 @@ ALTER TABLE "public"."PageClient" ENABLE ROW LEVEL SECURITY;
 
 -- EditeurClient (section 314) : rattache des comptes nommés aux clients institutionnels.
 ALTER TABLE "public"."EditeurClient" ENABLE ROW LEVEL SECURITY;
+
+-- JournalReglage (point 8) : journal des réglages de cases, en ajout seul (déclencheur SQL).
+ALTER TABLE "public"."JournalReglage" ENABLE ROW LEVEL SECURITY;

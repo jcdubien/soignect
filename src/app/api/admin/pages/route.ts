@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { retirerCases } from "@/lib/casesPriorite";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -124,7 +125,8 @@ export async function POST(req: NextRequest) {
     // Vers la démo : les priorités APL écrites sortent de la base (elles agissaient sur le fil).
     // Vers le réel : elles y entrent. Les priorités DÉCLARÉES ne bougent pas.
     if (d.demo) {
-      const retirees = (await prisma.prioriteTerritoriale.deleteMany({ where: { clientId: client.id, origine: "APL" } })).count;
+      const lignes = await prisma.prioriteTerritoriale.findMany({ where: { clientId: client.id, origine: "APL" } });
+      const retirees = await retirerCases(lignes, client, { id: session.user.id, nom: "Administrateur Soignect" }, "Page passée en démonstration.");
       return NextResponse.json({ ok: true, bilan: { creees: 0, modifiees: 0, retirees, ignorees: 0 } });
     }
   }

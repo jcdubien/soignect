@@ -799,6 +799,12 @@ model PrioriteTerritoriale {
   // client (lib/aplPalier) — recalculé à chaque millésime, jamais retiré à la main par le client.
   // `DECLAREE` : saisie par un administrateur ou ajoutée par le client sur sa page.
   origine     OriginePriorite @default(DECLAREE)
+  // Réglage fin (point 8, 22/10). `niveauApl` : le niveau que l'APL DREES donne à cette case,
+  // tenu à jour par chaque recalcul — null quand la profession ou la commune n'a pas d'APL
+  // (aucune valeur par défaut inventée). `niveau` reste la valeur effective. Écart de ±1 libre ;
+  // au-delà, ou sans APL, `justification` écrite obligatoire (lib/boostTerritorial).
+  niveauApl     Int?
+  justification String? @db.VarChar(280)
 
   // Une seule déclaration vivante par commune ET par profession : deux lignes concurrentes
   // poseraient la question « laquelle gagne ? », à laquelle aucune réponse ne serait honnête.
@@ -1032,4 +1038,39 @@ model PosteInvitation {
   expiresAt     DateTime
 
   @@index([invitedEmail])
+}
+
+enum ActionReglage {
+  CREATION
+  MODIFICATION
+  RETRAIT
+}
+
+// Journal des réglages de cases prioritaires (point 8, 22/10) — EN AJOUT SEUL. Un déclencheur
+// SQL refuse UPDATE, DELETE et TRUNCATE (migration 20261022120000) ; RLS activée. Aucune clé
+// étrangère : une ligne de journal survit à la case, au client et au compte qu'elle nomme —
+// c'est sa raison d'être. Champs figés à l'écriture, lisibles sans jointure.
+model JournalReglage {
+  id            String        @id @default(cuid())
+  createdAt     DateTime      @default(now())
+  clientId      String
+  clientNom     String        @db.VarChar(200)
+  // Nature de la relation au moment du réglage (POC_GRATUIT, CLIENT_PAYANT…) : distingue pilote
+  // et payant dans la mesure (point 9).
+  natureClient  String        @db.VarChar(40)
+  codeInsee     String
+  commune       String
+  profession    Profession
+  action        ActionReglage
+  origine       OriginePriorite
+  niveauAvant   Int?
+  niveauApres   Int?
+  niveauApl     Int?
+  justification String?       @db.VarChar(280)
+  // Qui : compte et nom figé (« Recalcul APL » pour le calcul automatique).
+  auteurId      String?
+  auteurNom     String        @db.VarChar(160)
+  motif         String?       @db.VarChar(300)
+
+  @@index([clientId, createdAt])
 }

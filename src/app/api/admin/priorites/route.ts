@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { controlerCase, poserCase } from "@/lib/casesPriorite";
+import { controlerCase, niveauAplDe, poserCase } from "@/lib/casesPriorite";
+import { JUSTIFICATION_MAX, NIVEAU_MAX, erreurReglage } from "@/lib/boostTerritorial";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
@@ -24,7 +25,9 @@ function isAdmin(session: any): boolean {
 const schema = z.object({
   commune: z.string().min(1).max(120),
   profession: z.nativeEnum(Profession),
-  niveau: z.number().int().min(1).max(10),
+  niveau: z.number().int().min(1).max(NIVEAU_MAX),
+  // Point 8 : exigée au-delà d'un cran d'écart avec l'APL, ou sans APL (erreurReglage).
+  justification: z.string().trim().max(JUSTIFICATION_MAX).nullish(),
   // L'institution est CHOISIE parmi les relations existantes, plus tapée à la main (19/08) :
   // un nom libre ne dit pas si une relation client existe, et le levier se serait appliqué
   // pour n'importe quelle chaîne de caractères.
@@ -54,6 +57,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const { commune, profession, niveau, clientId, declareLe, note, expireLe } = parsed.data;
+  const justification = parsed.data.justification || null;
 
   // La relation doit exister ET être active à la saisie. Enregistrer une déclaration sous une
   // relation close ou échue produirait une ligne visible à l'écran et sans effet sur le feed —
@@ -61,7 +65,7 @@ export async function POST(req: NextRequest) {
   // passe son temps à fermer.
   const client = await prisma.clientInstitutionnel.findUnique({
     where: { id: clientId },
-    select: { id: true, nom: true, type: true, clotureLe: true, revueLe: true, debutLe: true },
+    select: { id: true, nom: true, type: true, nature: true, clotureLe: true, revueLe: true, debutLe: true },
   });
   if (!client) {
     return NextResponse.json({ error: "Relation institutionnelle introuvable." }, { status: 400 });
@@ -105,17 +109,23 @@ export async function POST(req: NextRequest) {
   // Depuis le point 7 (21/10), la règle vit dans lib/casesPriorite, partagée avec /gestion et le
   // recalcul APL : premier arrivé tant que sa déclaration est vivante, case reprise si elle est
   // éteinte, plafond de cases selon l'offre.
+  const niveauApl = await niveauAplDe(codeInsee, profession);
+  const refus = erreurReglage(niveau, niveauApl, justification);
+  if (refus) return NextResponse.json({ error: refus, niveauApl }, { status: 400 });
+
   const controle = await controlerCase(client, codeInsee, profession);
   if (!controle.ok) {
     return NextResponse.json({ error: controle.error, conflit: controle.conflit }, { status: 409 });
   }
 
-  const cree = await poserCase(controle, (db, noteReprise) => db.prioriteTerritoriale.create({
+  const cree = await poserCase(controle, client, { id: session!.user!.id as string, nom: "Administrateur Soignect" }, (db, noteReprise) => db.prioriteTerritoriale.create({
     data: {
       codeInsee,
       commune,
       profession,
       niveau,
+      niveauApl,
+      justification,
       clientId,
       declareLe: new Date(declareLe),
       note: [note, noteReprise].filter(Boolean).join(" ") || null,

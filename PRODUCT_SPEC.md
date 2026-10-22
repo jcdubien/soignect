@@ -7408,6 +7408,42 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 317 — RÉGLAGES FINS DES CASES (±1 LIBRE, AU-DELÀ JUSTIFIÉ) ET JOURNAL EN AJOUT SEUL (22/10)
+
+Point 8 de l'offre CPTS/MSP. Migration `20261022120000_journal_reglage`.
+
+- **Niveau par défaut = APL.** `PrioriteTerritoriale.niveauApl` garde le niveau que l'APL DREES
+  donne à la case (tenu à jour par chaque recalcul) ; `null` quand la profession ou la commune
+  n'a pas d'APL — aucune valeur par défaut inventée. `niveau` reste la valeur effective.
+- **Règle** (`erreurReglage`, lib/boostTerritorial, seuils `NIVEAU_MAX = 3`, `ECART_LIBRE = 1`,
+  justification 20 à 280 caractères) : ±1 autour de `niveauApl` sans justification ; au-delà,
+  ou sans APL, justification écrite obligatoire (`PrioriteTerritoriale.justification`). Le
+  niveau va de 1 à 3 partout (l'admin acceptait 1 à 10, sans effet au-delà de 3 depuis la
+  section 315).
+- **Où** : `/gestion` (ajout et nouveau bouton « Régler » par case du client, route PUT),
+  `/admin/priorites` (création et modification), même règle.
+- **Recalcul APL** : une case réglée (niveau ≠ APL, ou justifiée, ou déclarée) n'est plus
+  écrasée ni retirée par le calcul ; seul `niveauApl` suit le millésime. Un réglage que le
+  nouveau millésime rend injustifié est compté `aRevoir` dans le bilan, jamais corrigé en
+  silence.
+- **Journal `JournalReglage`, en ajout seul** : une ligne par création, modification et retrait
+  de case, écrite dans la même transaction que le geste (lib/casesPriorite) — tous les chemins :
+  `/gestion`, `/admin/priorites`, recalcul APL (auteur « Recalcul APL »), passage en
+  démonstration, reprise d'une case éteinte. Champs figés, sans clé étrangère : client, nature
+  de la relation (pilote ou payant, pour le point 9), case, niveau avant/après, niveau APL,
+  justification, auteur (compte et nom), motif. Un déclencheur SQL refuse UPDATE, DELETE et
+  TRUNCATE ; RLS activée (`enable-rls.sql`).
+- **Lecture** : les 50 dernières entrées sur `/gestion`, pour les éditeurs connectés seulement
+  (le journal nomme les auteurs).
+- **À vérifier (juriste)** : le journal garde le nom de l'éditeur après la suppression de son
+  compte — c'est sa raison d'être, mais c'est une donnée personnelle conservée.
+- **Essais** (22/10) dans un schéma Postgres temporaire `essai_p8` (copie de la structure et de
+  l'APL, serveur local branché dessus, supprimé ensuite) : aucune ligne d'essai dans le journal
+  de production, qui ne s'efface pas. 18 vérifications passées : ±1 libre, écart 2 refusé puis
+  accepté justifié, niveau 4 refusé, case sans APL justifiée, retrait journalisé, même règle
+  côté admin, réglage conservé au recalcul, UPDATE/DELETE/TRUNCATE refusés, journal visible pour
+  l'éditeur seul. Non testé : `aRevoir` sur changement de millésime.
+
 ### SECTION 316 — CASES PRIORITAIRES : UNICITÉ, CHEVAUCHEMENT (PREMIER ARRIVÉ), PLAFOND PAR PALIER (21/10)
 
 Point 7 de l'offre CPTS/MSP. Une CASE = une ligne `PrioriteTerritoriale` (commune × profession).

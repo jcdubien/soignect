@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PalierApl } from "@/lib/aplPalier";
+import { JUSTIFICATION_MAX, JUSTIFICATION_MIN, justificationRequise } from "@/lib/boostTerritorial";
 
 // Écran du lien d'édition d'une page client (20/10). Trois blocs, dans l'ordre où un client
 // les regarde : ce que sa page dit (réglages), pourquoi telle commune y est prioritaire (APL),
@@ -12,7 +13,18 @@ import type { PalierApl } from "@/lib/aplPalier";
 interface Priorite {
   id: string; codeInsee: string; commune: string; profession: string;
   niveau: number; origine: "APL" | "DECLAREE"; retirable: boolean;
+  /** Case de CE client sur une page réelle : son niveau se règle (point 8). */
+  reglable: boolean; niveauApl: number | null; justification: string | null;
 }
+
+interface LigneJournal {
+  id: string; createdAt: string; commune: string; profession: string;
+  action: "CREATION" | "MODIFICATION" | "RETRAIT";
+  niveauAvant: number | null; niveauApres: number | null; niveauApl: number | null;
+  justification: string | null; auteurNom: string; motif: string | null;
+}
+
+const ACTION: Record<LigneJournal["action"], string> = { CREATION: "Ajout", MODIFICATION: "Réglage", RETRAIT: "Retrait" };
 
 const ACCES: Record<number, string> = {
   3: "aucun professionnel accessible", 2: "accès très faible", 1: "accès faible", 0: "dans la moyenne ou au-dessus",
@@ -34,24 +46,29 @@ export default function GestionClient(props: {
   priorites: Priorite[];
   paliers: PalierApl[];
   vues: { total: number; trenteJours: number };
+  journal: LigneJournal[];
 }) {
   const router = useRouter();
   const [message, setMessage] = useState(props.initial.messageAccueil);
   const [contact, setContact] = useState(props.initial.contact);
   const [professions, setProfessions] = useState<string[]>(props.initial.professions);
   const [etat, setEtat] = useState<string | null>(null);
-  const [ajout, setAjout] = useState({ codeInsee: props.communes[0]?.code ?? "", profession: props.professionsToutes[0]?.value ?? "", niveau: 1 });
+  const [ajout, setAjout] = useState({ codeInsee: props.communes[0]?.code ?? "", profession: props.professionsToutes[0]?.value ?? "", niveau: 1, justification: "" });
+  // Réglage en cours d'une case (point 8) : une seule à la fois.
+  const [reglage, setReglage] = useState<{ id: string; niveau: number; justification: string } | null>(null);
+  const aplAjout = props.paliers.find((p) => p.codeInsee === ajout.codeInsee && p.profession === ajout.profession)?.niveau ?? null;
   const [copie, setCopie] = useState(false);
   const peutModifier = props.editeur !== null;
   const label = (p: string) => props.professionsToutes.find((x) => x.value === p)?.label ?? p;
 
-  async function appel(method: string, body: unknown, ok: string) {
+  async function appel(method: string, body: unknown, ok: string): Promise<boolean> {
     setEtat(null);
     const res = await fetch(`/api/page-client/${props.jeton}`, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     if (res.ok) { setEtat(ok); router.refresh(); }
     else setEtat((await res.json().catch(() => null))?.error ?? "Action impossible.");
+    return res.ok;
   }
 
   if (!props.active) {
@@ -161,12 +178,43 @@ export default function GestionClient(props: {
             <li key={p.id} className="text-sm flex items-baseline justify-between gap-2 flex-wrap">
               <span>
                 <strong>{p.commune}</strong> · {label(p.profession)}
-                <span className="text-[11px] text-gray-400"> — {ACCES[p.niveau] ?? `niveau ${p.niveau}`} · {p.origine === "APL" ? "APL" : "ajoutée"}</span>
+                <span className="text-[11px] text-gray-400"> — {ACCES[p.niveau] ?? `niveau ${p.niveau}`} · {p.origine === "APL" ? "APL" : "ajoutée"}{p.niveauApl !== null && p.niveau !== p.niveauApl ? ` · réglée (APL : ${p.niveauApl})` : ""}</span>
               </span>
-              {p.retirable && peutModifier && (
-                <button onClick={() => appel("DELETE", { id: p.id }, "Priorité retirée.")} className="text-xs text-red-600 underline">
-                  Retirer
-                </button>
+              <span className="flex gap-3">
+                {p.reglable && peutModifier && reglage?.id !== p.id && (
+                  <button onClick={() => setReglage({ id: p.id, niveau: p.niveau, justification: p.justification ?? "" })} className="text-xs text-[#0B3D5C] underline">
+                    Régler
+                  </button>
+                )}
+                {p.retirable && peutModifier && (
+                  <button onClick={() => appel("DELETE", { id: p.id }, "Priorité retirée.")} className="text-xs text-red-600 underline">
+                    Retirer
+                  </button>
+                )}
+              </span>
+              {p.justification && <span className="w-full text-[11px] text-gray-500 italic">Justification : {p.justification}</span>}
+              {reglage?.id === p.id && (
+                <span className="w-full flex gap-2 flex-wrap items-start bg-gray-50 border border-gray-200 rounded-lg p-2">
+                  <select value={reglage.niveau} onChange={(e) => setReglage({ ...reglage, niveau: Number(e.target.value) })} className="text-xs border border-gray-200 rounded-lg px-2 py-2">
+                    <option value={1}>Accès faible</option>
+                    <option value={2}>Accès très faible</option>
+                    <option value={3}>Aucun professionnel</option>
+                  </select>
+                  {justificationRequise(reglage.niveau, p.niveauApl) && (
+                    <textarea rows={2} maxLength={JUSTIFICATION_MAX} value={reglage.justification}
+                      placeholder={`Pourquoi ce niveau ? (${JUSTIFICATION_MIN} à ${JUSTIFICATION_MAX} caractères)`}
+                      onChange={(e) => setReglage({ ...reglage, justification: e.target.value })}
+                      className="flex-1 min-w-[200px] text-xs border border-gray-200 rounded-lg p-2" />
+                  )}
+                  <button onClick={() => appel("PUT", { id: p.id, niveau: reglage.niveau, justification: justificationRequise(reglage.niveau, p.niveauApl) ? reglage.justification : null }, "Réglage enregistré.").then((fait) => { if (fait) setReglage(null); })}
+                    className="px-3 py-2 rounded-lg bg-[#0B3D5C] text-white text-xs font-bold">Enregistrer</button>
+                  <button onClick={() => setReglage(null)} className="text-xs text-gray-500 underline py-2">Annuler</button>
+                  <span className="w-full text-[11px] text-gray-500">
+                    {p.niveauApl === null
+                      ? "Pas d'APL pour cette case : tout niveau se justifie par écrit."
+                      : `Niveau APL : ${p.niveauApl}. Un cran d'écart se règle librement ; au-delà, justification écrite.`}
+                  </span>
+                </span>
               )}
             </li>
           ))}
@@ -183,9 +231,20 @@ export default function GestionClient(props: {
             <option value={2}>Accès très faible</option>
             <option value={3}>Aucun professionnel</option>
           </select>
-          <button onClick={() => appel("POST", ajout, "Priorité ajoutée.")} className="px-3 py-2 rounded-lg border border-[#0B3D5C] text-[#0B3D5C] text-xs font-bold">
+          <button onClick={() => appel("POST", { ...ajout, justification: justificationRequise(ajout.niveau, aplAjout) ? ajout.justification : null }, "Priorité ajoutée.")} className="px-3 py-2 rounded-lg border border-[#0B3D5C] text-[#0B3D5C] text-xs font-bold">
             Ajouter
           </button>
+          {justificationRequise(ajout.niveau, aplAjout) && (
+            <textarea rows={2} maxLength={JUSTIFICATION_MAX} value={ajout.justification}
+              placeholder={`Pourquoi ce niveau ? (${JUSTIFICATION_MIN} à ${JUSTIFICATION_MAX} caractères)`}
+              onChange={(e) => setAjout({ ...ajout, justification: e.target.value })}
+              className="w-full text-xs border border-gray-200 rounded-lg p-2" />
+          )}
+          <p className="w-full text-[11px] text-gray-500 m-0">
+            {aplAjout === null
+              ? "Pas d'APL pour cette commune et cette profession : le niveau se justifie par écrit."
+              : `Niveau APL : ${aplAjout}. Un cran d'écart se règle librement ; au-delà, justification écrite.`}
+          </p>
         </div>}
       </div>
 
@@ -221,6 +280,30 @@ export default function GestionClient(props: {
           </table>
         </div>
       </div>
+
+      {peutModifier && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <p className="text-sm font-bold m-0">Journal des réglages</p>
+          <p className="text-xs text-gray-500 mt-1 mb-3">
+            Chaque ajout, réglage et retrait de case y est inscrit, à son auteur. Le journal ne se
+            modifie ni ne s&apos;efface.
+          </p>
+          {props.journal.length === 0 ? <p className="text-xs text-gray-500 m-0">Aucune entrée.</p> : (
+            <ul className="list-none p-0 m-0 space-y-1">
+              {props.journal.map((j) => (
+                <li key={j.id} className="text-xs text-gray-700">
+                  <span className="text-gray-400">{new Date(j.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Guadeloupe" })}</span>
+                  {" "}· {ACTION[j.action]} · <strong>{j.commune}</strong> · {label(j.profession)}
+                  {" "}· {j.niveauAvant ?? "—"} → {j.niveauApres ?? "—"}{j.niveauApl !== null ? ` (APL ${j.niveauApl})` : ""}
+                  {" "}· {j.auteurNom}
+                  {j.justification && <span className="italic text-gray-500"> — « {j.justification} »</span>}
+                  {j.motif && <span className="text-gray-500"> — {j.motif}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {etat && <p className="text-sm text-gray-700">{etat}</p>}
     </div>

@@ -31,10 +31,11 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
     page.demo
       ? prioritesDeLaPage(page, page.client.nom).then((zs) => zs.map((z) => ({
           ...z, id: `${z.codeInsee}-${z.profession}`, origine: "APL" as const, clientId: page.clientId,
+          niveauApl: z.niveau, justification: null,
         })))
       : prisma.prioriteTerritoriale.findMany({
           where: { codeInsee: { in: page.communes } },
-          select: { id: true, codeInsee: true, commune: true, profession: true, niveau: true, origine: true, clientId: true },
+          select: { id: true, codeInsee: true, commune: true, profession: true, niveau: true, origine: true, clientId: true, niveauApl: true, justification: true },
           orderBy: [{ niveau: "desc" }, { commune: "asc" }],
         }),
     paliersApl(page.communes),
@@ -43,6 +44,13 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
       select: { occurredAt: true, metadata: true },
     }),
   ]);
+  // Journal des réglages (point 8) : montré aux seuls éditeurs connectés — il nomme les auteurs.
+  const journal = editeur
+    ? await prisma.journalReglage.findMany({
+        where: { clientId: page.clientId }, orderBy: { createdAt: "desc" }, take: 50,
+        select: { id: true, createdAt: true, commune: true, profession: true, action: true, niveauAvant: true, niveauApres: true, niveauApl: true, justification: true, auteurNom: true, motif: true },
+      })
+    : [];
   const humaines = vues.filter((v) => !(v.metadata as { robot?: boolean } | null)?.robot);
   const il30j = Date.now() - 30 * 86400_000;
 
@@ -64,7 +72,10 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
           priorites={priorites.map((p) => ({
             id: p.id, codeInsee: p.codeInsee, commune: p.commune, profession: p.profession,
             niveau: p.niveau, origine: p.origine, retirable: p.origine === "DECLAREE" && p.clientId === page.clientId,
+            reglable: !page.demo && p.clientId === page.clientId,
+            niveauApl: p.niveauApl, justification: p.justification,
           }))}
+          journal={journal.map((j) => ({ ...j, createdAt: j.createdAt.toISOString() }))}
           paliers={paliers}
           vues={{ total: humaines.length, trenteJours: humaines.filter((v) => v.occurredAt.getTime() >= il30j).length }}
         />

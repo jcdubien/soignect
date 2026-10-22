@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { pointsBoost } from "@/lib/boostTerritorial";
+import { JUSTIFICATION_MAX, JUSTIFICATION_MIN, NIVEAU_MAX, pointsBoost } from "@/lib/boostTerritorial";
 
 // La liste des professions n'est plus écrite ici : elle est DÉRIVÉE DE L'ENUM Prisma par la
 // page serveur et reçue en prop (19/08, audit de généricité). Recopiée à la main, une 6ᵉ
@@ -136,6 +136,7 @@ export default function PrioritesClient({
     declareLe: new Date().toISOString().slice(0, 10),
     note: "",
     expireLe: "",
+    justification: "",
   });
 
   async function creerClient(e: React.FormEvent) {
@@ -191,6 +192,7 @@ export default function PrioritesClient({
         niveau: Number(form.niveau),
         note: form.note || undefined,
         expireLe: form.expireLe || null,
+        justification: form.justification || null,
       }),
     });
     const json = await r.json();
@@ -207,7 +209,7 @@ export default function PrioritesClient({
             : c,
         ),
       );
-      setForm({ ...form, commune: "", note: "", expireLe: "" });
+      setForm({ ...form, commune: "", note: "", expireLe: "", justification: "" });
       setOuvert("aucun");
     } else {
       setErreur(typeof json.error === "string" ? json.error : "Déclaration refusée.");
@@ -338,6 +340,11 @@ export default function PrioritesClient({
               <textarea rows={2} maxLength={500} placeholder="Gratuité accordée tant que J-C est secrétaire de la CPTS."
                 value={formClient.note} onChange={(e) => setFormClient({ ...formClient, note: e.target.value })} className={champ} />
             </label>
+            <label className="text-xs text-gray-500 space-y-1 block">
+              Justification ({JUSTIFICATION_MIN} à {JUSTIFICATION_MAX} car.) — exigée à plus d&apos;un cran de l&apos;APL, ou sans APL
+              <textarea rows={2} maxLength={JUSTIFICATION_MAX}
+                value={form.justification} onChange={(e) => setForm({ ...form, justification: e.target.value })} className={champ} />
+            </label>
             {erreur && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{erreur}</p>}
             <button type="submit" disabled={envoi} className="text-sm px-4 py-2 rounded-lg bg-kine-600 text-white font-semibold disabled:opacity-50">
               {envoi ? "Enregistrement…" : "Ouvrir la relation"}
@@ -451,8 +458,8 @@ export default function PrioritesClient({
                 <input required type="date" value={form.declareLe} onChange={(e) => setForm({ ...form, declareLe: e.target.value })} className={champ} />
               </label>
               <label className="text-xs text-gray-500 space-y-1 block">
-                Intensité (1 à 10) — pèse {pointsBoost(form.niveau)} points d&apos;ordre
-                <input required type="number" min={1} max={10} value={form.niveau}
+                Niveau (1 à {NIVEAU_MAX}) — pèse {pointsBoost(form.niveau)} points d&apos;ordre
+                <input required type="number" min={1} max={NIVEAU_MAX} value={form.niveau}
                   onChange={(e) => setForm({ ...form, niveau: Number(e.target.value) })} className={champ} />
               </label>
               <label className="text-xs text-gray-500 space-y-1 block">

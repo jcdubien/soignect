@@ -85,3 +85,33 @@ export function ordonnerAvecDensite<T>(
   }
   return { ordre, remontees };
 }
+
+// ── Réglages fins (point 8, 22/10) ──────────────────────────────────────────────────────────
+//
+// Le niveau par défaut d'une case est celui de l'APL DREES (`niveauApl`). Une structure peut le
+// régler d'un cran (±1) sans se justifier ; au-delà — ou quand la case n'a PAS d'APL (profession
+// sans indicateur, Saint-Martin, Saint-Barthélemy) — elle écrit pourquoi. Aucune valeur par
+// défaut n'est inventée pour une case sans APL : la justification y est toujours exigée.
+
+/** Niveau maximal d'une case : au-delà, le plafond de points ne change plus rien. */
+export const NIVEAU_MAX = 3;
+/** Écart au niveau APL qui se règle sans justification. */
+export const ECART_LIBRE = 1;
+export const JUSTIFICATION_MIN = 20;
+export const JUSTIFICATION_MAX = 280;
+
+/** Faut-il une justification écrite pour poser ce niveau ? */
+export function justificationRequise(niveau: number, niveauApl: number | null | undefined): boolean {
+  return niveauApl === null || niveauApl === undefined || Math.abs(niveau - niveauApl) > ECART_LIBRE;
+}
+
+/** null si le réglage est recevable ; sinon le message d'erreur à afficher. */
+export function erreurReglage(niveau: number, niveauApl: number | null | undefined, justification: string | null | undefined): string | null {
+  if (!Number.isInteger(niveau) || niveau < 1 || niveau > NIVEAU_MAX) return `Le niveau va de 1 à ${NIVEAU_MAX}.`;
+  if (!justificationRequise(niveau, niveauApl)) return null;
+  const n = (justification ?? "").trim().length;
+  if (n >= JUSTIFICATION_MIN && n <= JUSTIFICATION_MAX) return null;
+  return niveauApl === null || niveauApl === undefined
+    ? `Pas d'APL pour cette case : justifiez le niveau par écrit (${JUSTIFICATION_MIN} à ${JUSTIFICATION_MAX} caractères).`
+    : `Au-delà d'un cran d'écart avec l'APL (niveau ${niveauApl}), justifiez par écrit (${JUSTIFICATION_MIN} à ${JUSTIFICATION_MAX} caractères).`;
+}
