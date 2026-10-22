@@ -5,6 +5,7 @@ import { LIBELLE_PALIER, PALIER_DU_TYPE, limitesDuClient } from "@/lib/tarifsPar
 import { appBaseUrl } from "@/lib/appUrl";
 import PagesClient from "./PagesClient";
 import { mesureDuClient } from "@/lib/mesureTerritoriale";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 // L'administrateur règle ce qui découle de l'offre (périmètre) ; le client règle le reste
 // depuis son lien d'édition.
 export default async function AdminPagesPage() {
+  await exigerAdmin();
   const clients = await prisma.clientInstitutionnel.findMany({
     orderBy: { nom: "asc" },
     include: {

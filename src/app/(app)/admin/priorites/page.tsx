@@ -3,6 +3,7 @@ import { Profession } from "@prisma/client";
 import { COMMUNES_GUADELOUPE, inseeOfCommune } from "@/lib/communes";
 import { libelleProfession } from "@/lib/pagesDiffusion";
 import PrioritesClient from "./PrioritesClient";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
 // aurait été disproportionné — et `saisiParId` garde qui a tenu le stylo, ce qu'un self-service
 // aurait perdu.
 export default async function AdminPrioritesPage() {
+  await exigerAdmin();
   const priorites = await prisma.prioriteTerritoriale.findMany({
     orderBy: [{ profession: "asc" }, { commune: "asc" }],
     include: { saisiPar: { select: { email: true } }, client: { select: { nom: true, nature: true, revueLe: true, clotureLe: true } } },

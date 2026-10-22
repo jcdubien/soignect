@@ -2,8 +2,10 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 import ProfilesClient from "./ProfilesClient";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export default async function AdminProfilesPage() {
+  await exigerAdmin();
   const profiles = await prisma.profile.findMany({
     orderBy: { createdAt: "desc" },
     select: {

@@ -2,8 +2,10 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 import RatingsClient from "./RatingsClient";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export default async function AdminRatingsPage() {
+  await exigerAdmin();
   const ratings = await prisma.cabinetRating.findMany({
     where: { isPublished: false },
     orderBy: { createdAt: "desc" },

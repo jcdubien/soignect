@@ -2,10 +2,12 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import DesirabilitySlider from "@/components/ui/DesirabilitySlider";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDesirabilityPage() {
+  await exigerAdmin();
   const session = await auth();
   if (session?.user?.role !== "ADMIN") redirect("/annonces");
 

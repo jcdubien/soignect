@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unescaped-entities */
 import { prisma } from "@/lib/prisma";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 import {
   DEEPSEEK_DAILY_USER_LIMIT,
   DEEPSEEK_DAILY_GLOBAL_LIMIT,
@@ -22,6 +23,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default async function AdminDeepSeekPage() {
+  await exigerAdmin();
   // Fenêtre de jour = minuit heure Guadeloupe (même borne que le limiteur, source unique).
   const todayStart = startOfBudgetDay(0);
 

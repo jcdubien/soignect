@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { PROFESSION_LABELS } from "@/lib/professions";
 import type { Profession } from "@prisma/client";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default async function AdminStatsPage() {
+  await exigerAdmin();
   const [
     totalUsers,
     totalProfiles,

@@ -2,8 +2,10 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 import MissionsClient from "./MissionsClient";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export default async function AdminMissionsPage() {
+  await exigerAdmin();
   const missions = await prisma.mission.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,

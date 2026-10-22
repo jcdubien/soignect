@@ -7408,6 +7408,20 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 325 — FUITE DES PAGES /ADMIN SANS SESSION, CORRIGÉE (22/10)
+
+- **Constat** (22/10, en production, en lecture) : sans session, `GET /admin/users` répondait par une
+  307 vers `/login` dont le CORPS contenait déjà le flux de la page — les adresses email des 114
+  comptes. `/admin/pages` y laissait les liens d'édition des pages clients ; `/admin/stats` une
+  dizaine d'adresses. Ni mot de passe ni empreinte. Cause : le contrôle était dans le layout
+  `/admin` ; Next rend layout et page en parallèle, et la page lisait la base sans contrôle.
+- **Correctif** : `lib/exigerAdmin` appelé en première ligne de chaque page serveur `/admin`, avant
+  toute lecture. Le layout garde son contrôle. Essai local : sans session et avec un compte non
+  administrateur, aucune donnée dans la réponse des 14 pages ; l'administrateur les voit.
+- **Suites à décider (JC)** : régénérer les jetons d'édition des 2 pages clients (le lien seul ne
+  permet plus de modifier depuis la section 314, mais il donne la lecture) ; durée d'exposition
+  et éventuelle déclaration (CNIL, 72 h si violation de données personnelles) **à vérifier**.
+
 ### SECTION 324 — PARCOURS ÉTABLISSEMENT (4) : ABONNEMENT STRUCTURE FERMÉ, LIBELLÉS (22/10)
 
 - **Abonnement Structure de /premium** (89 €/mois + 20 € par contrat signé) : fermé par le même

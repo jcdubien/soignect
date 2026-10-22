@@ -7,6 +7,7 @@ import { INSTANCES_EMBED, cheminEmbed, cleTraceEmbed } from "@/lib/embedTerritoi
 import { ZONE_LABELS } from "@/lib/communes";
 import { etatJetonPage } from "@/lib/facebookPage";
 import { fmtDayYear } from "@/lib/dates";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ const PAGES = [
 ];
 
 export default async function AdminDiffusionPage() {
+  await exigerAdmin();
   const session = await auth();
   if (session?.user?.role !== "ADMIN") redirect("/annonces");
 

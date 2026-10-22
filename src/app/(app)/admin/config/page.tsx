@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import ConfigToggle from "./ConfigToggle";
 import EnforceContractToggle from "./EnforceContractToggle";
+import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminConfigPage() {
+  await exigerAdmin();
   const cfg = await prisma.platformConfig.findFirst();
   const freeAccessMode = cfg?.freeAccessMode ?? true;
   const enforceContractProfile = cfg?.enforceContractProfile ?? false;
