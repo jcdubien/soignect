@@ -7,6 +7,7 @@ import { paliersApl } from "@/lib/aplPalier";
 import { editeurConnecte, libellesDuCode, prioritesDeLaPage, relationActive } from "@/lib/pageClient";
 import { appBaseUrl } from "@/lib/appUrl";
 import GestionClient from "./GestionClient";
+import { mesureDuClient } from "@/lib/mesureTerritoriale";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
         select: { id: true, createdAt: true, commune: true, profession: true, action: true, niveauAvant: true, niveauApres: true, niveauApl: true, justification: true, auteurNom: true, motif: true, accesGratuit: true },
       })
     : [];
+  const mesure = await mesureDuClient(page.client);
   const humaines = vues.filter((v) => !(v.metadata as { robot?: boolean } | null)?.robot);
   const il30j = Date.now() - 30 * 86400_000;
 
@@ -75,6 +77,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
             reglable: !page.demo && p.clientId === page.clientId,
             niveauApl: p.niveauApl, justification: p.justification,
           }))}
+          mesure={mesure.verrouillee ? { verrouillee: true, ouvertureLe: mesure.ouvertureLe.toISOString() } : mesure}
           journal={journal.map((j) => ({ ...j, createdAt: j.createdAt.toISOString() }))}
           paliers={paliers}
           vues={{ total: humaines.length, trenteJours: humaines.filter((v) => v.occurredAt.getTime() >= il30j).length }}

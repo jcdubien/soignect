@@ -143,6 +143,9 @@ export interface PrioriteAppliquee {
   /** L'institution a donné son accord pour que son nom soit publié (`PageClient.accord` = OUI).
    *  Sans lui, ni l'étiquette « Zone prioritaire — <nom> » ni la mention ne la nomment (point 5). */
   nomPublie: boolean;
+  /** Client qui tient la case — ce à quoi la mesure (point 10) rattache affichages et intérêts. */
+  clientId: string;
+  niveau: number;
 }
 
 export async function chargerPrioritesTerritoriales(
@@ -182,7 +185,7 @@ export async function chargerPrioritesTerritoriales(
       profession,
       ...declarationVivante(maintenant),
     },
-    select: { codeInsee: true, niveau: true, client: { select: { nom: true, page: { select: { accord: true } } } } },
+    select: { codeInsee: true, niveau: true, client: { select: { id: true, nom: true, page: { select: { accord: true } } } } },
   });
 
   for (const ligne of lignes) {
@@ -193,10 +196,21 @@ export async function chargerPrioritesTerritoriales(
       // plus forte l'emporte. L'unicité commune × profession l'interdit aujourd'hui.
       const deja = resultat.get(libelle);
       if (deja && boostRetenu([deja.points, points]) === deja.points) continue;
-      resultat.set(libelle, { points, institution: ligne.client.nom, nomPublie: ligne.client.page?.accord === "OUI" });
+      resultat.set(libelle, { points, institution: ligne.client.nom, nomPublie: ligne.client.page?.accord === "OUI", clientId: ligne.client.id, niveau: ligne.niveau });
     }
   }
   return resultat;
+}
+
+/** La case vivante qui couvre ce lieu pour cette profession — client et niveau, ou null.
+ *  Pour la mesure (point 10) : rattacher un intérêt ou une mise en relation à son client. */
+export async function zonePrioritaireDe(
+  lieu: string | null | undefined,
+  profession: Profession,
+): Promise<{ clientId: string; niveau: number } | null> {
+  if (!lieu) return null;
+  const p = (await chargerPrioritesTerritoriales([lieu], profession)).get(lieu);
+  return p ? { clientId: p.clientId, niveau: p.niveau } : null;
 }
 
 /**

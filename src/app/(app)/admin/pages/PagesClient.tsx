@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LIBELLE_PALIER } from "@/lib/tarifsPartenaire";
+import BlocMesure, { type MesureAffichee } from "@/components/territoire/BlocMesure";
 
 interface Client {
   id: string; nom: string; type: string; nature: string; active: boolean; revueLe: string;
   max: number | null; casesMax: number | null; priorites: number;
   palier: string | null; palierDuType: string | null; gratuit: boolean;
+  mesure: MesureAffichee;
   editeurs: { id: string; nom: string; fonction: string | null; email: string }[];
   page: { communes: string[]; demo: boolean; accord: "OUI" | "NON" | "DEMO"; lienPublic: string; lienEdition: string } | null;
 }
@@ -134,6 +136,13 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
           )}
         </div>
       </details>
+
+      {client.page && !client.page.demo && (
+        <details>
+          <summary className="text-sm font-semibold cursor-pointer">Mesure</summary>
+          <div className="mt-2"><BlocMesure mesure={client.mesure} /></div>
+        </details>
+      )}
 
       <details>
         <summary className="text-sm font-semibold cursor-pointer">

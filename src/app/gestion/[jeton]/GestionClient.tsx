@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PalierApl } from "@/lib/aplPalier";
+import BlocMesure, { type MesureAffichee } from "@/components/territoire/BlocMesure";
 import { JUSTIFICATION_MAX, JUSTIFICATION_MIN, justificationRequise } from "@/lib/boostTerritorial";
 
 // Écran du lien d'édition d'une page client (20/10). Trois blocs, dans l'ordre où un client
@@ -47,6 +48,7 @@ export default function GestionClient(props: {
   paliers: PalierApl[];
   vues: { total: number; trenteJours: number };
   journal: LigneJournal[];
+  mesure: MesureAffichee;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState(props.initial.messageAccueil);
@@ -280,6 +282,8 @@ export default function GestionClient(props: {
           </table>
         </div>
       </div>
+
+      {!props.demo && <BlocMesure mesure={props.mesure} />}
 
       {peutModifier && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">

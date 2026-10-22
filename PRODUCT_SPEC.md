@@ -7408,6 +7408,40 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 319 — MESURE DE LA MISE EN AVANT : SEUIL DE 5, LECTURE VERROUILLÉE 6 MOIS (22/10)
+
+Point 10 de l'offre CPTS/MSP. Aucune migration : tout passe par `TraceEvent.metadata`.
+
+- **Instrumentation** (depuis le 22/10, pas de rattrapage) :
+  - `FEED_PRIORITE_TERRITORIALE.metadata.parClient[clientId] = { servies, remontees }` —
+    annonces de la zone servies dans un fil candidat, dont celles que le boost a fait passer
+    devant ;
+  - `SWIPE_RIGHT.metadata.zone = { clientId, niveau }` — intérêt d'un candidat pour un poste de
+    zone prioritaire (absent quand c'est un cabinet qui swipe) ;
+  - `MATCH_CREATED.metadata.zone` (+ `posteId`, et `profession` désormais renseignée) — mise en
+    relation sur un poste de la zone ; la zone se lit sur l'annonce du cabinet, quel que soit
+    celui qui conclut.
+  La zone est calculée sans bloquer la réponse (`zonePrioritaireDe`, lib/territoire).
+- **Agrégation** (`mesureDuClient`, lib/mesureTerritoriale) : par mois, affichages, remontées,
+  intérêts, mises en relation.
+- **Seuil** `SEUIL_AGREGATION = 5` (lib/mesureRegles, source unique) : une case sous 5 s'affiche
+  « moins de 5 ». Pas de ligne de total — elle permettrait de retrouver une case masquée par
+  soustraction.
+- **Lecture verrouillée** `DELAI_LECTURE_MOIS = 6` — **durée à confirmer** (« plusieurs mois ») —
+  à compter du plus tardif du début de la relation et du 22/10/2026. Verrou pour tous, client
+  comme administration ; seules les traces brutes restent en base. Nord Basse-Terre et Horizon :
+  lecture le 22/04/2027.
+- **Où** : bloc « Mesure de la mise en avant » sur `/gestion` (pages réelles) et dans
+  `/admin/pages`.
+- **Limites** : les traces sont écrites après la réponse (fire-and-forget) — une fonction
+  serverless gelée peut en perdre quelques-unes, comme les autres traces du produit ; les
+  affichages comptent chaque chargement du fil, pas des personnes. La comparaison avant/après
+  et avec les professions non boostées se fera à la lecture, sur ces mêmes traces.
+- **Essais** (22/10, schéma temporaire `essai_p10`, serveur local sans email ni DeepSeek,
+  supprimé) : fil → `parClient` ; intérêt du candidat → zone, swipe du cabinet → sans zone ;
+  mise en relation → zone et profession ; lecture verrouillée jusqu'au 22/04/2027 ; après :
+  novembre 6 intérêts, 10 affichages, 5 remontés, l'autre client exclu ; 3 et 1 masqués.
+
 ### SECTION 318 — PALIER « PARTENAIRE FONDATEUR » (GRATUIT) RATTACHÉ À LA STRUCTURE ; « ACCÈS GRATUIT » AU JOURNAL (22/10)
 
 Point 9 de l'offre CPTS/MSP. Migration `20261022180000_palier_offre`.

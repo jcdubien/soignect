@@ -336,6 +336,14 @@ export async function GET(req: NextRequest) {
           // rapport « vos communes ont été mises en avant N fois » attribuable à la bonne CPTS
           // le jour où plusieurs coexisteront.
           institutions: institutionsTerritoire,
+          // Mesure (point 10) : par client qui tient les cases, combien d'annonces de sa zone
+          // sont servies et combien le boost a fait passer devant. Agrégé, jamais lu à la ligne.
+          parClient: Object.fromEntries(
+            Array.from(new Set(misesEnAvant.map((m) => prioritesTerritoriales.get(m.location ?? "")!.clientId))).map((id) => [id, {
+              servies: misesEnAvant.filter((m) => prioritesTerritoriales.get(m.location ?? "")!.clientId === id).length,
+              remontees: remonteesServies.filter((m) => prioritesTerritoriales.get(m.location ?? "")?.clientId === id).length,
+            }]),
+          ),
         },
       });
     }

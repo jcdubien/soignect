@@ -4,6 +4,7 @@ import { relationActive } from "@/lib/pageClient";
 import { LIBELLE_PALIER, PALIER_DU_TYPE, limitesDuClient } from "@/lib/tarifsPartenaire";
 import { appBaseUrl } from "@/lib/appUrl";
 import PagesClient from "./PagesClient";
+import { mesureDuClient } from "@/lib/mesureTerritoriale";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,12 @@ export default async function AdminPagesPage() {
       editeurs: { where: { retireLe: null }, orderBy: { createdAt: "asc" }, include: { user: { select: { email: true } } } },
     },
   });
+  // Mesure (point 10) : même verrou de lecture et même seuil que côté client — l'administration
+  // n'a pas de passe-droit sur les résultats.
+  const mesures = new Map(await Promise.all(clients.map(async (c) => {
+    const m = await mesureDuClient(c);
+    return [c.id, m.verrouillee ? { verrouillee: true as const, ouvertureLe: m.ouvertureLe.toISOString() } : m] as const;
+  })));
   const base = appBaseUrl();
   const zones = COMMUNES_BY_ZONE.map((z) => ({
     zone: ZONE_LABELS[z.zone],
@@ -38,6 +45,7 @@ export default async function AdminPagesPage() {
         palier: c.palier,
         palierDuType: PALIER_DU_TYPE[c.type] ? LIBELLE_PALIER[PALIER_DU_TYPE[c.type]!] : null,
         gratuit: limitesDuClient(c).gratuit,
+        mesure: mesures.get(c.id)!,
         priorites: c._count.priorites,
         editeurs: c.editeurs.map((e) => ({ id: e.id, nom: e.nom, fonction: e.fonction, email: e.user.email })),
         page: c.page ? {

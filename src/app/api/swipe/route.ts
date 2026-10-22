@@ -10,6 +10,7 @@ import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { sendNewRelationEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { signalerInteret } from "@/lib/interetSignale";
+import { zonePrioritaireDe } from "@/lib/territoire";
 import { logTraceEvent } from "@/lib/trace";
 import { bonusSaisonnier } from "@/lib/desirability";
 import { pickBestPeriode } from "@/lib/periodes";
@@ -279,9 +280,18 @@ export async function POST(req: NextRequest) {
 
   let match = null;
 
+  // Mesure territoriale (point 10) : le poste concerné est-il en zone prioritaire, et pour quel
+  // client ? Calculé une fois, sans bloquer la réponse — une erreur rend simplement « null ».
+  // Le poste est l'annonce du CABINET : celle qu'on swipe si c'est un candidat qui swipe.
+  const zoneDuPoste = (lieu: string | null | undefined) =>
+    zonePrioritaireDe(lieu, swipedMission.profile.profession).catch(() => null);
+  const zoneSwipe = direction === SwipeDirection.RIGHT && swipedMission.profile.type === ProfileType.TITULAIRE
+    ? zoneDuPoste(swipedMission.location)
+    : Promise.resolve(null);
+
   if (direction === SwipeDirection.RIGHT) {
     // Traçabilité (section 86) — fire-and-forget
-    logTraceEvent({
+    void zoneSwipe.then((zone) => logTraceEvent({
       eventType: "SWIPE_RIGHT",
       missionId: swipedMissionId,
       // L'acteur : sans lui, /api/admin/ouverture ne peut pas rattacher le swipe à la
@@ -299,8 +309,10 @@ export async function POST(req: NextRequest) {
             { startDate: swipedMission.startDate, endDate: swipedMission.endDate },
             periodeSwipeur,
           ) > 0,
+        // Point 10 : intérêt porté à un poste de zone prioritaire — client et niveau.
+        ...(zone ? { zone } : {}),
       },
-    });
+    }));
 
     // ── LA RÉCIPROCITÉ SE CHERCHE SUR TOUTES MES OFFRES (section 269) ───────────────────────
     //
@@ -369,13 +381,21 @@ export async function POST(req: NextRequest) {
         });
 
         // Traçabilité (section 86) — match créé, fire-and-forget
-        logTraceEvent({
+        // Point 10 : la zone se lit sur l'annonce du cabinet — celle swipée par un candidat, ou
+        // l'annonce du swipeur quand c'est le cabinet qui conclut.
+        const posteId = swipedMission.profile.type === ProfileType.TITULAIRE ? swipedMissionId : mySideMissionId;
+        void (posteId === swipedMissionId
+          ? zoneDuPoste(swipedMission.location)
+          : prisma.mission.findUnique({ where: { id: posteId }, select: { location: true } }).then((p) => zoneDuPoste(p?.location)).catch(() => null)
+        ).then((zone) => logTraceEvent({
           eventType: "MATCH_CREATED",
-          matchId: match.id,
+          matchId: match!.id,
           missionId: swipedMissionId,
           commune: swipedMission.location,
           missionType: swipedMission.missionType,
-        });
+          profession: swipedMission.profile.profession,
+          ...(zone ? { metadata: { zone, posteId } } : {}),
+        }));
 
         // Email "nouvelle mise en relation" à l'autre partie (fire-and-forget)
         const recipient = await prisma.profile.findUnique({
