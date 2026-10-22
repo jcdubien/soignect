@@ -14,6 +14,7 @@ import { missingContractLabels } from "@/lib/contractProfile";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { accrocheProfilExemple } from "@/lib/exemplesPublication";
+import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
 
 const REGION_LABELS: Record<Region, string> = {
   GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
@@ -464,7 +465,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
               </button>
             ))}
           </div>
-          {kind === "STRUCTURE" && (
+          {kind === "STRUCTURE" && VENTE_EN_LIGNE_OUVERTE && (
             <p className="text-[11px] text-gray-400 mt-2">
               Les structures privées relèvent d&apos;une offre dédiée (89€/mois + 20€/contrat) — voir la page Premium.
             </p>
@@ -634,7 +635,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
               </p>
             )}
           </div>
-          {profile.type === "TITULAIRE" && profile.subscriptionPlan === "FREE" && (
+          {profile.type === "TITULAIRE" && profile.subscriptionPlan === "FREE" && !(kind === "STRUCTURE" && !VENTE_EN_LIGNE_OUVERTE) && (
             <Link
               href="/premium"
               className="px-4 py-2 bg-kine-600 text-white text-xs font-bold rounded-xl hover:bg-kine-700 transition"

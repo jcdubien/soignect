@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { appBaseUrl } from "@/lib/appUrl";
+import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,10 @@ export async function POST(req: NextRequest) {
   // Distinction Cabinet/Structure : champ dédié titulaireKind.
   let lineItems: { price: string; quantity?: number }[];
   if (plan === "STRUCTURE") {
+    // Fermé tant que la souscription en ligne des structures l'est (lib/tarifsPartenaire).
+    if (!VENTE_EN_LIGNE_OUVERTE) {
+      return NextResponse.json({ error: "La souscription en ligne n'est pas ouverte pour les établissements." }, { status: 403 });
+    }
     if (profile.titulaireKind !== "STRUCTURE") {
       return NextResponse.json({ error: "Réservé aux structures privées" }, { status: 403 });
     }

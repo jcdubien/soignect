@@ -7408,6 +7408,32 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 324 — PARCOURS ÉTABLISSEMENT (4) : ABONNEMENT STRUCTURE FERMÉ, LIBELLÉS (22/10)
+
+- **Abonnement Structure de /premium** (89 €/mois + 20 € par contrat signé) : fermé par le même
+  interrupteur que les offres partenaires, `VENTE_EN_LIGNE_OUVERTE` (`lib/tarifsPartenaire`,
+  source unique). Fermé, un établissement voit sur /premium la phrase de `lib/gratuite` (« Gratuit
+  pendant le lancement : … » ou « Gratuit : … ») et « L'abonnement établissement n'est pas ouvert
+  à la souscription en ligne pour le moment » — ni prix, ni bouton, ni mention Stripe.
+  `/api/stripe/checkout` refuse `STRUCTURE` (403) côté serveur. Le bandeau « plan Gratuit »
+  (hors mode gratuit) ne s'affiche plus pour un établissement, et /compte ne cite plus les 89 € ni
+  « Passer Premium ». Raisons : la commission au contrat est un point signalé à faire relire
+  (section 7, compérage / partage d'honoraires) ; le bandeau promettait « l'accès aux profils »
+  contre paiement, alors que la mention de la section 323 le dit gratuit. Aucun compte n'avait
+  d'abonnement Stripe (2 établissements, tous deux en gratuit). Cabinets : Premium et Boost
+  inchangés.
+- **Grille partenaire** : la ligne établissement dit « 1 établissement, 2 communes » — « forfait
+  Structure inclus » renvoyait à l'abonnement désormais fermé. Prix inchangés (section 303).
+- **Connexion** : la devise devient « Trouvez. Remplacez. Recrutez. » (« Collaborez » ne parlait
+  qu'aux libéraux).
+- **Stripe** : aucune clé en local, rien n'est lisible depuis le dépôt. Le nom des produits, le
+  libellé sur relevé et la mention HT/TTC sont **à vérifier** dans le tableau de bord (geste de JC).
+- **Essai** (22/10, schéma temporaire `essai_p14`, supprimé) : 3 établissements (pages emploi kiné,
+  infirmier, aide-soignant), 1 cabinet, 3 candidats (kiné, infirmier, aide-soignant) — inscription
+  201, connexion, fil 200 ; paiement Structure 403 pour tous, Premium cabinet inchangé jusqu'au prix
+  manquant (503, clé factice, aucun appel Stripe) ; /premium établissement vu à l'écran mode
+  gratuit actif et inactif, /premium cabinet inchangé ; aucun email (clé Resend vide).
+
 ### SECTION 323 — PARCOURS ÉTABLISSEMENT (3) : CE QUI EST GRATUIT, DIT EXPLICITEMENT (22/10)
 
 - **Constat** : la page « emploi » ne disait nulle part que publier est gratuit (« Le contrat de
@@ -8147,7 +8173,7 @@ source unique `lib/tarifsPartenaire.ts`. HT, à l'année, engagement d'un an.
 |---|---|---|---|
 | Maison de santé | 1 commune, toutes professions | 590 € | 290 € |
 | CPTS, collectivité | tout le territoire, module, bilan trimestriel | 1 900 € | 950 € |
-| EHPAD, SSR, clinique | 1 établissement, 2 communes, forfait Structure inclus | 1 900 € | 950 € |
+| EHPAD, SSR, clinique | 1 établissement, 2 communes (« forfait Structure inclus » retiré le 22/10, section 324) | 1 900 € | 950 € |
 | Hôpital | plusieurs sites, bilan trimestriel | dès 4 900 € | 2 900 € |
 
 La ligne de la porte visitée est mise en évidence ; les autres restent visibles. « Sur devis » a

@@ -13,6 +13,9 @@ export type ClePalier = PalierOffre;
  *  sur décision de JC : pas de vente tant que la relecture juridique de l'offre CPTS/MSP n'est
  *  pas faite. Les liens restent dans la grille ; passer à true pour les réafficher. */
 export const VENTE_EN_LIGNE_OUVERTE = false;
+// Parcours établissement, point 4 (22/10) : le même interrupteur ferme l'abonnement Structure de
+// /premium (89 €/mois + 20 € par contrat signé) — affichage ET route de paiement. Aucun compte
+// n'y était abonné. La commission au contrat est un point signalé à faire relire (section 7).
 
 export interface TarifPartenaire {
   cle: ClePalier;
@@ -59,7 +62,7 @@ export const TARIFS_PARTENAIRE: TarifPartenaire[] = [
   },
   {
     cle: "ETABLISSEMENT", pour: "EHPAD, SSIAD, SSR, clinique",
-    contenu: "1 établissement, 2 communes, forfait Structure inclus",
+    contenu: "1 établissement, 2 communes",
     communesMax: 2, casesMax: 16,
     prixAn: 1900, lancementAn: 950, portes: ["emploi"],
     lienPaiement: "https://buy.stripe.com/fZu6oI9GA9SYdiUcdheZ203",

@@ -79,7 +79,7 @@ function LoginForm() {
           className="rounded-3xl shadow-2xl mb-4"
         />
         <p className="text-kine-100 text-sm font-medium tracking-wide">
-          Trouvez. Remplacez. Collaborez.
+          Trouvez. Remplacez. Recrutez.
         </p>
       </div>
 
