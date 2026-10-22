@@ -6,6 +6,8 @@ import { tracerVueLanding } from "@/lib/traceLanding";
 import { Porte, Profession, Territoire, cleTracePage, cheminPage, PAGES_PUBLIEES } from "@/lib/pagesDiffusion";
 import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
+import { isFreeAccessMode } from "@/lib/platform";
+import { mentionGratuite } from "@/lib/gratuite";
 
 // Gabarit commun des pages de diffusion « à annonces » (section 212) — portes CABINET,
 // ÉTABLISSEMENT et MAISON DE SANTÉ, et toutes les pages infirmier (section 299). La porte
@@ -37,6 +39,7 @@ export default async function PagePorte({
   });
 
   await tracerVueLanding(cleTracePage(porte, profession, territoire), missions.length);
+  const gratuite = porte.mentionGratuite ? mentionGratuite(await isFreeAccessMode()) : null;
 
   // La provenance voyage jusqu'à l'inscription (section 86) : sans elle, on compte les visites
   // d'une page sans jamais savoir si elles aboutissent. Même clé que la trace de visite.
@@ -72,6 +75,7 @@ export default async function PagePorte({
         <div className="flex-1">
           <p className="font-bold text-lg mb-1">Rejoignez Soignect</p>
           <p className="text-kine-100 text-sm">{porte.ctaSous}</p>
+          {gratuite && <p className="text-white text-sm font-semibold mt-1">{gratuite}</p>}
         </div>
         <Link
           // La profession de CETTE page de diffusion voyage jusqu'à l'inscription (section 283) :
@@ -161,7 +165,7 @@ export default async function PagePorte({
       {porte.offrePartenaire && (
         // Sur la porte « emploi », « Devenir partenaire » ouvre lui aussi le compte établissement
         // (22/10) : sans le type, l'établissement retombait sur « Je suis… » parmi les libéraux.
-        <BlocPartenaire profession={profession} inscription={`/register?profession=${profession.enumBase}${porte.slug === "emploi" ? typeCompte : ""}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />
+        <BlocPartenaire profession={profession} facultative={gratuite !== null} inscription={`/register?profession=${profession.enumBase}${porte.slug === "emploi" ? typeCompte : ""}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />
       )}
 
       {/* NE GARDER ICI QUE CE QUI EST VRAI PAR CONSTRUCTION (règle du 10/08, réaffirmée le

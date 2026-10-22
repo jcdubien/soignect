@@ -7408,6 +7408,28 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 323 — PARCOURS ÉTABLISSEMENT (3) : CE QUI EST GRATUIT, DIT EXPLICITEMENT (22/10)
+
+- **Constat** : la page « emploi » ne disait nulle part que publier est gratuit (« Le contrat de
+  travail relève de votre établissement »), et la grille de prix de l'offre partenaire suivait
+  l'appel à publier — on pouvait croire la publication payante.
+- **Ce qui est gratuit, vérifié dans le code** : publier une offre, voir les disponibilités dans
+  le fil, échanger après une mise en relation — aucun contrôle d'abonnement. Seule la
+  génération d'un contrat PDF libéral dépend du Premium ; un poste salarié n'en a pas (« le
+  contrat de travail est établi par l'établissement »).
+- **Mention** (`lib/gratuite`, source unique, lue par `PagePorte` sur les portes qui la
+  déclarent — `mentionGratuite`, porte « emploi » seulement) : « Gratuit pendant le lancement :
+  publier vos offres, voir les disponibilités des candidats et échanger avec eux » quand
+  `freeAccessMode` est actif, « Gratuit : … » sinon. Elle ne promet rien au-delà de ce que le code
+  fait ; la grille après le lancement reste une décision commerciale (**à arbitrer**).
+- **Offre partenaire séparée** : sur ces pages, l'encadré commence par « Facultative : elle ne
+  conditionne ni la publication de vos offres ni l'accès aux candidats ». La page territoire
+  (CPTS) et les autres portes ne changent pas.
+- **Essai** (22/10, schéma temporaire `essai_p13`, supprimé) : mode gratuit actif puis inactif —
+  les deux formulations sur les trois pages « emploi », aucune sur maison de santé et territoire.
+- **Relevé** : la grille partenaire indique encore « forfait Structure inclus » pour les
+  établissements (renvoie à l'abonnement Structure de /premium) — point 4.
+
 ### SECTION 322 — PARCOURS ÉTABLISSEMENT (2) : « SE CONNECTER » VISIBLE (22/10)
 
 - **Pages de diffusion à annonces** (`PagePorte` : les trois pages « emploi », et les pages

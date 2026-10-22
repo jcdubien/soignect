@@ -222,6 +222,8 @@ export interface Porte {
   metaDescription: (p: Profession, t: Territoire) => string;
   /** Libellé du bouton d'inscription — l'intention diffère radicalement d'une porte à l'autre. */
   cta: string;
+  /** Afficher ce qui est gratuit (lib/gratuite) sous l'appel — porte « emploi » (22/10). */
+  mentionGratuite?: boolean;
   /** Ce que le visiteur vient chercher, sous le CTA. */
   ctaSous: string;
   /** Image de partage (section 300) : titre COURT — l'image en a 600 px utiles, recadrée au carré
@@ -308,6 +310,7 @@ export const PORTES: Record<string, Porte> = {
       `Établissements de ${t.nom} — ${p.employeurs} : publiez vos postes ${p.deSingulier} salarié et touchez ${candidatsSalaries(p)}.`,
     cta: "Publier une offre →",
     ctaSous: "Le contrat de travail relève de votre établissement.",
+    mentionGratuite: true,
     ogTitre: (p) => `Recrutement ${p.court} salarié`,
     ogSousTitre: (p) => `${p.employeurs.charAt(0).toUpperCase()}${p.employeurs.slice(1)} : vos offres en CDI, CDD ou vacation, présentées ${candidatsSalaries(p).replace(/^les /, "aux ")}.`,
     /** meme raison que la porte CABINET : un employeur vient voir qui est disponible. */

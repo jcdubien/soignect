@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Profession } from "@/lib/pagesDiffusion";
 import { TARIFS_PARTENAIRE, VENTE_EN_LIGNE_OUVERTE, euros } from "@/lib/tarifsPartenaire";
+import { OFFRE_PARTENAIRE_FACULTATIVE } from "@/lib/gratuite";
 
 // L'offre PARTENAIRE (section 301) — ce qui distingue une structure qui pilote un territoire
 // d'une structure qui pourvoit un poste.
@@ -17,10 +18,13 @@ import { TARIFS_PARTENAIRE, VENTE_EN_LIGNE_OUVERTE, euros } from "@/lib/tarifsPa
 //     (section 233), avec une échéance de revue qui éteint le levier si elle passe.
 // Les prix viennent de `TARIFS_PARTENAIRE` (section 303) ; la ligne de la porte visitée est
 // mise en évidence, les autres restent visibles — une MSP voit aussi ce que paie une CPTS.
-export default function BlocPartenaire({ profession, inscription, porteSlug }: { profession: Profession; inscription: string; porteSlug: string }) {
+export default function BlocPartenaire({ profession, inscription, porteSlug, facultative = false }: { profession: Profession; inscription: string; porteSlug: string; facultative?: boolean }) {
   return (
     <div className="mt-10 rounded-2xl border border-kine-200 bg-kine-50 p-5">
       <p className="text-xs font-bold uppercase tracking-wide text-kine-700 mb-1">Offre partenaire</p>
+      {/* Point 3 (22/10) : sur une page « emploi », la grille de prix suivait l'appel à publier
+          sans dire que la publication, elle, est gratuite. */}
+      {facultative && <p className="text-xs text-gray-600 mb-2">{OFFRE_PARTENAIRE_FACULTATIVE}</p>}
       <h2 className="text-lg font-bold text-gray-900 mb-2">
         Au-delà du poste du moment : faites remonter vos zones en tension
       </h2>
