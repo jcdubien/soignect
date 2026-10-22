@@ -26,14 +26,14 @@
 
 import { prisma } from "@/lib/prisma";
 import type {
-  ActionReglage, NatureRelationInstitutionnelle, OriginePriorite, Prisma, PrioriteTerritoriale,
+  ActionReglage, NatureRelationInstitutionnelle, OriginePriorite, PalierOffre, Prisma, PrioriteTerritoriale,
   Profession, TypeInstitution,
 } from "@prisma/client";
-import { limitesDuType } from "@/lib/tarifsPartenaire";
+import { accesGratuit, limitesDuClient } from "@/lib/tarifsPartenaire";
 import { paliersApl } from "@/lib/aplPalier";
 
 type Db = Prisma.TransactionClient;
-export type ClientCase = { id: string; nom: string; type: TypeInstitution; nature: NatureRelationInstitutionnelle };
+export type ClientCase = { id: string; nom: string; type: TypeInstitution; nature: NatureRelationInstitutionnelle; palier: PalierOffre | null };
 export type Auteur = { id: string | null; nom: string };
 export const AUTEUR_RECALCUL = (adminId: string): Auteur => ({ id: adminId, nom: "Recalcul APL" });
 
@@ -79,6 +79,7 @@ export async function journaliser(
       justification: e.justification?.trim() || null,
       auteurId: e.auteur.id, auteurNom: e.auteur.nom.slice(0, 160),
       motif: e.motif?.slice(0, 300) ?? null,
+      palier: limitesDuClient(e.client).palier, accesGratuit: accesGratuit(e.client),
     },
   });
 }
@@ -96,7 +97,7 @@ export async function controlerCase(
 ): Promise<ControleCase> {
   const existante = await prisma.prioriteTerritoriale.findUnique({
     where: { codeInsee_profession: { codeInsee, profession } },
-    include: { client: { select: { id: true, nom: true, type: true, nature: true, clotureLe: true, debutLe: true, revueLe: true } } },
+    include: { client: { select: { id: true, nom: true, type: true, nature: true, palier: true, clotureLe: true, debutLe: true, revueLe: true } } },
   });
   let reprise: { ligne: PrioriteTerritoriale; client: ClientCase } | null = null;
   if (existante) {
@@ -107,9 +108,9 @@ export async function controlerCase(
       return { ok: false, conflit: "chevauchement", error: `${existante.commune} est déjà prioritaire pour cette profession, tenue par ${existante.client.nom} (premier arrivé). La case se libère à l'extinction de sa déclaration ; d'ici là, à arbitrer entre les deux structures.` };
     }
     const { client: c, ...ligne } = existante;
-    reprise = { ligne, client: { id: c.id, nom: c.nom, type: c.type, nature: c.nature } };
+    reprise = { ligne, client: { id: c.id, nom: c.nom, type: c.type, nature: c.nature, palier: c.palier } };
   }
-  const { palier, casesMax } = limitesDuType(client.type);
+  const { palier, casesMax } = limitesDuClient(client);
   if (casesMax !== null && (await casesTenues(client.id, maintenant)) >= casesMax) {
     return { ok: false, conflit: "plafond", error: `L'offre ${palier} compte ${casesMax} cases prioritaires au plus — retirer une case avant d'en ajouter une.` };
   }

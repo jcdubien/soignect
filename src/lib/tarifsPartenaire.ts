@@ -5,9 +5,9 @@
 // premiers partenaires, pour la première année, contre logo et retour d'expérience à six mois.
 // La CPTS Nord Basse-Terre n'est pas concernée : elle reste gratuite (conflit d'intérêts).
 
-import type { TypeInstitution } from "@prisma/client";
+import type { NatureRelationInstitutionnelle, PalierOffre, TypeInstitution } from "@prisma/client";
 
-export type ClePalier = "MSP" | "CPTS" | "ETABLISSEMENT" | "HOPITAL";
+export type ClePalier = PalierOffre;
 
 export interface TarifPartenaire {
   cle: ClePalier;
@@ -25,6 +25,10 @@ export interface TarifPartenaire {
   aPartirDe?: boolean;
   /** Portes de diffusion où cette ligne est celle du visiteur — mise en évidence. */
   portes: string[];
+  /** Palier gratuit (partenaire fondateur) : accès sans paiement, mêmes règles que les autres. */
+  gratuit?: boolean;
+  /** Hors grille publique : n'apparaît pas dans le bloc tarifaire des pages de diffusion. */
+  prive?: boolean;
   /** Payment Link Stripe (https://buy.stripe.com/…) au tarif de LANCEMENT, abonnement annuel.
    *  URL publique, pas un secret. Vide = pas de bouton de paiement sur la ligne. Les cinq places
    *  de lancement prises, remplacer le lien par celui du prix plein.
@@ -62,7 +66,23 @@ export const TARIFS_PARTENAIRE: TarifPartenaire[] = [
     prixAn: 4900, lancementAn: 2900, aPartirDe: true, portes: ["emploi"],
     lienPaiement: "https://buy.stripe.com/aFa5kEdWQ4yEbaM0uzeZ202",
   },
+  // Point 9 (22/10). Palier gratuit rattaché à une structure (`ClientInstitutionnel.palier`),
+  // pas un cas spécial du code : mêmes plafonds que l'offre CPTS (tout le territoire, cases sans
+  // plafond mais soumises à la densité du fil), même étiquette, même journal. Accordé à la CPTS
+  // Nord Basse-Terre (conflit d'intérêts, voir l'en-tête) ; hors grille publique.
+  {
+    cle: "PARTENAIRE_FONDATEUR", pour: "Partenaire fondateur",
+    contenu: "Tout le territoire, accès gratuit",
+    communesMax: null, casesMax: null,
+    prixAn: 0, lancementAn: 0, portes: [], gratuit: true, prive: true,
+  },
 ];
+
+/** Libellé court d'un palier, pour l'administration. */
+export const LIBELLE_PALIER: Record<ClePalier, string> = {
+  MSP: "MSP", ETABLISSEMENT: "Établissement", CPTS: "CPTS", HOPITAL: "Hôpital",
+  PARTENAIRE_FONDATEUR: "Partenaire fondateur (gratuit)",
+};
 
 /** Le palier de l'offre selon le type de structure. null = aucune offre publiée pour ce type
  *  (ARS, CGSS, autre) : sur devis, sans plafond codé — comme avant le point 7. */
@@ -74,11 +94,24 @@ export const PALIER_DU_TYPE: Record<TypeInstitution, ClePalier | null> = {
   ARS: null, CGSS: null, AUTRE: null,
 };
 
-/** Plafonds de l'offre d'un type de structure — communes et cases. */
-export function limitesDuType(type: TypeInstitution): { palier: ClePalier | null; communesMax: number | null; casesMax: number | null } {
-  const palier = PALIER_DU_TYPE[type];
+/** Le palier d'une structure : celui qui lui est rattaché, sinon celui de son type. */
+export function palierDuClient(client: { type: TypeInstitution; palier?: ClePalier | null }): ClePalier | null {
+  return client.palier ?? PALIER_DU_TYPE[client.type];
+}
+
+/** Plafonds de l'offre d'une structure — communes, cases — et gratuité de son palier. */
+export function limitesDuClient(client: { type: TypeInstitution; palier?: ClePalier | null }): {
+  palier: ClePalier | null; communesMax: number | null; casesMax: number | null; gratuit: boolean;
+} {
+  const palier = palierDuClient(client);
   const t = TARIFS_PARTENAIRE.find((x) => x.cle === palier);
-  return { palier, communesMax: t?.communesMax ?? null, casesMax: t?.casesMax ?? null };
+  return { palier, communesMax: t?.communesMax ?? null, casesMax: t?.casesMax ?? null, gratuit: t?.gratuit === true };
+}
+
+/** Accès gratuit : palier gratuit, ou relation qui n'est pas un client payant (PoC, gratuité
+ *  négociée). C'est la mention que le journal conserve pour séparer pilote et payant. */
+export function accesGratuit(client: { type: TypeInstitution; palier?: ClePalier | null; nature: NatureRelationInstitutionnelle }): boolean {
+  return limitesDuClient(client).gratuit || client.nature !== "CLIENT_PAYANT";
 }
 
 export function euros(n: number): string {

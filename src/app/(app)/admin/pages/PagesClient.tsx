@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LIBELLE_PALIER } from "@/lib/tarifsPartenaire";
 
 interface Client {
   id: string; nom: string; type: string; nature: string; active: boolean; revueLe: string;
   max: number | null; casesMax: number | null; priorites: number;
+  palier: string | null; palierDuType: string | null; gratuit: boolean;
   editeurs: { id: string; nom: string; fonction: string | null; email: string }[];
   page: { communes: string[]; demo: boolean; accord: "OUI" | "NON" | "DEMO"; lienPublic: string; lienEdition: string } | null;
 }
@@ -73,6 +75,16 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
               </button>
             </div>
           ))}
+          <div className="flex gap-2 items-center flex-wrap pt-1">
+            <label htmlFor={`palier-${client.id}`} className="text-gray-500 w-48 shrink-0">Palier de l&apos;offre</label>
+            <select id={`palier-${client.id}`} value={client.palier ?? ""}
+              onChange={(e) => poster({ action: "palier", palier: e.target.value || null }, () => "Palier enregistré.")}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1">
+              <option value="">Selon le type{client.palierDuType ? ` (${client.palierDuType})` : " (aucun)"}</option>
+              {Object.entries(LIBELLE_PALIER).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            {client.gratuit && <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 rounded px-1.5 py-0.5">Accès gratuit</span>}
+          </div>
           <div className="flex gap-2 items-center flex-wrap pt-1">
             <label htmlFor={`accord-${client.id}`} className="text-gray-500 w-48 shrink-0">Accord de la CPTS (nom publié)</label>
             <select id={`accord-${client.id}`} value={client.page.accord}

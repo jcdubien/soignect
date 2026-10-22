@@ -48,7 +48,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
   const journal = editeur
     ? await prisma.journalReglage.findMany({
         where: { clientId: page.clientId }, orderBy: { createdAt: "desc" }, take: 50,
-        select: { id: true, createdAt: true, commune: true, profession: true, action: true, niveauAvant: true, niveauApres: true, niveauApl: true, justification: true, auteurNom: true, motif: true },
+        select: { id: true, createdAt: true, commune: true, profession: true, action: true, niveauAvant: true, niveauApres: true, niveauApl: true, justification: true, auteurNom: true, motif: true, accesGratuit: true },
       })
     : [];
   const humaines = vues.filter((v) => !(v.metadata as { robot?: boolean } | null)?.robot);

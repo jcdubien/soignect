@@ -46,7 +46,7 @@ export default function BlocPartenaire({ profession, inscription, porteSlug }: {
             </tr>
           </thead>
           <tbody>
-            {TARIFS_PARTENAIRE.map((t) => {
+            {TARIFS_PARTENAIRE.filter((t) => !t.prive).map((t) => {
               const vous = t.portes.includes(porteSlug);
               return (
                 <tr key={t.cle} className={`border-b border-kine-100 ${vous ? "bg-white" : ""}`}>

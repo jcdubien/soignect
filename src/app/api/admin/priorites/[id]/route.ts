@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   const { niveau, note, expireLe } = parsed.data;
   const avant = await prisma.prioriteTerritoriale.findUnique({
-    where: { id }, include: { client: { select: { id: true, nom: true, type: true, nature: true } } },
+    where: { id }, include: { client: { select: { id: true, nom: true, type: true, nature: true, palier: true } } },
   });
   if (!avant) return NextResponse.json({ error: "Priorité introuvable." }, { status: 404 });
 
@@ -73,7 +73,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
   const ligne = await prisma.prioriteTerritoriale.findUnique({
-    where: { id }, include: { client: { select: { id: true, nom: true, type: true, nature: true } } },
+    where: { id }, include: { client: { select: { id: true, nom: true, type: true, nature: true, palier: true } } },
   });
   if (!ligne) return NextResponse.json({ error: "Priorité introuvable." }, { status: 404 });
   const { client, ...l } = ligne;

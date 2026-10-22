@@ -7408,6 +7408,30 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 318 — PALIER « PARTENAIRE FONDATEUR » (GRATUIT) RATTACHÉ À LA STRUCTURE ; « ACCÈS GRATUIT » AU JOURNAL (22/10)
+
+Point 9 de l'offre CPTS/MSP. Migration `20261022180000_palier_offre`.
+
+- **Palier rattaché à la structure** : `ClientInstitutionnel.palier` (enum `PalierOffre` : MSP,
+  ETABLISSEMENT, CPTS, HOPITAL, PARTENAIRE_FONDATEUR). `null` = palier déduit du type, comme
+  avant (`PALIER_DU_TYPE`). Réglable dans `/admin/pages` (« Palier de l'offre »).
+- **Partenaire fondateur** : une ligne de la grille `TARIFS_PARTENAIRE` (source unique), prix 0,
+  `gratuit`, `prive` (absente du bloc tarifaire public des pages de diffusion), mêmes plafonds
+  que l'offre CPTS (tout le territoire, cases sans plafond, densité du fil). Mêmes règles
+  (premier arrivé, réglages ±1, justification), même étiquette, même journal : aucun cas
+  spécial dans le code. `PERIMETRE_MAX` (par type) est remplacé par `limitesDuClient`.
+- **CPTS Nord Basse-Terre** : palier PARTENAIRE_FONDATEUR depuis le 22/10. Ses plafonds ne
+  changent pas (ceux d'une CPTS).
+- **Journal** : chaque ligne porte `palier` et `accesGratuit` au moment du geste.
+  `accesGratuit` = palier gratuit OU relation non payante (PoC, gratuité négociée) — Horizon,
+  PoC sur le palier CPTS, est donc aussi « accès gratuit ». Affiché « accès gratuit » sur
+  `/gestion`. Les lignes antérieures (aucune en production) ont ces champs vides.
+- **Reste en dur** : la configuration du module embarquable (`lib/embedTerritoire`) nomme le
+  client « CPTS Nord Basse-Terre » — c'est l'aiguillage du module vers son client, pas un accès.
+- **Essais** (22/10, schéma temporaire `essai_p9`, supprimé) : journal d'un fondateur → palier
+  et accès gratuit ; d'une CPTS payante → accès payant ; une MSP rattachée au palier fondateur
+  prend ses plafonds (9 cases posées), une MSP sans palier reste à 8.
+
 ### SECTION 317 — RÉGLAGES FINS DES CASES (±1 LIBRE, AU-DELÀ JUSTIFIÉ) ET JOURNAL EN AJOUT SEUL (22/10)
 
 Point 8 de l'offre CPTS/MSP. Migration `20261022120000_journal_reglage`.

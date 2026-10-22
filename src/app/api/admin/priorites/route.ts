@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   // passe son temps à fermer.
   const client = await prisma.clientInstitutionnel.findUnique({
     where: { id: clientId },
-    select: { id: true, nom: true, type: true, nature: true, clotureLe: true, revueLe: true, debutLe: true },
+    select: { id: true, nom: true, type: true, nature: true, palier: true, clotureLe: true, revueLe: true, debutLe: true },
   });
   if (!client) {
     return NextResponse.json({ error: "Relation institutionnelle introuvable." }, { status: 400 });

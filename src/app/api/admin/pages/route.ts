@@ -3,8 +3,10 @@ import { retirerCases } from "@/lib/casesPriorite";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { PalierOffre } from "@prisma/client";
 import { inseeOfCommune, COMMUNES_GUADELOUPE } from "@/lib/communes";
-import { PERIMETRE_MAX, nouveauJeton, synchroniserPrioritesApl } from "@/lib/pageClient";
+import { nouveauJeton, synchroniserPrioritesApl } from "@/lib/pageClient";
+import { LIBELLE_PALIER, limitesDuClient } from "@/lib/tarifsPartenaire";
 import { appBaseUrl } from "@/lib/appUrl";
 import { hash } from "bcryptjs";
 import { randomBytes } from "node:crypto";
@@ -32,6 +34,8 @@ const schema = z.discriminatedUnion("action", [
     fonction: z.string().trim().max(120).optional(),
   }),
   z.object({ action: z.literal("editeur-retrait"), clientId: z.string(), editeurId: z.string() }),
+  // Point 9 : palier rattaché à la structure ; null = celui de son type.
+  z.object({ action: z.literal("palier"), clientId: z.string(), palier: z.nativeEnum(PalierOffre).nullable() }),
 ]);
 
 export async function POST(req: NextRequest) {
@@ -81,14 +85,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // Le palier ne réécrit rien : ses plafonds s'appliquent aux prochains ajouts (lib/casesPriorite).
+  if (d.action === "palier") {
+    await prisma.clientInstitutionnel.update({ where: { id: client.id }, data: { palier: d.palier } });
+    return NextResponse.json({ ok: true });
+  }
+
   if (d.action === "perimetre") {
     const communes = Array.from(new Set(d.communes));
     if (communes.some((c) => !CODES_CONNUS.has(c))) {
       return NextResponse.json({ error: "Commune inconnue." }, { status: 400 });
     }
-    const max = PERIMETRE_MAX[client.type];
+    const { palier, communesMax: max } = limitesDuClient(client);
     if (max !== null && communes.length > max) {
-      return NextResponse.json({ error: `L'offre ${client.type} couvre ${max} commune${max > 1 ? "s" : ""} au plus.` }, { status: 400 });
+      return NextResponse.json({ error: `L'offre ${palier ? LIBELLE_PALIER[palier] : client.type} couvre ${max} commune${max > 1 ? "s" : ""} au plus.` }, { status: 400 });
     }
     await prisma.pageClient.upsert({
       where: { clientId: client.id },

@@ -21,7 +21,7 @@ interface LigneJournal {
   id: string; createdAt: string; commune: string; profession: string;
   action: "CREATION" | "MODIFICATION" | "RETRAIT";
   niveauAvant: number | null; niveauApres: number | null; niveauApl: number | null;
-  justification: string | null; auteurNom: string; motif: string | null;
+  justification: string | null; auteurNom: string; motif: string | null; accesGratuit: boolean | null;
 }
 
 const ACTION: Record<LigneJournal["action"], string> = { CREATION: "Ajout", MODIFICATION: "Réglage", RETRAIT: "Retrait" };
@@ -298,6 +298,7 @@ export default function GestionClient(props: {
                   {" "}· {j.auteurNom}
                   {j.justification && <span className="italic text-gray-500"> — « {j.justification} »</span>}
                   {j.motif && <span className="text-gray-500"> — {j.motif}</span>}
+                  {j.accesGratuit && <span className="text-gray-400"> · accès gratuit</span>}
                 </li>
               ))}
             </ul>

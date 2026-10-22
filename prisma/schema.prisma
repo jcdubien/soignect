@@ -830,6 +830,10 @@ model ClientInstitutionnel {
   nom       String                         @unique // « CPTS Nord Basse-Terre »
   type      TypeInstitution
   nature    NatureRelationInstitutionnelle
+  // Palier de l'offre (point 9, 22/10). null = déduit du type de structure (lib/tarifsPartenaire,
+  // `PALIER_DU_TYPE`). PARTENAIRE_FONDATEUR : gratuit, mêmes règles, même étiquette, même journal
+  // que les autres — ce qui le distingue est dans la grille, pas dans un cas spécial du code.
+  palier    PalierOffre?
   debutLe   DateTime
 
   // ⚠️ CE CHAMP EST UNE DATE DE REVUE, PAS UNE PREUVE DE FONCTION ACTIVE.
@@ -1040,6 +1044,14 @@ model PosteInvitation {
   @@index([invitedEmail])
 }
 
+enum PalierOffre {
+  MSP
+  ETABLISSEMENT
+  CPTS
+  HOPITAL
+  PARTENAIRE_FONDATEUR
+}
+
 enum ActionReglage {
   CREATION
   MODIFICATION
@@ -1071,6 +1083,10 @@ model JournalReglage {
   auteurId      String?
   auteurNom     String        @db.VarChar(160)
   motif         String?       @db.VarChar(300)
+  // Palier et gratuité au moment du réglage (point 9) : distingue pilote et payant dans la
+  // mesure. `accesGratuit` = palier gratuit, ou relation non payante (PoC, gratuité négociée).
+  palier        String?       @db.VarChar(40)
+  accesGratuit  Boolean?
 
   @@index([clientId, createdAt])
 }

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { COMMUNES_BY_ZONE, ZONE_LABELS, inseeOfCommune } from "@/lib/communes";
-import { PERIMETRE_MAX, relationActive } from "@/lib/pageClient";
-import { limitesDuType } from "@/lib/tarifsPartenaire";
+import { relationActive } from "@/lib/pageClient";
+import { LIBELLE_PALIER, PALIER_DU_TYPE, limitesDuClient } from "@/lib/tarifsPartenaire";
 import { appBaseUrl } from "@/lib/appUrl";
 import PagesClient from "./PagesClient";
 
@@ -33,8 +33,11 @@ export default async function AdminPagesPage() {
       clients={clients.map((c) => ({
         id: c.id, nom: c.nom, type: c.type, nature: c.nature,
         active: relationActive(c), revueLe: c.revueLe.toISOString(),
-        max: PERIMETRE_MAX[c.type],
-        casesMax: limitesDuType(c.type).casesMax,
+        max: limitesDuClient(c).communesMax,
+        casesMax: limitesDuClient(c).casesMax,
+        palier: c.palier,
+        palierDuType: PALIER_DU_TYPE[c.type] ? LIBELLE_PALIER[PALIER_DU_TYPE[c.type]!] : null,
+        gratuit: limitesDuClient(c).gratuit,
         priorites: c._count.priorites,
         editeurs: c.editeurs.map((e) => ({ id: e.id, nom: e.nom, fonction: e.fonction, email: e.user.email })),
         page: c.page ? {

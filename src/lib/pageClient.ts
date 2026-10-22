@@ -1,10 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import type { Profession, TypeInstitution } from "@prisma/client";
+import type { Profession } from "@prisma/client";
 import { libellesDuCode } from "@/lib/communes";
 import { paliersApl } from "@/lib/aplPalier";
-import { PALIER_DU_TYPE, limitesDuType } from "@/lib/tarifsPartenaire";
 import { AUTEUR_RECALCUL, controlerCase, poserCase, reglerCase, retirerCases } from "@/lib/casesPriorite";
 import { erreurReglage } from "@/lib/boostTerritorial";
 import { zonesPrioritairesDuClient, type ZonePrioritaire } from "@/lib/territoire";
@@ -18,12 +17,6 @@ import { zonesPrioritairesDuClient, type ZonePrioritaire } from "@/lib/territoir
 export function nouveauJeton(): string {
   return randomBytes(18).toString("base64url");
 }
-
-/** Nombre de communes que l'offre souscrite couvre — dérivé de la grille (lib/tarifsPartenaire,
- *  source unique), null = sans plafond. */
-export const PERIMETRE_MAX = Object.fromEntries(
-  (Object.keys(PALIER_DU_TYPE) as TypeInstitution[]).map((t) => [t, limitesDuType(t).communesMax]),
-) as Record<TypeInstitution, number | null>;
 
 export { libellesDuCode };
 
@@ -77,7 +70,7 @@ export async function synchroniserPrioritesApl(
 ): Promise<{ creees: number; modifiees: number; retirees: number; ignorees: number; reprises: number; horsPlafond: number; aRevoir: number }> {
   const page = await prisma.pageClient.findUniqueOrThrow({
     where: { clientId },
-    include: { client: { select: { id: true, nom: true, type: true, nature: true } } },
+    include: { client: { select: { id: true, nom: true, type: true, nature: true, palier: true } } },
   });
   const client = page.client;
   const auteur = AUTEUR_RECALCUL(saisiParId);

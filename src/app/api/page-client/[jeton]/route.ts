@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 async function pageDuJeton(jeton: string) {
   const page = await prisma.pageClient.findUnique({
     where: { jetonEdition: jeton },
-    include: { client: { select: { id: true, nom: true, type: true, nature: true, debutLe: true, revueLe: true, clotureLe: true } } },
+    include: { client: { select: { id: true, nom: true, type: true, nature: true, palier: true, debutLe: true, revueLe: true, clotureLe: true } } },
   });
   return page && relationActive(page.client) ? page : null;
 }
