@@ -7408,6 +7408,33 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 327 — UN ÉTABLISSEMENT NE PUBLIE QUE DU SALARIÉ : VACATION, CDD, CDI (22/10)
+
+- **Constat** (essai de bout en bout du 22/10) : un établissement voyait « Vacation · CDD · CDI ·
+  Salariat ». Les trois premières cartes étaient les types LIBÉRAUX renommés (remplacement,
+  assistanat, collaboration). La carte « CDD » publiait un assistanat libéral, affiché « CDD » sur
+  la carte et la page publique, vu des seuls candidats ouverts au salariat, et menant au contrat
+  d'assistanat CNOMK. Le vrai contrat de travail était sous « Salariat ». Les 4 offres « CDI » des
+  2 établissements existants sont des collaborations libérales : **laissées telles quelles**
+  (décision de JC).
+- **Formulaire établissement** : quatre cartes, toutes salariées — Vacation, CDD à terme précis,
+  CDD sans terme précis, CDI. **La vacation est salariée** (décision de JC) : un CDD court, dates
+  fixées, enregistré en CDD à terme précis (même contrat, mêmes dates exigées). Qualification
+  d'une vacation à l'hôpital public (vacataire de droit public) **à vérifier**. Un préréglage
+  libéral (`?needType=` du Planning, brouillon) est effacé ; l'extraction IA ne repose plus de type
+  libéral. Les cabinets ne changent pas.
+- **Modification** : la lecture d'une annonce (`GET /api/missions/[id]`) renvoie `estSalariat` et
+  `natureSalariat` ; une annonce salariée se rouvre en salariat avec sa nature, **verrouillée**
+  (la route de modification ne change ni l'un ni l'autre ; changer de carte n'aurait modifié que
+  la forme du poste). Une annonce libérale d'établissement se rouvre sur l'ancien écran.
+- **Message** : un CDD ou une vacation sans date de fin → « Renseignez les dates de début et de fin
+  du contrat » (et non « vos dates de disponibilité »).
+- **Essai** (22/10, schémas `essai_p16` puis `essai_p17`, supprimés ; 14 vignettes d'essai retirées
+  du stockage de production) : publication à l'écran d'une vacation (blocage sans date de fin,
+  puis publiée en CDD à terme salarié), lien du Planning sans carte cochée, CDI salarié rouvert
+  verrouillé et enregistré inchangé, ancienne offre libérale rouverte sur l'ancien écran, cabinet
+  inchangé, établissement aide-soignant (« Soignect ne le génère pas »), fils des candidats.
+
 ### SECTION 326 — DEMANDE DE PARTENARIAT : FORMULAIRE CPTS / MSP ET CONVERSION EN UN GESTE (22/10)
 
 - **Pourquoi** : sur la page territoire, « Échanger sur un partenariat » et « Devenir partenaire »

@@ -27,6 +27,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // une annonce dessus la fait passer en RECHERCHE (fusion, section 188).
       briqueStatus: true,
       missionType: true, dateFlexibility: true, cabinetPostId: true,
+      // Le formulaire rouvre une annonce salariée en salariat, avec sa nature (22/10) : sans ces
+      // deux champs, il la relisait par son seul `missionType`, en libéral.
+      estSalariat: true, natureSalariat: true,
       logementPropose: true, vehiculePropose: true, secretairePresente: true, exerciceCoordonne: true,
       remunerationBrute: true,
       demiJourneesLibres: true, caMensuelEstime: true,

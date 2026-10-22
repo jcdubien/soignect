@@ -106,6 +106,28 @@ const LIBELLE_NATURE: Record<NatureSalariatChoix, { titre: string; sous: string 
   CDD_SANS_TERME: { titre: "CDD sans terme précis",  sous: "Jusqu'au retour de la personne remplacée" },
 };
 
+// ── CE QU'UN ÉTABLISSEMENT CHOISIT (22/10) ───────────────────────────────────────────────────
+//
+// Un établissement voyait « Vacation · CDD · CDI · Salariat ». Les trois premières n'étaient que
+// les types LIBÉRAUX renommés (remplacement, assistanat, collaboration) : la carte « CDD »
+// publiait un assistanat libéral, affiché « CDD », vu des seuls candidats ouverts au salariat,
+// et menant au contrat d'assistanat CNOMK. Le vrai contrat de travail était rangé sous la
+// quatrième carte. Essai de bout en bout du 22/10 ; c'est le sort des 4 offres « CDI » des
+// deux établissements existants, laissées telles quelles (décision de JC).
+//
+// Un établissement publie désormais un poste SALARIÉ, sans autre choix : quatre cartes qui
+// disent directement la nature du contrat. La vacation est salariée (décision de JC, 22/10) :
+// un CDD court, dates fixées — enregistré en CDD à terme précis, même contrat, même règle de
+// dates. Une annonce LIBÉRALE déjà publiée par un établissement garde l'ancien écran quand on
+// la modifie : sa nature ne change pas en silence.
+type ChoixEmployeur = "VACATION" | NatureSalariatChoix;
+const CHOIX_EMPLOYEUR: { choix: ChoixEmployeur; nature: NatureSalariatChoix; icon: string; titre: string; sous: string; date: boolean }[] = [
+  { choix: "VACATION",       nature: "CDD_TERME",      icon: "📅", titre: "Vacation",              sous: "Quelques jours ou semaines, dates fixées (CDD court)", date: true },
+  { choix: "CDD_TERME",      nature: "CDD_TERME",      icon: "🗓️", titre: "CDD à terme précis",    sous: LIBELLE_NATURE.CDD_TERME.sous,      date: true },
+  { choix: "CDD_SANS_TERME", nature: "CDD_SANS_TERME", icon: "⏳", titre: "CDD sans terme précis", sous: LIBELLE_NATURE.CDD_SANS_TERME.sous, date: false },
+  { choix: "CDI",            nature: "CDI",            icon: "💼", titre: "CDI",                   sous: LIBELLE_NATURE.CDI.sous,            date: false },
+];
+
 const MISSION_TYPE_PAR_BESOIN: Record<Exclude<NeedType, "">, string> = {
   // `salariat` n'a pas de correspondance fixe : elle vient de la nature choisie.
   salariat: "REMPLACEMENT",
@@ -218,6 +240,23 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   // Nature du contrat salarié — n'a de sens que si `needType === "salariat"`. Pas de valeur par
   // défaut : c'est elle qui choisit le gabarit de contrat, la deviner serait deviner le document.
   const [natureSalariat, setNatureSalariat] = useState<NatureSalariatChoix | "">("");
+  // Choix de l'établissement (22/10) : la vacation et le CDD à terme précis partagent une nature,
+  // l'écran doit pourtant savoir laquelle des deux cartes est cochée.
+  const [choixEmployeur, setChoixEmployeur] = useState<ChoixEmployeur | "">("");
+  // Annonce LIBÉRALE d'un établissement, ouverte en modification : elle garde l'ancien écran.
+  const [editionLiberale, setEditionLiberale] = useState(false);
+  // Annonce SALARIÉE ouverte en modification : la route de modification ne change ni le salariat
+  // ni sa nature. Changer de carte ne modifierait que la forme du poste (un CDI deviendrait un
+  // « remplacement » toujours enregistré CDI). On le dit et on verrouille.
+  const [natureVerrouillee, setNatureVerrouillee] = useState(false);
+  const employeurSalarie = isEmployeur && salariatContractualisable && !editionLiberale;
+  function choisirEmployeur(c: ChoixEmployeur | "") {
+    if (natureVerrouillee) return;
+    const def = CHOIX_EMPLOYEUR.find((x) => x.choix === c);
+    setChoixEmployeur(c);
+    setNeedType(def ? "salariat" : "");
+    setNatureSalariat(def ? def.nature : "");
+  }
 
   // Poste précis du planning auquel lier l'annonce (section 92 / 55) — le futur
   // match s'attribuera directement à cette ligne du Planning Board. Stateful pour
@@ -344,15 +383,26 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
       const d = JSON.parse(raw);
       if (d?.form) setForm((prev) => ({ ...prev, ...d.form }));
       if (d?.needType) setNeedType(d.needType);
+      if (d?.natureSalariat) setNatureSalariat(d.natureSalariat);
+      if (d?.choixEmployeur) setChoixEmployeur(d.choixEmployeur);
       if (d?.cabinetPostId) setCabinetPostId(d.cabinetPostId);
       setDraftRestored(true);
       localStorage.removeItem(DRAFT_KEY);
     } catch { /* brouillon illisible : ignoré */ }
   }, []);
 
+  // Établissement en création : un type libéral prérempli (lien du Planning `?needType=…`,
+  // brouillon ancien) n'a pas de carte à l'écran — il partirait sans que rien ne l'affiche. On
+  // l'efface ; et une nature salariée sans carte cochée retrouve la sienne.
+  useEffect(() => {
+    if (!employeurSalarie || isEdit) return;
+    if (needType && needType !== "salariat") setNeedType("");
+    else if (needType === "salariat" && natureSalariat && !choixEmployeur) setChoixEmployeur(natureSalariat);
+  }, [employeurSalarie, isEdit, needType, natureSalariat, choixEmployeur]);
+
   function goAddPhoto() {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, needType, cabinetPostId }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, needType, natureSalariat, choixEmployeur, cabinetPostId }));
     } catch { /* quota indisponible : on redirige quand même */ }
     router.push("/compte?returnTo=/missions/create");
   }
@@ -364,10 +414,21 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
       .then((r) => (r.ok ? r.json() : null))
       .then((m) => {
         if (!m) return;
-        const nt: NeedType =
-          m.missionType === "ASSISTANAT" ? "assistant" :
-          m.missionType === "COLLABORATION" ? "collaboration" : "remplacement";
-        setNeedType(nt);
+        // Une annonce SALARIÉE se rouvre en salariat, avec sa nature : la relire par son seul
+        // `missionType` la rouvrait en remplacement ou en collaboration libérale, et
+        // l'enregistrer l'y faisait basculer (22/10).
+        if (m.estSalariat && m.natureSalariat) {
+          setNatureVerrouillee(true);
+          setNeedType("salariat");
+          setNatureSalariat(m.natureSalariat);
+          setChoixEmployeur(m.natureSalariat);
+        } else {
+          const nt: NeedType =
+            m.missionType === "ASSISTANAT" ? "assistant" :
+            m.missionType === "COLLABORATION" ? "collaboration" : "remplacement";
+          setNeedType(nt);
+          setEditionLiberale(true);
+        }
         if (m.cabinetPostId) setCabinetPostId(m.cabinetPostId);
         setForm((prev) => ({
           ...prev,
@@ -633,7 +694,8 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   // Applique l'extraction : ne REMPLIT que les champs réellement extraits (jamais d'écrasement
   // par une valeur vide — l'IA n'invente rien, on ne détruit rien non plus).
   function applyExtracted(f: Record<string, unknown>) {
-    if (typeof f.missionType === "string" && NEED_FROM_TYPE[f.missionType]) setNeedType(NEED_FROM_TYPE[f.missionType]);
+    // Un établissement ne publie que du salariat : l'extraction n'y repose pas un type libéral.
+    if (!employeurSalarie && typeof f.missionType === "string" && NEED_FROM_TYPE[f.missionType]) setNeedType(NEED_FROM_TYPE[f.missionType]);
     setForm((prev) => ({
       ...prev,
       // Accroche proposée (condensation du texte) — l'utilisateur la corrige, il ne l'écrit plus.
@@ -932,6 +994,12 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Type de besoin
             </label>
+            {natureVerrouillee && (
+              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 mb-2">
+                La nature du contrat ne se modifie pas sur une annonce publiée : retirez-la et
+                publiez-en une nouvelle pour changer de contrat.
+              </p>
+            )}
             {/* On DIT pourquoi le choix est réduit, au lieu de faire disparaître deux options
                 sans explication — sinon le titulaire cherche ce qu'il a mal fait. */}
             {seatOnly && (
@@ -954,6 +1022,38 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
                 intégrés.
               </div>
             )}
+            {employeurSalarie ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {CHOIX_EMPLOYEUR
+                    // Depuis sa propre ligne du Planning, on ne cherche qu'un poste daté.
+                    .filter((c) => !seatOnly || c.date)
+                    .map((c) => (
+                    <button
+                      key={c.choix}
+                      type="button"
+                      onClick={() => choisirEmployeur(choixEmployeur === c.choix ? "" : c.choix)}
+                      className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 text-center transition text-xs ${
+                        choixEmployeur === c.choix
+                          ? "border-kine-500 bg-kine-50 text-kine-700"
+                          : "border-gray-200 text-gray-500 hover:border-gray-300"
+                      }`}
+                    >
+                      <span className="text-xl">{c.icon}</span>
+                      <span className="font-semibold text-gray-800">{c.titre}</span>
+                      <span className="text-gray-400 leading-snug">{c.sous}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-2 leading-snug">
+                  Contrat de travail : déclaration préalable à l&apos;embauche, paie et cotisations vous
+                  incombent.{" "}
+                  {salarieSeul
+                    ? "Le contrat de travail est le vôtre, selon votre convention collective : Soignect ne le génère pas."
+                    : "Le contrat généré suit le modèle-type de votre ordre professionnel."}
+                </p>
+              </>
+            ) : (<>
             <div className={seatOnly ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 sm:grid-cols-4 gap-2"}>
               {[
                 { value: "remplacement"  as NeedType, icon: "📅", label: needTypeLabels.remplacement,  sub: needTypeSubLabels.remplacement },
@@ -983,7 +1083,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setNeedType(needType === opt.value ? "" : opt.value)}
+                  onClick={() => { if (!natureVerrouillee) setNeedType(needType === opt.value ? "" : opt.value); }}
                   className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 text-center transition text-xs ${
                     needType === opt.value
                       ? "border-kine-500 bg-kine-50 text-kine-700"
@@ -1011,7 +1111,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
                     <button
                       key={n}
                       type="button"
-                      onClick={() => setNatureSalariat(natureSalariat === n ? "" : n)}
+                      onClick={() => { if (!natureVerrouillee) setNatureSalariat(natureSalariat === n ? "" : n); }}
                       className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border-2 text-left transition text-xs ${
                         natureSalariat === n
                           ? "border-kine-500 bg-white text-kine-700"
@@ -1032,6 +1132,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
                 </p>
               </div>
             )}
+            </>)}
           </div>
         )}
 

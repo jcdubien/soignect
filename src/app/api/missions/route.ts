@@ -231,7 +231,8 @@ export async function POST(req: NextRequest) {
     (!startDate || !endDate)
   ) {
     return NextResponse.json(
-      { error: "Renseignez vos dates de disponibilité (du / au) avant de publier." },
+      // Un employeur ne publie pas une « disponibilité » : il date un contrat (22/10).
+      { error: salariat ? "Renseignez les dates de début et de fin du contrat avant de publier." : "Renseignez vos dates de disponibilité (du / au) avant de publier." },
       { status: 422 }
     );
   }
