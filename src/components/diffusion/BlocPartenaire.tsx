@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Profession } from "@/lib/pagesDiffusion";
-import { TARIFS_PARTENAIRE, euros } from "@/lib/tarifsPartenaire";
+import { TARIFS_PARTENAIRE, VENTE_EN_LIGNE_OUVERTE, euros } from "@/lib/tarifsPartenaire";
 
 // L'offre PARTENAIRE (section 301) — ce qui distingue une structure qui pilote un territoire
 // d'une structure qui pourvoit un poste.
@@ -53,7 +53,7 @@ export default function BlocPartenaire({ profession, inscription, porteSlug }: {
                   <td className="py-2 px-1">
                     <span className={`block ${vous ? "font-bold text-gray-900" : "font-semibold text-gray-700"}`}>{t.pour}</span>
                     <span className="block text-xs text-gray-500">{t.contenu}</span>
-                    {t.lienPaiement && (
+                    {VENTE_EN_LIGNE_OUVERTE && t.lienPaiement && (
                       <a
                         href={t.lienPaiement}
                         target="_blank"

@@ -9,6 +9,11 @@ import type { NatureRelationInstitutionnelle, PalierOffre, TypeInstitution } fro
 
 export type ClePalier = PalierOffre;
 
+/** Souscription en ligne (boutons « Souscrire en ligne », Payment Links Stripe). FERMÉE le 22/10
+ *  sur décision de JC : pas de vente tant que la relecture juridique de l'offre CPTS/MSP n'est
+ *  pas faite. Les liens restent dans la grille ; passer à true pour les réafficher. */
+export const VENTE_EN_LIGNE_OUVERTE = false;
+
 export interface TarifPartenaire {
   cle: ClePalier;
   pour: string;
