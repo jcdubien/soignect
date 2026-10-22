@@ -7408,6 +7408,22 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 322 — PARCOURS ÉTABLISSEMENT (2) : « SE CONNECTER » VISIBLE (22/10)
+
+- **Pages de diffusion à annonces** (`PagePorte` : les trois pages « emploi », et les pages
+  cabinet, maison de santé et infirmier qui partagent le gabarit) : « Déjà inscrit ? Se
+  connecter » sous le bandeau d'appel, vers `/login`. Aucune page de diffusion ne menait à la
+  connexion. Les trois pages historiques « chercheur » kiné (gabarit propre) ne changent pas.
+- **Inscription, écran 2** : « Déjà un compte ? Se connecter » sous le formulaire — c'est l'écran
+  où arrive un établissement venu d'une page « emploi » (l'écran 1 est sauté) ; le lien
+  n'existait que sur l'écran 1. Un seul composant (`DejaUnCompte`) pour les deux écrans ; la
+  cible de retour (`return_to`) est transmise à la connexion.
+- **Essai** (22/10, schéma temporaire `essai_p12`, supprimé) : lien présent sur les trois pages
+  « emploi » et sur la page maison de santé kiné ; clic → écran de connexion ; lien visible sous
+  le formulaire de l'écran 2 pour un établissement infirmier.
+- **Relevé** : l'écran de connexion porte la devise « Trouvez. Remplacez. Collaborez. »,
+  vocabulaire libéral pour un établissement (point 6 du parcours).
+
 ### SECTION 321 — PARCOURS ÉTABLISSEMENT (1) : ENTRÉE CLAIRE DEPUIS LES PAGES « EMPLOI » (22/10)
 
 Contexte : 17 emails de prospection (21/10) renvoient vers /emploi-kine, /emploi-infirmier,

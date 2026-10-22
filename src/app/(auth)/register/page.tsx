@@ -376,12 +376,7 @@ function RegisterForm() {
                 )}
               </div>
 
-              <p className="text-center text-sm text-gray-400 mt-8">
-                Déjà un compte ?{" "}
-                <Link href="/login" className="text-kine-600 font-semibold hover:underline">
-                  Se connecter
-                </Link>
-              </p>
+              <DejaUnCompte returnTo={returnTo} className="mt-8" />
             </>
           )}
 
@@ -589,6 +584,9 @@ function RegisterForm() {
                   </button>
                 </div>
               </form>
+              {/* Écran 2 : c'est là qu'arrive un établissement venu d'une page « emploi » (l'écran 1
+                  est sauté) — le lien de connexion n'existait que sur l'écran 1 (22/10). */}
+              <DejaUnCompte returnTo={returnTo} className="mt-6" />
             </>
           )}
 
@@ -700,5 +698,18 @@ function RegisterForm() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** « Déjà un compte ? Se connecter » — écrans 1 et 2. La cible de retour suit : quelqu'un venu
+ *  d'une annonce précise y revient après connexion. */
+function DejaUnCompte({ returnTo, className = "" }: { returnTo: string | null; className?: string }) {
+  return (
+    <p className={`text-center text-sm text-gray-400 ${className}`}>
+      Déjà un compte ?{" "}
+      <Link href={returnTo ? `/login?return_to=${encodeURIComponent(returnTo)}` : "/login"} className="text-kine-600 font-semibold hover:underline">
+        Se connecter
+      </Link>
+    </p>
   );
 }

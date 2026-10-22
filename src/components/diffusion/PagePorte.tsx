@@ -84,6 +84,11 @@ export default async function PagePorte({
           {porte.cta}
         </Link>
       </div>
+      {/* Retour d'un compte déjà inscrit (22/10) : aucune page de diffusion ne menait à /login. */}
+      <p className="-mt-5 mb-8 text-sm text-gray-500 text-right">
+        Déjà inscrit ?{" "}
+        <Link href="/login" className="font-semibold text-kine-700 underline">Se connecter</Link>
+      </p>
 
       <h2 className="text-lg font-bold text-gray-800 mb-4">
         {missions.length > 0
