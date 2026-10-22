@@ -7408,6 +7408,23 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 328 — PARCOURS ÉTABLISSEMENT (5) : SOIGNECT.VERCEL.APP REDIRIGÉ VERS L'ADRESSE PUBLIQUE (22/10)
+
+- **Constat** : `soignect.vercel.app` servait tout le site (canonical déjà sur www.soignect.fr) ;
+  la session ne se partageait pas entre les deux domaines.
+- **Redirection permanente (308)** dans `next.config.mjs` (`redirects`, condition d'hôte), hôte
+  EXACT `soignect.vercel.app`, vers l'adresse publique lue dans les mêmes variables que
+  `lib/appUrl` (AUTH_URL, puis NEXTAUTH_URL) ; sans adresse publique en https, aucune
+  redirection. Chemin et paramètres conservés.
+- **Exclus** : `/api/` et `/_next/` (un webhook ou une tâche configurés sur vercel.app ne suivent
+  pas une redirection) ; les aperçus Vercel (`soignect-git-…`) ; www.soignect.fr et localhost.
+- **Essai** (22/10, build de production local, en-tête Host simulé) : `/`, page d'entrée avec
+  paramètres, annonce, inscription établissement, réinitialisation → 308 vers www.soignect.fr ;
+  `/api/auth/csrf` 200 et `/api/stripe/webhook` non redirigés ; `/apiculture` redirigé (seul le
+  préfixe `api/` est exclu) ; aperçu, www et localhost inchangés.
+- **À vérifier (JC)** : l'URL du webhook Stripe et de tout rappel externe — si l'une pointe sur
+  vercel.app, elle continue de fonctionner (exclue), mais autant la passer sur www.soignect.fr.
+
 ### SECTION 327 — UN ÉTABLISSEMENT NE PUBLIE QUE DU SALARIÉ : VACATION, CDD, CDI (22/10)
 
 - **Constat** (essai de bout en bout du 22/10) : un établissement voyait « Vacation · CDD · CDI ·
