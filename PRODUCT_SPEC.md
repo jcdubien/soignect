@@ -7408,6 +7408,23 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 350 — ENCART : « PRÉPARER UN BESOIN » OUVRE LE FORMULAIRE PRÉREMPLI (23/10)
+
+- **Règle R5** `PREPARER_BESOIN` (lib/recommandationTerritoire) : une commune du premier quart
+  (palier 2) pour une profession affichée par la page, sans besoin en cours sur la case (brouillon,
+  à valider ou publié — toutes structures). **Une proposition par profession** : la commune la
+  moins bien placée. Aucune si la structure a déjà ses 10 besoins actifs ; information seule sur une
+  page de démonstration. Ordre : après « régler une commune », avant « données insuffisantes ».
+- **« Préparer… »** ouvre le formulaire du bloc Besoins prérempli (commune, profession), le met en
+  évidence et y amène l'éditeur ; rien n'est enregistré avant qu'il ne relise et enregistre.
+  Trace `preremplie` comme les autres règles.
+- **Effet en production** : la CPTS Nord Basse-Terre, qui voyait « Rien à proposer », verra une
+  proposition de besoin par profession disposant d'une APL (communes du premier quart).
+- **Essai** (schéma `essai_p31`, compte `.invalid`, à l'écran) : périmètre Pointe-Noire (3ᵉ sur 32)
+  et Deshaies (4ᵉ) pour le kiné → une proposition, Pointe-Noire ; « Préparer… » → formulaire
+  prérempli et surligné ; brouillon enregistré → la proposition passe à Deshaies ; traces
+  `affichee` et `preremplie`.
+
 ### SECTION 349 — ÉCRAN DES BESOINS DANS LA PAGE DE GESTION (23/10)
 
 - **Où** : `/gestion/<jeton>`, bloc « Besoins du territoire » après « Zones prioritaires »

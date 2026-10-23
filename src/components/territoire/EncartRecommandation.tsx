@@ -69,7 +69,7 @@ export default function EncartRecommandation(props: {
       {r.action && props.peutModifier && props.onAppliquer && (
         <button type="button" onClick={() => appliquer(r)}
           className="px-3 py-2 rounded-lg bg-[#5eead4] text-[#042f2e] text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">
-          {r.action.type === "retirer" ? "Voir la priorité…" : "Appliquer…"}
+          {r.action.type === "retirer" ? "Voir la priorité…" : r.action.type === "preparerBesoin" ? "Préparer…" : "Appliquer…"}
         </button>
       )}
       {props.peutModifier && (

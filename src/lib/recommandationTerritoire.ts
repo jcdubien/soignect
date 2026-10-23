@@ -27,18 +27,20 @@ export type RegleRecommandation =
   | "ABAISSER"              // R3 — niveau au-dessus du palier APL (≥ 1), sans justification
   | "RETIRER_SANS_APL"      // R3 bis — case ajoutée, APL dans la moyenne, sans justification
   | "COMMUNE_NON_REGLEE"    // R1 — palier APL ≥ 1, aucune priorité sur la case
+  | "PREPARER_BESOIN"       // R5 — palier 2, aucun besoin en cours sur la case (une par profession)
   | "DONNEES_INSUFFISANTES" // R6 — profession affichée sans aucune APL : rien à proposer
   | "REVUE_PROCHE";         // R7 — échéance de la relation dans moins de 30 jours
 
 /** Ordre d'affichage : ce qui est faux d'abord, puis ce qui manque, puis l'information. */
 export const ORDRE_REGLES: RegleRecommandation[] = [
-  "PRIORITE_ECHUE", "RELEVER", "ABAISSER", "RETIRER_SANS_APL", "COMMUNE_NON_REGLEE", "DONNEES_INSUFFISANTES", "REVUE_PROCHE",
+  "PRIORITE_ECHUE", "RELEVER", "ABAISSER", "RETIRER_SANS_APL", "COMMUNE_NON_REGLEE", "PREPARER_BESOIN", "DONNEES_INSUFFISANTES", "REVUE_PROCHE",
 ];
 
 export type ActionRecommandation =
   | { type: "ajouter"; codeInsee: string; profession: string; niveau: number }
   | { type: "regler"; prioriteId: string; niveau: number }
   | { type: "retirer"; prioriteId: string }
+  | { type: "preparerBesoin"; codeInsee: string; profession: string }
   | null;
 
 export interface Recommandation {
@@ -74,6 +76,9 @@ export function recommandationsDuTerritoire(e: {
   revueLe: string;
   /** Cases prioritaires permises par l'offre (null = sans plafond) et cases déjà tenues. */
   cases: { max: number | null; tenues: number };
+  /** Besoins du territoire (23/10) : cases ayant déjà un besoin en cours (brouillon, à valider,
+   *  publié — toutes structures) et besoins actifs de CETTE structure face au plafond. */
+  besoins?: { casesOccupees: string[]; actifs: number; max: number };
   maintenant?: Date;
 }): Recommandation[] {
   const maintenant = e.maintenant ?? new Date();
@@ -116,6 +121,27 @@ export function recommandationsDuTerritoire(e: {
     });
   }
 
+  // R5 — Préparer un besoin du territoire : case du premier quart (palier 2), sans besoin en cours,
+  // UNE proposition par profession (la commune la moins bien placée), et rien si la structure a
+  // déjà tous ses besoins actifs. Elle ouvre le formulaire prérempli ; rien n'est publié d'ici.
+  if (e.besoins && e.besoins.actifs < e.besoins.max) {
+    const occupees = new Set(e.besoins.casesOccupees);
+    const meilleures = new Map<string, PalierApl>();
+    for (const palier of e.paliers) {
+      if (palier.niveau !== 2) continue;
+      if (e.professionsPage.length > 0 && !e.professionsPage.includes(palier.profession)) continue;
+      if (occupees.has(`${palier.codeInsee}:${palier.profession}`)) continue;
+      const avant = meilleures.get(palier.profession);
+      if (!avant || palier.rang < avant.rang) meilleures.set(palier.profession, palier);
+    }
+    for (const palier of Array.from(meilleures.values())) {
+      recos.push({
+        regle: "PREPARER_BESOIN", codeInsee: palier.codeInsee, commune: nomDe(palier.codeInsee), profession: palier.profession,
+        palier, niveauActuel: null, action: agir({ type: "preparerBesoin", codeInsee: palier.codeInsee, profession: palier.profession }),
+      });
+    }
+  }
+
   // Professions affichées sans aucune donnée publique dans le périmètre — une seule ligne.
   const sansDonnees = e.professionsPage.filter((prof) => !e.paliers.some((p) => p.profession === prof));
   if (sansDonnees.length > 0) {
@@ -154,6 +180,8 @@ export function texteRecommandation(r: Recommandation, prof: string): { phrase: 
         return { phrase: `${r.commune} n'a pas de priorité pour ${prof}, alors que la commune est au ${rang}.`, parce: `Votre offre compte ${r.plafond} cases prioritaires, toutes utilisées : pour régler cette commune, retirez d'abord une case moins prioritaire.` };
       }
       return { phrase: `Régler ${r.commune} en priorité « ${acces} » pour ${prof}.`, parce: `Proposé parce que la commune est au ${rang} et n'a aucun réglage.` };
+    case "PREPARER_BESOIN":
+      return { phrase: `Préparer un besoin du territoire pour ${prof} à ${r.commune}.`, parce: `Proposé parce que la commune est au ${rang}, dans le premier quart, et qu'aucun besoin n'y est en cours pour cette profession. Le brouillon est prérempli ; vous le relisez avant toute publication.` };
     case "DONNEES_INSUFFISANTES":
       return { phrase: `Données insuffisantes pour ${prof}.`, parce: "Aucune donnée publique d'accessibilité n'est importée pour ces professions : Soignect ne recommande rien sans chiffre sourcé." };
     case "REVUE_PROCHE":

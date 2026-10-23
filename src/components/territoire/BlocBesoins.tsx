@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BESOINS_ACTIFS_MAX, CRITERES_VALIDATION, DUREE_PUBLICATION_JOURS, ETIQUETTE_PROPOSITION, LIMITES_BESOIN,
@@ -39,6 +39,9 @@ export default function BlocBesoins(props: {
   communes: { code: string; libelle: string }[];
   professions: { value: string; label: string }[];
   besoins: BesoinAffiche[];
+  /** Ouverture préremplie demandée par l'encart « Recommandation Soignect » (R5). */
+  prerempli?: { codeInsee: string; profession: string; n: number } | null;
+  surligne?: boolean;
 }) {
   const router = useRouter();
   const vide = (): Formulaire => ({
@@ -50,6 +53,11 @@ export default function BlocBesoins(props: {
   const [etat, setEtat] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
   const [archivesVisibles, setArchivesVisibles] = useState(false);
+  useEffect(() => {
+    if (!props.prerempli) return;
+    setForm({ ...vide(), codeInsee: props.prerempli.codeInsee, profession: props.prerempli.profession });
+    setApercu(false); setEtat(null);
+  }, [props.prerempli?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const label = (p: string) => props.professions.find((x) => x.value === p)?.label ?? p;
   const communeDe = (code: string) => props.communes.find((c) => c.code === code)?.libelle ?? code;
@@ -102,7 +110,7 @@ export default function BlocBesoins(props: {
   );
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div id="bloc-besoins" className={`bg-white rounded-xl border border-gray-200 p-5 ${props.surligne ? "ring-2 ring-[#5eead4]" : ""}`}>
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
         <p className="text-sm font-bold m-0">Besoins du territoire</p>
         <p className="text-xs text-gray-500 m-0">{actifs} / {BESOINS_ACTIFS_MAX} besoins actifs</p>

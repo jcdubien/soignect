@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { casesTenues } from "@/lib/casesPriorite";
 import { limitesDuClient } from "@/lib/tarifsPartenaire";
+import { BESOINS_ACTIFS_MAX } from "@/lib/besoinTerritoire";
 import { paliersApl } from "@/lib/aplPalier";
 import { libellesDuCode, prioritesDeLaPage } from "@/lib/pageClient";
 import { recommandationsDuTerritoire, texteRecommandation, cleRecommandation, type PrioriteEntree, type Recommandation } from "@/lib/recommandationTerritoire";
@@ -25,7 +26,7 @@ export async function recommandationsDeLaPage(page: {
   id: string; clientId: string; demo: boolean; communes: string[]; professions: string[];
   client: { nom: string; revueLe: Date };
 }): Promise<{ recommandations: RecommandationAffichee[]; source: SourceApl; resume: ResumeReglages }> {
-  const [priorites, paliers, ligneSource, client, tenues] = await Promise.all([
+  const [priorites, paliers, ligneSource, client, tenues, besoinsEnCours] = await Promise.all([
     page.demo
       ? prioritesDeLaPage(page as Parameters<typeof prioritesDeLaPage>[0], page.client.nom).then((zs) => zs.map((z): PrioriteEntree => ({
           id: `${z.codeInsee}-${z.profession}`, codeInsee: z.codeInsee, commune: z.commune, profession: z.profession,
@@ -43,12 +44,21 @@ export async function recommandationsDeLaPage(page: {
     }),
     prisma.clientInstitutionnel.findUniqueOrThrow({ where: { id: page.clientId }, select: { type: true, palier: true } }),
     casesTenues(page.clientId),
+    prisma.besoinTerritoire.findMany({
+      where: { codeInsee: { in: page.communes }, statut: { in: ["BROUILLON", "A_VALIDER", "PUBLIE"] } },
+      select: { codeInsee: true, profession: true, clientId: true, statut: true },
+    }),
   ]);
   const brutes = recommandationsDuTerritoire({
     clientId: page.clientId, demo: page.demo,
     communes: page.communes.map((c) => ({ code: c, libelle: libellesDuCode(c)[0] ?? c })),
     professionsPage: page.professions, paliers, priorites, revueLe: page.client.revueLe.toISOString(),
     cases: { max: limitesDuClient(client).casesMax, tenues },
+    besoins: {
+      casesOccupees: besoinsEnCours.map((b) => `${b.codeInsee}:${b.profession}`),
+      actifs: besoinsEnCours.filter((b) => b.clientId === page.clientId && b.statut !== "BROUILLON").length,
+      max: BESOINS_ACTIFS_MAX,
+    },
   });
   const lib = (p: string) => PROFESSION_LABELS[p as Profession] ?? p;
   const recommandations: RecommandationAffichee[] = brutes.map((r) => {

@@ -72,11 +72,17 @@ export default function GestionClient(props: {
   // « Appliquer… » de l'encart (23/10) : PRÉREMPLIT le formulaire existant et y amène l'éditeur.
   // L'enregistrement reste le bouton habituel — mêmes contrôles, même journal.
   const [surlignee, setSurlignee] = useState<string | null>(null);
+  // « Préparer un besoin » (R5) : le formulaire du bloc Besoins s'ouvre prérempli ; `n` force
+  // la réouverture si la même proposition est cliquée deux fois.
+  const [besoinPrerempli, setBesoinPrerempli] = useState<{ codeInsee: string; profession: string; n: number } | null>(null);
   function preremplir(a: NonNullable<ActionRecommandation>) {
     let cible: string;
     if (a.type === "ajouter") {
       setAjout({ codeInsee: a.codeInsee, profession: a.profession, niveau: a.niveau, justification: "" });
       cible = "form-ajout";
+    } else if (a.type === "preparerBesoin") {
+      setBesoinPrerempli({ codeInsee: a.codeInsee, profession: a.profession, n: Date.now() });
+      cible = "bloc-besoins";
     } else {
       const p = props.priorites.find((x) => x.id === a.prioriteId);
       if (a.type === "regler") setReglage({ id: a.prioriteId, niveau: a.niveau, justification: p?.justification ?? "" });
@@ -299,6 +305,8 @@ export default function GestionClient(props: {
         communes={props.communes}
         professions={props.professionsToutes}
         besoins={props.besoins.liste}
+        prerempli={besoinPrerempli}
+        surligne={surlignee === "bloc-besoins"}
       />
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
