@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { waitUntil } from "@vercel/functions";
 import { logTraceEvent, logTraceEventAttendu } from "@/lib/trace";
 
 // Trace de fréquentation des pages d'entrée publiques (section 86).
@@ -56,9 +57,11 @@ export async function tracerVueLanding(page: string, annonces: number): Promise<
 export async function tracerOuvertureInscription(o: { src: string | null; type: string | null; etablissement: boolean; profession: string | null }): Promise<void> {
   try {
     const h = await headers();
-    // ATTENDUE, bornée à 1,5 s : cette page répond trop vite pour qu'une écriture lancée sans
-    // attendre aboutisse sur Vercel (voir logTraceEventAttendu).
-    await Promise.race([logTraceEventAttendu({
+    // CONFIÉE À `waitUntil` (23/10) : la réponse part tout de suite, et Vercel garde la fonction
+    // en vie jusqu'à la fin de l'écriture. Lancée sans attendre, l'écriture n'aboutissait pas (la
+    // fonction était figée) ; attendue, elle ajoutait ~450 ms à l'ouverture (base à Paris,
+    // fonctions à Washington). Hors Vercel, `waitUntil` ne fait rien et l'écriture suit son cours.
+    waitUntil(logTraceEventAttendu({
       eventType: "INSCRIPTION_OUVERTE",
       profession: o.profession?.slice(0, 40) ?? null,
       metadata: {
@@ -68,7 +71,7 @@ export async function tracerOuvertureInscription(o: { src: string | null; type: 
         robot: estRobot(h.get("user-agent")),
         referent: domaine(h.get("referer")),
       },
-    }), new Promise((r) => setTimeout(r, 1500))]);
+    }));
   } catch {
     // Une trace ne doit jamais empêcher la page de s'afficher.
   }

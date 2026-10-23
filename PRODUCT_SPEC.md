@@ -7408,6 +7408,16 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 336 — TRACE D'OUVERTURE DE L'INSCRIPTION CONFIÉE À `waitUntil` (23/10)
+
+- L'écriture attendue (section 329) ajoutait ~450 ms à l'ouverture de `/register` : fonctions à
+  Washington (`iad1`), base à Paris. Elle est désormais confiée à `waitUntil`
+  (`@vercel/functions`, version épinglée 3.9.11) : la réponse part tout de suite, Vercel garde la
+  fonction en vie jusqu'à la fin de l'écriture. Hors Vercel, l'écriture suit son cours.
+- **Décision de JC (23/10)** : la région des fonctions doit être proche de la base (Paris). Essai
+  de `cdg1` sur une préproduction après le passage au plan Pro, mesuré avant/après depuis la
+  Guadeloupe sur `/register`, une page emploi et le fil.
+
 ### SECTION 335 — ÉTIQUETTE « ROBOT » SUR LA TRACE DES VISITES D'ANNONCES (23/10)
 
 - Le pic du 22/10 (1 380 passages sur 46 annonces publiques en deux heures, jusqu'à 98 par minute)
