@@ -92,11 +92,11 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
           : <span className="text-gray-400">aucun</span>}
         <label className="underline cursor-pointer">
           {envoiLogo ? "Envoi…" : client.logoUrl ? "Remplacer" : "Déposer un logo"}
-          <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={envoiLogo}
+          <input type="file" accept="image/png,image/jpeg" className="sr-only" disabled={envoiLogo}
             onChange={(e) => { deposerLogo(e.target.files?.[0]); e.target.value = ""; }} />
         </label>
         {client.logoUrl && <button onClick={retirerLogo} className="text-red-600 underline">Retirer</button>}
-        <span className="text-gray-400 w-full sm:w-auto">PNG, JPEG ou WebP, 2 Mo au plus. Sur la page publique, affiché seulement si l&apos;accord est « Oui ».</span>
+        <span className="text-gray-400 w-full sm:w-auto">PNG ou JPEG, 1 Mo au plus (SVG refusé). Sur la page publique : seulement si l&apos;accord est « Oui », jamais sur une page de démonstration.</span>
       </div>
 
       {client.page && (

@@ -53,8 +53,9 @@ export default async function PageClientPublique({ params }: { params: Promise<{
             Démonstration — page d&apos;exemple, non publiée par une institution.
           </p>
         )}
-        {/* Logo (23/10) : même règle que le nom — seulement avec l'accord de la structure. */}
-        {nomPublie && page.client.logoUrl && (
+        {/* Logo (23/10) : seulement avec l'accord de la structure, et jamais sur une page de
+            démonstration (même si l'accord est noté). */}
+        {nomPublie && !page.demo && page.client.logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={page.client.logoUrl} alt={`Logo de ${nomPublie}`} className="h-12 w-auto max-w-[180px] object-contain mb-2" />
         )}

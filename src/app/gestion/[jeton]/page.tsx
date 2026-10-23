@@ -68,7 +68,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
           editeur={editeur ? { nom: editeur.nom } : null}
           lienConnexion={`/login?return_to=${encodeURIComponent(`/gestion/${jeton}`)}`}
           nom={page.client.nom}
-          logoUrl={page.client.logoUrl}
+          logoUrl={page.demo ? null : page.client.logoUrl}
           active={active}
           demo={page.demo}
           revueLe={page.client.revueLe.toISOString()}

@@ -7408,6 +7408,22 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 346 — LOGO : PNG OU JPEG, 1 MO, SVG REFUSÉ, JAMAIS SUR UNE PAGE DE DÉMONSTRATION (23/10)
+
+Décisions de JC (23/10) sur la section 344 :
+- **Formats** : PNG ou JPEG seulement, 1 Mo au plus. Le type déclaré ne suffit pas : le contenu est
+  relu, et un SVG ou un WebP présenté comme PNG est refusé.
+- **Affichage** : page publique `/p` seulement si l'accord est « Oui » **et** que la page n'est pas
+  une démonstration (même si l'accord y est noté) ; page de gestion d'une démonstration : pas de
+  logo.
+- **Stockage sans transformation d'image Vercel** : le logo est réécrit une fois au dépôt (PNG de
+  512 px au plus, métadonnées retirées), dans la fonction, puis servi tel quel depuis le stockage
+  par une balise `<img>` — aucune URL `/_next/image`, aucun quota de transformations consommé.
+- **Essai** (schéma `essai_p27`) : SVG (déclaré SVG ou PNG), WebP (déclaré WebP ou PNG), fichier de
+  1 Mo + 1 octet → 400 ; PNG et JPEG → 200 ; page publique avec accord « Oui » → logo ; page de
+  démonstration avec accord « Oui » → pas de logo (publique comme gestion) ; accord « Non » → pas de
+  logo ; aucune URL `/_next/image`. Logos d'essai retirés, dossier de stockage vide.
+
 ### SECTION 345 — BESOINS : CRITÈRES DE VALIDATION ÉCRITS, VALIDATEUR NOMMÉ, STRUCTURE LIÉE À L'ADMINISTRATEUR (23/10)
 
 - **Décisions de JC (23/10)** : 90 jours renouvelables ; 10 besoins actifs par structure, pour

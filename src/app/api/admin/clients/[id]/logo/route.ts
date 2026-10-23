@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { effacerLogo, erreurFichierLogo, stockerLogo } from "@/lib/logoClient";
+import { LogoRefuse, effacerLogo, erreurFichierLogo, stockerLogo } from "@/lib/logoClient";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +27,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     logoUrl = await stockerLogo(id, Buffer.from(await file.arrayBuffer()));
   } catch (e) {
+    if (e instanceof LogoRefuse) return NextResponse.json({ error: e.message }, { status: 400 });
     console.error("[logo] dépôt impossible:", e);
-    return NextResponse.json({ error: "Ce fichier n'a pas pu être lu comme une image." }, { status: 400 });
+    return NextResponse.json({ error: "Dépôt impossible pour le moment." }, { status: 500 });
   }
   await prisma.clientInstitutionnel.update({ where: { id }, data: { logoUrl } });
   return NextResponse.json({ ok: true, logoUrl });
