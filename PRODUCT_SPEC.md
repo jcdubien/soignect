@@ -7421,11 +7421,10 @@ disposition ne le montre ; seul un partage depuis un téléphone tranche.
   AVANT tout score, puis ordonne le reste par `ordonnerAvecDensite` (densité 1 sur 3 et boost
   territorial inchangés, la fenêtre commence après elles). Sans fondateur dans le fil, l'ordre est
   identique à l'ancien. Le fil (`/api/feed`) l'utilise.
-- **Mention** : dans la phrase de transparence de la vue Cartes du fil (SwipeStack, « Ordre
-  d'affichage : … »), « Le cabinet fondateur de la plateforme apparaît en premier. » s'ajoute
-  seulement quand le fondateur est en tête de CE fil (en-tête `x-feed-fondateur-en-tete`), comme la
-  mention de priorité territoriale. Pas de page séparée « comment fonctionne le classement » dans le
-  produit : c'est cette phrase qui en tient lieu.
+- **Mention retirée (23/10, décision de JC)** : « le cabinet fondateur de la plateforme apparaît
+  en premier » a été ajoutée puis retirée le même jour (« ça n'a pas à être connu »), avec son
+  en-tête `x-feed-fondateur-en-tete`. L'ordre, lui, reste garanti par `ordonnerFil`. La mention de
+  transparence du fil dit toujours que les comptes abonnés et partenaires apparaissent en premier.
 - **Tests** (`npm test`, `src/lib/__tests__/classementFondateur.test.ts`, 7 cas) : égalité Boost +
   CPTS, Premium + CPTS + boost maximal, densité 1 sur 3 avec plusieurs annonces boostées, override
   administrateur à 100, plusieurs annonces fondatrices, ordre inchangé sans fondateur. **Essai de bout

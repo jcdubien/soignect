@@ -613,9 +613,6 @@ export async function GET(req: NextRequest) {
       // prioritaires » que lorsque c'est vrai POUR CE LECTEUR, et se taire sinon. C'est ce qui
       // manquait avant le 17/08 — la phrase était écrite en dur et affirmait toujours.
       "x-feed-priorite-territoriale": String(misesEnAvantTerritoire.length),
-      // Cabinet fondateur en tête de CE fil (23/10) : la mention ne le dit que lorsque c'est vrai
-      // pour ce lecteur, comme pour la priorité territoriale.
-      "x-feed-fondateur-en-tete": missions[0]?.profile.isFounding ? "1" : "0",
       // B2 (20/08) — les institutions à créditer, pour que la mention les NOMME. Deux versions
       // de cette phrase ont déjà été fausses faute de pouvoir désigner un auteur ; elle ne
       // revient qu'adossée à des lignes `PrioriteTerritoriale` réelles, portées par une relation
