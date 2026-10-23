@@ -862,6 +862,7 @@ model ClientInstitutionnel {
   priorites PrioriteTerritoriale[]
   page      PageClient?
   editeurs  EditeurClient[]
+  besoins   BesoinTerritoire[]
 }
 
 enum OriginePriorite {
@@ -1062,6 +1063,87 @@ enum ActionReglage {
 // SQL refuse UPDATE, DELETE et TRUNCATE (migration 20261022120000) ; RLS activée. Aucune clé
 // étrangère : une ligne de journal survit à la case, au client et au compte qu'elle nomme —
 // c'est sa raison d'être. Champs figés à l'écriture, lisibles sans jointure.
+// ── BESOIN DU TERRITOIRE (23/10) ─────────────────────────────────────────────────────────────
+//
+// Une structure (CPTS, MSP…) publie un manque de son territoire : « pas de dermatologue au
+// Lamentin ». CE N'EST PAS UNE MISSION : ni contrat, ni rémunération, ni période — d'où une table
+// distincte, qui ne touche ni `EST_UNE_OFFRE`, ni les statistiques d'ouverture, ni les contrats.
+// Piloté depuis la page de gestion de la structure (éditeurs nommés). Règles : lib/besoinTerritoire.
+enum NatureBesoin {
+  INSTALLATION_LIBERALE
+  EXERCICE_MSP
+  VACATIONS
+  SALARIE
+}
+
+// BROUILLON → (demande) → A_VALIDER (première publication d'une structure, validée par
+// l'administration) ou PUBLIE → ARCHIVE. Un brouillon refusé revient en BROUILLON, avec le motif.
+enum StatutBesoin {
+  BROUILLON
+  A_VALIDER
+  PUBLIE
+  ARCHIVE
+}
+
+model BesoinTerritoire {
+  id          String       @id @default(cuid())
+  clientId    String
+  client      ClientInstitutionnel @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  codeInsee   String
+  commune     String
+  profession  Profession
+  specialite  String?      @db.VarChar(80)
+  nature      NatureBesoin
+  texte       String       @db.VarChar(1000)
+  // Ce que la structure propose (locaux, accompagnement…) — affiché « déclaré par la structure ».
+  proposition String?      @db.VarChar(500)
+  statut      StatutBesoin @default(BROUILLON)
+  publieLe    DateTime?
+  expireLe    DateTime?
+  valideLe    DateTime?    // première validation par l'administration
+  motifRefus  String?      @db.VarChar(300)
+  creeParId   String       // User.id de l'éditeur
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([statut, profession])
+  @@index([clientId])
+  @@index([codeInsee, profession])
+}
+
+enum ActionBesoin {
+  CREATION
+  MODIFICATION
+  DEMANDE_PUBLICATION
+  VALIDATION
+  REFUS
+  PUBLICATION
+  RENOUVELLEMENT
+  ARCHIVAGE
+}
+
+// Journal en AJOUT SEUL (déclencheur SQL), comme JournalReglage : il survit au besoin et à la
+// structure (pas de clé étrangère), et nomme son auteur.
+model JournalBesoin {
+  id          String       @id @default(cuid())
+  createdAt   DateTime     @default(now())
+  besoinId    String
+  clientId    String
+  clientNom   String       @db.VarChar(200)
+  codeInsee   String
+  commune     String
+  profession  Profession
+  action      ActionBesoin
+  statutAvant String?      @db.VarChar(20)
+  statutApres String       @db.VarChar(20)
+  auteurId    String?
+  auteurNom   String       @db.VarChar(160)
+  motif       String?      @db.VarChar(300)
+
+  @@index([clientId, createdAt])
+  @@index([besoinId])
+}
+
 model JournalReglage {
   id            String        @id @default(cuid())
   createdAt     DateTime      @default(now())

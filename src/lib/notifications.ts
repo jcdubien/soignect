@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 // quand le signal partait sur une vue (avant la section 223). Les retirer du type les priverait
 // de leur icône sans rien corriger à leur contenu, qui reste vrai de ce qui s'est passé.
 // Les nouvelles sont émises avec « interet ».
-export type NotificationType = "message" | "match" | "signature" | "consultation" | "interet" | "partenariat";
+export type NotificationType = "message" | "match" | "signature" | "consultation" | "interet" | "partenariat" | "besoin";
 
 export async function createNotification(opts: {
   userId: string | null | undefined;

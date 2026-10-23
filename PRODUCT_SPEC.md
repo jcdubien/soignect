@@ -7408,6 +7408,42 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 343 — OBJET « BESOIN DU TERRITOIRE » : TABLE, JOURNAL, GARDE-FOUS (23/10)
+
+Étape 2 du chantier, lancée par JC le 23/10. Pas encore d'écran éditeur ni d'affichage (fil, /p,
+pages métier) : ce sont les étapes suivantes.
+
+- **Table distincte** `BesoinTerritoire` (migration additive `20261023180000_besoin_territoire`,
+  appliquée en production le 23/10 via `prisma db execute`, RLS activée, 0 ligne) : structure,
+  commune du périmètre, profession, spécialité facultative, nature (installation libérale, exercice
+  en MSP, vacations, poste salarié), texte, ce que la structure propose (« déclaré par la
+  structure »), statut, échéance. Aucun lien avec `Mission` : `EST_UNE_OFFRE`, statistiques
+  d'ouverture et contrats inchangés.
+- **Journal** `JournalBesoin` en ajout seul (déclencheurs SQL), sans clé étrangère, au nom de
+  l'auteur : création, modification, demande de publication, validation, refus, publication,
+  renouvellement, archivage.
+- **Cycle** : brouillon → première publication d'une structure **à valider** par l'administration
+  (`/admin/besoins`, notification « besoin ») → publié 90 jours, renouvelable → archivé. Les
+  publications suivantes d'une structure déjà validée sont directes. Un refus se motive et renvoie
+  en brouillon. Seul un brouillon se modifie. Échéance passée : archivé automatiquement (journal
+  « Soignect (échéance) ») avant tout contrôle.
+- **Garde-fous** (lib/besoinTerritoire, source unique) : aucun numéro, email ni lien dans les
+  textes (contact par la messagerie Soignect) ; commune du périmètre de la page ; un seul besoin
+  actif par commune × profession × spécialité, toutes structures (premier arrivé), tenu aussi par
+  un index unique partiel en base ; 10 besoins actifs par structure. **À valider par JC** : 90 jours
+  et 10 besoins.
+- **Pilotage** depuis la page de gestion de la structure (`/api/page-client/<jeton>/besoins`,
+  éditeurs nommés ; page de démonstration en lecture seule). Demande de JC : une page du même type,
+  plus simple, pour les MSP — à faire.
+- **Contact provisoire** : la structure n'a pas de compte Soignect ; la messagerie suppose le point
+  « structure typée ». En attendant : un bouton « Je suis intéressé » (étape « affichage »).
+- **Essai** (schéma `essai_p25`, migration rejouée, comptes `.invalid`) : numéro, email, commune
+  hors périmètre → 400 ; sans session → 403 ; démo → 409 ; refus sans motif → 400 ; refus motivé →
+  brouillon ; validation → publié 90 jours ; même case par une autre structure → 409 ; autre
+  spécialité → acceptée ; 2ᵉ besoin d'une structure validée → publié directement ; renouvellement,
+  archivage ; échéance passée → archivé ; doublon actif inséré en SQL → refusé par l'index ;
+  modification ou suppression du journal → refusée.
+
 ### SECTION 342 — « APPLIQUER… » PRÉREMPLIT LE RÉGLAGE, L'ÉDITEUR CONFIRME (23/10)
 
 Étape 4. Sur une proposition qui a une action (éditeur connecté, page réelle) :

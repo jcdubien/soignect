@@ -15,6 +15,7 @@ const NAV = [
   { href: "/admin/priorites", label: "Priorités territoriales" },
   { href: "/admin/pages", label: "Pages clients" },
   { href: "/admin/partenariats", label: "Demandes de partenariat" },
+  { href: "/admin/besoins", label: "Besoins à valider" },
   { href: "/admin/apl", label: "Données APL" },
   { href: "/admin/config", label: "Configuration" },
 ];
