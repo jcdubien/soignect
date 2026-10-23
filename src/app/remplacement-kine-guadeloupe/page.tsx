@@ -53,7 +53,7 @@ async function getMissions() {
   // corrections apprises ici — macro-zones ET communes acceptées, expiration écrite en positif.
   return prisma.mission.findMany({
     where: filtreAnnoncesVivantes(GUADELOUPE_ZONES, GUADELOUPE_COMMUNES, PRO.enumBase, PORTES.CHERCHEUR.montre),
-    include: { profile: { select: { type: true, titulaireKind: true, name: true, ratingAvg: true } } },
+    include: { profile: { select: { type: true, titulaireKind: true, ratingAvg: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     take: 8,
   });

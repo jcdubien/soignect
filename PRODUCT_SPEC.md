@@ -7408,6 +7408,26 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 340 — AUCUN NOM DANS LES DONNÉES GOOGLE JOBS D'UNE ANNONCE PUBLIQUE (23/10)
+
+- **Constat** (audit anonyme de la production, 23/10) : sur les 76 annonces ouvertes, le nom du
+  profil sortait en clair dans `hiringOrganization.name` du JobPosting, deux fois par page (balise
+  de script et données de rendu), alors que l'écran le réserve aux membres. Les 53 annonces de
+  candidats étaient aussi décrites comme des offres d'emploi, leur auteur comme « employeur ».
+  Ailleurs (plan du site, pages de diffusion, page partenaire, module CPTS, API publiques, titres,
+  descriptions, images de partage) : aucun nom de profil. Les mentions légales nomment l'éditeur
+  du site, comme la loi l'exige.
+- **Arbitrage de JC** : `hiringOrganization.name` = « Cabinet de santé » ou « Établissement de
+  santé », jamais un nom ; aucune donnée structurée pour une annonce de candidat. Le nom n'est
+  plus lu par la page d'annonce ni par les trois pages « remplacement kiné » (il n'y était pas
+  affiché).
+- **Restent, signalés à JC, non traités** : 3 accroches de candidats contiennent leur prénom
+  (texte saisi par eux, entier dans les cartes des pages de diffusion) ; la photo du profil sert de
+  fond à l'image de partage, candidats compris ; `check-email` dit si une adresse a un compte.
+- **Essai** (schéma `essai_p22`, comptes `.invalid`) : cabinet → « Cabinet de santé »,
+  établissement → « Établissement de santé », candidat → aucune donnée structurée ; aucun nom sur
+  les pages de diffusion ni dans le plan du site.
+
 ### SECTION 339 — PACK WHATSAPP DE LA SEMAINE, À ENVOYER À LA MAIN (23/10)
 
 - **Demande de JC** : vu l'usage de WhatsApp aux Antilles, les notifications devraient passer par

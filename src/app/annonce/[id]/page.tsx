@@ -51,7 +51,7 @@ async function getMission(id: string) {
       minMonths: true, missionType: true, natureSalariat: true, estSalariat: true, pitch: true, bioTinder: true,
       demiJourneesLibres: true, caMensuelEstime: true, remunerationBrute: true, // feature terrain
       createdAt: true, updatedAt: true, vignetteAt: true,
-      profile: { select: { profession: true, name: true, region: true, titulaireKind: true, type: true } },
+      profile: { select: { profession: true, region: true, titulaireKind: true, type: true } },
     },
   });
 }
@@ -76,7 +76,10 @@ function jobPostingLd(m: NonNullable<Awaited<ReturnType<typeof getMission>>>, ur
   const description =
     (m.pitch ?? m.bioTinder ?? `${type} en Guadeloupe`).trim() +
     ` — ${type} · ${m.location} · ${periodLabel(m)}.`;
-  const orgName = m.profile.name ?? (estEtablissement(m.profile) ? "Établissement de santé" : "Cabinet de santé");
+  // JAMAIS le nom du profil (23/10, arbitrage JC) : il sortait en clair dans le code source de
+  // chaque annonce publique (et dans les données de rendu), lu par Google et tout robot, alors que
+  // l'écran le réserve aux membres. Un libellé générique selon le type d'employeur.
+  const orgName = estEtablissement(m.profile) ? "Établissement de santé" : "Cabinet de santé";
   return {
     "@context": "https://schema.org/",
     "@type": "JobPosting",
@@ -178,11 +181,15 @@ export default async function PublicAnnoncePage({ params, searchParams }: {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-kine-900 via-kine-700 to-kine-500 flex flex-col items-center px-4 py-10">
-      {/* Données structurées JobPosting (Google Jobs, section 158) */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingLd(m, canonicalUrl)) }}
-      />
+      {/* Données structurées JobPosting (Google Jobs, section 158) — pour une OFFRE seulement :
+          l'annonce d'un candidat n'est pas un emploi proposé, et le décrire ainsi l'aurait
+          présenté comme « employeur » (23/10). */}
+      {ownerIsCabinet && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingLd(m, canonicalUrl)) }}
+        />
+      )}
       <Link href="/" className="text-white/90 text-2xl font-black tracking-tight mb-6">Soignect</Link>
 
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
