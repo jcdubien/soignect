@@ -81,6 +81,11 @@ export default async function AdminDiffusionPage() {
   };
   const ouvertesPar = parSource(ouvertures, true);
   const inscritsPar = parSource(inscriptions, false);
+  // Anciennes provenances d'une page, comptées sur sa ligne (22/10) : `gp-landing` était celle des
+  // boutons de la page Guadeloupe kiné avant leur alignement — l'historique reste visible.
+  const ALIAS_SOURCE: Record<string, string[]> = { "remplacement-kine-guadeloupe": ["gp-landing"] };
+  const compte = (m: Map<string, number>, cle: string) =>
+    [cle, ...(ALIAS_SOURCE[cle] ?? [])].reduce((t, k) => t + (m.get(k) ?? 0), 0);
 
   const compteur = new Map<string, { humains: number; robots: number }>();
   for (const v of vues) {
@@ -207,10 +212,10 @@ export default async function AdminDiffusionPage() {
                       🤖 {c?.robots ?? 0} robot{(c?.robots ?? 0) > 1 ? "s" : ""}
                     </span>
                     <span className="px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 font-semibold" title="Ouvertures de l'inscription depuis les boutons de la page (humains), depuis le 22/10">
-                      ➡️ {ouvertesPar.get(p.trace) ?? 0} clic{(ouvertesPar.get(p.trace) ?? 0) > 1 ? "s" : ""} vers l&apos;inscription
+                      ➡️ {compte(ouvertesPar, p.trace)} clic{compte(ouvertesPar, p.trace) > 1 ? "s" : ""} vers l&apos;inscription
                     </span>
                     <span className="px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 font-semibold">
-                      ✅ {inscritsPar.get(p.trace) ?? 0} inscription{(inscritsPar.get(p.trace) ?? 0) > 1 ? "s" : ""}
+                      ✅ {compte(inscritsPar, p.trace)} inscription{compte(inscritsPar, p.trace) > 1 ? "s" : ""}
                     </span>
                   </>
                 ) : (

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { KINESITHERAPEUTE, TERRITOIRES, titrePage, PORTES } from "@/lib/pagesDiffusion";
+import { KINESITHERAPEUTE, TERRITOIRES, titrePage, PORTES, cleTracePage } from "@/lib/pagesDiffusion";
 import { prisma } from "@/lib/prisma";
 import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import Link from "next/link";
@@ -12,6 +12,9 @@ export const dynamic = "force-dynamic";
 // Textes portés par lib/pagesDiffusion : {profession × territoire}, plus dupliqués ici.
 const PRO = KINESITHERAPEUTE;
 const TERR = TERRITOIRES.GUADELOUPE;
+// Suivi aligné sur les autres pages (22/10) : profession et clé de la page — la même que celle de
+// ses visites — au lieu de `gp-landing`, qu'aucun compteur ne rattachait à cette page.
+const INSCRIPTION = `/register?profession=${PRO.enumBase}&profileType=REMPLACANT&src=${cleTracePage(PORTES.CHERCHEUR, PRO, TERR)}`;
 
 export const metadata: Metadata = {
   alternates: { canonical: "/remplacement-kine-guadeloupe" },
@@ -94,7 +97,7 @@ export default async function GuadeloupePage() {
           </p>
         </div>
         <Link
-          href="/register?profileType=REMPLACANT&src=gp-landing"
+          href={INSCRIPTION}
           className="flex-shrink-0 px-5 py-3 bg-white text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition"
         >
           S&apos;inscrire →
@@ -152,7 +155,7 @@ export default async function GuadeloupePage() {
       <div className="mt-8 text-center">
         <p className="text-gray-400 text-sm mb-3">Voir toutes les annonces disponibles</p>
         <Link
-          href="/register?profileType=REMPLACANT&src=gp-landing"
+          href={INSCRIPTION}
           className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition"
         >
           Créer mon compte gratuitement →

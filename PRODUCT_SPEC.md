@@ -7408,6 +7408,18 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 331 — SUIVI DES ANCIENNES PAGES « REMPLACEMENT KINÉ » ALIGNÉ (22/10)
+
+- Les boutons de `remplacement-kine-guadeloupe` envoyaient `src=gp-landing`, ceux de Saint-Martin et
+  Saint-Barthélemy n'envoyaient AUCUNE provenance. Ils portent désormais la profession et la clé de
+  la page (`cleTracePage`, la même que celle de ses visites), comme les autres pages ; Guadeloupe
+  garde le type de compte remplaçant, Saint-Martin et Saint-Barthélemy n'en imposent pas (la page
+  s'adresse aussi aux cabinets).
+- `/admin/diffusion` compte l'ancienne provenance `gp-landing` sur la ligne Guadeloupe
+  (`ALIAS_SOURCE`) : l'historique des inscriptions reste visible.
+- **Essai** (22/10, schéma `essai_p20`, supprimé) : liens des trois pages, clic vers l'inscription
+  compté sur chaque ligne, inscription ancienne (`gp-landing`) et nouvelle comptées ensemble.
+
 ### SECTION 330 — UN ÉTABLISSEMENT ÉTABLIT SON CONTRAT : AUCUNE GÉNÉRATION (22/10)
 
 - **Arbitrage de JC** : pas de génération pour un compte « établissement », comme pour

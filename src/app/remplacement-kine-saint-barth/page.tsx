@@ -1,6 +1,6 @@
 import { offreOuverteLe } from "@/lib/feedFilters";
 import { Metadata } from "next";
-import { KINESITHERAPEUTE, TERRITOIRES, titrePage } from "@/lib/pagesDiffusion";
+import { KINESITHERAPEUTE, TERRITOIRES, titrePage, cleTracePage, PORTES } from "@/lib/pagesDiffusion";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -10,6 +10,9 @@ export const dynamic = "force-dynamic";
 // Textes portés par lib/pagesDiffusion : {profession × territoire}, plus dupliqués ici.
 const PRO = KINESITHERAPEUTE;
 const TERR = TERRITOIRES.SAINT_BARTH;
+// Suivi aligné sur les autres pages (22/10) : profession et clé de la page, comme ses visites.
+// Sans type de compte : la page s'adresse aux cabinets comme aux remplaçants.
+const INSCRIPTION = `/register?profession=${PRO.enumBase}&src=${cleTracePage(PORTES.CHERCHEUR, PRO, TERR)}`;
 
 export const metadata: Metadata = {
   alternates: { canonical: "/remplacement-kine-saint-barth" },
@@ -66,7 +69,7 @@ export default async function SaintBarthPage() {
           <p className="text-kine-100 text-sm">Remplaçants : accès à vie, sans aucun frais.</p>
         </div>
         <Link
-          href="/register"
+          href={INSCRIPTION}
           className="flex-shrink-0 px-5 py-3 bg-white text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition"
         >
           S&apos;inscrire →
@@ -108,7 +111,7 @@ export default async function SaintBarthPage() {
       )}
 
       <div className="mt-8 text-center">
-        <Link href="/register" className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition">
+        <Link href={INSCRIPTION} className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition">
           Créer mon compte gratuitement →
         </Link>
       </div>
