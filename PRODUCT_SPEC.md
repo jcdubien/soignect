@@ -7408,6 +7408,21 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 342 — « APPLIQUER… » PRÉREMPLIT LE RÉGLAGE, L'ÉDITEUR CONFIRME (23/10)
+
+Étape 4. Sur une proposition qui a une action (éditeur connecté, page réelle) :
+- **régler une commune non réglée** → le formulaire « Ajouter » est prérempli (commune,
+  profession, niveau du palier APL) et mis en évidence ;
+- **relever / abaisser** → le réglage de la case s'ouvre au niveau du palier ;
+- **priorité échue / case sans fondement APL** → « Voir la priorité… » amène à la case, où
+  « Retirer » reste le bouton habituel.
+Rien n'est enregistré par l'encart : l'éditeur confirme avec le bouton existant, qui passe par les
+mêmes contrôles (justification, chevauchement, plafond) et écrit le journal en ajout seul. La
+trace `preremplie` compte le geste, le journal prouve l'application.
+- **Essai** (schéma `essai_p24`) : « Appliquer… » sur Capesterre-Belle-Eau / kinésithérapeute →
+  formulaire prérempli et surligné ; « Ajouter » → priorité déclarée niveau 2, journal
+  « CREATION » au nom de l'éditeur, la proposition disparaît.
+
 ### SECTION 341 — ENCART « RECOMMANDATION SOIGNECT » SUR LA PAGE DE GESTION (23/10)
 
 Étape 3 du chantier « diagnostic du territoire », validée par JC le 23/10. Données : l'APL seule

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { PalierApl } from "@/lib/aplPalier";
 import BlocMesure, { type MesureAffichee } from "@/components/territoire/BlocMesure";
 import EncartRecommandation from "@/components/territoire/EncartRecommandation";
+import type { ActionRecommandation } from "@/lib/recommandationTerritoire";
 import type { RecommandationAffichee, ResumeReglages, SourceApl } from "@/lib/recommandationTerritoireServeur";
 import { JUSTIFICATION_MAX, JUSTIFICATION_MIN, justificationRequise } from "@/lib/boostTerritorial";
 
@@ -65,6 +66,22 @@ export default function GestionClient(props: {
   const [copie, setCopie] = useState(false);
   const peutModifier = props.editeur !== null;
   const label = (p: string) => props.professionsToutes.find((x) => x.value === p)?.label ?? p;
+  // « Appliquer… » de l'encart (23/10) : PRÉREMPLIT le formulaire existant et y amène l'éditeur.
+  // L'enregistrement reste le bouton habituel — mêmes contrôles, même journal.
+  const [surlignee, setSurlignee] = useState<string | null>(null);
+  function preremplir(a: NonNullable<ActionRecommandation>) {
+    let cible: string;
+    if (a.type === "ajouter") {
+      setAjout({ codeInsee: a.codeInsee, profession: a.profession, niveau: a.niveau, justification: "" });
+      cible = "form-ajout";
+    } else {
+      const p = props.priorites.find((x) => x.id === a.prioriteId);
+      if (a.type === "regler") setReglage({ id: a.prioriteId, niveau: a.niveau, justification: p?.justification ?? "" });
+      cible = `prio-${a.prioriteId}`;
+    }
+    setSurlignee(cible);
+    requestAnimationFrame(() => document.getElementById(cible)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }
 
   async function appel(method: string, body: unknown, ok: string): Promise<boolean> {
     setEtat(null);
@@ -103,6 +120,7 @@ export default function GestionClient(props: {
           resume={props.recommandation.resume}
           source={props.recommandation.source}
           peutModifier={peutModifier}
+          onAppliquer={preremplir}
         />
       )}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
@@ -190,7 +208,7 @@ export default function GestionClient(props: {
         <ul className="list-none p-0 m-0 space-y-1 mb-3">
           {props.priorites.length === 0 && <li className="text-xs text-gray-500">Aucune zone prioritaire.</li>}
           {props.priorites.map((p) => (
-            <li key={p.id} className="text-sm flex items-baseline justify-between gap-2 flex-wrap">
+            <li key={p.id} id={`prio-${p.id}`} className={`text-sm flex items-baseline justify-between gap-2 flex-wrap ${surlignee === `prio-${p.id}` ? "ring-2 ring-[#5eead4] rounded-lg p-1" : ""}`}>
               <span>
                 <strong>{p.commune}</strong> · {label(p.profession)}
                 <span className="text-[11px] text-gray-400"> — {ACCES[p.niveau] ?? `niveau ${p.niveau}`} · {p.origine === "APL" ? "APL" : "ajoutée"}{p.niveauApl !== null && p.niveau !== p.niveauApl ? ` · réglée (APL : ${p.niveauApl})` : ""}</span>
@@ -234,7 +252,7 @@ export default function GestionClient(props: {
             </li>
           ))}
         </ul>
-        {!props.demo && peutModifier && <div className="flex gap-2 flex-wrap items-end">
+        {!props.demo && peutModifier && <div id="form-ajout" className={`flex gap-2 flex-wrap items-end ${surlignee === "form-ajout" ? "ring-2 ring-[#5eead4] rounded-lg p-2" : ""}`}>
           <select value={ajout.codeInsee} onChange={(e) => setAjout({ ...ajout, codeInsee: e.target.value })} className="text-xs border border-gray-200 rounded-lg px-2 py-2">
             {props.communes.map((c) => <option key={c.code} value={c.code}>{c.libelle}</option>)}
           </select>
