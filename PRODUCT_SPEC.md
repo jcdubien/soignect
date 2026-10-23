@@ -7408,6 +7408,17 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 332 — IMAGES DE PARTAGE DES PAGES DE DIFFUSION FABRIQUÉES AU BUILD (23/10)
+
+- **Relevé Vercel (23/10)** : la seule limite Hobby dépassée est le CPU actif (7 h 36 sur 30 jours
+  pour 4 h). Presque tout date d'avant le 07/10 (vignettes recalculées à chaque passage de Facebook,
+  corrigé par la section 286). Sur les 12 dernières heures, quatre images de partage déclarées
+  `runtime = "edge"` (accueil, remplacement kiné Guadeloupe, Saint-Martin, Saint-Barthélemy)
+  totalisaient 29 appels et ~30 s de CPU : une route edge n'est jamais fabriquée au build.
+- **Correctif** : runtime par défaut. Le build les marque statiques (○), comme les onze autres images
+  de pages ; elles ne coûtent plus aucun appel de fonction. Image produite comparée à celle de la
+  production : identique.
+
 ### SECTION 331 — SUIVI DES ANCIENNES PAGES « REMPLACEMENT KINÉ » ALIGNÉ (22/10)
 
 - Les boutons de `remplacement-kine-guadeloupe` envoyaient `src=gp-landing`, ceux de Saint-Martin et
