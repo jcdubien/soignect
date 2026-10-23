@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { PalierApl } from "@/lib/aplPalier";
 import BlocMesure, { type MesureAffichee } from "@/components/territoire/BlocMesure";
 import EncartRecommandation from "@/components/territoire/EncartRecommandation";
+import BlocBesoins, { type BesoinAffiche } from "@/components/territoire/BlocBesoins";
 import type { ActionRecommandation } from "@/lib/recommandationTerritoire";
 import type { RecommandationAffichee, ResumeReglages, SourceApl } from "@/lib/recommandationTerritoireServeur";
 import { JUSTIFICATION_MAX, JUSTIFICATION_MIN, justificationRequise } from "@/lib/boostTerritorial";
@@ -54,6 +55,7 @@ export default function GestionClient(props: {
   journal: LigneJournal[];
   mesure: MesureAffichee;
   recommandation: { recommandations: RecommandationAffichee[]; resume: ResumeReglages; source: SourceApl; mention: string } | null;
+  besoins: { dejaValidee: boolean; liste: BesoinAffiche[] };
 }) {
   const router = useRouter();
   const [message, setMessage] = useState(props.initial.messageAccueil);
@@ -287,6 +289,17 @@ export default function GestionClient(props: {
           </p>
         </div>}
       </div>
+
+      <BlocBesoins
+        jeton={props.jeton}
+        nomStructure={props.nom}
+        peutModifier={peutModifier}
+        demo={props.demo}
+        dejaValidee={props.besoins.dejaValidee}
+        communes={props.communes}
+        professions={props.professionsToutes}
+        besoins={props.besoins.liste}
+      />
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <p className="text-sm font-bold m-0">L&apos;APL de vos communes</p>

@@ -10,6 +10,7 @@ import GestionClient from "./GestionClient";
 import { mesureDuClient } from "@/lib/mesureTerritoriale";
 import { recommandationsDeLaPage } from "@/lib/recommandationTerritoireServeur";
 import { MENTION_RECOMMANDATION } from "@/lib/recommandationTerritoire";
+import { archiverBesoinsEchus } from "@/lib/besoinTerritoireServeur";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,12 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
   const mesure = await mesureDuClient(page.client);
   // Encart « Recommandation Soignect » (23/10) : propositions calculées, rien d'appliqué ici.
   const reco = active ? await recommandationsDeLaPage(page) : null;
+  // Besoins du territoire (23/10) : les échus sont archivés avant l'affichage.
+  if (active) await archiverBesoinsEchus();
+  const besoins = active
+    ? await prisma.besoinTerritoire.findMany({ where: { clientId: page.clientId }, orderBy: [{ updatedAt: "desc" }] })
+    : [];
+  const dejaValidee = besoins.some((b) => b.valideLe !== null);
   const humaines = vues.filter((v) => !(v.metadata as { robot?: boolean } | null)?.robot);
   const il30j = Date.now() - 30 * 86400_000;
 
@@ -87,6 +94,14 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
           paliers={paliers}
           vues={{ total: humaines.length, trenteJours: humaines.filter((v) => v.occurredAt.getTime() >= il30j).length }}
           recommandation={reco ? { ...reco, mention: MENTION_RECOMMANDATION } : null}
+          besoins={{
+            dejaValidee,
+            liste: besoins.map((b) => ({
+              id: b.id, codeInsee: b.codeInsee, commune: b.commune, profession: b.profession, specialite: b.specialite,
+              nature: b.nature, texte: b.texte, proposition: b.proposition, statut: b.statut,
+              expireLe: b.expireLe?.toISOString() ?? null, motifRefus: b.motifRefus,
+            })),
+          }}
         />
       </div>
     </main>

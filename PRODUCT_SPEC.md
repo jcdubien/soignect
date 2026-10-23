@@ -7408,6 +7408,28 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 349 — ÉCRAN DES BESOINS DANS LA PAGE DE GESTION (23/10)
+
+- **Où** : `/gestion/<jeton>`, bloc « Besoins du territoire » après « Zones prioritaires »
+  (`components/territoire/BlocBesoins`). Règles et libellés lus dans lib/besoinTerritoire ;
+  enregistrement par `/api/page-client/<jeton>/besoins` (éditeur nommé).
+- **Ce qu'on y fait** : préparer un besoin (commune du périmètre, profession, spécialité
+  facultative, nature, texte, ce que la structure propose) ; **aperçu** tel que les soignants le
+  liront (étiquette « Besoin du territoire — déclaré par … », « déclaré par la structure », contact
+  par la messagerie) ; enregistrer le brouillon ; le modifier ; demander la publication
+  (« Demander la publication » tant que la structure n'a aucun besoin validé, « Publier » ensuite) ;
+  renouveler (90 jours) ; archiver. Compteur « N / 10 besoins actifs ». Motif d'un refus affiché
+  sur le brouillon. Archivés repliés. Critères de validation dépliables.
+- **Contrôles à la saisie** (longueur, numéro, email, lien) identiques à ceux du serveur, qui
+  reste seul juge.
+- **Consultation sans session** : la liste seule, sans aucun bouton. **Page de démonstration** :
+  lecture seule, avec la mention « les besoins s'ouvrent avec l'abonnement ».
+- Aucun affichage pour les soignants à ce stade (voir section 345, point 3).
+- **Essai** (schéma `essai_p30`, comptes `.invalid`, à l'écran) : numéro dans le texte → message et
+  aperçu bloqué ; aperçu ; brouillon ; demande → « en attente » ; refus motivé → brouillon avec le
+  motif ; nouvelle demande et validation → publié jusqu'au 21/01/2027 ; renouvellement ; second
+  besoin publié directement ; archivage ; consultation sans bouton ; journal complet (9 lignes).
+
 ### SECTION 348 — PREMIUM ET BOOST FERMÉS TANT QUE LA VENTE EST FERMÉE OU LE MODE GRATUIT ACTIF (23/10)
 
 - **Constat** (audit Stripe du 23/10) : `VENTE_EN_LIGNE_OUVERTE` ne fermait que le forfait
