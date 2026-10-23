@@ -13,6 +13,7 @@ import { bioLimitFor } from "@/lib/bio";
 import { destinationApresInscription, enTantQue, libelleInscription, titreIdentite } from "@/lib/inscription";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
+import { CONSENTEMENT_WHATSAPP } from "@/lib/whatsapp";
 
 type ProfileTypeChoice = "TITULAIRE" | "REMPLACANT" | "ASSISTANT";
 
@@ -161,6 +162,9 @@ function RegisterForm() {
   // Notifications (section 50-51)
   const [phoneCountry, setPhoneCountry] = useState("GP");
   const [phone, setPhone] = useState("");
+  // Consentement WhatsApp (23/10, arbitrage JC) : proposé ici aussi, NON coché par défaut, et
+  // seulement quand un numéro est saisi — sans numéro, la case n'aurait rien à autoriser.
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [emailOptIn, setEmailOptIn] = useState(true);
   // Acceptation obligatoire des documents légaux (section 150) — bloque la création de compte.
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -200,6 +204,7 @@ function RegisterForm() {
         phone: toE164(phoneCountry, phone) || undefined,
         phoneCountry,
         emailOptIn,
+        whatsappOptIn: whatsappOptIn && !!toE164(phoneCountry, phone),
         acceptedTerms, // consentement légal enregistré (section 150)
         inviteToken: inviteToken ?? undefined, // rattachement automatique au poste invité
         src, // provenance, pour mesurer la conversion des pages d'entrée
@@ -532,6 +537,20 @@ function RegisterForm() {
                       placeholder="690 12 34 56"
                     />
                   </div>
+                  {phone.trim() && (
+                    <label className="mt-2 flex items-start gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={whatsappOptIn}
+                        onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                        className="w-4 h-4 mt-0.5 rounded accent-kine-600 shrink-0"
+                      />
+                      <span className="text-sm text-gray-600">
+                        {CONSENTEMENT_WHATSAPP.libelle}
+                        <span className="block text-[11px] leading-snug text-gray-400 mt-0.5">{CONSENTEMENT_WHATSAPP.detail}</span>
+                      </span>
+                    </label>
+                  )}
                 </div>
 
                 {/* Opt-in notifications email (coché par défaut) */}

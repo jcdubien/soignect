@@ -7408,6 +7408,18 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 338 — CONSENTEMENT WHATSAPP PROPOSÉ AUSSI À L'INSCRIPTION (23/10)
+
+- **Arbitrage de JC (23/10)**, qui revient sur la section 292 (« ici et pas à l'inscription ») :
+  au 23/10, 105 comptes sur 115 ont un téléphone mais 2 seulement ont accepté WhatsApp, parce que
+  l'accord ne se donnait que dans « Mon compte ».
+- La case « Me joindre sur WhatsApp » apparaît sous le téléphone dès qu'un numéro est saisi,
+  **non cochée**. Mêmes mots que « Mon compte » : `CONSENTEMENT_WHATSAPP` (lib/whatsapp), source
+  unique lue par les deux écrans. Le serveur n'enregistre l'accord qu'avec un numéro.
+- **Essai** (schéma `essai_p23`, comptes `.invalid`) : numéro et accord → accord enregistré ;
+  accord sans numéro → refusé ; numéro sans accord → pas d'accord. À l'écran : case absente sans
+  numéro, présente et décochée avec.
+
 ### SECTION 337 — À TRAITER : MESSAGE AFFICHÉ EN DOUBLE QUAND LE PREMIER CHARGEMENT DÉPASSE 3 S (23/10)
 
 - **Constat** (essai local du 23/10, section 333) : à l'ouverture d'une conversation, si le premier

@@ -38,6 +38,7 @@ const createProfileSchema = z.object({
   phone: z.string().max(20).optional(),
   phoneCountry: z.string().max(4).optional(),
   emailOptIn: z.boolean().optional(),
+  whatsappOptIn: z.boolean().optional(),
   acceptedTerms: z.boolean().optional(),
   // Invitation à rejoindre un poste (section 187) : rattachement automatique à l'inscription.
   inviteToken: z.string().max(200).optional(), // consentement légal (section 150)
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email: rawEmail, password, type, profession, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, acceptedTerms, inviteToken, src } = parsed.data;
+  const { email: rawEmail, password, type, profession, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, whatsappOptIn, acceptedTerms, inviteToken, src } = parsed.data;
   // Email normalisé à la source : la connexion, check-email et forgot-password comparent tous
   // en minuscules. Enregistrer une saisie capitalisée créait un compte que son propriétaire ne
   // pouvait plus retrouver — et un doublon possible face à un compte déjà existant.
@@ -75,6 +76,8 @@ export async function POST(req: NextRequest) {
       phone: phone ?? null,
       phoneCountry: phoneCountry ?? "GP",
       emailOptIn: optIn,
+      // Consentement WhatsApp (23/10) : ne vaut qu'avec un numéro — sinon il n'autorise rien.
+      whatsappOptIn: !!whatsappOptIn && !!phone?.trim(),
       acceptedTermsAt: acceptedTerms ? new Date() : null,
       profile: {
         // `profession` est désormais garantie par le schéma : plus de repli conditionnel, qui

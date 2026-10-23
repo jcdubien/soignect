@@ -15,6 +15,7 @@ import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { accrocheProfilExemple } from "@/lib/exemplesPublication";
 import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
+import { CONSENTEMENT_WHATSAPP } from "@/lib/whatsapp";
 
 const REGION_LABELS: Record<Region, string> = {
   GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
@@ -534,15 +535,14 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
 
         <label className="flex items-start justify-between cursor-pointer gap-3">
           <span className="text-sm text-gray-700">
-            Me joindre sur WhatsApp
+            {CONSENTEMENT_WHATSAPP.libelle}
             {/* DIRE QUI VERRA LE NUMÉRO, ET NE PAS MENTIR. Un lien `wa.me` ouvre la
                 conversation CHEZ L'EXPÉDITEUR, numéro en clair : promettre que le numéro reste
                 caché serait faux dès qu'un cabinet aurait le bouton. Aujourd'hui il est réservé
                 à l'administration — la phrase dit exactement ça, et devra changer le jour où
                 cette décision changera. */}
             <span className="block text-[11px] leading-snug text-gray-400 mt-0.5">
-              Réservé à l&rsquo;équipe Soignect, pour vous signaler une activité vous concernant.
-              Votre numéro n&rsquo;est montré à aucun autre utilisateur. Décochez à tout moment.
+              {CONSENTEMENT_WHATSAPP.detail}
             </span>
           </span>
           <input type="checkbox" className="sr-only" checked={whatsappOptIn} onChange={() => setWhatsappOptIn(v => !v)} />
