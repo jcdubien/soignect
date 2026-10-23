@@ -8,6 +8,8 @@ import { prisma } from "@/lib/prisma";
 
 import { auth } from "@/lib/auth";
 import { logTraceEvent } from "@/lib/trace";
+import { estRobot } from "@/lib/traceLanding";
+import { headers } from "next/headers";
 import ShareActions from "@/components/share/ShareActions";
 import { appBaseUrl as baseUrl } from "@/lib/appUrl";
 import { libelleTypePoste, estEtablissement } from "@/lib/libellesPoste";
@@ -151,13 +153,16 @@ export default async function PublicAnnoncePage({ params, searchParams }: {
   const session = await auth();
   const isLoggedIn = !!session?.user;
 
-  // Trace acquisition — arrivée sur la page publique (section 3), fire-and-forget
+  // Trace acquisition — arrivée sur la page publique (section 3), fire-and-forget.
+  // Étiquette `robot` (23/10) : le pic du 22/10 (1 380 passages en deux heures) n'a pas pu être
+  // attribué faute d'user-agent. On ÉTIQUETTE sans exclure, comme les pages d'entrée.
+  const robot = estRobot((await headers()).get("user-agent"));
   logTraceEvent({
     eventType: "FACEBOOK_GROUP_CLICK",
     missionId: m.id,
     commune: m.location,
     missionType: m.missionType,
-    metadata: { authed: isLoggedIn, ...(src ? { src } : {}) },
+    metadata: { authed: isLoggedIn, robot, ...(src ? { src } : {}) },
   });
 
   const type = typeLabel(m);

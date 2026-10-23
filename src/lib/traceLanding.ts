@@ -17,6 +17,12 @@ import { logTraceEvent, logTraceEventAttendu } from "@/lib/trace";
 // 82 passages de robots pour 12 visites réelles. Sans la distinction, on aurait lu « 94 ».
 const ROBOTS = /bot|crawl|spider|slurp|facebookexternalhit|preview|headless|lighthouse|curl|wget|python-requests/i;
 
+/** Même repérage pour toute trace de visite publique (pages d'entrée, annonces) : un seul motif,
+ *  sinon les compteurs cessent d'être comparables. */
+export function estRobot(userAgent: string | null): boolean {
+  return ROBOTS.test(userAgent ?? "");
+}
+
 function domaine(referent: string | null): string | null {
   if (!referent) return null;
   try {
@@ -35,7 +41,7 @@ export async function tracerVueLanding(page: string, annonces: number): Promise<
       eventType: "LANDING_VIEW",
       metadata: {
         page,
-        robot: ROBOTS.test(h.get("user-agent") ?? ""),
+        robot: estRobot(h.get("user-agent")),
         referent: domaine(h.get("referer")),
         annonces,
       },
@@ -59,7 +65,7 @@ export async function tracerOuvertureInscription(o: { src: string | null; type: 
         src: o.src?.slice(0, 80) ?? "direct",
         type: o.type?.slice(0, 20) ?? null,
         etablissement: o.etablissement,
-        robot: ROBOTS.test(h.get("user-agent") ?? ""),
+        robot: estRobot(h.get("user-agent")),
         referent: domaine(h.get("referer")),
       },
     }), new Promise((r) => setTimeout(r, 1500))]);

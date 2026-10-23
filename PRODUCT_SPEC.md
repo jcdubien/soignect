@@ -7408,6 +7408,16 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 335 — ÉTIQUETTE « ROBOT » SUR LA TRACE DES VISITES D'ANNONCES (23/10)
+
+- Le pic du 22/10 (1 380 passages sur 46 annonces publiques en deux heures, jusqu'à 98 par minute)
+  n'a pas pu être attribué : la trace `FACEBOOK_GROUP_CLICK` ne gardait ni user-agent ni étiquette.
+- Elle porte désormais `robot`, calculé par le MÊME motif que les pages d'entrée (`estRobot`,
+  lib/traceLanding, désormais exporté) : on étiquette, on n'exclut pas. Aucun compteur existant
+  ne change ; les lignes passées restent sans étiquette.
+- **Essai** (schéma `essai_p22`) : navigateur → `robot: false` ; Googlebot → `robot: true`, avec
+  la provenance `src` conservée ; trace des pages d'entrée inchangée.
+
 ### SECTION 334 — LE 404 DE L'IMAGE DE PARTAGE D'UNE ANNONCE ÉCHUE MIS EN CACHE (23/10)
 
 - **Mesure** (journaux Vercel, une heure, 23/10) : 24 appels de `/annonce/[id]/opengraph-image`,
