@@ -13,6 +13,14 @@ export type ClePalier = PalierOffre;
  *  sur décision de JC : pas de vente tant que la relecture juridique de l'offre CPTS/MSP n'est
  *  pas faite. Les liens restent dans la grille ; passer à true pour les réafficher. */
 export const VENTE_EN_LIGNE_OUVERTE = false;
+
+/** Souscription en ligne possible (Premium, Boost, Structure) — 23/10, décision de JC. Fermée
+ *  tant que la vente est fermée OU que le mode gratuit est actif : pendant le mode gratuit tout est
+ *  déjà débloqué, un abonnement payé n'apporterait rien. Lu par la route de paiement et par chaque
+ *  écran qui propose de souscrire. */
+export function souscriptionEnLigneOuverte(freeAccessMode: boolean): boolean {
+  return VENTE_EN_LIGNE_OUVERTE && !freeAccessMode;
+}
 // Parcours établissement, point 4 (22/10) : le même interrupteur ferme l'abonnement Structure de
 // /premium (89 €/mois + 20 € par contrat signé) — affichage ET route de paiement. Aucun compte
 // n'y était abonné. La commission au contrat est un point signalé à faire relire (section 7).

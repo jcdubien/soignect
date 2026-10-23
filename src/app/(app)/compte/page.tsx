@@ -4,6 +4,8 @@ import { ACTIVE_MATCH_STATUSES } from "@/lib/feedFilters";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CompteForm from "./CompteForm";
+import { isFreeAccessMode } from "@/lib/platform";
+import { souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
 
 export const dynamic = "force-dynamic";
 
@@ -140,7 +142,7 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
           </div>
         </div>
       )}
-      <CompteForm profile={profile} matchedMissions={matchedMissions} />
+      <CompteForm profile={profile} matchedMissions={matchedMissions} souscriptionOuverte={souscriptionEnLigneOuverte(await isFreeAccessMode())} />
     </>
   );
 }

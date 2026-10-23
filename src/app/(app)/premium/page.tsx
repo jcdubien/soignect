@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
+import { VENTE_EN_LIGNE_OUVERTE, souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
 import { mentionGratuite } from "@/lib/gratuite";
 
 export const dynamic = "force-dynamic";
@@ -193,13 +193,14 @@ export default function PremiumPage() {
         <div className="flex items-center justify-center py-16">
           <div className="w-8 h-8 border-2 border-kine-400 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : isStructure && !VENTE_EN_LIGNE_OUVERTE ? (
-        // ── Parcours STRUCTURE, souscription fermée (point 4, 22/10) : ni prix ni bouton de
-        // paiement — la même phrase que les pages « emploi » (lib/gratuite) dit ce qui est gratuit.
+      ) : !souscriptionEnLigneOuverte(freeAccessMode) ? (
+        // ── Souscription fermée (point 4, 22/10 ; cabinets compris depuis le 23/10) : ni prix ni
+        // bouton de paiement — la même phrase que les pages « emploi » (lib/gratuite) dit ce qui
+        // est gratuit.
         <div className="max-w-2xl mx-auto rounded-3xl border-2 border-[#0B3D5C]/25 bg-white p-6 text-center">
           <p className="text-sm font-semibold text-gray-900">{mentionGratuite(freeAccessMode)}</p>
           <p className="text-sm text-gray-500 mt-2">
-            L&apos;abonnement établissement n&apos;est pas ouvert à la souscription en ligne pour le moment.
+            {isStructure ? "L’abonnement établissement" : "L’abonnement"} n&apos;est pas ouvert à la souscription en ligne pour le moment.
           </p>
         </div>
       ) : isStructure ? (
@@ -293,7 +294,7 @@ export default function PremiumPage() {
         </div>
       )}
 
-      {!(isStructure && !VENTE_EN_LIGNE_OUVERTE) && (
+      {freeAccessMode !== null && souscriptionEnLigneOuverte(freeAccessMode) && (
         <p className="text-center text-xs text-gray-400 mt-8">
           Paiement sécurisé par Stripe · Résiliation à tout moment · Sans engagement
         </p>

@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { appBaseUrl } from "@/lib/appUrl";
-import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
+import { souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
+import { isFreeAccessMode } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 
@@ -36,14 +37,17 @@ export async function POST(req: NextRequest) {
 
   const { plan } = parsed.data;
 
+  // Premium, Boost et Structure (23/10) : aucune souscription tant que la vente est fermée ou que
+  // le mode gratuit est actif — même règle que les écrans.
+  if (!souscriptionEnLigneOuverte(await isFreeAccessMode())) {
+    return NextResponse.json({ error: "La souscription en ligne n'est pas ouverte pour le moment." }, { status: 403 });
+  }
+
   // Structure privée = abonnement de base 89€ + prix à l'usage 20€/contrat (metered, section 7).
   // Distinction Cabinet/Structure : champ dédié titulaireKind.
   let lineItems: { price: string; quantity?: number }[];
   if (plan === "STRUCTURE") {
     // Fermé tant que la souscription en ligne des structures l'est (lib/tarifsPartenaire).
-    if (!VENTE_EN_LIGNE_OUVERTE) {
-      return NextResponse.json({ error: "La souscription en ligne n'est pas ouverte pour les établissements." }, { status: 403 });
-    }
     if (profile.titulaireKind !== "STRUCTURE") {
       return NextResponse.json({ error: "Réservé aux structures privées" }, { status: 403 });
     }

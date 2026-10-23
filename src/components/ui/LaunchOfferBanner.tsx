@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
+import { souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
 
 const DISMISS_KEY = "soignect_launch_banner_dismissed_v1";
 
@@ -27,6 +27,8 @@ export default function LaunchOfferBanner({
 
   useEffect(() => {
     if (freeAccessMode) return; // mode lancement : aucune mention gratuit → payant
+    // Souscription fermée (23/10) : pas de bandeau qui mène à une offre qu'on ne peut prendre.
+    if (!souscriptionEnLigneOuverte(freeAccessMode)) return;
     if (profileType !== "TITULAIRE" || !profileId) return;
     if (typeof window !== "undefined" && localStorage.getItem(DISMISS_KEY)) return;
 
@@ -38,8 +40,6 @@ export default function LaunchOfferBanner({
         // Abonné payant → pas de bandeau
         const paid = ["PREMIUM", "BOOST", "STRUCTURE"].includes(p.subscriptionPlan);
         if (paid) return;
-        // Abonnement établissement fermé (point 4, 22/10) : pas de bandeau qui y mène.
-        if (p.titulaireKind === "STRUCTURE" && !VENTE_EN_LIGNE_OUVERTE) return;
         setIsStructure(p.titulaireKind === "STRUCTURE");
         setVisible(true);
       })

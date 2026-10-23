@@ -14,7 +14,6 @@ import { missingContractLabels } from "@/lib/contractProfile";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { accrocheProfilExemple } from "@/lib/exemplesPublication";
-import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
 import { CONSENTEMENT_WHATSAPP } from "@/lib/whatsapp";
 
 const REGION_LABELS: Record<Region, string> = {
@@ -64,7 +63,7 @@ interface MatchedMission {
   confirme: boolean;
 }
 
-export default function CompteForm({ profile, matchedMissions = [] }: { profile: ProfileData; matchedMissions?: MatchedMission[] }) {
+export default function CompteForm({ profile, matchedMissions = [], souscriptionOuverte = false }: { profile: ProfileData; matchedMissions?: MatchedMission[]; souscriptionOuverte?: boolean }) {
 
   const [name, setName]           = useState(profile.name ?? "");
   const [bioTinder, setBioTinder] = useState(profile.bioTinder ?? "");
@@ -466,7 +465,7 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
               </button>
             ))}
           </div>
-          {kind === "STRUCTURE" && VENTE_EN_LIGNE_OUVERTE && (
+          {kind === "STRUCTURE" && souscriptionOuverte && (
             <p className="text-[11px] text-gray-400 mt-2">
               Les structures privées relèvent d&apos;une offre dédiée (89€/mois + 20€/contrat) — voir la page Premium.
             </p>
@@ -635,7 +634,8 @@ export default function CompteForm({ profile, matchedMissions = [] }: { profile:
               </p>
             )}
           </div>
-          {profile.type === "TITULAIRE" && profile.subscriptionPlan === "FREE" && !(kind === "STRUCTURE" && !VENTE_EN_LIGNE_OUVERTE) && (
+          {/* Souscription fermée (vente fermée ou mode gratuit, 23/10) : pas de « Passer Premium ». */}
+          {profile.type === "TITULAIRE" && profile.subscriptionPlan === "FREE" && souscriptionOuverte && (
             <Link
               href="/premium"
               className="px-4 py-2 bg-kine-600 text-white text-xs font-bold rounded-xl hover:bg-kine-700 transition"

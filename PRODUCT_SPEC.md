@@ -7408,6 +7408,25 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 348 — PREMIUM ET BOOST FERMÉS TANT QUE LA VENTE EST FERMÉE OU LE MODE GRATUIT ACTIF (23/10)
+
+- **Constat** (audit Stripe du 23/10) : `VENTE_EN_LIGNE_OUVERTE` ne fermait que le forfait
+  Structure et les liens partenaires. Premium (9 €) et Boost (29 €) restaient payables depuis
+  `/premium`, les 6 variables Stripe étant présentes en production, alors que le mode gratuit
+  débloque déjà tout.
+- **Décision de JC** : les fermer. Règle unique `souscriptionEnLigneOuverte(freeAccessMode)`
+  (lib/tarifsPartenaire) = vente ouverte ET mode gratuit inactif. Appliquée à la route de paiement
+  (403 pour Premium, Boost et Structure, avant tout appel à Stripe), à `/premium` (ni prix ni
+  bouton, la phrase de gratuité et « l'abonnement n'est pas ouvert à la souscription en ligne »),
+  au bouton « Passer Premium » et à la mention de l'offre Structure de « Mon compte », à la
+  pastille de l'en-tête et au bandeau de découverte.
+- **Pour rouvrir** : passer `VENTE_EN_LIGNE_OUVERTE` à true ET quitter le mode gratuit
+  (/admin/config). Avant : les points de l'audit Stripe (facturation des 20 € par contrat, réglages
+  du tableau de bord, TVA, établissements publics).
+- **Essai** (schéma `essai_p29`, compte `.invalid`, fausse clé Stripe pour atteindre la règle) :
+  mode gratuit inactif puis actif → Premium, Boost, Structure refusés (403) ; « Passer Premium » et
+  pastille absents ; `/premium` à l'écran : ni prix ni bouton. Aucun appel à Stripe.
+
 ### SECTION 347 — CABINET FONDATEUR TOUJOURS EN TÊTE DU FIL, PAR CONSTRUCTION (23/10)
 
 - **Décision de JC (23/10)** : le bonus « cabinet fondateur » est maintenu (avantage en nature
