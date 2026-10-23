@@ -6,6 +6,7 @@ import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { createPortal } from "react-dom";
 import { contientUnNumero } from "@/lib/numeroTelephone";
+import { useRafraichissementVisible } from "@/lib/useRafraichissementVisible";
 
 interface Message {
   id: string;
@@ -141,11 +142,9 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
     inputRef.current?.focus();
   }, [fetchMessages]);
 
-  // Polling toutes les 3s
-  useEffect(() => {
-    const timer = setInterval(() => fetchMessages(false), 3000);
-    return () => clearInterval(timer);
-  }, [fetchMessages]);
+  // Polling toutes les 3s, en pause onglet caché (reprise immédiate au retour)
+  const rafraichir = useCallback(() => { void fetchMessages(false); }, [fetchMessages]);
+  useRafraichissementVisible(rafraichir, 3000);
 
   // Scroll to bottom quand nouveaux messages
   useEffect(() => {

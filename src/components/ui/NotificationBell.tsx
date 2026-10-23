@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useRafraichissementVisible } from "@/lib/useRafraichissementVisible";
 
 interface Notif {
   id: string;
@@ -53,12 +54,11 @@ export default function NotificationBell() {
     } catch { /* silencieux */ }
   }, []);
 
-  // Chargement initial + rafraîchissement périodique léger (pas de websocket).
+  // Chargement initial + rafraîchissement périodique léger (pas de websocket), en pause onglet caché.
   useEffect(() => {
     load();
-    const t = setInterval(load, 60000);
-    return () => clearInterval(t);
   }, [load]);
+  useRafraichissementVisible(load, 60000);
 
   // Fermeture au clic extérieur.
   useEffect(() => {

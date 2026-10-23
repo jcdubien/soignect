@@ -7408,6 +7408,21 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 333 — CLOCHE ET CONVERSATION EN PAUSE QUAND L'ONGLET EST CACHÉ (23/10)
+
+- **Relevé** : dans les journaux Vercel, un onglet oublié appelait `/api/notifications` chaque
+  minute (214 appels en 12 h), et une conversation ouverte interroge le serveur toutes les 3 s, soit
+  1 200 appels par heure si elle reste ouverte onglet caché : le seul emballement possible repéré.
+- **Correctif** : une seule règle, `lib/useRafraichissementVisible`, pour la cloche (60 s) et la
+  conversation (3 s). Onglet caché : plus aucun appel. Au retour : un chargement immédiat, puis le
+  rythme habituel. Rien ne change à l'écran.
+- **Essai** (23/10, schéma `essai_p21`, comptes `.invalid`) : conversation ouverte, 11 appels en
+  30 s visible ; 70 s cachée, 1 appel (déjà parti) ; au retour, un appel dans la seconde et le
+  rythme reprend.
+- **Constaté, non corrigé** (existant, logique inchangée) : si le premier chargement de la
+  conversation dépasse 3 s, la première interrogation part sans repère et le message s'affiche en
+  double. Vu une fois en local pendant la compilation de la route.
+
 ### SECTION 332 — IMAGES DE PARTAGE DES PAGES DE DIFFUSION FABRIQUÉES AU BUILD (23/10)
 
 - **Relevé Vercel (23/10)** : la seule limite Hobby dépassée est le CPU actif (7 h 36 sur 30 jours
