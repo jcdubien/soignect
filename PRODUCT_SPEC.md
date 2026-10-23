@@ -7408,6 +7408,17 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 337 — À TRAITER : MESSAGE AFFICHÉ EN DOUBLE QUAND LE PREMIER CHARGEMENT DÉPASSE 3 S (23/10)
+
+- **Constat** (essai local du 23/10, section 333) : à l'ouverture d'une conversation, si le premier
+  chargement des messages met plus de 3 s, la première interrogation périodique part avant lui,
+  sans repère de date (`lastTimestampRef` encore vide) : elle récupère toute la liste et l'ajoute à
+  la suite. Le même message s'affiche alors deux fois. Vu une fois, pendant la compilation de la
+  route en local ; en production, un démarrage à froid lent peut produire la même chose.
+- **Logique en cause antérieure** à la mise en pause onglet caché (`bcc4c49`), inchangée par elle.
+- **Piste, non engagée** : n'ajouter que les messages dont l'identifiant n'est pas déjà affiché, ou
+  ne lancer l'interrogation qu'après le premier chargement. Arbitrage de JC : on le traitera plus tard.
+
 ### SECTION 336 — TRACE D'OUVERTURE DE L'INSCRIPTION CONFIÉE À `waitUntil` (23/10)
 
 - L'écriture attendue (section 329) ajoutait ~450 ms à l'ouverture de `/register` : fonctions à
