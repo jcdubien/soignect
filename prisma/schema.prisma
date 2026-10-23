@@ -856,6 +856,9 @@ model ClientInstitutionnel {
   clotureLe DateTime?
 
   note      String?   @db.VarChar(500)
+  // Logo de la structure (23/10), déposé par l'administration (/admin/pages). Sur la page
+  // publique, il suit la même règle que le nom : affiché seulement si l'accord est OUI.
+  logoUrl   String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 

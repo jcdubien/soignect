@@ -23,7 +23,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
   const { jeton } = await params;
   const page = await prisma.pageClient.findUnique({
     where: { jetonEdition: jeton },
-    include: { client: { select: { id: true, nom: true, debutLe: true, revueLe: true, clotureLe: true } } },
+    include: { client: { select: { id: true, nom: true, logoUrl: true, debutLe: true, revueLe: true, clotureLe: true } } },
   });
   if (!page) notFound();
 
@@ -68,6 +68,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
           editeur={editeur ? { nom: editeur.nom } : null}
           lienConnexion={`/login?return_to=${encodeURIComponent(`/gestion/${jeton}`)}`}
           nom={page.client.nom}
+          logoUrl={page.client.logoUrl}
           active={active}
           demo={page.demo}
           revueLe={page.client.revueLe.toISOString()}

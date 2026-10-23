@@ -7408,6 +7408,22 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 344 — LOGO D'UNE STRUCTURE, DÉPOSÉ DEPUIS L'ADMINISTRATION (23/10)
+
+- **Demande de JC.** Dans `/admin/pages`, chaque structure a une ligne « Logo » : déposer,
+  remplacer, retirer (administration seulement, `/api/admin/clients/<id>/logo`).
+- **Traitement** (`lib/logoClient`, source unique) : PNG, JPEG ou WebP, 2 Mo au plus ; le fichier
+  est réécrit en PNG de 512 px au plus (transparence conservée, métadonnées retirées), stocké dans le
+  bucket public `avatars` sous `structures/<clientId>.png`. Un fichier qui n'est pas une image est
+  refusé.
+- **Affichage** : page de gestion de la structure (toujours) ; page publique `/p` **seulement si
+  l'accord est « Oui »**, même règle que le nom.
+- **Migration** additive `20261023190000_logo_client` (colonne `ClientInstitutionnel.logoUrl`),
+  appliquée en production le 23/10 ; aucun logo déposé.
+- **Essai** (schéma `essai_p26`, comptes `.invalid`) : non-administrateur et anonyme → 403 ; GIF,
+  faux PNG, fichier trop lourd → 400 ; dépôt d'un 1200 × 600 → stocké en 512 × 256 ; page publique
+  sans accord → pas de logo, avec accord → logo ; retrait → fichier supprimé du stockage, champ vidé.
+
 ### SECTION 343 — OBJET « BESOIN DU TERRITOIRE » : TABLE, JOURNAL, GARDE-FOUS (23/10)
 
 Étape 2 du chantier, lancée par JC le 23/10. Pas encore d'écran éditeur ni d'affichage (fil, /p,

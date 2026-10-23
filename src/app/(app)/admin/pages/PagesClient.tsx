@@ -7,6 +7,7 @@ import BlocMesure, { type MesureAffichee } from "@/components/territoire/BlocMes
 
 interface Client {
   id: string; nom: string; type: string; nature: string; active: boolean; revueLe: string;
+  logoUrl: string | null;
   max: number | null; casesMax: number | null; priorites: number;
   palier: string | null; palierDuType: string | null; gratuit: boolean;
   mesure: MesureAffichee;
@@ -51,6 +52,23 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
     const r = await res.json().catch(() => ({}));
     if (res.ok) { setEtat(ok(r)); router.refresh(); } else setEtat(r.error ?? "Action impossible.");
   }
+  // Logo (23/10) : dépôt et retrait, administration seulement (/api/admin/clients/[id]/logo).
+  const [envoiLogo, setEnvoiLogo] = useState(false);
+  async function deposerLogo(fichier: File | undefined) {
+    if (!fichier) return;
+    setEtat(null); setEnvoiLogo(true);
+    const form = new FormData(); form.append("file", fichier);
+    const res = await fetch(`/api/admin/clients/${client.id}/logo`, { method: "POST", body: form });
+    const r = await res.json().catch(() => ({}));
+    setEnvoiLogo(false);
+    if (res.ok) { setEtat("Logo enregistré."); router.refresh(); } else setEtat(r.error ?? "Dépôt impossible.");
+  }
+  async function retirerLogo() {
+    setEtat(null);
+    const res = await fetch(`/api/admin/clients/${client.id}/logo`, { method: "DELETE" });
+    if (res.ok) { setEtat("Logo retiré."); router.refresh(); } else setEtat("Retrait impossible.");
+  }
+
   const bilan = (r: { bilan?: Record<string, number> }) =>
     r.bilan ? `Priorités APL : ${r.bilan.creees} créées${r.bilan.reprises ? ` (dont ${r.bilan.reprises} reprises d'une déclaration éteinte)` : ""}, ${r.bilan.modifiees} modifiées, ${r.bilan.retirees} retirées${r.bilan.ignorees ? `, ${r.bilan.ignorees} tenues par une autre structure (premier arrivé)` : ""}${r.bilan.horsPlafond ? `, ${r.bilan.horsPlafond} au-delà du plafond de cases de l'offre` : ""}.` : "Fait.";
 
@@ -64,6 +82,21 @@ function CarteClient({ client, zones }: { client: Client; zones: { zone: string;
         <p className="text-xs text-gray-500 m-0">
           {client.type} · {client.nature} · {client.active ? `actif jusqu'au ${new Date(client.revueLe).toLocaleDateString("fr-FR", { timeZone: "UTC" })}` : "inactif"} · {client.priorites} priorité{client.priorites > 1 ? "s" : ""}{client.casesMax !== null ? ` (offre : ${client.casesMax} cases au plus)` : ""}
         </p>
+      </div>
+
+      <div className="flex gap-3 items-center flex-wrap text-xs">
+        <span className="text-gray-500 w-48 shrink-0">Logo</span>
+        {client.logoUrl
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={client.logoUrl} alt={`Logo de ${client.nom}`} className="h-12 w-auto max-w-[160px] object-contain rounded border border-gray-200 bg-white p-1" />
+          : <span className="text-gray-400">aucun</span>}
+        <label className="underline cursor-pointer">
+          {envoiLogo ? "Envoi…" : client.logoUrl ? "Remplacer" : "Déposer un logo"}
+          <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={envoiLogo}
+            onChange={(e) => { deposerLogo(e.target.files?.[0]); e.target.value = ""; }} />
+        </label>
+        {client.logoUrl && <button onClick={retirerLogo} className="text-red-600 underline">Retirer</button>}
+        <span className="text-gray-400 w-full sm:w-auto">PNG, JPEG ou WebP, 2 Mo au plus. Sur la page publique, affiché seulement si l&apos;accord est « Oui ».</span>
       </div>
 
       {client.page && (

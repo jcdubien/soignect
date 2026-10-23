@@ -40,6 +40,7 @@ export default function GestionClient(props: {
   editeur: { nom: string } | null;
   lienConnexion: string;
   nom: string;
+  logoUrl: string | null;
   active: boolean;
   demo: boolean;
   revueLe: string;
@@ -124,7 +125,13 @@ export default function GestionClient(props: {
         />
       )}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h1 className="text-lg font-bold m-0">Votre page — {props.nom}</h1>
+        <div className="flex items-center gap-3">
+          {props.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={props.logoUrl} alt="" className="h-10 w-auto max-w-[120px] object-contain" />
+          )}
+          <h1 className="text-lg font-bold m-0">Votre page — {props.nom}</h1>
+        </div>
         <p className="text-xs text-gray-500 mt-1 mb-3">
           Abonnement actif jusqu&apos;au {new Date(props.revueLe).toLocaleDateString("fr-FR", { timeZone: "UTC" })} ·
           {" "}{props.vues.total} visite{props.vues.total > 1 ? "s" : ""} au total, {props.vues.trenteJours} sur 30 jours

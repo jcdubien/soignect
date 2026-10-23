@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 async function charger(jeton: string) {
   return prisma.pageClient.findUnique({
     where: { jetonPublic: jeton },
-    include: { client: { select: { id: true, nom: true, debutLe: true, revueLe: true, clotureLe: true } } },
+    include: { client: { select: { id: true, nom: true, logoUrl: true, debutLe: true, revueLe: true, clotureLe: true } } },
   });
 }
 
@@ -52,6 +52,11 @@ export default async function PageClientPublique({ params }: { params: Promise<{
           <p className="text-xs font-bold text-amber-900 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 mt-0 mb-3">
             Démonstration — page d&apos;exemple, non publiée par une institution.
           </p>
+        )}
+        {/* Logo (23/10) : même règle que le nom — seulement avec l'accord de la structure. */}
+        {nomPublie && page.client.logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={page.client.logoUrl} alt={`Logo de ${nomPublie}`} className="h-12 w-auto max-w-[180px] object-contain mb-2" />
         )}
         {nomPublie && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide m-0">{nomPublie}</p>}
         {contenu}

@@ -40,7 +40,7 @@ export default async function AdminPagesPage() {
     <PagesClient
       zones={zones}
       clients={clients.map((c) => ({
-        id: c.id, nom: c.nom, type: c.type, nature: c.nature,
+        id: c.id, nom: c.nom, type: c.type, nature: c.nature, logoUrl: c.logoUrl,
         active: relationActive(c), revueLe: c.revueLe.toISOString(),
         max: limitesDuClient(c).communesMax,
         casesMax: limitesDuClient(c).casesMax,
