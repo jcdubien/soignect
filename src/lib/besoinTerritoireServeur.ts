@@ -2,7 +2,7 @@ import { Prisma, type ActionBesoin, type BesoinTerritoire, type NatureBesoin, ty
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
 import {
-  BESOINS_ACTIFS_MAX, LIMITES_BESOIN, echeanceDepuis, erreurTexteBesoin, specialiteNormalisee,
+  BESOINS_ACTIFS_MAX, LIMITES_BESOIN, MENTION_LIEN_ADMIN, echeanceDepuis, erreurTexteBesoin, specialiteNormalisee,
 } from "@/lib/besoinTerritoire";
 
 // Besoin du territoire — gestes serveur (23/10). Chaque geste modifie le besoin ET écrit sa ligne
@@ -152,12 +152,20 @@ export async function demanderPublication(client: Client, id: string, auteur: Au
   }
 }
 
+/** Un administrateur est-il éditeur nommé (actif) de la structure ? Règle générale, sans cas
+ *  particulier : c'est ce qui fait écrire « structure liée à l'administrateur ». */
+export async function structureLieeAdmin(clientId: string): Promise<boolean> {
+  return (await prisma.editeurClient.count({ where: { clientId, retireLe: null, user: { role: "ADMIN" } } })) > 0;
+}
+
 /** Décision de l'administration sur un besoin A_VALIDER. */
 export async function deciderBesoin(id: string, decision: "valider" | "refuser", auteur: AuteurBesoin, motif: string | null, maintenant = new Date()): Promise<Resultat<BesoinTerritoire>> {
   const avant = await prisma.besoinTerritoire.findUnique({ where: { id }, include: { client: { select: { id: true, nom: true } } } });
   if (!avant) return { ok: false, status: 404, error: "Besoin introuvable." };
   if (avant.statut !== "A_VALIDER") return { ok: false, status: 409, error: "Ce besoin n'attend pas de validation." };
   if (decision === "refuser" && !(motif ?? "").trim()) return { ok: false, status: 400, error: "Un refus se motive." };
+  const lie = await structureLieeAdmin(avant.clientId);
+  const motifJournal = [lie ? MENTION_LIEN_ADMIN : null, (motif ?? "").trim() || null].filter(Boolean).join(" — ") || null;
   const besoin = await prisma.$transaction(async (tx) => {
     const b = await tx.besoinTerritoire.update({
       where: { id },
@@ -165,7 +173,7 @@ export async function deciderBesoin(id: string, decision: "valider" | "refuser",
         ? { statut: "PUBLIE", valideLe: maintenant, publieLe: maintenant, expireLe: echeanceDepuis(maintenant) }
         : { statut: "BROUILLON", motifRefus: motif!.trim().slice(0, LIMITES_BESOIN.motifMax) },
     });
-    await journaliser(tx, b, avant.client, decision === "valider" ? "VALIDATION" : "REFUS", "A_VALIDER", auteur, motif);
+    await journaliser(tx, b, avant.client, decision === "valider" ? "VALIDATION" : "REFUS", "A_VALIDER", auteur, motifJournal);
     return b;
   });
   return { ok: true, besoin };

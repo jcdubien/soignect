@@ -26,6 +26,9 @@ export async function POST(req: NextRequest) {
   const d = z.object({ id: z.string(), decision: z.enum(["valider", "refuser"]), motif: z.string().trim().max(LIMITES_BESOIN.motifMax).nullish() })
     .safeParse(await req.json().catch(() => null));
   if (!d.success) return NextResponse.json({ error: "Décision invalide." }, { status: 400 });
-  const r = await deciderBesoin(d.data.id, d.data.decision, { id: session.user.id ?? null, nom: "Administration Soignect" }, d.data.motif ?? null);
+  // Le validateur est nommé au journal : son nom de profil, à défaut « Administration Soignect ».
+  const profil = session.user.id ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { name: true } }) : null;
+  const nom = `${profil?.name?.trim() || "Administration Soignect"} (administration)`;
+  const r = await deciderBesoin(d.data.id, d.data.decision, { id: session.user.id ?? null, nom }, d.data.motif ?? null);
   return r.ok ? NextResponse.json({ ok: true, besoin: r.besoin }) : NextResponse.json({ error: r.error }, { status: r.status });
 }

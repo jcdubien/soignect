@@ -6,8 +6,8 @@
 // période. Il se publie depuis la page de gestion de la structure, par ses éditeurs nommés ; la
 // PREMIÈRE publication d'une structure passe par la validation de l'administration.
 //
-// À VALIDER PAR JC : la durée de publication (90 jours) et le nombre de besoins actifs par
-// structure (10). Ce sont des garde-fous de départ, pas des règles d'offre.
+// Décisions de JC (23/10) : 90 jours renouvelables ; 10 besoins actifs par structure pour toutes
+// pendant le pilote, à réviser après usage.
 
 import { contientUnNumero } from "@/lib/numeroTelephone";
 
@@ -27,9 +27,9 @@ export const LIMITES_BESOIN = {
   motifMax: 300,
 } as const;
 
-/** Durée de publication, renouvelable — à valider. */
+/** Durée de publication, renouvelable (décision JC, 23/10). */
 export const DUREE_PUBLICATION_JOURS = 90;
-/** Besoins actifs (à valider ou publiés) par structure — à valider. */
+/** Besoins actifs (à valider ou publiés) par structure — pilote, à réviser après usage. */
 export const BESOINS_ACTIFS_MAX = 10;
 
 /** Étiquettes affichées avec un besoin, partout où il apparaît. */
@@ -59,3 +59,20 @@ export function specialiteNormalisee(s: string | null | undefined): string | nul
 export function echeanceDepuis(debut: Date): Date {
   return new Date(debut.getTime() + DUREE_PUBLICATION_JOURS * 86_400_000);
 }
+
+/**
+ * Critères de validation d'une première publication — lus par l'écran /admin/besoins et cités
+ * dans la spec. Rédigés le 23/10, à valider par JC.
+ */
+export const CRITERES_VALIDATION: readonly string[] = [
+  "Le besoin décrit un manque du territoire de la structure (une commune de son périmètre), pas une offre d'emploi d'un cabinet ou d'un établissement particulier.",
+  "Le texte est factuel : aucune promesse de rémunération, d'aide ou d'avantage que la structure ne peut garantir ; ce qu'elle propose reste une déclaration de sa part.",
+  "Aucune coordonnée directe, aucun lien externe, aucune donnée sur une personne nommée (le filtre automatique écarte numéros, emails et liens).",
+  "Pas de doublon : le contrôle automatique couvre la même commune et la même profession ; vérifier les communes voisines du même périmètre.",
+  "Un ton respectueux, sans dénigrement d'un professionnel, d'une structure ou d'un territoire.",
+  "Structure liée à l'administrateur : la validation est inscrite comme telle au journal et ne donne aucun avantage d'affichage.",
+];
+
+/** Mention inscrite au journal et affichée à la validation quand un administrateur est éditeur
+ *  nommé de la structure — même règle pour toutes, aucun nom de structure dans le code. */
+export const MENTION_LIEN_ADMIN = "Structure liée à l'administrateur";

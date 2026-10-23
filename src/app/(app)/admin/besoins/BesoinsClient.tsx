@@ -6,10 +6,10 @@ import { ETIQUETTE_PROPOSITION } from "@/lib/besoinTerritoire";
 
 interface Besoin {
   id: string; structure: string; commune: string; profession: string; nature: string;
-  texte: string; proposition: string | null; demandeLe: string;
+  texte: string; proposition: string | null; demandeLe: string; liee: boolean;
 }
 
-export default function BesoinsClient({ besoins }: { besoins: Besoin[] }) {
+export default function BesoinsClient({ besoins, criteres, mentionLien }: { besoins: Besoin[]; criteres: readonly string[]; mentionLien: string }) {
   const router = useRouter();
   const [motifs, setMotifs] = useState<Record<string, string>>({});
   const [etat, setEtat] = useState<string | null>(null);
@@ -33,6 +33,12 @@ export default function BesoinsClient({ besoins }: { besoins: Besoin[] }) {
         La première publication de chaque structure passe ici. Les suivantes sont publiées directement,
         et restent visibles dans le journal de la structure.
       </p>
+      <details className="mt-3 rounded-xl border border-gray-200 bg-white p-3">
+        <summary className="cursor-pointer text-sm font-semibold text-gray-800">Critères de validation</summary>
+        <ol className="mt-2 mb-0 pl-5 text-sm text-gray-700 space-y-1">
+          {criteres.map((c) => <li key={c}>{c}</li>)}
+        </ol>
+      </details>
       {etat && <p role="status" className="mt-3 text-sm text-gray-700">{etat}</p>}
       {besoins.length === 0 ? (
         <p className="mt-6 text-sm text-gray-400">Aucun besoin en attente.</p>
@@ -41,6 +47,11 @@ export default function BesoinsClient({ besoins }: { besoins: Besoin[] }) {
           {besoins.map((b) => (
             <li key={b.id} className="rounded-2xl border border-gray-200 bg-white p-4">
               <p className="text-sm font-semibold text-gray-900 m-0">{b.structure} · {b.commune} · {b.profession}</p>
+              {b.liee && (
+                <p className="mt-1 mb-0 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-900">
+                  {mentionLien} — la validation sera inscrite comme telle au journal.
+                </p>
+              )}
               <p className="text-xs text-gray-500 mt-0.5 mb-2">{b.nature} · demandé le {new Date(b.demandeLe).toLocaleDateString("fr-FR")}</p>
               <p className="text-sm text-gray-800 whitespace-pre-line m-0">{b.texte}</p>
               {b.proposition && (

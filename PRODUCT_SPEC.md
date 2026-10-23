@@ -7408,6 +7408,37 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 345 — BESOINS : CRITÈRES DE VALIDATION ÉCRITS, VALIDATEUR NOMMÉ, STRUCTURE LIÉE À L'ADMINISTRATEUR (23/10)
+
+- **Décisions de JC (23/10)** : 90 jours renouvelables ; 10 besoins actifs par structure, pour
+  toutes, pendant le pilote, à réviser après usage.
+- **Critères de validation** écrits (`CRITERES_VALIDATION`, lib/besoinTerritoire), affichés sur
+  `/admin/besoins` : manque du territoire et non offre d'un employeur ; texte factuel, sans
+  promesse ; aucune coordonnée, aucun lien, aucune personne nommée ; pas de doublon (communes
+  voisines à vérifier) ; ton respectueux ; lien avec l'administrateur inscrit au journal, sans
+  avantage d'affichage. **Rédigés par moi, à valider par JC.**
+- **Validateur nommé** au journal : `auteurId` (compte) et `auteurNom` = nom de profil +
+  « (administration) ».
+- **« Structure liée à l'administrateur »** : règle générale, sans nom de structure dans le code —
+  un administrateur est éditeur nommé actif de la structure (`structureLieeAdmin`). La mention
+  s'affiche sur l'écran de validation et s'inscrit dans le motif du journal (validation comme
+  refus). Au 23/10, elle vaut pour la CPTS Nord Basse-Terre.
+- **Réponses à JC (23/10)** :
+  1. RLS active sur `BesoinTerritoire` et `JournalBesoin` ; journal en ajout seul par déclencheurs
+     SQL (modification, suppression et vidage refusés) — vérifié en production.
+  2. Après la première validation : un besoin publié ne se modifie plus (seul un brouillon se
+     modifie) ; chaque nouveau besoin d'une structure validée est publié sans relecture, mais tout
+     texte (création, modification) passe le filtre automatique (`contientUnNumero`, emails,
+     liens).
+  3. Aucun usage de `BesoinTerritoire` hors de ses propres fichiers : `EST_UNE_OFFRE`, fil et
+     statistiques d'ouverture inchangés. Aucun affichage dans le fil avant la correction de la
+     pagination et l'ouverture de la profession concernée.
+  5. Les notifications de validation sont internes (cloche) : `createNotification` n'écrit qu'en
+     base, aucun email.
+- **Essai** (schéma `essai_p27`, comptes `.invalid`) : critères affichés ; mention présente pour la
+  structure dont un administrateur est éditeur, absente sinon ; journal VALIDATION et REFUS avec
+  validateur nommé et motif.
+
 ### SECTION 344 — LOGO D'UNE STRUCTURE, DÉPOSÉ DEPUIS L'ADMINISTRATION (23/10)
 
 - **Demande de JC.** Dans `/admin/pages`, chaque structure a une ligne « Logo » : déposer,
