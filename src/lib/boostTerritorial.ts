@@ -115,3 +115,28 @@ export function erreurReglage(niveau: number, niveauApl: number | null | undefin
     ? `Pas d'APL pour cette case : justifiez le niveau par écrit (${JUSTIFICATION_MIN} à ${JUSTIFICATION_MAX} caractères).`
     : `Au-delà d'un cran d'écart avec l'APL (niveau ${niveauApl}), justifiez par écrit (${JUSTIFICATION_MIN} à ${JUSTIFICATION_MAX} caractères).`;
 }
+
+// ── Cabinet fondateur : TOUJOURS en tête, par construction (23/10) ─────────────────────────
+//
+// Décision de JC : le bonus « cabinet fondateur » est un avantage en nature voulu, et il doit être
+// STRICTEMENT au-dessus de l'avantage CPTS et de tout autre. Un score ne le garantissait pas : le
+// fondateur vaut 100, mais un abonnement Boost (80) avec le bonus partenaire CPTS (+20) vaut aussi
+// 100 (égalité), et une annonce Premium + CPTS (70) en commune prioritaire (+35) vaut 105 — elle
+// passait DEVANT. L'ordre est donc posé avant tout score : les annonces des cabinets fondateurs
+// d'abord (entre elles, par score de base, à égalité l'ordre d'entrée), puis le reste ordonné par
+// `ordonnerAvecDensite`, dont la fenêtre de densité commence après elles.
+export function ordonnerFil<T>(
+  items: T[],
+  estFondateur: (t: T) => boolean,
+  base: (t: T) => number,
+  boost: (t: T) => number,
+  densite: number = DENSITE_BOOST,
+): { ordre: T[]; remontees: Set<T> } {
+  const tete = items
+    .map((t, i) => ({ t, i, b: base(t) }))
+    .filter((x) => estFondateur(x.t))
+    .sort((a, b) => b.b - a.b || a.i - b.i)
+    .map((x) => x.t);
+  const suite = ordonnerAvecDensite(items.filter((t) => !estFondateur(t)), base, boost, densite);
+  return { ordre: [...tete, ...suite.ordre], remontees: suite.remontees };
+}

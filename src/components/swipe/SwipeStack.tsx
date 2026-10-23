@@ -593,6 +593,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // Nombre d'annonces du feed courant remontées par une priorité territoriale déclarée.
   // 0 = la mention d'ordre ne doit PAS parler de zones prioritaires (voir plus bas).
   const [prioriteTerritoriale, setPrioriteTerritoriale] = useState(0);
+  const [fondateurEnTete, setFondateurEnTete] = useState(false);
   // Institutions ayant déclaré les communes mises en avant dans CE feed (B2). Vide = la mention
   // ne nomme personne, ce qui reste vrai en toutes circonstances.
   const [institutionsPriorite, setInstitutionsPriorite] = useState<string[]>([]);
@@ -821,6 +822,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       }
       const prioriteHdr = r.headers.get("x-feed-priorite-territoriale");
       if (prioriteHdr != null) setPrioriteTerritoriale(parseInt(prioriteHdr, 10) || 0);
+      const fondateurHdr = r.headers.get("x-feed-fondateur-en-tete");
+      if (fondateurHdr != null) setFondateurEnTete(fondateurHdr === "1");
       // B2 (20/08) — institutions à créditer dans la mention. JSON + encodeURIComponent côté
       // serveur : un en-tête HTTP est du latin-1, un nom accentué le casserait. Toute lecture
       // qui échoue retombe sur une liste vide, donc sur la formule SANS auteur — jamais sur une
@@ -1334,7 +1337,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             <>
               Ordre d&apos;affichage : les comptes abonnés et partenaires
               apparaissent en premier{isTitulaire ? `, ainsi que les disponibilités couvrant mai-octobre${salarieSeul ? "" : ", période où les remplaçants sont les plus rares"}` : ""}{prioriteTerritoriale > 0 ? `, ainsi que les postes situés sur une commune ${mentionPriorite}` : ""}.
-              Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
+              {/* Décision de JC (23/10) : dite seulement quand le fondateur est en tête de CE fil. */}
+              {fondateurEnTete && " Le cabinet fondateur de la plateforme apparaît en premier."}
+              {" "}Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
             </>
           )}
         </p>

@@ -7,7 +7,7 @@ import { stripMissionProfiles } from "@/lib/publicProfile";
 import { EST_UNE_OFFRE, offreOuverteLe } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 import { chargerPrioritesTerritoriales, communesAvecPrioriteVivante, type PrioriteAppliquee } from "@/lib/territoire";
-import { boostRetenu, ordonnerAvecDensite } from "@/lib/boostTerritorial";
+import { boostRetenu, ordonnerFil } from "@/lib/boostTerritorial";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
 import { salariatPublicable, contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { professionPluriel } from "@/lib/professions";
@@ -258,8 +258,11 @@ export async function GET(req: NextRequest) {
   // priorité applicable, l'ordre est exactement le tri décroissant du score de base.
   const scoreBase = (m: (typeof missions)[number]) =>
     getDesirabilityPercent(m.profile) + bonusSaisonnier({ startDate: m.startDate, endDate: m.endDate }, besoinPeriode);
-  const { ordre, remontees } = ordonnerAvecDensite(
+  // Cabinet fondateur toujours en tête, par construction et non par un score égalable (23/10,
+  // décision de JC) — voir `ordonnerFil`.
+  const { ordre, remontees } = ordonnerFil(
     missions,
+    (m) => m.profile.isFounding === true,
     scoreBase,
     (m) => boostRetenu([prioritesTerritoriales.get(m.location ?? "")?.points ?? 0]),
   );
@@ -610,6 +613,9 @@ export async function GET(req: NextRequest) {
       // prioritaires » que lorsque c'est vrai POUR CE LECTEUR, et se taire sinon. C'est ce qui
       // manquait avant le 17/08 — la phrase était écrite en dur et affirmait toujours.
       "x-feed-priorite-territoriale": String(misesEnAvantTerritoire.length),
+      // Cabinet fondateur en tête de CE fil (23/10) : la mention ne le dit que lorsque c'est vrai
+      // pour ce lecteur, comme pour la priorité territoriale.
+      "x-feed-fondateur-en-tete": missions[0]?.profile.isFounding ? "1" : "0",
       // B2 (20/08) — les institutions à créditer, pour que la mention les NOMME. Deux versions
       // de cette phrase ont déjà été fausses faute de pouvoir désigner un auteur ; elle ne
       // revient qu'adossée à des lignes `PrioriteTerritoriale` réelles, portées par une relation

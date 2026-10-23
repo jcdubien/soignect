@@ -7408,6 +7408,30 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 347 — CABINET FONDATEUR TOUJOURS EN TÊTE DU FIL, PAR CONSTRUCTION (23/10)
+
+- **Décision de JC (23/10)** : le bonus « cabinet fondateur » est maintenu (avantage en nature
+  voulu) et doit être STRICTEMENT au-dessus de l'avantage CPTS et de tout autre.
+- **Constat** : le fondateur valait 100 (`getDesirabilityPercent`), mais un abonnement Boost (80)
+  avec le bonus partenaire CPTS (+20) valait aussi 100 (égalité), et le boost territorial s'ajoute
+  au score de base : Premium + CPTS (70) en commune prioritaire (+35) = 105, devant le fondateur.
+  Vérifié avec l'ancien algorithme : `premium+cpts+zone > boost+cpts > fondateur`. Aucun cabinet
+  réel n'atteint ces scores au 23/10.
+- **Correctif** : `ordonnerFil` (lib/boostTerritorial) pose les annonces des cabinets fondateurs
+  AVANT tout score, puis ordonne le reste par `ordonnerAvecDensite` (densité 1 sur 3 et boost
+  territorial inchangés, la fenêtre commence après elles). Sans fondateur dans le fil, l'ordre est
+  identique à l'ancien. Le fil (`/api/feed`) l'utilise.
+- **Mention** : dans la phrase de transparence de la vue Cartes du fil (SwipeStack, « Ordre
+  d'affichage : … »), « Le cabinet fondateur de la plateforme apparaît en premier. » s'ajoute
+  seulement quand le fondateur est en tête de CE fil (en-tête `x-feed-fondateur-en-tete`), comme la
+  mention de priorité territoriale. Pas de page séparée « comment fonctionne le classement » dans le
+  produit : c'est cette phrase qui en tient lieu.
+- **Tests** (`npm test`, `src/lib/__tests__/classementFondateur.test.ts`, 7 cas) : égalité Boost +
+  CPTS, Premium + CPTS + boost maximal, densité 1 sur 3 avec plusieurs annonces boostées, override
+  administrateur à 100, plusieurs annonces fondatrices, ordre inchangé sans fondateur. **Essai de bout
+  en bout** (schéma `essai_p28`) : fil d'un candidat kiné → fondateur > Premium + CPTS en zone >
+  Boost + CPTS ; en-tête à 1.
+
 ### SECTION 346 — LOGO : PNG OU JPEG, 1 MO, SVG REFUSÉ, JAMAIS SUR UNE PAGE DE DÉMONSTRATION (23/10)
 
 Décisions de JC (23/10) sur la section 344 :
