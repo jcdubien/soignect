@@ -124,7 +124,7 @@ export default function EncartRecommandation(props: {
         <div className="mt-3">
           <button type="button" onClick={() => setToutes((v) => !v)} aria-expanded={toutes}
             className="text-sm font-bold text-[#5eead4] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300">
-            {toutes ? "Masquer" : `Voir les ${autres.length} autre${autres.length > 1 ? "s" : ""} proposition${autres.length > 1 ? "s" : ""}`}
+            {toutes ? "Masquer" : autres.length === 1 ? "Voir l’autre proposition" : `Voir les ${autres.length} autres propositions`}
           </button>
           {toutes && (
             <ul className="list-none p-0 m-0 mt-2 space-y-2">
