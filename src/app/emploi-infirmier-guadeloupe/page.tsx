@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { INFIRMIER, TERRITOIRES, PORTES, metadonneesPage } from "@/lib/pagesDiffusion";
 import { PERIMETRE_GUADELOUPE } from "@/lib/annoncesTerritoire";
 import PagePorte from "@/components/diffusion/PagePorte";
+import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,7 @@ export default function Page() {
           <p>
             Hôpitaux, cliniques, EHPAD, SSR, centres de santé : Soignect référence vos offres de
             poste salarié d&apos;infirmier et les présente aux professionnels ayant déclaré être
-            ouverts au salariat. Le contrat de travail relève de votre établissement — Soignect
-            ne le génère pas et ne s&apos;y substitue pas.
+            ouverts au salariat. {CONTRAT_RESTE_LE_VOTRE}
           </p>
         </>
       }

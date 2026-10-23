@@ -6,6 +6,7 @@ import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
 import { periodeParDefaut } from "@/lib/contrats/periode";
 import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
+import { contratEtabliParLEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import {
   lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
   REVERSEMENT_PCT_DEFAUT, REVERSEMENT_DELAI_MOIS_DEFAUT, REDEVANCE_CABINET_PCT_DEFAUT,
@@ -138,6 +139,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     missionType,
     salarie: isSalariat,
     nature: natureContrat,
+    employeurEtablissement: profilTitulaire.titulaireKind === "STRUCTURE",
   });
 
   // Durée, préavis et non-concurrence (section 237, lot 4). Mêmes constantes que la génération.
@@ -158,6 +160,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   return NextResponse.json({
     gabarits,
+    // L'écran le dit au lieu de chercher un modèle manquant (22/10).
+    contratEtabliParLEmployeur: contratEtabliParLEmployeur(profilTitulaire),
     defautsDuree,     // durée, préavis, non-concurrence — lot 4
     missionType,
     theirName:       theirProfile.name,

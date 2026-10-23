@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { Mission, Profile } from "@prisma/client";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
@@ -67,6 +68,9 @@ function MissionSheet({
   isPremium?: boolean;
   isAdmin?: boolean;
 }) {
+  // `isEmployeur` de la session vaut « établissement » (lib/auth) — voir canSendContract.
+  const { data: session } = useSession();
+  const jeSuisEtablissement = (session?.user as { isEmployeur?: boolean } | undefined)?.isEmployeur === true;
   const { mission } = item;
   const p = mission.profile;
   const router = useRouter();
@@ -145,8 +149,10 @@ function MissionSheet({
 
   // "Envoyer un contrat" visible uniquement côté recruteur (titulaire/assistant), et jamais quand
   // le contrat est celui de l'employeur (aide-soignant, section 304) : il n'y a rien à envoyer.
+  // Ni pour un établissement (22/10) : il établit son contrat (contratEtabliParLEmployeur).
   const canSendContract =
-    (myProfileType === "TITULAIRE" || myProfileType === "ASSISTANT") && !contratFourniParEmployeur(p.profession);
+    (myProfileType === "TITULAIRE" || myProfileType === "ASSISTANT") && !contratFourniParEmployeur(p.profession)
+    && !(myProfileType === "TITULAIRE" && jeSuisEtablissement);
 
   // Item 10 — réaffecter cette relation à une autre mission ouverte (si plusieurs)
   const canReassign = !!item.matchId && titulaireMissions.length > 1;

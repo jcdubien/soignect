@@ -71,9 +71,13 @@ export function modelesDuMatch(opts: {
   missionType: MissionType | null;
   salarie: boolean;
   nature: NatureContratTravail;
+  /** Le recruteur est un établissement : aucun modèle (contratEtabliParLEmployeur, 22/10).
+   *  Obligatoire : un appelant qui l'oublierait proposerait des modèles à un établissement. */
+  employeurEtablissement: boolean;
 }): ModeleDuMatch[] {
   const { professionTitulaire, professionCandidat, missionType, salarie, nature } = opts;
   if (!missionType || professionTitulaire !== professionCandidat) return [];
+  if (opts.employeurEtablissement) return [];
   return salarie
     ? gabaritsSalariePour(professionTitulaire, nature).map((g) => ({
         id: g.id, libelle: g.libelle, quandLUtiliser: null,

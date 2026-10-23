@@ -7408,6 +7408,30 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 330 — UN ÉTABLISSEMENT ÉTABLIT SON CONTRAT : AUCUNE GÉNÉRATION (22/10)
+
+- **Arbitrage de JC** : pas de génération pour un compte « établissement », comme pour
+  l'aide-soignant. Critère : le TYPE D'EMPLOYEUR, pas la profession ; les cabinets libéraux qui
+  embauchent un salarié gardent leurs modèles. Les modèles CDI kiné / infirmier ne sont pas
+  proposés à un établissement (relecture juridique avant).
+- **Règle unique** : `contratEtabliParLEmployeur` (lib/contrats/gabaritsSalarie) = profession
+  salariée seulement OU `titulaireKind = STRUCTURE`. Appliquée à : `modelesDuMatch` (option
+  `employeurEtablissement`, rendue obligatoire), `contrat-info` (aucun modèle + drapeau),
+  génération (`/api/match/[id]/contrat`, 422 avant toute bifurcation), écran de contrat,
+  boutons « Envoyer un contrat » (tiroir et chat), identité contractuelle exigée (aucune).
+- **Une seule phrase** `CONTRAT_RESTE_LE_VOTRE` : « Le contrat reste le vôtre : Soignect ne le
+  génère pas et ne s'y substitue pas. » — sous l'appel des pages « emploi », en bas de ces
+  pages, dans le formulaire de publication d'un établissement, sur l'écran de contrat (côté
+  établissement ; le candidat lit que le contrat est établi par l'établissement). Le formulaire
+  ne dit plus « le contrat généré suit le modèle-type de votre ordre » à un établissement.
+- **Existant** (production, lecture) : 24 mises en relation ; modèles proposés inchangés pour 22,
+  les 2 qui changent sont celles des établissements (expirées, sans signature) : CDI kiné → aucun.
+- **Essai** (22/10, schéma `essai_p19`, supprimé ; 10 vignettes retirées du stockage de
+  production) : établissement kiné CDD et CDI, établissement aide-soignant — aucun modèle,
+  brouillon refusé (422, message) ; cabinet kiné CDD salarié, CDI salarié et remplacement libéral
+  — modèles inchangés et trois brouillons PDF générés ; à l'écran, contrat « reste le vôtre »,
+  pas de bouton contrat pour l'établissement, bouton présent pour le cabinet.
+
 ### SECTION 329 — PARCOURS ÉTABLISSEMENT (6) : MESURE DU CLIC, EMAILS, BASCULE PAYANTE, VOCABULAIRE (22/10)
 
 - **Mesure** : `/register` devient une page serveur mince (écran inchangé, `RegisterClient`) qui

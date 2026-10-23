@@ -12,6 +12,7 @@ import ReprendreTexte from "@/components/missions/ReprendreTexte";
 import { mentionExerciceCoordonne } from "@/lib/professions";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { assistanceIADisponible } from "@/lib/annonceAI";
+import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
 
 export const dynamic = "force-dynamic";
 
@@ -1047,10 +1048,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
                 </div>
                 <p className="text-[11px] text-gray-500 mt-2 leading-snug">
                   Contrat de travail : déclaration préalable à l&apos;embauche, paie et cotisations vous
-                  incombent.{" "}
-                  {salarieSeul
-                    ? "Le contrat de travail est le vôtre, selon votre convention collective : Soignect ne le génère pas."
-                    : "Le contrat généré suit le modèle-type de votre ordre professionnel."}
+                  incombent. {CONTRAT_RESTE_LE_VOTRE}
                 </p>
               </>
             ) : (<>

@@ -16,6 +16,7 @@
 import { MissionType, Profession as ProfessionDb } from "@prisma/client";
 import type { Camp } from "@/lib/annoncesTerritoire";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
+import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
 
 export interface Profession {
   /** « kinésithérapeute » — employé dans le titre personnifié. */
@@ -304,12 +305,12 @@ export const PORTES: Record<string, Porte> = {
     cible: "Hôpitaux, cliniques, EHPAD, SSR, SSIAD, CAMSP — recrutement salarié",
     titre: (p, t) => `Nous recrutons ${p.unSingulier} pour notre établissement ${t.preposition} ${t.nom}`,
     accroche: (p, t) =>
-      `CDI, CDD, vacation : publiez votre offre et touchez ${candidatsSalaries(p)} ${t.preposition} ${t.nom}. Vous décrivez le poste et la rémunération ; le contrat reste le vôtre, Soignect ne s'y substitue pas.`,
+      `CDI, CDD, vacation : publiez votre offre et touchez ${candidatsSalaries(p)} ${t.preposition} ${t.nom}. Vous décrivez le poste et la rémunération.`,
     metaTitre: (p, t) => `Recrutement ${p.court} salarié ${t.preposition} ${t.nom} — CDI, CDD, vacation | Soignect`,
     metaDescription: (p, t) =>
       `Établissements de ${t.nom} — ${p.employeurs} : publiez vos postes ${p.deSingulier} salarié et touchez ${candidatsSalaries(p)}.`,
     cta: "Publier une offre →",
-    ctaSous: "Le contrat de travail relève de votre établissement.",
+    ctaSous: CONTRAT_RESTE_LE_VOTRE,
     mentionGratuite: true,
     ogTitre: (p) => `Recrutement ${p.court} salarié`,
     ogSousTitre: (p) => `${p.employeurs.charAt(0).toUpperCase()}${p.employeurs.slice(1)} : vos offres en CDI, CDD ou vacation, présentées ${candidatsSalaries(p).replace(/^les /, "aux ")}.`,

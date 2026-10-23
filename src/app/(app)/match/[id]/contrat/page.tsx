@@ -8,6 +8,7 @@ import { fmtDateUTC } from "@/lib/contrats/date";
 import { libelleOrdre, articleNonInstallation } from "@/lib/professions";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import type { PeriodeContrat, SourcePeriode } from "@/lib/contrats/periode";
+import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ interface MatchInfo {
   /** Période par défaut du contrat et sa provenance (section 237). */
   periode?: PeriodeContrat;
   jeSuisTitulaire?: boolean;
+  /** Contrat établi par l'employeur — aide-soignant ou établissement (22/10). */
+  contratEtabliParLEmployeur?: boolean;
   /** Profession du contrat — nomme l'ordre et l'article de code exacts (section 240). */
   profession?: string;
   /** Durée, préavis et non-concurrence (section 237, lot 4). */
@@ -585,6 +588,13 @@ export default function ContratPage() {
             Soignect n&apos;a <strong>pas encore de modèle de contrat</strong> pour cette profession
             et ce type de poste. Le contrat est à établir entre vous ; une fois signé, le recruteur
             le déclare sur la mise en relation, ce qui ferme son annonce.
+          </p>
+        ) : info.contratEtabliParLEmployeur && !contratFourniParEmployeur(info.profession) ? (
+          // 22/10 : un établissement établit son contrat, quelle que soit la profession.
+          <p className="text-gray-500 text-sm">
+            {info.jeSuisTitulaire
+              ? CONTRAT_RESTE_LE_VOTRE
+              : "Le contrat de travail est établi par l'établissement, selon les règles qui s'appliquent chez lui : Soignect ne le génère pas."}
           </p>
         ) : contratFourniParEmployeur(info.profession) ? (
           // Section 304 : ce n'est pas un modèle manquant, c'est la règle de la profession.

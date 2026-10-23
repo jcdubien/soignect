@@ -285,6 +285,17 @@ export async function GET(req: NextRequest, { params }: Params) {
     );
   }
 
+  // ── UN ÉTABLISSEMENT ÉTABLIT SON CONTRAT (22/10, arbitrage de JC) ──────────────────────────
+  // Critère : le TYPE D'EMPLOYEUR, pas la profession (lib/contrats/gabaritsSalarie,
+  // contratEtabliParLEmployeur). Refus AVANT toute bifurcation : ni modèle salarié (le CDD CNOMK
+  // est écrit pour un kiné libéral remplacé), ni modèle libéral. Les cabinets ne changent pas.
+  if (profileTitulaire.titulaireKind === "STRUCTURE") {
+    return NextResponse.json(
+      { error: "Le contrat de travail est établi par l'établissement : Soignect ne le génère pas." },
+      { status: 422 },
+    );
+  }
+
   let element: ReturnType<typeof buildRemplacementPdf>;
   let filename: string;
 

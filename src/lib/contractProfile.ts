@@ -4,7 +4,7 @@
 // Source unique de vérité, partagée serveur (blocage/PDF) et client (/compte, contrat).
 
 import { libelleNumeroOrdre } from "@/lib/professions";
-import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
+import { contratEtabliParLEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 export interface ContractIdentity {
   name?: string | null;
@@ -103,7 +103,8 @@ export function isStructureProfile(p: Pick<ContractIdentity, "titulaireKind">): 
 export function requiredContractFields(
   p: Pick<ContractIdentity, "titulaireKind" | "profession">,
 ): ContractField[] {
-  if (contratFourniParEmployeur(p.profession)) return [];
+  // Un établissement non plus (22/10) : il établit son contrat, Soignect n'en génère aucun.
+  if (contratEtabliParLEmployeur(p)) return [];
   const base: ContractField[] = ["name", "adresse"];
   return isStructureProfile(p)
     ? [...base, "siret"]

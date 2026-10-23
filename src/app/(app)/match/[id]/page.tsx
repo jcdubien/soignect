@@ -90,6 +90,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
     missionType,
     salarie: isSalariat,
     nature: natureDuContrat(missionTitulaire, missionType),
+    employeurEtablissement: profilTitulaire.titulaireKind === "STRUCTURE",
   });
   // Sources des modèles, sans doublon : « CNOMK (15/11/2024) », « Modèle-type CNOI… ».
   const sourcesModeles = Array.from(new Set(modeles.map((g) => g.source))).join(" · ");

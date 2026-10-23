@@ -143,6 +143,21 @@ export function contratFourniParEmployeur(profession?: string | null): boolean {
   return (CONTRAT_FOURNI_PAR_L_EMPLOYEUR as readonly string[]).includes(profession ?? "");
 }
 
+/** Le contrat est-il celui de l'EMPLOYEUR, que Soignect ne génère pas ? (22/10, arbitrage de JC)
+ *  Deux raisons, une seule règle : la profession (aide-soignant, section 304) ou le TYPE
+ *  D'EMPLOYEUR — un établissement. Le modèle CNOMK du CDD est écrit pour « le
+ *  masseur-kinésithérapeute libéral » remplacé, faux pour un EHPAD ; les modèles CDI kiné et
+ *  infirmier ne lui sont pas proposés avant relecture juridique. Les cabinets libéraux qui
+ *  embauchent un salarié gardent leurs modèles. */
+/** La phrase dite à un ÉTABLISSEMENT sur son contrat — pages « emploi », formulaire de
+ *  publication, écran de contrat. Une seule écriture : les pages disaient « le contrat reste le
+ *  vôtre », le formulaire « le contrat généré suit le modèle-type de votre ordre ». */
+export const CONTRAT_RESTE_LE_VOTRE = "Le contrat reste le vôtre : Soignect ne le génère pas et ne s'y substitue pas.";
+
+export function contratEtabliParLEmployeur(employeur: { profession?: string | null; titulaireKind?: string | null }): boolean {
+  return contratFourniParEmployeur(employeur.profession) || employeur.titulaireKind === "STRUCTURE";
+}
+
 /** Un poste salarié de cette profession peut-il se publier ? Soit un gabarit existe, soit le
  *  contrat est par nature celui de l'employeur. Prédicat unique des écrans de publication et
  *  du fil — même raison que `aDesGabaritsSalarie` : deux définitions finiraient par diverger. */

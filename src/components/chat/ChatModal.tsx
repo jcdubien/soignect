@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { createPortal } from "react-dom";
@@ -55,8 +56,13 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
   // Pas de bouton quand le contrat est celui de l'employeur (aide-soignant, section 304) :
   // Soignect n'en génère aucun, « Envoyer un contrat » promettait un document qui n'existe pas.
   // Les deux parties ont la même profession (un fil par profession) : celle du partenaire suffit.
+  // Ni pour un établissement (22/10) : il établit son contrat (contratEtabliParLEmployeur).
+  // `isEmployeur` de la session vaut « établissement » (lib/auth).
+  const { data: session } = useSession();
+  const jeSuisEtablissement = (session?.user as { isEmployeur?: boolean } | undefined)?.isEmployeur === true;
   const canSendContract =
-    (myType === "TITULAIRE" || myType === "ASSISTANT") && !contratFourniParEmployeur(partner.profession);
+    (myType === "TITULAIRE" || myType === "ASSISTANT") && !contratFourniParEmployeur(partner.profession)
+    && !(myType === "TITULAIRE" && jeSuisEtablissement);
   const libellePartenaire = libelleRoleSalariat(partner) ?? TYPE_LABEL[partner.type] ?? partner.type;
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
