@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PalierApl } from "@/lib/aplPalier";
 import BlocMesure, { type MesureAffichee } from "@/components/territoire/BlocMesure";
+import EncartRecommandation from "@/components/territoire/EncartRecommandation";
+import type { RecommandationAffichee, ResumeReglages, SourceApl } from "@/lib/recommandationTerritoireServeur";
 import { JUSTIFICATION_MAX, JUSTIFICATION_MIN, justificationRequise } from "@/lib/boostTerritorial";
 
 // Écran du lien d'édition d'une page client (20/10). Trois blocs, dans l'ordre où un client
@@ -49,6 +51,7 @@ export default function GestionClient(props: {
   vues: { total: number; trenteJours: number };
   journal: LigneJournal[];
   mesure: MesureAffichee;
+  recommandation: { recommandations: RecommandationAffichee[]; resume: ResumeReglages; source: SourceApl; mention: string } | null;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState(props.initial.messageAccueil);
@@ -92,6 +95,16 @@ export default function GestionClient(props: {
 
   return (
     <div className="space-y-4">
+      {props.recommandation && (
+        <EncartRecommandation
+          jeton={props.jeton}
+          mention={props.recommandation.mention}
+          recommandations={props.recommandation.recommandations}
+          resume={props.recommandation.resume}
+          source={props.recommandation.source}
+          peutModifier={peutModifier}
+        />
+      )}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h1 className="text-lg font-bold m-0">Votre page — {props.nom}</h1>
         <p className="text-xs text-gray-500 mt-1 mb-3">

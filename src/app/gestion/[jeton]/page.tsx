@@ -8,6 +8,8 @@ import { editeurConnecte, libellesDuCode, prioritesDeLaPage, relationActive } fr
 import { appBaseUrl } from "@/lib/appUrl";
 import GestionClient from "./GestionClient";
 import { mesureDuClient } from "@/lib/mesureTerritoriale";
+import { recommandationsDeLaPage } from "@/lib/recommandationTerritoireServeur";
+import { MENTION_RECOMMANDATION } from "@/lib/recommandationTerritoire";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,8 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
       })
     : [];
   const mesure = await mesureDuClient(page.client);
+  // Encart « Recommandation Soignect » (23/10) : propositions calculées, rien d'appliqué ici.
+  const reco = active ? await recommandationsDeLaPage(page) : null;
   const humaines = vues.filter((v) => !(v.metadata as { robot?: boolean } | null)?.robot);
   const il30j = Date.now() - 30 * 86400_000;
 
@@ -81,6 +85,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
           journal={journal.map((j) => ({ ...j, createdAt: j.createdAt.toISOString() }))}
           paliers={paliers}
           vues={{ total: humaines.length, trenteJours: humaines.filter((v) => v.occurredAt.getTime() >= il30j).length }}
+          recommandation={reco ? { ...reco, mention: MENTION_RECOMMANDATION } : null}
         />
       </div>
     </main>

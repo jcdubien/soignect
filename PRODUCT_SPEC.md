@@ -7408,6 +7408,34 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 341 — ENCART « RECOMMANDATION SOIGNECT » SUR LA PAGE DE GESTION (23/10)
+
+Étape 3 du chantier « diagnostic du territoire », validée par JC le 23/10. Données : l'APL seule
+(DREES, en base) ; les imports INSEE et annuaire santé restent à faire.
+
+- **En tête de `/gestion/<jeton>`**, fond sombre contrasté : ce que montrent les données (rang et
+  APL de la case), vos réglages (cases désignées par l'APL qui ont une priorité, réglages écrits
+  par la structure), la recommandation et sa raison, « Voir le calcul » (source, millésime, date
+  d'import, règle des paliers, limites de l'APL). Mention fixe : « Indicatif. Calculé à partir de
+  données publiques. Ce n'est pas un zonage officiel. » États : « Rien à proposer », « Données
+  insuffisantes ». Une proposition principale, les autres sur demande.
+- **Source unique** `lib/recommandationTerritoire` (pur) : règles, ordre, modèles de phrases,
+  mention. Dans l'ordre : priorité échue ; relever ; abaisser (écart de plus d'un cran) ; retirer
+  une case ajoutée sans fondement APL ; régler une commune non réglée (palier ≥ 1, professions de la
+  page) ; données insuffisantes (professions affichées sans APL, en une ligne) ; date de revue à
+  moins de 30 jours. Plafond de cases atteint : la proposition le dit, sans action ni invitation à
+  changer d'offre. Page de démonstration : information seule. Même calcul pour toutes les
+  structures. Aucun modèle de langage.
+- **Chargement** `lib/recommandationTerritoireServeur`, partagé par la page et par la route de
+  traces ; les textes sont remplis côté serveur.
+- **Traces** `RECOMMANDATION_TERRITOIRE` (`POST /api/page-client/<jeton>/recommandation`) :
+  affichée, ignorée (et préremplie, étape 4). Structure, règle, commune, profession ; aucune donnée
+  personnelle. Seule une proposition réellement calculée pour la page est acceptée (404 sinon).
+  « Ignorer » : éditeurs seulement, masqué 30 jours dans ce navigateur.
+- **Essai** (schéma `essai_p24`, comptes `.invalid`) : les 7 règles se déclenchent dans l'ordre ;
+  consultation sans session : encart sans bouton ; ignorée → masquée après rechargement ; clé
+  inventée ou jeton faux → 404 ; « Régler », « Retirer » et l'accès anonyme refusé (403) inchangés.
+
 ### SECTION 340 — AUCUN NOM DANS LES DONNÉES GOOGLE JOBS D'UNE ANNONCE PUBLIQUE (23/10)
 
 - **Constat** (audit anonyme de la production, 23/10) : sur les 76 annonces ouvertes, le nom du
