@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logTraceEvent } from "@/lib/trace";
+import { texteWhatsapp, type MotifWhatsapp } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Interdit" }, { status: 403 });
   }
 
-  const { userId } = await req.json().catch(() => ({ userId: null }));
+  const corps = await req.json().catch(() => ({}));
+  const userId: unknown = corps?.userId;
+  // Motif (23/10, pack de la semaine) : « bienvenue » pour une inscription récente, sinon le
+  // texte d'origine (« activité en attente »). Toute autre valeur retombe sur ce dernier.
+  const motif: MotifWhatsapp = corps?.motif === "bienvenue" ? "bienvenue" : "activite";
   if (typeof userId !== "string" || !userId) {
     return NextResponse.json({ error: "userId requis" }, { status: 400 });
   }
@@ -47,7 +52,7 @@ export async function POST(req: Request) {
   // AUCUNE DONNÉE DE L'AUTRE PARTIE DANS CE TEXTE : ni nom de cabinet, ni titre d'annonce, ni
   // dates. Un message WhatsApp se transfère, se capture, se lit par-dessus l'épaule. Le contenu
   // reste derrière la connexion ; le lien ne fait que ramener.
-  const texte = `Bonjour, vous avez une activité en attente sur Soignect. ${base}/annonces`;
+  const texte = texteWhatsapp(motif, base);
   const lien = `https://wa.me/${numero}?text=${encodeURIComponent(texte)}`;
 
   // CE QU'ON JOURNALISE : qu'un canal a été ouvert, par qui, vers qui. Ni le numéro, ni le
@@ -56,7 +61,7 @@ export async function POST(req: Request) {
   logTraceEvent({
     eventType: "WHATSAPP_OUVERT",
     profileId: u.profile?.id ?? null,
-    metadata: { parProfileId: (session?.user as { profileId?: string })?.profileId ?? null },
+    metadata: { parProfileId: (session?.user as { profileId?: string })?.profileId ?? null, motif },
   });
 
   return NextResponse.json({ lien });

@@ -7,6 +7,7 @@ const NAV = [
   { href: "/admin/stats", label: "Statistiques" },
   { href: "/admin/diffusion", label: "Diffusion" },
   { href: "/admin/users", label: "Utilisateurs" },
+  { href: "/admin/whatsapp", label: "Pack WhatsApp" },
   { href: "/admin/profiles", label: "Profils" },
   { href: "/admin/missions", label: "Annonces" },
   { href: "/admin/ratings", label: "Recommandations" },

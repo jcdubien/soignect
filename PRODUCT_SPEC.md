@@ -7408,6 +7408,25 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 339 — PACK WHATSAPP DE LA SEMAINE, À ENVOYER À LA MAIN (23/10)
+
+- **Demande de JC** : vu l'usage de WhatsApp aux Antilles, les notifications devraient passer par
+  l'API WhatsApp Business ; en attendant l'abonnement, un pack de messages à valider à la main
+  chaque semaine.
+- **`/admin/whatsapp`** (administrateurs, `exigerAdmin`) : pour les comptes qui ont accepté
+  WhatsApp et donné un numéro, sur les 7 derniers jours (`PACK_JOURS`), une ligne par motif :
+  « Nouvelle inscription » (compte créé dans la période) et « Activité en attente » (notifications
+  non lues de type message, mise en relation, signature, intérêt). Bouton « Ouvrir WhatsApp » :
+  lien `wa.me` fabriqué au clic par `/api/admin/whatsapp` (consentement revérifié), message
+  pré-rempli et modifiable, envoyé par l'administrateur. Rien ne part seul.
+- **Source unique** : textes dans `texteWhatsapp` (lib/whatsapp), règle « qui reçoit quoi » dans
+  `packWhatsappDeLaSemaine` (lib/packWhatsapp) — la future file d'envoi de l'API Business.
+- La trace `WHATSAPP_OUVERT` porte le motif ; une ligne ouverte dans la période s'affiche
+  « Ouvert le … ». Aucun numéro dans la page ; la trace ne dit pas si le message est parti.
+- **Essai** (schéma `essai_p23`, comptes `.invalid`) : seul le compte consentant apparaît, avec ses
+  deux motifs ; ouverture « bienvenue » → texte de bienvenue ; compte sans accord → 409 ; anonyme
+  → 403 (route) et 307 (page) ; après ouverture, 1 message restant sur 2.
+
 ### SECTION 338 — CONSENTEMENT WHATSAPP PROPOSÉ AUSSI À L'INSCRIPTION (23/10)
 
 - **Arbitrage de JC (23/10)**, qui revient sur la section 292 (« ici et pas à l'inscription ») :
