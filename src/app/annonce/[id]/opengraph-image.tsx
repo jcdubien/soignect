@@ -89,7 +89,19 @@ export default async function OgImage({ params }: { params: Promise<{ id: string
   }
 
   // Pas d'annonce publique → 404, cohérent avec /annonce/[id] qui renvoie notFound().
-  if (!jpeg) return new Response("Not found", { status: 404 });
+  //
+  // MIS EN CACHE AU CDN (23/10). Mesuré dans les journaux sur une heure : 18 des 24 appels de
+  // cette route étaient des 404, tous `facebookexternalhit` revalidant l'image d'une annonce
+  // échue, par rafales de 3 à 9 dans la même seconde. Sans en-tête, Next répond `max-age=0` et
+  // chaque rafale réveille la fonction. Risque mesuré : une annonce rouverte publie sa vignette
+  // stockée (generateMetadata pointe vers le stockage), pas cette URL ; et un déploiement vide le
+  // cache du CDN.
+  if (!jpeg) {
+    return new Response("Not found", {
+      status: 404,
+      headers: { "Cache-Control": "public, max-age=3600, s-maxage=86400" },
+    });
+  }
 
   return new Response(new Uint8Array(jpeg), {
     headers: {

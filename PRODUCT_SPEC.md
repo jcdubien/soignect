@@ -7408,6 +7408,17 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 334 — LE 404 DE L'IMAGE DE PARTAGE D'UNE ANNONCE ÉCHUE MIS EN CACHE (23/10)
+
+- **Mesure** (journaux Vercel, une heure, 23/10) : 24 appels de `/annonce/[id]/opengraph-image`,
+  tous `facebookexternalhit` ; 18 sont des 404 sur 3 annonces échues, par rafales de 3 à 9 dans la
+  même seconde, et 6 des relais 200. Aucun recalcul. Le CDN gardait les 200 (MISS puis HIT) mais
+  jamais les 404 (`max-age=0`, MISS à chaque appel).
+- **Correctif** : le 404 porte `public, max-age=3600, s-maxage=86400`, comme le 200. Une annonce
+  rouverte publie sa vignette stockée, pas cette URL ; un déploiement vide le cache.
+- **Essai** (schéma `essai_p21`) : annonce ouverte → 200 image ; échue et inexistante → 404 avec
+  l'en-tête de cache.
+
 ### SECTION 333 — CLOCHE ET CONVERSATION EN PAUSE QUAND L'ONGLET EST CACHÉ (23/10)
 
 - **Relevé** : dans les journaux Vercel, un onglet oublié appelait `/api/notifications` chaque
