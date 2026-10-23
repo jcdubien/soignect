@@ -114,7 +114,7 @@ export default function EncartRecommandation(props: {
           <div className="sm:col-span-2 rounded-xl border border-[#5eead4]/50 bg-white/5 p-4" aria-live="polite">
             <p className="text-[11px] font-bold uppercase tracking-widest text-slate-300 m-0 mb-2">Recommandation</p>
             <p className="text-base font-semibold m-0">{principale.phrase}</p>
-            <p className="text-xs text-slate-300 mt-1 mb-0">{principale.parce} Rien n&apos;est appliqué sans votre confirmation.</p>
+            <p className="text-xs text-slate-300 mt-1 mb-0">{principale.parce}{principale.action ? " Rien n’est appliqué sans votre confirmation." : ""}</p>
             {boutons(principale)}
           </div>
         </div>
