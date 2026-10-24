@@ -7408,6 +7408,22 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 351 — PAGE DE GESTION SIMPLIFIÉE POUR UNE MAISON DE SANTÉ (23/10)
+
+- **Demande de JC** : le même type de page que pour les CPTS, en plus simple, pour les MSP. Pas de
+  nouvelle page : `/gestion/<jeton>` s'adapte (`simple` = structure de type MSP ; l'offre MSP porte
+  1 commune et 8 cases). Mêmes blocs, mêmes règles, mêmes routes, mêmes contrôles.
+- **Ce qui change pour une MSP** : titre « Votre maison de santé — … » ; « Professions
+  prioritaires » sur sa commune au lieu de « Zones prioritaires » ; journal replié (« Afficher le
+  journal », avec le nombre d'entrées).
+- **Ce qui change pour tout périmètre d'une seule commune** : la commune s'affiche sans liste
+  déroulante dans l'ajout de priorité et dans le formulaire de besoin ; « L'APL de votre commune ».
+- **Choix par défaut** (JC n'a pas tranché) : la MSP garde ses priorités, limitées à sa commune —
+  c'est ce que porte l'offre MSP. Encart et besoins inchangés.
+- **Essai** (schéma `essai_p32`, compte `.invalid`) : MSP d'une commune → titre, « Professions
+  prioritaires », commune affichée sans liste (priorités et besoins), journal replié ; CPTS de deux
+  communes → page identique à avant.
+
 ### SECTION 350 — ENCART : « PRÉPARER UN BESOIN » OUVRE LE FORMULAIRE PRÉREMPLI (23/10)
 
 - **Règle R5** `PREPARER_BESOIN` (lib/recommandationTerritoire) : une commune du premier quart

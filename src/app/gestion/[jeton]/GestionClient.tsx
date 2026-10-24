@@ -42,6 +42,9 @@ export default function GestionClient(props: {
   lienConnexion: string;
   nom: string;
   logoUrl: string | null;
+  /** Page simplifiée (23/10, demande de JC) : une maison de santé, une commune — mêmes blocs et
+   *  mêmes règles que la CPTS, sans ce qui ne sert qu'à un territoire de plusieurs communes. */
+  simple: boolean;
   active: boolean;
   demo: boolean;
   revueLe: string;
@@ -69,6 +72,8 @@ export default function GestionClient(props: {
   const [copie, setCopie] = useState(false);
   const peutModifier = props.editeur !== null;
   const label = (p: string) => props.professionsToutes.find((x) => x.value === p)?.label ?? p;
+  const unaCommune = props.communes.length === 1;
+  const [journalOuvert, setJournalOuvert] = useState(false);
   // « Appliquer… » de l'encart (23/10) : PRÉREMPLIT le formulaire existant et y amène l'éditeur.
   // L'enregistrement reste le bouton habituel — mêmes contrôles, même journal.
   const [surlignee, setSurlignee] = useState<string | null>(null);
@@ -138,7 +143,7 @@ export default function GestionClient(props: {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={props.logoUrl} alt="" className="h-10 w-auto max-w-[120px] object-contain" />
           )}
-          <h1 className="text-lg font-bold m-0">Votre page — {props.nom}</h1>
+          <h1 className="text-lg font-bold m-0">{props.simple ? "Votre maison de santé" : "Votre page"} — {props.nom}</h1>
         </div>
         <p className="text-xs text-gray-500 mt-1 mb-3">
           Abonnement actif jusqu&apos;au {new Date(props.revueLe).toLocaleDateString("fr-FR", { timeZone: "UTC" })} ·
@@ -213,12 +218,14 @@ export default function GestionClient(props: {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <p className="text-sm font-bold m-0">Zones prioritaires</p>
+        <p className="text-sm font-bold m-0">{unaCommune ? "Professions prioritaires" : "Zones prioritaires"}</p>
         <p className="text-xs text-gray-500 mt-1 mb-3">
-          Calculées depuis l&apos;accessibilité potentielle localisée (APL) publiée par la DREES,
+          {unaCommune
+            ? <>Sur {props.communes[0]?.libelle}, profession par profession, d&apos;après l&apos;accessibilité potentielle localisée (APL) publiée par la DREES : une profession est prioritaire quand la commune est parmi la moitié la moins bien dotée du département. Vous pouvez en ajouter ; celles de l&apos;APL se mettent à jour à chaque nouvelle publication.</>
+            : <>Calculées depuis l&apos;accessibilité potentielle localisée (APL) publiée par la DREES,
           profession par profession : une commune est prioritaire quand elle est parmi la moitié la
           moins bien dotée de son département. Vous pouvez en ajouter ; celles de l&apos;APL se
-          mettent à jour à chaque nouvelle publication.
+          mettent à jour à chaque nouvelle publication.</>}
         </p>
         <ul className="list-none p-0 m-0 space-y-1 mb-3">
           {props.priorites.length === 0 && <li className="text-xs text-gray-500">Aucune zone prioritaire.</li>}
@@ -268,9 +275,11 @@ export default function GestionClient(props: {
           ))}
         </ul>
         {!props.demo && peutModifier && <div id="form-ajout" className={`flex gap-2 flex-wrap items-end ${surlignee === "form-ajout" ? "ring-2 ring-[#5eead4] rounded-lg p-2" : ""}`}>
-          <select value={ajout.codeInsee} onChange={(e) => setAjout({ ...ajout, codeInsee: e.target.value })} className="text-xs border border-gray-200 rounded-lg px-2 py-2">
-            {props.communes.map((c) => <option key={c.code} value={c.code}>{c.libelle}</option>)}
-          </select>
+          {unaCommune
+            ? <span className="text-xs text-gray-700 py-2">{props.communes[0]?.libelle}</span>
+            : <select value={ajout.codeInsee} onChange={(e) => setAjout({ ...ajout, codeInsee: e.target.value })} className="text-xs border border-gray-200 rounded-lg px-2 py-2">
+                {props.communes.map((c) => <option key={c.code} value={c.code}>{c.libelle}</option>)}
+              </select>}
           <select value={ajout.profession} onChange={(e) => setAjout({ ...ajout, profession: e.target.value })} className="text-xs border border-gray-200 rounded-lg px-2 py-2">
             {props.professionsToutes.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
@@ -310,7 +319,7 @@ export default function GestionClient(props: {
       />
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <p className="text-sm font-bold m-0">L&apos;APL de vos communes</p>
+        <p className="text-sm font-bold m-0">{unaCommune ? "L’APL de votre commune" : "L’APL de vos communes"}</p>
         <p className="text-xs text-gray-500 mt-1 mb-3">
           Rang de chaque commune dans son département (1 = la moins bien dotée)
           {props.paliers[0]?.annee ? `, millésime ${props.paliers[0].annee}` : ""}. Pas d&apos;APL publié
@@ -346,12 +355,14 @@ export default function GestionClient(props: {
 
       {peutModifier && (
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-sm font-bold m-0">Journal des réglages</p>
+          <p className="text-sm font-bold m-0">Journal des réglages{props.simple && props.journal.length > 0 ? ` (${props.journal.length})` : ""}</p>
           <p className="text-xs text-gray-500 mt-1 mb-3">
             Chaque ajout, réglage et retrait de case y est inscrit, à son auteur. Le journal ne se
             modifie ni ne s&apos;efface.
           </p>
-          {props.journal.length === 0 ? <p className="text-xs text-gray-500 m-0">Aucune entrée.</p> : (
+          {props.journal.length === 0 ? <p className="text-xs text-gray-500 m-0">Aucune entrée.</p> : props.simple && !journalOuvert ? (
+            <button type="button" onClick={() => setJournalOuvert(true)} className="text-xs text-[#0B3D5C] underline">Afficher le journal</button>
+          ) : (
             <ul className="list-none p-0 m-0 space-y-1">
               {props.journal.map((j) => (
                 <li key={j.id} className="text-xs text-gray-700">

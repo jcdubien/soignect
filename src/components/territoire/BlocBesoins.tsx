@@ -201,9 +201,11 @@ export default function BlocBesoins(props: {
             <>
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="text-xs font-semibold text-gray-600">Commune
-                  <select value={form.codeInsee} onChange={(e) => setForm({ ...form, codeInsee: e.target.value })} className="mt-1 w-full text-xs border border-gray-200 rounded-lg px-2 py-2 font-normal">
-                    {props.communes.map((c) => <option key={c.code} value={c.code}>{c.libelle}</option>)}
-                  </select>
+                  {props.communes.length === 1
+                    ? <span className="mt-1 block text-xs font-normal text-gray-700 py-2">{props.communes[0].libelle}</span>
+                    : <select value={form.codeInsee} onChange={(e) => setForm({ ...form, codeInsee: e.target.value })} className="mt-1 w-full text-xs border border-gray-200 rounded-lg px-2 py-2 font-normal">
+                        {props.communes.map((c) => <option key={c.code} value={c.code}>{c.libelle}</option>)}
+                      </select>}
                 </label>
                 <label className="text-xs font-semibold text-gray-600">Profession
                   <select value={form.profession} onChange={(e) => setForm({ ...form, profession: e.target.value })} className="mt-1 w-full text-xs border border-gray-200 rounded-lg px-2 py-2 font-normal">
