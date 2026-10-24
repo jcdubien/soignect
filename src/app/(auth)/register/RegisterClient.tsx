@@ -332,7 +332,9 @@ function RegisterForm() {
                   <span className="text-3xl">🏥</span>
                   <div>
                     <p className="font-bold text-gray-800 text-base">Cabinet / Titulaire</p>
-                    <p className="text-sm text-gray-400">Je publie des postes de remplacement</p>
+                    {/* Une MSP s'inscrit ici (section 299, 24/10) : elle recrute en libéral ou en
+                        salarié et voit tous les candidats — pas seulement ceux ouverts au salariat. */}
+                    <p className="text-sm text-gray-400">Cabinet ou maison de santé (MSP) — remplacement, assistanat, collaboration</p>
                   </div>
                   <span className="ml-auto text-gray-300 group-hover:text-emerald-500 text-xl">→</span>
                 </button>

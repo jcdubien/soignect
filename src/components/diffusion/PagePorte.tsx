@@ -60,9 +60,13 @@ export default async function PagePorte({
   // deux mots qui ne décrivent pas son métier.
   // La porte « emploi » des établissements préselectionne de même le compte établissement : il
   // devait sinon se retrouver lui-même parmi « Cabinet / Titulaire », « Remplaçant·e »…
+  // La porte « maison de santé » préselectionne le compte cabinet (24/10) : une MSP recrute comme
+  // un cabinet (section 299) — tous les candidats, libéral ou salarié. Sans ça, elle pouvait
+  // choisir « Établissement » et ne plus voir que les candidats ouverts au salariat.
   const typeCompte =
     porte.slug === "poste" ? "&profileType=REMPLACANT"
     : porte.slug === "emploi" ? "&profileType=TITULAIRE&structure=1"
+    : porte.slug === "maison-de-sante" ? "&profileType=TITULAIRE"
     : "";
   const inscription = `/register?profession=${profession.enumBase}${typeCompte}&src=${cleTracePage(porte, profession, territoire)}`;
 
