@@ -4,6 +4,14 @@
 // INDICATIFS. Ce n'est pas un zonage officiel (fixé par l'ARS). Ce que ces chiffres ne voient pas :
 // les déplacements entre communes, le temps partiel, la télésanté, les remplaçants. Un praticien est
 // compté dans chaque commune où il a une activité déclarée.
+//
+// LA DENSITÉ PORTE SUR LES LIBÉRAUX (23/10, remarque de JC). Compter tous les praticiens mesurait
+// surtout les hôpitaux : un établissement compte son personnel salarié dans sa commune. Mesuré le
+// 23/10 pour les infirmiers : Pointe-Noire (hôpital Beauperthuy) 111 pour 10 000 en total contre 35
+// en libéral ; Les Abymes (CHU) 215 contre 28 ; Guadeloupe 92 contre 30. Pour l'accès aux soins de
+// ville — la question d'une CPTS — c'est l'exercice libéral qui compte. Le total reste affiché à
+// côté, et la règle « aucune activité déclarée » s'appuie sur lui (une consultation hospitalière
+// est une offre réelle).
 
 /** Densité exprimée pour 10 000 habitants. */
 export const PAR_HABITANTS = 10_000;
@@ -16,9 +24,9 @@ export interface Densite {
   effectif: number;
   effectifLiberal: number;
   population: number;
-  /** Praticiens pour 10 000 habitants, une décimale. */
+  /** Praticiens LIBÉRAUX pour 10 000 habitants, une décimale. */
   pour10k: number;
-  /** Même calcul sur toute la Guadeloupe. */
+  /** Même calcul (libéraux) sur toute la Guadeloupe. */
   reference: number | null;
 }
 
@@ -32,7 +40,7 @@ export interface DonneesEffectifs {
   /** `codeInsee:profession` → effectifs ; une case absente d'une profession couverte vaut 0. */
   parCase: Record<string, { effectif: number; effectifLiberal: number }>;
   population: Record<string, number>;
-  /** profession → densité de référence (Guadeloupe). */
+  /** profession → densité de référence des libéraux (Guadeloupe). */
   reference: Record<string, number>;
   source: { praticiens: string | null; extraitLe: string | null; population: string | null; millesime: number | null };
 }
@@ -49,5 +57,5 @@ export function densiteDe(d: DonneesEffectifs, codes: string[], profession: stri
     population += d.population[c] ?? 0;
   }
   if (population === 0) return null;
-  return { effectif, effectifLiberal, population, pour10k: pour10k(effectif, population), reference: d.reference[profession] ?? null };
+  return { effectif, effectifLiberal, population, pour10k: pour10k(effectifLiberal, population), reference: d.reference[profession] ?? null };
 }

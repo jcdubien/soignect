@@ -16,7 +16,7 @@ async function chargerEffectifs(): Promise<DonneesEffectifs | undefined> {
   const couvertes = Array.from(new Set(effs.map((e) => e.profession as string)));
   const popRef = pops.filter((p) => p.codeInsee.startsWith(DEPARTEMENT_REFERENCE)).reduce((s, p) => s + p.population, 0);
   const reference = Object.fromEntries(couvertes.map((prof) => [prof, pour10k(
-    effs.filter((e) => e.profession === prof && e.codeInsee.startsWith(DEPARTEMENT_REFERENCE)).reduce((s, e) => s + e.effectif, 0), popRef,
+    effs.filter((e) => e.profession === prof && e.codeInsee.startsWith(DEPARTEMENT_REFERENCE)).reduce((s, e) => s + e.effectifLiberal, 0), popRef,
   )]));
   return {
     couvertes, parCase, population, reference,

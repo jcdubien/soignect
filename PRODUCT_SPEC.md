@@ -7408,6 +7408,22 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 355 — LA DENSITÉ DE PRATICIENS PORTE SUR L'EXERCICE LIBÉRAL (23/10)
+
+- **Remarque de JC** : les aides-soignants sont surreprésentés à Pointe-Noire à cause de l'hôpital
+  Beauperthuy. Le biais vaut pour toutes les professions : l'Annuaire Santé compte chaque praticien
+  là où il exerce, donc un établissement compte son personnel salarié dans sa commune.
+- **Mesuré le 23/10** (infirmiers, pour 10 000 habitants, total / libéraux) : Pointe-Noire 111 / 35 ;
+  Les Abymes (CHU) 215 / 28 ; Basse-Terre 403 / 89 ; Guadeloupe 92 / 30. Médecins généralistes :
+  Basse-Terre 81 / 26, Guadeloupe 16 / 9.
+- **Correctif** (`lib/indicateursTerritoire`) : la densité et la référence Guadeloupe comptent
+  l'exercice libéral — la mesure pertinente pour l'accès aux soins de ville. L'encart affiche « N en
+  libéral à … · X pour 10 000 hab. (Guadeloupe : Y) · M autres, salariés pour la plupart ». La règle
+  « aucune activité déclarée » (R8) reste sur le total : une consultation hospitalière est une offre
+  réelle, elle ne doit pas être présentée comme un manque.
+- **Sur les pages réelles (calcul en lecture seule)** : Pointe-Noire, kiné 4 libéraux, 6,9 pour 10 000
+  (Guadeloupe : 24,5) ; Capesterre-Belle-Eau, kiné 35 libéraux sur 37, 19,8 (24,5).
+
 ### SECTION 354 — INCIDENT : PAGES D'ADMINISTRATION LISIBLES SANS SESSION — CLOS (22-23/10)
 
 - **Constat (22/10)** : sans session, une page `/admin/*` répondait une redirection (307) dont le

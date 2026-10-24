@@ -112,10 +112,11 @@ export default function EncartRecommandation(props: {
               )}
               {principale.densite && (
                 <p className="text-xs text-slate-300 mt-2 mb-0">
-                  {principale.densite.effectif} praticien{principale.densite.effectif > 1 ? "s" : ""} recensé{principale.densite.effectif > 1 ? "s" : ""}
+                  {principale.densite.effectifLiberal} en libéral
                   {principale.regle === "PERIMETRE_SANS_PRATICIEN" ? " sur vos communes" : ` à ${principale.commune}`}
                   {" · "}{principale.densite.pour10k.toLocaleString("fr-FR")} pour 10 000 hab.
                   {principale.densite.reference != null && ` (Guadeloupe : ${principale.densite.reference.toLocaleString("fr-FR")})`}
+                  {principale.densite.effectif > principale.densite.effectifLiberal && ` · ${principale.densite.effectif - principale.densite.effectifLiberal} autre${principale.densite.effectif - principale.densite.effectifLiberal > 1 ? "s" : ""}, salarié${principale.densite.effectif - principale.densite.effectifLiberal > 1 ? "s" : ""} pour la plupart`}
                 </p>
               )}
             </div>
@@ -162,8 +163,9 @@ export default function EncartRecommandation(props: {
             <li>
               Praticiens recensés : {props.source.effectifs.praticiens}
               {props.source.effectifs.extraitLe ? `, extraction du ${new Date(props.source.effectifs.extraitLe).toLocaleDateString("fr-FR", { timeZone: "UTC" })}` : ""} ;
-              {" "}population : {props.source.effectifs.population}. Un praticien compte dans chaque commune où il exerce ;
-              la référence est la Guadeloupe, calculée de la même façon. Aides-soignants : présents seulement quand une structure les a enregistrés — trop partiel pour un indicateur.
+              {" "}population : {props.source.effectifs.population}. La densité compte l&apos;exercice libéral (un
+              établissement compte son personnel salarié dans sa commune) ; un praticien compte dans chaque commune où il
+              exerce ; la référence est la Guadeloupe, calculée de la même façon. Aides-soignants : présents seulement quand une structure les a enregistrés — trop partiel pour un indicateur.
             </li>
           )}
           <li>Rang : position de la commune parmi les communes de son département présentes dans la source (1 = accès le plus faible).</li>

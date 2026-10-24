@@ -218,7 +218,7 @@ export function texteRecommandation(r: Recommandation, prof: string): { phrase: 
     case "PREPARER_BESOIN":
       return { phrase: `Préparer un besoin du territoire pour ${prof} à ${r.commune}.`, parce: `Proposé parce que la commune est au ${rang}, dans le premier quart, et qu'aucun besoin n'y est en cours pour cette profession. Le brouillon est prérempli ; vous le relisez avant toute publication.` };
     case "PERIMETRE_SANS_PRATICIEN":
-      return { phrase: `Aucune activité déclarée sur votre territoire pour ${prof}.`, parce: `D'après l'Annuaire Santé, aucun n'a d'activité déclarée dans vos communes (${r.densite?.population.toLocaleString("fr-FR")} habitants)${r.densite?.reference != null ? ` ; en Guadeloupe : ${r.densite.reference.toLocaleString("fr-FR")} pour 10 000 habitants` : ""}. Les patients peuvent consulter ailleurs : c'est une indication, pas un constat de manque.` };
+      return { phrase: `Aucune activité déclarée sur votre territoire pour ${prof}.`, parce: `D'après l'Annuaire Santé, aucun n'a d'activité déclarée dans vos communes (${r.densite?.population.toLocaleString("fr-FR")} habitants)${r.densite?.reference != null ? ` ; en Guadeloupe : ${r.densite.reference.toLocaleString("fr-FR")} en libéral pour 10 000 habitants` : ""}. Les patients peuvent consulter ailleurs : c'est une indication, pas un constat de manque.` };
     case "DONNEES_INSUFFISANTES":
       return { phrase: `Données insuffisantes pour ${prof}.`, parce: "Aucune donnée publique d'accessibilité n'est importée pour ces professions : Soignect ne recommande rien sans chiffre sourcé." };
     case "REVUE_PROCHE":
