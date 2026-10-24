@@ -23,7 +23,7 @@ async function chargerEffectifs(): Promise<DonneesEffectifs | undefined> {
     source: { praticiens: effs[0].source, extraitLe: effs[0].extraitLe.toISOString(), population: pops[0].source, millesime: pops[0].millesime },
   };
 }
-import { paliersApl } from "@/lib/aplPalier";
+import { paliersApl, COLONNE_APL } from "@/lib/aplPalier";
 import { libellesDuCode, prioritesDeLaPage } from "@/lib/pageClient";
 import { recommandationsDuTerritoire, texteRecommandation, cleRecommandation, type PrioriteEntree, type Recommandation } from "@/lib/recommandationTerritoire";
 import { PROFESSION_LABELS, professionPluriel } from "@/lib/professions";
@@ -43,7 +43,13 @@ export interface SourceApl {
  *  et combien de réglages la structure a écrits elle-même (écart ou ajout justifié). */
 /** Proposition prête à afficher : textes remplis ici, côté serveur — le composant n'importe que
  *  des types (lib/aplPalier charge la base). */
-export type RecommandationAffichee = Recommandation & { cle: string; phrase: string; parce: string; libelleProfession: string | null };
+export type RecommandationAffichee = Recommandation & {
+  cle: string; phrase: string; parce: string; libelleProfession: string | null;
+  /** « kinésithérapeutes » — pour les phrases de l'encart. */
+  nomPluriel: string;
+  /** Médiane de l'APL des communes du même département, pour situer la valeur. */
+  medianeApl: number | null;
+};
 
 export interface ResumeReglages { casesApl: number; casesReglees: number; reglagesHumains: number }
 
@@ -59,8 +65,8 @@ export async function recommandationsDeLaPage(page: {
         })))
       : prisma.prioriteTerritoriale.findMany({
           where: { codeInsee: { in: page.communes } },
-          select: { id: true, codeInsee: true, commune: true, profession: true, niveau: true, origine: true, clientId: true, justification: true, expireLe: true },
-        }).then((ps) => ps.map((p): PrioriteEntree => ({ ...p, expireLe: p.expireLe?.toISOString() ?? null }))),
+          select: { id: true, codeInsee: true, commune: true, profession: true, niveau: true, origine: true, clientId: true, justification: true, expireLe: true, niveauApl: true },
+        }).then((ps) => ps.map((p) => ({ ...p, expireLe: p.expireLe?.toISOString() ?? null }))),
     paliersApl(page.communes),
     prisma.communeAPL.findFirst({
       where: { codeInsee: { in: page.communes } },
@@ -88,19 +94,29 @@ export async function recommandationsDeLaPage(page: {
     effectifs,
   });
   const lib = (p: string) => PROFESSION_LABELS[p as Profession] ?? p;
+  // Médiane de l'APL par profession, dans le département des communes de la page (même source).
+  const departements = Array.from(new Set(page.communes.map((c) => c.slice(0, 3))));
+  const lignesDep = await prisma.communeAPL.findMany({ where: { departement: { in: departements } } });
+  const medianes: Record<string, number> = {};
+  for (const [prof, col] of Object.entries(COLONNE_APL)) {
+    const v = lignesDep.map((l) => l[col!]).filter((x): x is number => typeof x === "number").sort((a, b) => a - b);
+    if (v.length) medianes[prof] = v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2;
+  }
   const recommandations: RecommandationAffichee[] = brutes.map((r) => {
     const libelleProfession = r.professionsSansDonnees ? r.professionsSansDonnees.map(lib).join(", ") : r.profession ? lib(r.profession) : null;
     // Dans la phrase : « les kinésithérapeutes », « les dermatologues et ophtalmologues ».
     const pluriels = (r.professionsSansDonnees ?? (r.profession ? [r.profession] : [])).map(professionPluriel);
-    const dansLaPhrase = pluriels.length === 0 ? "" : `les ${pluriels.length === 1 ? pluriels[0] : `${pluriels.slice(0, -1).join(", ")} et ${pluriels[pluriels.length - 1]}`}`;
-    return { ...r, cle: cleRecommandation(r), libelleProfession, ...texteRecommandation(r, dansLaPhrase) };
+    const nom = pluriels.length === 0 ? "" : pluriels.length === 1 ? pluriels[0] : `${pluriels.slice(0, -1).join(", ")} et ${pluriels[pluriels.length - 1]}`;
+    return { ...r, cle: cleRecommandation(r), libelleProfession, nomPluriel: nom, medianeApl: r.palier ? medianes[r.palier.profession] ?? null : null, ...texteRecommandation(r, { prof: nom ? `les ${nom}` : "", nom }) };
   });
   // Mêmes professions que celles que la page affiche (vide = toutes), comme la règle R1.
   const casesApl = paliers.filter((p) => p.niveau >= 1 && (page.professions.length === 0 || page.professions.includes(p.profession)));
   const resume: ResumeReglages = {
     casesApl: casesApl.length,
     casesReglees: casesApl.filter((c) => priorites.some((p) => p.codeInsee === c.codeInsee && p.profession === c.profession)).length,
-    reglagesHumains: priorites.filter((p) => p.clientId === page.clientId && (p.origine === "DECLAREE" || !!p.justification)).length,
+    // Ajoutée par la structure, justifiée, ou dont le niveau a été ajusté par rapport à l'APL.
+    reglagesHumains: priorites.filter((p) => p.clientId === page.clientId && (p.origine === "DECLAREE" || !!p.justification
+      || ("niveauApl" in p && p.niveauApl != null && p.niveau !== p.niveauApl))).length,
   };
   return {
     recommandations,

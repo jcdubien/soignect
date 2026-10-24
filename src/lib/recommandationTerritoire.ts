@@ -15,7 +15,7 @@
 import type { PalierApl } from "@/lib/aplPalier";
 import { libelleAcces } from "@/lib/aplPalier";
 import { justificationRequise } from "@/lib/boostTerritorial";
-import { densiteDe, type Densite, type DonneesEffectifs } from "@/lib/indicateursTerritoire";
+import { densiteDe, rangLisible, territoireDuCode, type Densite, type DonneesEffectifs } from "@/lib/indicateursTerritoire";
 
 export const MENTION_RECOMMANDATION = "Indicatif. Calculé à partir de données publiques. Ce n'est pas un zonage officiel.";
 
@@ -24,7 +24,7 @@ export const REVUE_PROCHE_JOURS = 30;
 
 export type RegleRecommandation =
   | "PRIORITE_ECHUE"        // R4 — l'échéance déclarée est passée
-  | "RELEVER"               // R2 — niveau sous le palier APL, sans justification
+  | "RELEVER"               // R2 — niveau sous le palier APL de plus d'un cran, sans justification
   | "ABAISSER"              // R3 — niveau au-dessus du palier APL (≥ 1), sans justification
   | "RETIRER_SANS_APL"      // R3 bis — case ajoutée, APL dans la moyenne, sans justification
   | "COMMUNE_NON_REGLEE"    // R1 — palier APL ≥ 1, aucune priorité sur la case
@@ -103,7 +103,9 @@ export function recommandationsDuTerritoire(e: {
       continue;
     }
     if (!palier || p.justification) continue; // sans APL, ou écart déjà justifié : rien à redire
-    if (palier.niveau >= 1 && p.niveau < palier.niveau) {
+    // Un cran d'écart, dans un sens ou dans l'autre, se règle librement (ECART_LIBRE) : l'encart ne
+    // le conteste pas. Il ne parle qu'au-delà, sans explication écrite (23/10).
+    if (palier.niveau >= 1 && p.niveau < palier.niveau && justificationRequise(p.niveau, palier.niveau)) {
       recos.push({ ...base, regle: "RELEVER", action: agir({ type: "regler", prioriteId: p.id, niveau: palier.niveau }) });
     } else if (palier.niveau >= 1 && p.niveau > palier.niveau && justificationRequise(p.niveau, palier.niveau)) {
       recos.push({ ...base, regle: "ABAISSER", action: agir({ type: "regler", prioriteId: p.id, niveau: palier.niveau }) });
@@ -196,32 +198,42 @@ export function cleRecommandation(r: Pick<Recommandation, "regle" | "codeInsee" 
   return `${r.regle}:${r.codeInsee ?? "-"}:${r.profession ?? "-"}`;
 }
 
-/** Modèles de phrases — la seule façon dont l'encart s'exprime. `prof` = la profession telle qu'elle
- *  se lit dans la phrase (« les kinésithérapeutes »), déjà formée par l'appelant. */
-export function texteRecommandation(r: Recommandation, prof: string): { phrase: string; parce: string } {
+/** « de kinésithérapeutes », « d'orthoptistes ». */
+const de = (nom: string) => (/^[aeiouyéèêàâîôûh]/i.test(nom) ? `d'${nom}` : `de ${nom}`);
+
+/**
+ * Modèles de phrases — la seule façon dont l'encart s'exprime (relus le 23/10 pour être compris
+ * sans connaître l'APL ni le vocabulaire interne : pas de « case », pas de « palier », un rang dit
+ * ce qu'il classe). `prof` = « les kinésithérapeutes » ; `nom` = « kinésithérapeutes » (sans
+ * article), déjà formés par l'appelant.
+ */
+export function texteRecommandation(r: Recommandation, f: { prof: string; nom: string }): { phrase: string; parce: string } {
+  const { prof, nom } = f;
   const acces = r.palier ? libelleAcces(r.palier.niveau) : "";
-  const rang = r.palier ? `${r.palier.rang}ᵉ sur ${r.palier.sur} communes du département` : "";
+  const rang = r.palier ? rangLisible(r.palier.rang, r.palier.sur, r.codeInsee) : "";
+  const source = "d'après l'indicateur d'accessibilité de la DREES (APL)";
+  const confirmer = r.action ? " Rien n'est modifié sans votre confirmation." : "";
   switch (r.regle) {
     case "PRIORITE_ECHUE":
-      return { phrase: `Revoir la priorité de ${r.commune} pour ${prof} : son échéance est passée.`, parce: "Une priorité échue n'agit plus sur le fil." };
+      return { phrase: `La priorité de ${r.commune} pour ${prof} a expiré.`, parce: `Une priorité expirée ne fait plus remonter les annonces de la commune. Retirez-la, ou ajoutez-la à nouveau si le besoin demeure.${confirmer}` };
     case "RELEVER":
-      return { phrase: `Relever ${r.commune} au niveau « ${acces} » pour ${prof}.`, parce: `Proposé parce que l'APL (${rang}) correspond à un niveau plus élevé que celui réglé, et qu'aucune justification n'est écrite.` };
+      return { phrase: `Classer ${r.commune} en « ${acces} » pour ${prof}.`, parce: `${r.commune} est ${rang}, ${source}. Le niveau que vous avez réglé est plus bas de plus d'un cran, sans explication écrite.${confirmer}` };
     case "ABAISSER":
-      return { phrase: `Ramener ${r.commune} au niveau « ${acces} » pour ${prof}, ou justifier l'écart.`, parce: `Proposé parce que le niveau réglé dépasse de plus d'un cran celui de l'APL (${rang}), sans justification.` };
+      return { phrase: `Classer ${r.commune} en « ${acces} » pour ${prof}, ou expliquer pourquoi vous la classez plus haut.`, parce: `${r.commune} est ${rang}, ${source}. Le niveau réglé dépasse de plus d'un cran ce qu'indiquent les données, sans explication écrite.${confirmer}` };
     case "RETIRER_SANS_APL":
-      return { phrase: `Retirer la priorité ajoutée sur ${r.commune} pour ${prof}, ou la justifier.`, parce: `Proposé parce que l'APL de la commune est dans la moyenne ou au-dessus (${rang}), et qu'aucune justification n'est écrite.` };
+      return { phrase: `Retirer la priorité ajoutée sur ${r.commune} pour ${prof}, ou expliquer pourquoi elle est maintenue.`, parce: `${source.charAt(0).toUpperCase() + source.slice(1)}, l'accès y est dans la moyenne ou meilleur : ${r.commune} est mieux dotée que ${(r.palier?.rang ?? 1) - 1} des ${r.palier?.sur ?? 0} communes ${territoireDuCode(r.codeInsee).replace(/^en |^à |^dans le /, (m) => m === "en " ? "de " : m === "à " ? "de " : "du ")}. Aucune explication n'est écrite.${confirmer}` };
     case "COMMUNE_NON_REGLEE":
       if (r.plafond !== undefined) {
-        return { phrase: `${r.commune} n'a pas de priorité pour ${prof}, alors que la commune est au ${rang}.`, parce: `Votre offre compte ${r.plafond} cases prioritaires, toutes utilisées : pour régler cette commune, retirez d'abord une case moins prioritaire.` };
+        return { phrase: `${r.commune} n'est pas prioritaire pour ${prof}, alors qu'elle est ${rang}.`, parce: `Votre offre permet ${r.plafond} zones prioritaires, toutes utilisées : pour ajouter celle-ci, retirez d'abord une zone moins urgente.` };
       }
-      return { phrase: `Régler ${r.commune} en priorité « ${acces} » pour ${prof}.`, parce: `Proposé parce que la commune est au ${rang} et n'a aucun réglage.` };
+      return { phrase: `Rendre ${r.commune} prioritaire pour ${prof}, en « ${acces} ».`, parce: `${r.commune} est ${rang}, ${source}, et elle n'est pas encore prioritaire dans Soignect.${confirmer}` };
     case "PREPARER_BESOIN":
-      return { phrase: `Préparer un besoin du territoire pour ${prof} à ${r.commune}.`, parce: `Proposé parce que la commune est au ${rang}, dans le premier quart, et qu'aucun besoin n'y est en cours pour cette profession. Le brouillon est prérempli ; vous le relisez avant toute publication.` };
+      return { phrase: `Faire connaître le manque ${de(nom)} à ${r.commune}.`, parce: `${r.commune} est ${rang}, ${source}, et aucun besoin du territoire n'y est publié pour cette profession. Le bouton ouvre un brouillon déjà rempli : rien n'est publié sans votre relecture.` };
     case "PERIMETRE_SANS_PRATICIEN":
-      return { phrase: `Aucune activité déclarée sur votre territoire pour ${prof}.`, parce: `D'après l'Annuaire Santé, aucun n'a d'activité déclarée dans vos communes (${r.densite?.population.toLocaleString("fr-FR")} habitants)${r.densite?.reference != null ? ` ; en Guadeloupe : ${r.densite.reference.toLocaleString("fr-FR")} en libéral pour 10 000 habitants` : ""}. Les patients peuvent consulter ailleurs : c'est une indication, pas un constat de manque.` };
+      return { phrase: `Pas ${de(nom)} recensés sur votre territoire.`, parce: `D'après l'Annuaire Santé, aucun n'exerce dans vos communes (${r.densite?.population.toLocaleString("fr-FR")} habitants)${r.densite?.reference != null ? ` ; en Guadeloupe, on en compte ${r.densite.reference.toLocaleString("fr-FR")} en libéral pour 10 000 habitants` : ""}. Les patients peuvent consulter ailleurs : c'est une indication, pas un constat de manque.${r.action ? " Le bouton ouvre un brouillon de besoin déjà rempli : rien n'est publié sans votre relecture." : ""}` };
     case "DONNEES_INSUFFISANTES":
-      return { phrase: `Données insuffisantes pour ${prof}.`, parce: "Aucune donnée publique d'accessibilité n'est importée pour ces professions : Soignect ne recommande rien sans chiffre sourcé." };
+      return { phrase: `Pas de données suffisantes pour ${prof}.`, parce: "Aucune donnée publique fiable n'est disponible pour ces professions : Soignect ne propose rien sans chiffre sourcé." };
     case "REVUE_PROCHE":
-      return { phrase: "La relation avec Soignect arrive à sa date de revue.", parce: `Moins de ${REVUE_PROCHE_JOURS} jours avant l'échéance : sans reconduction, la page cesse d'agir.` };
+      return { phrase: "Votre partenariat avec Soignect arrive bientôt à échéance.", parce: `Moins de ${REVUE_PROCHE_JOURS} jours avant la date prévue : sans reconduction, votre page cessera d'agir.` };
   }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ActionRecommandation } from "@/lib/recommandationTerritoire";
+import { territoireDuCode } from "@/lib/indicateursTerritoire";
 import type { RecommandationAffichee, ResumeReglages, SourceApl } from "@/lib/recommandationTerritoireServeur";
 
 // Encart « Recommandation Soignect » (23/10) — en tête de la page de gestion d'une structure.
@@ -69,7 +70,7 @@ export default function EncartRecommandation(props: {
       {r.action && props.peutModifier && props.onAppliquer && (
         <button type="button" onClick={() => appliquer(r)}
           className="px-3 py-2 rounded-lg bg-[#5eead4] text-[#042f2e] text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">
-          {r.action.type === "retirer" ? "Voir la priorité…" : r.action.type === "preparerBesoin" ? "Préparer…" : "Appliquer…"}
+          {r.action.type === "retirer" ? "Voir la priorité…" : r.action.type === "preparerBesoin" ? "Préparer le brouillon…" : "Appliquer…"}
         </button>
       )}
       {props.peutModifier && (
@@ -103,33 +104,45 @@ export default function EncartRecommandation(props: {
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-300 m-0 mb-2">Ce que montrent les données</p>
               {principale.palier ? (
                 <>
-                  <p className="text-2xl font-extrabold leading-tight m-0">{principale.palier.rang}<sup className="text-xs">e</sup> sur {principale.palier.sur}</p>
-                  <p className="text-sm mt-1 mb-0">{principale.commune} : APL {principale.palier.apl.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}.</p>
-                  <p className="text-xs text-slate-300 mt-1 mb-0">DREES{props.source.annee ? `, APL ${props.source.annee}` : ""} · rang 1 = accès le plus faible</p>
+                  <p className="text-sm m-0">{principale.commune} est</p>
+                  <p className="text-2xl font-extrabold leading-tight m-0">
+                    {principale.palier.rang === 1 ? "la commune la moins bien dotée" : <>la {principale.palier.rang}<sup className="text-xs">e</sup> commune la moins bien dotée</>}
+                  </p>
+                  <p className="text-sm mt-1 mb-0">en {principale.nomPluriel}, sur {principale.palier.sur} {territoireDuCode(principale.codeInsee)}.</p>
+                  <p className="text-xs text-slate-300 mt-2 mb-0">
+                    Indicateur d&apos;accessibilité de la DREES{props.source.annee ? ` (APL ${props.source.annee})` : ""} : {principale.palier.apl.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}
+                    {principale.medianeApl != null && `, pour une commune médiane à ${principale.medianeApl.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}`}. Plus il est bas, plus l&apos;accès est difficile.
+                  </p>
                 </>
               ) : (
-                <p className="text-2xl font-extrabold leading-tight m-0">{principale.densite!.effectif}</p>
+                <p className="text-2xl font-extrabold leading-tight m-0">{principale.densite!.effectif === 0 ? "Aucun praticien" : principale.densite!.effectif}</p>
               )}
               {principale.densite && (
                 <p className="text-xs text-slate-300 mt-2 mb-0">
-                  {principale.densite.effectifLiberal} en libéral
-                  {principale.regle === "PERIMETRE_SANS_PRATICIEN" ? " sur vos communes" : ` à ${principale.commune}`}
-                  {" · "}{principale.densite.pour10k.toLocaleString("fr-FR")} pour 10 000 hab.
-                  {principale.densite.reference != null && ` (Guadeloupe : ${principale.densite.reference.toLocaleString("fr-FR")})`}
-                  {principale.densite.effectif > principale.densite.effectifLiberal && ` · ${principale.densite.effectif - principale.densite.effectifLiberal} autre${principale.densite.effectif - principale.densite.effectifLiberal > 1 ? "s" : ""}, salarié${principale.densite.effectif - principale.densite.effectifLiberal > 1 ? "s" : ""} pour la plupart`}
+                  {(() => {
+                    const d = principale.densite!;
+                    const ou = principale.regle === "PERIMETRE_SANS_PRATICIEN" ? "sur vos communes" : `à ${principale.commune}`;
+                    const salaries = d.effectif - d.effectifLiberal;
+                    return `${d.effectifLiberal} ${principale.nomPluriel} en libéral ${ou}, soit ${d.pour10k.toLocaleString("fr-FR")} pour 10 000 habitants`
+                      + (d.reference != null ? ` (moyenne de la Guadeloupe : ${d.reference.toLocaleString("fr-FR")})` : "")
+                      + (salaries > 0 ? `, plus ${salaries} salarié${salaries > 1 ? "s" : ""} (hôpital, clinique…)` : "") + ".";
+                  })()}
                 </p>
               )}
             </div>
           )}
           <div className={`rounded-xl border border-white/10 bg-white/5 p-4 ${principale.palier || principale.densite ? "" : "sm:col-span-2"}`}>
             <p className="text-[11px] font-bold uppercase tracking-widest text-slate-300 m-0 mb-2">Vos réglages</p>
-            <p className="text-2xl font-extrabold leading-tight m-0">{props.resume.casesReglees} / {props.resume.casesApl}</p>
-            <p className="text-sm mt-1 mb-0">cases désignées par l&apos;APL ont une priorité · {props.resume.reglagesHumains} réglage{props.resume.reglagesHumains > 1 ? "s" : ""} écrit{props.resume.reglagesHumains > 1 ? "s" : ""} par vous.</p>
+            <p className="text-2xl font-extrabold leading-tight m-0">{props.resume.casesReglees} sur {props.resume.casesApl}</p>
+            <p className="text-sm mt-1 mb-0">
+              zones à accès faible, selon les données, sont prioritaires sur votre page.
+              {" "}{props.resume.reglagesHumains === 0 ? "Vous n’en avez encore ajouté ni ajusté aucune." : `Vous en avez ajouté ou ajusté ${props.resume.reglagesHumains}.`}
+            </p>
           </div>
           <div className="sm:col-span-2 rounded-xl border border-[#5eead4]/50 bg-white/5 p-4" aria-live="polite">
             <p className="text-[11px] font-bold uppercase tracking-widest text-slate-300 m-0 mb-2">Recommandation</p>
             <p className="text-base font-semibold m-0">{principale.phrase}</p>
-            <p className="text-xs text-slate-300 mt-1 mb-0">{principale.parce}{principale.action ? " Rien n’est appliqué sans votre confirmation." : ""}</p>
+            <p className="text-xs text-slate-300 mt-1 mb-0">{principale.parce}</p>
             {boutons(principale)}
           </div>
         </div>
@@ -168,11 +181,12 @@ export default function EncartRecommandation(props: {
               exerce ; la référence est la Guadeloupe, calculée de la même façon. Aides-soignants : présents seulement quand une structure les a enregistrés — trop partiel pour un indicateur.
             </li>
           )}
-          <li>Rang : position de la commune parmi les communes de son département présentes dans la source (1 = accès le plus faible).</li>
-          <li>Palier : premier quart → « accès très faible », deuxième quart → « accès faible ». Convention Soignect, pas un seuil de la DREES.</li>
-          <li>Un cran d&apos;écart avec l&apos;APL se règle librement ; au-delà, une justification écrite est demandée.</li>
+          <li>L&apos;APL (accessibilité potentielle localisée) mesure, commune par commune, l&apos;offre de soins accessible au regard de la population et de ses besoins. Plus elle est basse, plus l&apos;accès est difficile.</li>
+          <li>L&apos;APL et la densité peuvent diverger : l&apos;APL tient compte des communes voisines, des distances et des besoins de la population (âge) ; la densité ne compte que les praticiens installés dans la commune.</li>
+          <li>Classement : les communes du département sont rangées de l&apos;accès le plus faible (1ʳᵉ) au plus élevé. Le quart le moins bien doté est classé « accès très faible », le deuxième quart « accès faible » : c&apos;est une convention Soignect, pas un seuil officiel.</li>
+          <li>Vous pouvez ajuster un niveau d&apos;un cran librement ; au-delà, une explication écrite est demandée.</li>
           <li>Les mêmes règles s&apos;appliquent à toutes les structures. L&apos;APL ne voit pas les déplacements entre communes, le temps partiel, ni la télésanté.</li>
-          <li>Professions sans APL publiée : aucune proposition (« données insuffisantes »).</li>
+          <li>Professions sans données publiques fiables : aucune proposition.</li>
         </ul>
       </details>
     </section>

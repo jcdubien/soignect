@@ -7408,6 +7408,34 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 356 — ENCART RELU POUR ÊTRE COMPRIS SANS CONNAÎTRE L'APL (23/10)
+
+- **Question de JC** : « que signifie 3e sur 32 ? vérifie l'intelligibilité du texte ». Relecture de
+  chaque phrase comme un coordinateur de CPTS : « 3e sur 32 » se lisait comme un bon classement ;
+  « APL 100,9 » était sans unité ni repère ; « cases », « palier », « réglage écrit » étaient du
+  vocabulaire interne ; la réassurance figurait deux fois.
+- **Réécrit** (`texteRecommandation`, rang et territoire dans lib/indicateursTerritoire) :
+  - données : « Pointe-Noire est la 3ᵉ commune la moins bien dotée en kinésithérapeutes, sur 32 en
+    Guadeloupe » ; « Indicateur d'accessibilité de la DREES (APL 2024) : 100,9, pour une commune
+    médiane à 156,4. Plus il est bas, plus l'accès est difficile » (médiane calculée sur la même
+    source, par profession, dans le département) ; « 4 kinésithérapeutes en libéral à Pointe-Noire,
+    soit 6,9 pour 10 000 habitants (moyenne de la Guadeloupe : 24,5), plus N salariés (hôpital,
+    clinique…) » ;
+  - réglages : « 12 sur 12 zones à accès faible, selon les données, sont prioritaires sur votre
+    page. Vous en avez ajouté ou ajusté N » (les niveaux ajustés comptent désormais) ;
+  - propositions : « Faire connaître le manque de kinésithérapeutes à Pointe-Noire », « Classer … en
+    « accès très faible » », « Rendre … prioritaire », « Pas de dermatologues recensés sur votre
+    territoire » ; une seule phrase de réassurance, adaptée à l'action ; bouton « Préparer le
+    brouillon… » ;
+  - « Voir le calcul » : ce qu'est l'APL, le classement en quarts (convention Soignect), et pourquoi
+    APL et densité peuvent diverger (communes voisines, distances, âge de la population).
+- **Correction de règle** : « relever une priorité » ne conteste plus un écart d'un cran, que les
+  règles autorisent sans explication (comme « abaisser »). Constaté sur la page Nord Basse-Terre,
+  qui avait ajusté Pointe-Noire de « très faible » à « faible » le 23/10 à 21 h 53 (heure de
+  Guadeloupe) : l'encart proposait aussitôt de revenir en arrière.
+- **Essai** (schéma `essai_p34`, données publiques copiées, compte `.invalid`, à l'écran) : texte
+  lisible de bout en bout ; ajustement d'un cran non contesté et compté dans « vos réglages ».
+
 ### SECTION 355 — LA DENSITÉ DE PRATICIENS PORTE SUR L'EXERCICE LIBÉRAL (23/10)
 
 - **Remarque de JC** : les aides-soignants sont surreprésentés à Pointe-Noire à cause de l'hôpital

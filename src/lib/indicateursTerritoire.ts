@@ -59,3 +59,16 @@ export function densiteDe(d: DonneesEffectifs, codes: string[], profession: stri
   if (population === 0) return null;
   return { effectif, effectifLiberal, population, pour10k: pour10k(effectifLiberal, population), reference: d.reference[profession] ?? null };
 }
+
+/** Territoire de référence du rang APL (le rang est calculé dans le département de la commune). */
+export function territoireDuCode(codeInsee: string | null): string {
+  const d = (codeInsee ?? "").slice(0, 3);
+  return d === "971" ? "en Guadeloupe" : d === "972" ? "en Martinique" : d === "973" ? "en Guyane" : d === "974" ? "à La Réunion" : "dans le département";
+}
+
+/** « la 3ᵉ commune la moins bien dotée sur 32 en Guadeloupe » (rang 1 = accès le plus faible). */
+export function rangLisible(rang: number, sur: number, codeInsee: string | null): string {
+  const ordinal = rang === 1 ? "la commune la moins bien dotée" : `la ${rang}ᵉ commune la moins bien dotée`;
+  return `${ordinal} sur ${sur} ${territoireDuCode(codeInsee)}`;
+}
+
