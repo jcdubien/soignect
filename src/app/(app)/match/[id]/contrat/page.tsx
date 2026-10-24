@@ -532,7 +532,18 @@ export default function ContratPage() {
     return `/api/match/${id}/contrat?${params.toString()}`;
   }
 
-  async function handleGenerate(draft: boolean) {
+  // « Partager le PDF » (24/10) : la feuille de partage du système (WhatsApp, mail…) quand le
+  // navigateur sait partager un fichier ; sinon le téléchargement habituel.
+  // Lu après le montage : le rendu serveur ne connaît pas le navigateur (sinon écart d'hydratation).
+  const [partageFichier, setPartageFichier] = useState(false);
+  useEffect(() => {
+    try {
+      setPartageFichier(typeof navigator.canShare === "function"
+        && navigator.canShare({ files: [new File([""], "x.pdf", { type: "application/pdf" })] }));
+    } catch { /* navigateur sans partage de fichier */ }
+  }, []);
+
+  async function handleGenerate(draft: boolean, partager = false) {
     setGenerating(true);
     setError(null);
     try {
@@ -543,6 +554,17 @@ export default function ContratPage() {
         return;
       }
       const blob = await res.blob();
+      const nomFichier = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1]
+        ?? `contrat-${info?.missionType?.toLowerCase() ?? "match"}${draft ? "-brouillon" : ""}.pdf`;
+      if (partager && partageFichier) {
+        try {
+          await navigator.share({ files: [new File([blob], nomFichier, { type: "application/pdf" })], title: "Contrat" });
+          return;
+        } catch (e) {
+          if ((e as Error)?.name === "AbortError") return;
+          // Échec du partage : on retombe sur le téléchargement.
+        }
+      }
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
@@ -1811,7 +1833,14 @@ export default function ContratPage() {
         >
           {generating ? "Génération en cours…" : "Télécharger le PDF officiel →"}
         </button>
-      ) : (
+      ) : null}
+      {bothSigned && partageFichier && (
+        <button onClick={() => handleGenerate(false, true)} disabled={generating || salariatIncomplet}
+          className="mt-2 w-full py-3 bg-white border-2 border-kine-300 text-kine-700 rounded-2xl font-bold text-sm disabled:opacity-60">
+          Partager le PDF officiel
+        </button>
+      )}
+      {bothSigned ? null : (
         <div className="flex flex-col items-center gap-2">
           <button
             onClick={() => handleGenerate(true)}
@@ -1820,6 +1849,12 @@ export default function ContratPage() {
           >
             {generating ? "Génération en cours…" : "Télécharger l'aperçu (brouillon) →"}
           </button>
+          {partageFichier && (
+            <button onClick={() => handleGenerate(true, true)} disabled={generating || salariatIncomplet}
+              className="text-sm font-semibold text-kine-700 underline disabled:opacity-60">
+              Partager l&apos;aperçu (WhatsApp, mail…)
+            </button>
+          )}
           {/* Le brouillon est bloqué lui aussi, et non le seul PDF officiel : son objet est la
               relecture avant signature, et laisser relire un salaire inventé serait pire que de
               ne rien produire. */}
