@@ -9,6 +9,10 @@ import { lienPartenariat } from "@/lib/partenariat";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { isFreeAccessMode } from "@/lib/platform";
 import { mentionGratuite } from "@/lib/gratuite";
+import { besoinsPublics } from "@/lib/besoinsPublics";
+import type { Profession as PrismaProfession } from "@prisma/client";
+import BlocBesoinsPublics from "@/components/territoire/BlocBesoinsPublics";
+import { inseeOfCommune } from "@/lib/communes";
 
 // Gabarit commun des pages de diffusion « à annonces » (section 212) — portes CABINET,
 // ÉTABLISSEMENT et MAISON DE SANTÉ, et toutes les pages infirmier (section 299). La porte
@@ -54,6 +58,13 @@ export default async function PagePorte({
     : porte.slug === "emploi" ? "&profileType=TITULAIRE&structure=1"
     : "";
   const inscription = `/register?profession=${profession.enumBase}${typeCompte}&src=${cleTracePage(porte, profession, territoire)}`;
+
+  // Besoins du territoire (24/10) — seulement sur les portes qui s'adressent aux soignants (celles
+  // qui leur montrent des employeurs), pour la profession de la page et les communes du territoire.
+  const besoins = porte.montre === "EMPLOYEUR"
+    ? await besoinsPublics({ profession: profession.enumBase as PrismaProfession, codesInsee: communes.map((c) => inseeOfCommune(c)).filter((c): c is string => !!c) })
+    : [];
+  const inscriptionSoignant = `/register?profession=${profession.enumBase}&profileType=REMPLACANT&src=${cleTracePage(porte, profession, territoire)}`;
 
   const fmt = (d: Date | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : null;
@@ -172,6 +183,8 @@ export default async function PagePorte({
           ? lienPartenariat("MSP", `partenaire-${porte.slug}-${profession.slug}`)
           : `/register?profession=${profession.enumBase}${porte.slug === "emploi" ? typeCompte : ""}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />
       )}
+
+      <BlocBesoinsPublics besoins={besoins} titre="Besoins du territoire" lienInscription={inscriptionSoignant} />
 
       {/* NE GARDER ICI QUE CE QUI EST VRAI PAR CONSTRUCTION (règle du 10/08, réaffirmée le
           12/08) : ce que fait Soignect, les types de poste, le statut du territoire. Aucune

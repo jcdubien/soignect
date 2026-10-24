@@ -5,6 +5,8 @@ import { Profession } from "@prisma/client";
 import { ZONE_LABELS, zoneOfCommune } from "@/lib/communes";
 import { libellesDuCode, prioritesDeLaPage, relationActive } from "@/lib/pageClient";
 import PostesDuTerritoire from "@/components/territoire/PostesDuTerritoire";
+import { besoinsPublics } from "@/lib/besoinsPublics";
+import BlocBesoinsPublics from "@/components/territoire/BlocBesoinsPublics";
 
 export const dynamic = "force-dynamic";
 
@@ -78,9 +80,11 @@ export default async function PageClientPublique({ params }: { params: Promise<{
 
   const communes = page.communes.flatMap(libellesDuCode);
   const professions = page.professions.length > 0 ? page.professions : Object.values(Profession);
-  const [priorites, apl] = await Promise.all([
+  const [priorites, apl, besoins] = await Promise.all([
     prioritesDeLaPage(page, page.client.nom),
     prisma.communeAPL.aggregate({ where: { codeInsee: { in: page.communes } }, _max: { aplAnnee: true } }),
+    // Besoins du territoire de CETTE structure (24/10) — aucun sur une page de démonstration.
+    page.demo ? Promise.resolve([]) : besoinsPublics({ clientId: page.clientId }),
   ]);
 
   // Les noms jusqu'à trois communes (« Pointe-Noire » pour une MSP), puis la zone si elles en
@@ -112,6 +116,12 @@ export default async function PageClientPublique({ params }: { params: Promise<{
           attribuee={!page.demo && nomPublie !== null}
         />
       </div>
+      <BlocBesoinsPublics
+        besoins={besoins}
+        titre="Les besoins de notre territoire"
+        libelleProfession={(b) => b.profession}
+        lienInscription={`/register?src=page-${page.id}`}
+      />
     </>,
   );
 }

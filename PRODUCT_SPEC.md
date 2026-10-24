@@ -7408,6 +7408,25 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 360 — BESOINS SUR LA PAGE PUBLIQUE DE LA STRUCTURE ET SUR LES PAGES MÉTIER (24/10)
+
+- **Chargement commun** `lib/besoinsPublics` : besoins publiés et non échus, par profession et
+  communes, ou par structure. Nom de la structure seulement avec son accord (sinon « une CPTS »…).
+  Aucune donnée sur une personne. Affichage : `components/territoire/BlocBesoinsPublics` (composant
+  serveur, sans interaction).
+- **Page publique `/p`** : « Les besoins de notre territoire », ceux de la structure, profession
+  nommée sur chaque ligne ; aucun sur une page de démonstration.
+- **Pages métier** (`PagePorte`) : « Besoins du territoire », seulement sur les portes qui
+  s'adressent aux soignants (celles qui leur montrent des employeurs : remplacement, poste salarié,
+  territoire), pour la profession de la page et les communes du territoire. Pas sur les portes
+  destinées aux employeurs (« emploi », « recrutement », « maison de santé »).
+- **Appel à l'action** : créer un compte (profession préremplie, provenance de la page conservée
+  pour la mesure) ou se connecter ; l'intérêt s'exprime ensuite depuis le fil, avec le consentement
+  à la transmission du nom (section 358).
+- **Essai** (schéma `essai_p37`) : `/p` avec accord « Oui » → nom affiché, besoin retiré absent ;
+  accord « Non » → « déclaré par une CPTS », nom absent ; page remplacement infirmier → 2 besoins ;
+  page emploi infirmier (établissements) et page remplacement kiné → aucun.
+
 ### SECTION 359 — BESOINS : L'ADMINISTRATION PRÉVENUE DE CHAQUE PUBLICATION, LISTE COMPLÈTE, RETRAIT MOTIVÉ (24/10)
 
 - **Notification** (cloche, aucun email) à chaque publication : « à valider » pour la première d'une
