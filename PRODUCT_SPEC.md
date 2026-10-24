@@ -7408,6 +7408,25 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 354 — INCIDENT : PAGES D'ADMINISTRATION LISIBLES SANS SESSION — CLOS (22-23/10)
+
+- **Constat (22/10)** : sans session, une page `/admin/*` répondait une redirection (307) dont le
+  corps contenait déjà les données lues par la page — le layout redirigeait, mais Next rend layout et
+  page en parallèle, et les pages lisaient la base sans contrôle propre.
+- **Exposé** (déduit du code, non prouvé pour la période ancienne) : emails et noms des comptes
+  (Utilisateurs, Profils, Annonces, Statistiques, Désirabilité, Diffusion), commentaires des
+  recommandations, emails des éditeurs (Priorités), liens d'édition et liens publics des 2 pages
+  clients (Pages clients, depuis le 20/10). Téléphones non transmis par la page Utilisateurs.
+  Période : probablement depuis la création de chaque page (01/07/2026 pour la plupart) jusqu'au
+  correctif. Accès effectifs : **inconnus** (journaux Vercel limités à 1 heure, consultations non
+  tracées).
+- **Correctif** `cf51f62` (22/10, 15 h 09 heure de Guadeloupe) : `exigerAdmin()` en tête de chaque
+  page d'administration.
+- **Vérification (23/10, sans session, en production)** : les 15 pages d'administration redirigent
+  sans aucune donnée ; les 30 routes `/api/admin/*` répondent 401 ou 403.
+- **Suites** : liens d'édition des 2 pages clients régénérés par JC le 23/10 (vers 21 h 17, heure de
+  Guadeloupe) ; question du signalement à la CNIL traitée par JC le 23/10. **Incident clos.**
+
 ### SECTION 353 — DENSITÉ DE PRATICIENS DANS L'ENCART, RÈGLE « AUCUNE ACTIVITÉ DÉCLARÉE » (23/10)
 
 - **Indicateur** (`lib/indicateursTerritoire`, source unique) : praticiens recensés pour 10 000
