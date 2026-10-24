@@ -1066,6 +1066,34 @@ enum ActionReglage {
 // SQL refuse UPDATE, DELETE et TRUNCATE (migration 20261022120000) ; RLS activée. Aucune clé
 // étrangère : une ligne de journal survit à la case, au client et au compte qu'elle nomme —
 // c'est sa raison d'être. Champs figés à l'écriture, lisibles sans jointure.
+// ── DÉMOGRAPHIE ET EFFECTIFS DE SANTÉ PAR COMMUNE (23/10) ──────────────────────────────────
+//
+// Données PUBLIQUES et AGRÉGÉES, importées par `scripts/import-demographie.mjs` : aucune personne,
+// aucun identifiant n'est conservé — seulement des totaux. Lues par les indicateurs du diagnostic
+// (lib/indicateursTerritoire). Indicatives : ce n'est pas un zonage officiel.
+model DemographieCommune {
+  codeInsee   String   @id
+  commune     String
+  population  Int
+  source      String   // ex. « INSEE, populations de référence 2023 (via geo.api.gouv.fr) »
+  millesime   Int?     // année de la population (1er janvier)
+  importedAt  DateTime @default(now())
+}
+
+model EffectifPraticiens {
+  id              Int        @id @default(autoincrement())
+  codeInsee       String
+  profession      Profession
+  effectif        Int        // praticiens distincts ayant au moins une activité dans la commune
+  effectifLiberal Int        // dont au moins une activité libérale
+  source          String     // ex. « ANS, Annuaire Santé — extraction libre accès »
+  extraitLe       DateTime   // date de l'extraction utilisée
+  importedAt      DateTime   @default(now())
+
+  @@unique([codeInsee, profession])
+  @@index([profession])
+}
+
 // ── BESOIN DU TERRITOIRE (23/10) ─────────────────────────────────────────────────────────────
 //
 // Une structure (CPTS, MSP…) publie un manque de son territoire : « pas de dermatologue au

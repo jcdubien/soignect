@@ -7408,6 +7408,30 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 352 — IMPORT DES POPULATIONS ET DES EFFECTIFS DE SANTÉ PAR COMMUNE (23/10)
+
+- **Tables** (migration additive `20261023200000_demographie_effectifs`, appliquée en production le
+  23/10, RLS activée) : `DemographieCommune` (population par commune, source, millésime) et
+  `EffectifPraticiens` (praticiens par commune et profession, dont libéraux, source, date
+  d'extraction). **Des totaux seulement** : aucun nom, aucun identifiant conservé.
+- **Script** `scripts/import-demographie.mjs` (simulation par défaut, `--apply` remplace les
+  données). Sources publiques, Licence Ouverte :
+  - population : API Découpage administratif (geo.api.gouv.fr, Etalab), qui cite les populations
+    de référence INSEE 2023 (au 1er janvier 2023, en vigueur au 1er janvier 2026) — millésime noté
+    par le script, **à vérifier** à chaque import (l'API ne le renvoie pas) ;
+  - praticiens : ANS, Annuaire Santé, extraction en libre accès « personne-activité » (data.gouv.fr),
+    **lue en flux** (environ 800 Mo, rien sur le disque), communes 971, 977, 978. Une personne est
+    comptée une fois par commune d'exercice, grâce à son identifiant RPPS, qui ne quitte pas la
+    mémoire du script.
+- **Correspondances** : kiné 70, infirmier 60, sage-femme 50, dentiste 40, orthophoniste 91,
+  orthoptiste 92 ; médecins par savoir-faire (généraliste SM53/SM26/SM54, dermatologie SM15, etc.).
+  Gynécologie : médicale seulement (pas la gynécologie-obstétrique SM20). Anciens codes de
+  Saint-Barthélemy (97123) et Saint-Martin (97127) regroupés sous 97701 et 97801.
+- **Non couvert** : aide-soignant (absent de l'Annuaire Santé) — effectif inconnu.
+- **Import du 23/10** : 34 communes (population de la Guadeloupe : 384 160), extraction du
+  22/10/2026, 266 totaux commune × profession. Exemple de cohérence : Pointe-Noire, 4 kinés (APL
+  3ᵉ sur 32).
+
 ### SECTION 351 — PAGE DE GESTION SIMPLIFIÉE POUR UNE MAISON DE SANTÉ (23/10)
 
 - **Demande de JC** : le même type de page que pour les CPTS, en plus simple, pour les MSP. Pas de

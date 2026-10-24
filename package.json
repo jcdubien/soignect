@@ -16,6 +16,7 @@
     "db:sync-zones": "node --env-file=.env.local scripts/sync-commune-zone.mjs --apply",
     "db:check-zones": "node --env-file=.env.local scripts/sync-commune-zone.mjs",
     "db:check-insee": "node --env-file=.env.local scripts/check-commune-insee.mjs",
+    "db:demographie": "node --env-file=.env.local scripts/import-demographie.mjs",
     "db:check-apl": "node --env-file=.env.local scripts/sync-commune-apl.mjs",
     "db:sync-apl": "node --env-file=.env.local scripts/sync-commune-apl.mjs --apply"
   },
