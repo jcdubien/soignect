@@ -6,6 +6,7 @@ import { MentionSignature } from "./signature-mention";
 import { DraftBanner, DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 import { fmtDateUTC } from "@/lib/contrats/date";
+import { phraseBalneo, phraseTeletransmission, PARTIES_COLLABORATION } from "@/lib/contrats/clausesHonoraires";
 
 const S = StyleSheet.create({
   page: { fontFamily: "Helvetica", fontSize: 10, paddingTop: 50, paddingBottom: 60, paddingHorizontal: 55, lineHeight: 1.5, color: "#1a1a1a" },
@@ -43,7 +44,7 @@ const LEGAL_MENTION =
 
 export function buildCollaborationPdf(data: ContractDataCollaboration) {
   const { titulaire, collaborateur, startDate, minMonths, redevancePct, clauseRedevance, rayonKm, dureeAns, periodeEssai, generatedAt,
-    modePaiement, delaiPaiementJours, modalitesLocaux,
+    modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission,
     signatureTitulaireImg, signatureRemplacantImg, draft } = data;
   const dureeStr = minMonths ? `${minMonths} mois` : "[durée à compléter]";
 
@@ -123,6 +124,10 @@ export function buildCollaborationPdf(data: ContractDataCollaboration) {
                 (section 296), la même qui résume l'annonce. */}
             {clauseRedevance ?? `En contrepartie de la mise à disposition des locaux, du matériel et des équipements, le collaborateur versera au titulaire une redevance mensuelle de ${redevancePct}% de ses honoraires nets encaissés.`} Cette redevance sera versée par {paymentMethodPhrase(modePaiement)} dans les {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque mois.
           </Text>
+          {/* Clauses optionnelles (24/10) : dans l'article, sans renuméroter. */}
+          {[phraseBalneo(balneo, PARTIES_COLLABORATION), phraseTeletransmission(aideTeletransmission, PARTIES_COLLABORATION)].filter(Boolean).map((t) => (
+            <Text key={t} style={[S.body, { marginTop: 3 }]}>{t}</Text>
+          ))}
         </View>
 
         {/* Art. 6 — Locaux et matériel */}

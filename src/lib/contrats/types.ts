@@ -44,6 +44,10 @@ export interface NegotiableClauses {
   modePaiement: string;       // "Virement bancaire" | "Chèque" | "Espèces" | "Autre"
   delaiPaiementJours: number; // délai de paiement de la rétrocession/redevance (jours)
   modalitesLocaux: string;    // modalités de répartition des charges locaux/matériel (texte libre)
+  // Clauses optionnelles des modèles kiné libéraux (24/10, lib/contrats/clausesHonoraires) —
+  // absentes = aucune phrase ajoutée.
+  balneo?: import("@/lib/contrats/clausesHonoraires").OptionBalneo | null;
+  aideTeletransmission?: import("@/lib/contrats/clausesHonoraires").OptionTeletransmission | null;
 }
 
 // Phrase injectée après « versé(e) par … » selon le mode de paiement choisi.

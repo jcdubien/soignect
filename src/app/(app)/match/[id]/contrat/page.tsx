@@ -9,6 +9,7 @@ import { libelleOrdre, articleNonInstallation } from "@/lib/professions";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import type { PeriodeContrat, SourcePeriode } from "@/lib/contrats/periode";
 import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
+import { OPTIONS_BALNEO, OPTIONS_TELETRANSMISSION, LIBELLE_BALNEO, LIBELLE_TELETRANSMISSION, type OptionBalneo, type OptionTeletransmission } from "@/lib/contrats/clausesHonoraires";
 
 export const dynamic = "force-dynamic";
 
@@ -268,6 +269,9 @@ export default function ContratPage() {
   const [modePaiement,        setModePaiement]        = useState("Virement bancaire");
   const [delaiPaiementJours,  setDelaiPaiementJours]  = useState(5);
   const [modalitesLocaux,     setModalitesLocaux]     = useState("");
+  // Clauses optionnelles kiné (24/10) — vide = non choisie, aucune phrase au contrat.
+  const [balneo,              setBalneo]              = useState<OptionBalneo | "">("");
+  const [aideTeletransmission, setAideTeletransmission] = useState<OptionTeletransmission | "">("");
 
   // Signature photo (section 61)
   const [sig, setSig] = useState<SigStatus | null>(null);
@@ -433,6 +437,11 @@ export default function ContratPage() {
       delaiPaiementJours: String(delaiPaiementJours),
       modalitesLocaux,
     });
+    // Rien ne part qui n'ait été montré : seulement sur les modèles kiné libéraux, et si choisi.
+    if (gabaritId?.startsWith("KINE_")) {
+      if (balneo) params.set("balneo", balneo);
+      if (aideTeletransmission) params.set("aideTeletransmission", aideTeletransmission);
+    }
 
     // RIEN NE PART QUI N'AIT ÉTÉ MONTRÉ (section 237, lot 3).
     //
@@ -1477,6 +1486,28 @@ export default function ContratPage() {
               Facultatif — si laissé vide, le contrat indiquera « à convenir entre les parties ».
             </p>
           </div>
+
+          {gabaritId?.startsWith("KINE_") && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">Soins de balnéothérapie</label>
+                <select value={balneo} onChange={e => setBalneo(e.target.value as OptionBalneo | "")}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800">
+                  <option value="">Non précisé (rien n&apos;est ajouté au contrat)</option>
+                  {OPTIONS_BALNEO.map(o => <option key={o} value={o}>{LIBELLE_BALNEO[o]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">Aide à la télétransmission</label>
+                <select value={aideTeletransmission} onChange={e => setAideTeletransmission(e.target.value as OptionTeletransmission | "")}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800">
+                  <option value="">Non précisé (rien n&apos;est ajouté au contrat)</option>
+                  {OPTIONS_TELETRANSMISSION.map(o => <option key={o} value={o}>{LIBELLE_TELETRANSMISSION[o]}</option>)}
+                </select>
+              </div>
+              <p className="text-xs text-gray-400">Ajoutées dans l&apos;article de la rétrocession ou de la redevance, sans changer la numérotation du contrat.</p>
+            </div>
+          )}
         </div>
         )}
 

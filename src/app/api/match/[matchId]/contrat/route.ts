@@ -23,6 +23,7 @@ import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractFields } from "@/lib/contractProfile";
 import { periodeParDefaut, periodeDemandee } from "@/lib/contrats/periode";
 import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
+import { lireOption, OPTIONS_BALNEO, OPTIONS_TELETRANSMISSION } from "@/lib/contrats/clausesHonoraires";
 import {
   lieuTravailParDefaut,
   HEURES_HEBDOMADAIRES_DEFAUT,
@@ -236,6 +237,9 @@ export async function GET(req: NextRequest, { params }: Params) {
   const delaiParsed = parseInt(sp.get("delaiPaiementJours") ?? "5", 10);
   const delaiPaiementJours = Number.isFinite(delaiParsed) ? Math.min(60, Math.max(1, delaiParsed)) : 5;
   const modalitesLocaux = (sp.get("modalitesLocaux") ?? "").slice(0, 600); // borne anti-débordement PDF
+  // Clauses optionnelles des modèles kiné (24/10) — absentes ou inconnues = aucune phrase.
+  const balneo = lireOption(sp.get("balneo"), OPTIONS_BALNEO);
+  const aideTeletransmission = lireOption(sp.get("aideTeletransmission"), OPTIONS_TELETRANSMISSION);
 
   // ── Période du contrat (section 237) ──────────────────────────────────────────────────────
   //
@@ -764,7 +768,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       endDate:    periode.fin,
       retrocessionPct,
       rayonKm, periodeEssai, generatedAt,
-      modePaiement, delaiPaiementJours, modalitesLocaux,
+      modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-remplacement.pdf";
@@ -777,7 +781,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       clauseRedevance: redevanceAnnonce
         ? clauseRedevance(redevanceAnnonce, redevancePct, "l'assistant", "la mise à disposition du cabinet et des équipements")
         : undefined,
-      modePaiement, delaiPaiementJours, modalitesLocaux,
+      modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-assistanat.pdf";
@@ -790,7 +794,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       clauseRedevance: redevanceAnnonce
         ? clauseRedevance(redevanceAnnonce, redevancePct, "le collaborateur", "la mise à disposition des locaux, du matériel et des équipements")
         : undefined,
-      modePaiement, delaiPaiementJours, modalitesLocaux,
+      modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-collaboration.pdf";

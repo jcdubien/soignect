@@ -6,6 +6,7 @@ import { MentionSignature } from "./signature-mention";
 import { DraftBanner, DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 import { fmtDateUTC } from "@/lib/contrats/date";
+import { phraseBalneo, phraseTeletransmission, PARTIES_REMPLACEMENT } from "@/lib/contrats/clausesHonoraires";
 
 // Utilise Helvetica intégrée à pdf-lib — pas de chargement de police externe nécessaire
 const S = StyleSheet.create({
@@ -44,7 +45,7 @@ const LEGAL_MENTION =
 
 export function buildRemplacementPdf(data: ContractDataRemplacement) {
   const { remplace, remplacant, startDate, endDate, retrocessionPct, rayonKm, periodeEssai, generatedAt,
-    modePaiement, delaiPaiementJours, modalitesLocaux,
+    modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission,
     signatureTitulaireImg, signatureRemplacantImg, draft } = data;
 
   return (
@@ -131,6 +132,10 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
                 d'un assistant ou d'un collaborateur (section 296). */}
             En rémunération de ses services, le remplaçant percevra {retrocessionPct}% des honoraires qu'il aura encaissés pendant la durée du remplacement. Le versement s'effectuera par {paymentMethodPhrase(modePaiement)} dans un délai de {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque période de remplacement.
           </Text>
+          {/* Clauses optionnelles (24/10) : dans l'article, sans renuméroter. */}
+          {[phraseBalneo(balneo, PARTIES_REMPLACEMENT), phraseTeletransmission(aideTeletransmission, PARTIES_REMPLACEMENT)].filter(Boolean).map((t) => (
+            <Text key={t} style={[S.body, { marginTop: 3 }]}>{t}</Text>
+          ))}
         </View>
 
         {/* Art. 7 — Obligations fiscales et sociales */}
