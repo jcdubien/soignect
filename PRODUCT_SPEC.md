@@ -7408,25 +7408,6 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
-### SECTION 363 — COMPTES DE STRUCTURE : AUDIT ET ORIENTATION DES MSP (24/10)
-
-- **Audit (lecture seule)** : un seul compte « Établissement » (titulaire STRUCTURE), une profession
-  par compte, aucun contrat généré (« le contrat reste le vôtre »), fil limité aux candidats ouverts
-  au salariat. En production : 3 comptes établissement, 2 structures clientes (CPTS), éditeurs sur
-  des comptes cabinet.
-- **Décision (JC)** : les besoins du territoire suffisent aux CPTS — pas de compte ni d'annonces
-  pour elles.
-- **Les MSP ont déjà le bon compte** : depuis la section 299, une MSP s'inscrit comme « Cabinet /
-  Titulaire » (tous les candidats, libéral ou salarié). Ce qui manquait : l'y orienter.
-  - Carte d'inscription : « Cabinet ou maison de santé (MSP) — remplacement, assistanat,
-    collaboration ».
-  - Page « maison de santé » : l'inscription préselectionne le compte cabinet
-    (`profileType=TITULAIRE`), comme la page « emploi » préselectionne l'établissement.
-- **Reste à vérifier** : le contrat pré-rempli d'un compte MSP désigne la MSP comme partie ; pour un
-  libéral, le contrat se signe en général avec un confrère (« à vérifier » juridiquement).
-- **Écarté pour l'instant** : plusieurs professions par compte (métier porté par l'annonce) —
-  touche le fil et le score ; deux comptes suffisent au pilote.
-
 ### SECTION 362 — PAGES « EMPLOI » ET « MAISON DE SANTÉ » : QUI EST MONTRÉ, SOUS QUELLE ÉTIQUETTE (24/10)
 
 - **Constat** (24/10, production) : la page « emploi » (établissements) montrait tous les candidats,
