@@ -17,7 +17,11 @@
 // la mémoire du script. Aucun nom, aucune coordonnée.
 //
 // CE QUI N'EST PAS COUVERT
-//   • Aide-soignant : profession absente de l'Annuaire Santé — effectif inconnu.
+//   • Aide-soignant : PRÉSENT dans l'extraction, mais pas comme profession — comme « acteur
+//     caractérisé par un rôle » (code profession 99, rôle 313), et seulement quand une structure l'a
+//     enregistré. Mesuré le 23/10 : 4 271 en France, 84 en 971/977/978 (16 à Sainte-Rose, 12 à
+//     Pointe-Noire, aucun à Pointe-à-Pitre ni Baie-Mahault). Couverture trop partielle pour une
+//     densité : NON importé, l'indicateur reste « données insuffisantes ».
 //   • Gynécologie : seule la gynécologie MÉDICALE est comptée (SM19, CEX22, SM51), pas la
 //     gynécologie-obstétrique (SM20), conformément au libellé « gynécologues médicaux ».
 //   • Un praticien est compté dans chaque commune où il a une activité déclarée : la somme des

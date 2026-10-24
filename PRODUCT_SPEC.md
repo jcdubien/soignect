@@ -7436,13 +7436,15 @@ disposition ne le montre ; seul un partage depuis un téléphone tranche.
 - **Dans l'encart** : chaque proposition qui porte sur une case montre « N praticiens recensés à … ·
   X pour 10 000 hab. (Guadeloupe : Y) » ; « Voir le calcul » cite l'Annuaire Santé (date
   d'extraction) et la population (INSEE 2023), et rappelle qu'un praticien compte dans chaque
-  commune où il exerce et que les aides-soignants ne sont pas recensés.
+  commune où il exerce et que les aides-soignants ne sont recensés que lorsqu'une structure les a
+  enregistrés (trop partiel pour un indicateur).
 - **Règle R8 `PERIMETRE_SANS_PRATICIEN`** : pour une profession affichée sans APL mais présente dans
   l'Annuaire Santé, si AUCUN praticien n'a d'activité déclarée sur tout le périmètre, l'encart le
   dit — en précisant que les patients peuvent consulter ailleurs, que c'est une indication et non un
   constat de manque — et propose « Préparer… » sur la commune la plus peuplée (case libre, plafond
   de besoins non atteint). Avec au moins un praticien : rien. « Données insuffisantes » ne vaut plus
-  que pour les professions sans aucune donnée (aide-soignant).
+  que pour les professions sans donnée exploitable (aide-soignant : recensement trop partiel, voir
+  section 352).
 - **Sur les pages réelles (calcul en lecture seule)** : Nord Basse-Terre — kiné à Pointe-Noire,
   4 praticiens, 6,9 pour 10 000 (Guadeloupe : 26,5). Horizon (démonstration) — aucun dermatologue
   sur ses 3 communes (Guadeloupe : 0,5 pour 10 000) ; « données insuffisantes » pour les
@@ -7470,7 +7472,11 @@ disposition ne le montre ; seul un partage depuis un téléphone tranche.
   orthoptiste 92 ; médecins par savoir-faire (généraliste SM53/SM26/SM54, dermatologie SM15, etc.).
   Gynécologie : médicale seulement (pas la gynécologie-obstétrique SM20). Anciens codes de
   Saint-Barthélemy (97123) et Saint-Martin (97127) regroupés sous 97701 et 97801.
-- **Non couvert** : aide-soignant (absent de l'Annuaire Santé) — effectif inconnu.
+- **Non couvert** : aide-soignant. **Correction du 23/10** (remarque de JC) : il figure bien dans
+  l'extraction, mais comme « acteur caractérisé par un rôle » (code 99, rôle 313) et seulement quand
+  une structure l'a enregistré — 4 271 en France, 84 en 971/977/978, tous salariés, concentrés là où
+  une structure les a inscrits (Sainte-Rose 16, Pointe-Noire 12, aucun à Pointe-à-Pitre). Trop partiel
+  pour une densité : non importé, « données insuffisantes » maintenu.
 - **Import du 23/10** : 34 communes (population de la Guadeloupe : 384 160), extraction du
   22/10/2026, 266 totaux commune × profession. Exemple de cohérence : Pointe-Noire, 4 kinés (APL
   3ᵉ sur 32).

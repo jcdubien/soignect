@@ -163,7 +163,7 @@ export default function EncartRecommandation(props: {
               Praticiens recensés : {props.source.effectifs.praticiens}
               {props.source.effectifs.extraitLe ? `, extraction du ${new Date(props.source.effectifs.extraitLe).toLocaleDateString("fr-FR", { timeZone: "UTC" })}` : ""} ;
               {" "}population : {props.source.effectifs.population}. Un praticien compte dans chaque commune où il exerce ;
-              la référence est la Guadeloupe, calculée de la même façon. Aides-soignants : non recensés.
+              la référence est la Guadeloupe, calculée de la même façon. Aides-soignants : présents seulement quand une structure les a enregistrés — trop partiel pour un indicateur.
             </li>
           )}
           <li>Rang : position de la commune parmi les communes de son département présentes dans la source (1 = accès le plus faible).</li>
