@@ -28,7 +28,7 @@ export default async function ActiverPage({ params }: { params: Promise<{ token:
         {a.titulaire} vous a ajouté·e sur Soignect pour {a.missionType ? LIBELLE[a.missionType] : "votre contrat"}.
         Choisissez votre mot de passe pour activer votre compte et retrouver le contrat.
       </p>
-      <ActiverClient token={token} email={a.email} />
+      <ActiverClient token={token} email={a.email} identite={a.identite} />
       <p className="mt-6 text-xs text-gray-500">
         Avec votre compte Soignect, vos prochains contrats se préparent de la même façon : pré-remplis
         à partir de vos informations et signés en ligne par les deux parties.

@@ -3,8 +3,12 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 
-export default function ActiverClient({ token, email: emailInitial }: { token: string; email: string | null }) {
+export default function ActiverClient({ token, email: emailInitial, identite }: { token: string; email: string | null; identite: { rpps: string; numeroOrdre: string; adresse: string } }) {
   const [email, setEmail] = useState(emailInitial ?? "");
+  // Sa partie du contrat : préremplie avec ce que le titulaire a saisi, modifiable.
+  const [rpps, setRpps] = useState(identite.rpps);
+  const [numeroOrdre, setNumeroOrdre] = useState(identite.numeroOrdre);
+  const [adresse, setAdresse] = useState(identite.adresse);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [accepte, setAccepte] = useState(false);
@@ -18,7 +22,7 @@ export default function ActiverClient({ token, email: emailInitial }: { token: s
     if (password !== confirm) { setErreur("Les mots de passe ne correspondent pas."); return; }
     setEnvoi(true);
     try {
-      const r = await fetch("/api/activer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, email, password, acceptedTerms: accepte, emailOptIn }) });
+      const r = await fetch("/api/activer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, email, password, acceptedTerms: accepte, emailOptIn, rpps, numeroOrdre, adresse }) });
       const d = await r.json().catch(() => null);
       if (!r.ok) { setErreur(d?.error ?? "Activation impossible."); return; }
       const s = await signIn("credentials", { email: d.email, password, redirect: false });
@@ -32,6 +36,13 @@ export default function ActiverClient({ token, email: emailInitial }: { token: s
       <label className="block text-xs font-semibold text-gray-600">Votre email (votre identifiant de connexion)<input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={champ} /></label>
       <label className="block text-xs font-semibold text-gray-600">Mot de passe (8 caractères au moins)<input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className={champ} /></label>
       <label className="block text-xs font-semibold text-gray-600">Confirmer<input type="password" required minLength={8} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={champ} /></label>
+      <fieldset className="rounded-xl border border-gray-200 p-3 space-y-2">
+        <legend className="px-1 text-xs font-bold text-gray-700">Votre partie du contrat</legend>
+        <p className="text-[11px] text-gray-500 m-0">Vérifiez ou complétez : ces informations figurent au contrat. Vous pourrez les modifier ensuite dans votre compte.</p>
+        <label className="block text-xs font-semibold text-gray-600">N° RPPS<input maxLength={20} inputMode="numeric" value={rpps} onChange={(e) => setRpps(e.target.value)} className={champ} /></label>
+        <label className="block text-xs font-semibold text-gray-600">N° d&apos;inscription à l&apos;Ordre<input maxLength={30} value={numeroOrdre} onChange={(e) => setNumeroOrdre(e.target.value)} className={champ} /></label>
+        <label className="block text-xs font-semibold text-gray-600">Adresse professionnelle<input maxLength={200} autoComplete="street-address" value={adresse} onChange={(e) => setAdresse(e.target.value)} className={champ} /></label>
+      </fieldset>
       <label className="flex gap-2 items-start text-xs text-gray-600">
         <input type="checkbox" checked={accepte} onChange={(e) => setAccepte(e.target.checked)} className="mt-0.5" />
         <span>J&apos;accepte les{" "}

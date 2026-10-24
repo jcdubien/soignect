@@ -179,16 +179,18 @@ export async function activationEnAttente(token: string) {
   if (!/^[0-9a-f]{64}$/.test(token)) return null;
   const u = await prisma.user.findFirst({
     where: { resetToken: token, resetTokenExpiry: { gt: new Date() }, acceptedTermsAt: null },
-    select: { id: true, email: true, profile: { select: { name: true, matchesB: { where: { horsSoignect: true }, take: 1, orderBy: { createdAt: "asc" }, select: { id: true, profileA: { select: { name: true } }, missionA: { select: { missionType: true } } } } } } },
+    select: { id: true, email: true, profile: { select: { id: true, name: true, rpps: true, numeroOrdre: true, adresse: true, matchesB: { where: { horsSoignect: true }, take: 1, orderBy: { createdAt: "asc" }, select: { id: true, profileA: { select: { name: true } }, missionA: { select: { missionType: true } } } } } } },
   });
   const m = u?.profile?.matchesB[0];
   if (!u || !m) return null;
-  return { userId: u.id, email: emailProvisoire(u.email) ? null : u.email, nom: u.profile!.name ?? "", titulaire: m.profileA.name ?? "Votre confrère", missionType: m.missionA?.missionType ?? null, matchId: m.id };
+  return { userId: u.id, profileId: u.profile!.id, email: emailProvisoire(u.email) ? null : u.email, nom: u.profile!.name ?? "",
+    // Sa partie du contrat, telle que le titulaire l'a saisie : il la relit et la complète.
+    identite: { rpps: u.profile!.rpps ?? "", numeroOrdre: u.profile!.numeroOrdre ?? "", adresse: u.profile!.adresse ?? "" }, titulaire: m.profileA.name ?? "Votre confrère", missionType: m.missionA?.missionType ?? null, matchId: m.id };
 }
 
 /** Activation par le confrère lui-même : son email (il peut corriger celui saisi par le titulaire),
  *  son mot de passe, son consentement, ses préférences. */
-export async function activerCompte(token: string, emailSaisi: string, password: string, emailOptIn: boolean): Promise<{ email: string; matchId: string } | { erreur: string } | null> {
+export async function activerCompte(token: string, emailSaisi: string, password: string, emailOptIn: boolean, identite?: { rpps?: string | null; numeroOrdre?: string | null; adresse?: string | null }): Promise<{ email: string; matchId: string } | { erreur: string } | null> {
   const a = await activationEnAttente(token);
   if (!a) return null;
   const email = emailSaisi.toLowerCase().trim();
@@ -202,6 +204,12 @@ export async function activerCompte(token: string, emailSaisi: string, password:
     data: { email, passwordHash, acceptedTermsAt: new Date(), emailOptIn, resetToken: null, resetTokenExpiry: null },
   });
   if (r.count !== 1) return null;
+  if (identite) {
+    await prisma.profile.update({
+      where: { id: a.profileId },
+      data: { rpps: identite.rpps?.trim() || null, numeroOrdre: identite.numeroOrdre?.trim() || null, adresse: identite.adresse?.trim() || null },
+    });
+  }
   await logTraceEventAttendu({ eventType: "CONFRERE_HORS_SOIGNECT", metadata: { etape: "activation", missionType: a.missionType } });
   return { email, matchId: a.matchId };
 }

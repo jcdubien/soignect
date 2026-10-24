@@ -7427,6 +7427,10 @@ disposition ne le montre ; seul un partage depuis un téléphone tranche.
   essais) ; le confrère saisit le sien à l'activation (email déjà inscrit refusé), puis arrive
   connecté sur sa proposition de contrat. Phrase d'accueil sur la page d'activation : contrats
   suivants pré-remplis et signés en ligne.
+- **Chaque partie remplit la sienne** : celle du titulaire est reprise de son profil (identité
+  contractuelle) ; sur la page d'activation, le confrère relit et complète la sienne — RPPS, n°
+  Ordre, adresse professionnelle, préremplis avec la saisie du titulaire — enregistrée dans son
+  profil. Essai `essai_p46` : « Adresse, N° Ordre » manquants avant, plus rien après activation.
 - **Rappel non-concurrence** (JC : « attention à ne pas l'oublier ») : sur `/confreres`, un encadré
   rappelle que la clause est toujours au contrat (non-installation en remplacement) et que rayon et
   durée se règlent sur la page contrat (20 km et 2 ans par défaut).

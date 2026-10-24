@@ -120,7 +120,7 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
         </p>
         <details className="text-xs text-gray-600">
           <summary className="cursor-pointer font-semibold">Identité professionnelle du confrère (facultatif)</summary>
-          <p className="text-gray-400 mt-1">Portée au contrat. Laissée vide, il la complétera lui-même dans son compte.</p>
+          <p className="text-gray-400 mt-1">Portée au contrat. Votre propre partie est reprise de votre profil. Laissée vide, celle du confrère sera complétée par lui en activant son compte : il relit ce que vous avez saisi.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
             <label className="font-semibold">RPPS<input maxLength={20} value={f.rpps} onChange={maj("rpps")} className={champ} /></label>
             <label className="font-semibold">N° Ordre<input maxLength={30} value={f.numeroOrdre} onChange={maj("numeroOrdre")} className={champ} /></label>
