@@ -7427,6 +7427,9 @@ disposition ne le montre ; seul un partage depuis un téléphone tranche.
   essais) ; le confrère saisit le sien à l'activation (email déjà inscrit refusé), puis arrive
   connecté sur sa proposition de contrat. Phrase d'accueil sur la page d'activation : contrats
   suivants pré-remplis et signés en ligne.
+- **Rappel non-concurrence** (JC : « attention à ne pas l'oublier ») : sur `/confreres`, un encadré
+  rappelle que la clause est toujours au contrat (non-installation en remplacement) et que rayon et
+  durée se règlent sur la page contrat (20 km et 2 ans par défaut).
 - **Essai** (schéma `essai_p45`) : texte des PDF lu avec `pdftotext` — aucune phrase sans option ;
   phrases attendues avec options ; valeur inconnue ignorée ; articles de non-concurrence présents
   et à leur numéro ; ajout sans email, activation avec email (déjà pris → 409), connexion avec

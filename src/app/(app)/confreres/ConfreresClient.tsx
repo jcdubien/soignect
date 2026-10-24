@@ -111,6 +111,13 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
           </div>
         )}
         {remplacement && <p className="text-[11px] text-gray-400 -mt-1">Un remplaçant se rétrocède en pourcentage (forfait et plafond : assistanat et collaboration seulement).</p>}
+        {/* Rappel (24/10, JC : « attention à ne pas l'oublier ») — la clause est toujours au contrat ;
+            son rayon et sa durée se règlent sur la page contrat, préremplis à 20 km et 2 ans. */}
+        <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg px-2 py-1.5">
+          {remplacement
+            ? "Clause de non-installation : toujours au contrat. Réglez le rayon sur la page contrat (20 km par défaut ; 2 ans fixés par la loi)."
+            : "Clause de non-concurrence : toujours au contrat. Réglez le rayon et la durée sur la page contrat (20 km et 2 ans par défaut)."}
+        </p>
         <details className="text-xs text-gray-600">
           <summary className="cursor-pointer font-semibold">Identité professionnelle du confrère (facultatif)</summary>
           <p className="text-gray-400 mt-1">Portée au contrat. Laissée vide, il la complétera lui-même dans son compte.</p>
