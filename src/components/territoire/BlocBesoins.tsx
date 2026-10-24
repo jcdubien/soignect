@@ -19,6 +19,8 @@ export interface BesoinAffiche {
   expireLe: string | null; motifRefus: string | null;
   /** Soignants intéressés : le nombre pour tous, les noms pour les éditeurs connectés (24/10). */
   nbInteresses: number;
+  /** « moins de 5 affichages », « 12 affichages »… (seuil d'agrégation). */
+  affichages: string;
   interesses: { nom: string; profession: string; le: string }[];
 }
 
@@ -142,7 +144,7 @@ export default function BlocBesoins(props: {
                 <span className="text-xs text-gray-500">{NATURES_BESOIN[b.nature]}</span>
               </div>
               <p className="text-sm text-gray-700 mt-1 mb-0 whitespace-pre-line line-clamp-3">{b.texte}</p>
-              {b.statut === "PUBLIE" && b.expireLe && <p className="text-[11px] text-gray-500 mt-1 mb-0">Publié jusqu&apos;au {date(b.expireLe)}.</p>}
+              {b.statut === "PUBLIE" && b.expireLe && <p className="text-[11px] text-gray-500 mt-1 mb-0">Publié jusqu&apos;au {date(b.expireLe)} · {b.affichages} · {b.nbInteresses} intéressé{b.nbInteresses > 1 ? "s" : ""}.</p>}
               {b.nbInteresses > 0 && (
                 <div className="mt-2 rounded border border-emerald-200 bg-emerald-50 p-2">
                   <p className="text-xs font-semibold text-emerald-800 m-0">{b.nbInteresses} soignant{b.nbInteresses > 1 ? "s" : ""} intéressé{b.nbInteresses > 1 ? "s" : ""}</p>

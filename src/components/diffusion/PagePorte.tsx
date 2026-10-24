@@ -62,7 +62,7 @@ export default async function PagePorte({
   // Besoins du territoire (24/10) — seulement sur les portes qui s'adressent aux soignants (celles
   // qui leur montrent des employeurs), pour la profession de la page et les communes du territoire.
   const besoins = porte.montre === "EMPLOYEUR"
-    ? await besoinsPublics({ profession: profession.enumBase as PrismaProfession, codesInsee: communes.map((c) => inseeOfCommune(c)).filter((c): c is string => !!c) })
+    ? await besoinsPublics({ profession: profession.enumBase as PrismaProfession, codesInsee: communes.map((c) => inseeOfCommune(c)).filter((c): c is string => !!c), lieu: "page-metier" })
     : [];
   const inscriptionSoignant = `/register?profession=${profession.enumBase}&profileType=REMPLACANT&src=${cleTracePage(porte, profession, territoire)}`;
 

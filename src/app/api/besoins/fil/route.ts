@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NATURES_BESOIN, auteurAffiche, consentementInteret, etiquetteBesoin, ETIQUETTE_PROPOSITION } from "@/lib/besoinTerritoire";
 import { archiverBesoinsEchus } from "@/lib/besoinTerritoireServeur";
+import { logTraceEvent } from "@/lib/trace";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,10 @@ export async function GET() {
       interets: { where: { profileId: moi.id }, select: { id: true } },
     },
   });
+  // Mesure (24/10) : un affichage par besoin servi — sans identifiant de personne.
+  for (const b of besoins) {
+    logTraceEvent({ eventType: "BESOIN_VUE", profession: b.profession, commune: b.commune, metadata: { besoinId: b.id, clientId: b.clientId, lieu: "fil" } });
+  }
   return NextResponse.json({
     besoins: besoins.map((b) => {
       const auteur = auteurAffiche(b.client, b.client.page?.accord === "OUI" && !b.client.page?.demo);

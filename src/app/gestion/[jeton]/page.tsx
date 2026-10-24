@@ -11,6 +11,7 @@ import { mesureDuClient } from "@/lib/mesureTerritoriale";
 import { recommandationsDeLaPage } from "@/lib/recommandationTerritoireServeur";
 import { MENTION_RECOMMANDATION } from "@/lib/recommandationTerritoire";
 import { archiverBesoinsEchus } from "@/lib/besoinTerritoireServeur";
+import { affichagesLisibles } from "@/lib/besoinTerritoire";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,10 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
   const dejaValidee = besoins.some((b) => b.valideLe !== null);
   // Soignants intéressés (24/10) : leur nom n'est montré qu'aux éditeurs connectés — ils ont
   // consenti à la transmission à la structure, pas à quiconque détient le lien.
+  // Affichages par besoin (24/10) — lus dans les traces, montrés avec le seuil d'agrégation.
+  const affichages = besoins.length
+    ? Object.fromEntries((await prisma.$queryRaw<{ id: string; n: number }[]>`SELECT metadata->>'besoinId' AS id, count(*)::int AS n FROM "TraceEvent" WHERE "eventType" = 'BESOIN_VUE' AND metadata->>'clientId' = ${page.clientId} GROUP BY 1`).map((r) => [r.id, r.n]))
+    : {};
   const interets = besoins.length ? await prisma.besoinInteret.findMany({ where: { besoinId: { in: besoins.map((b) => b.id) } }, orderBy: { createdAt: "asc" } }) : [];
   const profilsInteresses = editeur && interets.length
     ? await prisma.profile.findMany({ where: { id: { in: interets.map((i) => i.profileId) } }, select: { id: true, name: true, profession: true, type: true } })
@@ -108,6 +113,7 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
               nature: b.nature, texte: b.texte, proposition: b.proposition, statut: b.statut,
               expireLe: b.expireLe?.toISOString() ?? null, motifRefus: b.motifRefus,
               nbInteresses: interets.filter((i) => i.besoinId === b.id).length,
+              affichages: affichagesLisibles(affichages[b.id] ?? 0),
               interesses: interets.filter((i) => i.besoinId === b.id).map((i) => {
                 const pr = profilsInteresses.find((x) => x.id === i.profileId);
                 return pr ? { nom: pr.name ?? "Sans nom", profession: PROFESSION_LABELS[pr.profession], le: i.createdAt.toISOString() } : null;

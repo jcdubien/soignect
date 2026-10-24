@@ -7408,6 +7408,19 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 361 — MESURE DES BESOINS : AFFICHAGES ET INTÉRÊTS, AVEC LE SEUIL D'AGRÉGATION (24/10)
+
+- **Trace `BESOIN_VUE`** à chaque affichage d'un besoin : dans le fil (`/api/besoins/fil`), sur la
+  page d'une structure et sur les pages métier (`besoinsPublics`, robots exclus via `estRobot`).
+  Métadonnées : besoin, structure, lieu ; aucun identifiant de personne. Ce sont des affichages, pas
+  des personnes distinctes.
+- **Page de gestion** : sous chaque besoin publié, « publié jusqu'au … · N affichages · N
+  intéressés ». Affichages lus avec le seuil d'agrégation (`affichagesLisibles`, `SEUIL_AGREGATION`
+  = 5) : « aucun affichage », « moins de 5 affichages », puis le nombre. Les intéressés sont comptés
+  et nommés (ils ont consenti à la transmission à la structure).
+- **Essai** (schéma `essai_p39`, comptes `.invalid`) : aucun → moins de 5 (2 fils + 1 page ; le
+  passage d'un robot n'est pas compté) → 5 affichages ; traces sans identifiant.
+
 ### SECTION 360 — BESOINS SUR LA PAGE PUBLIQUE DE LA STRUCTURE ET SUR LES PAGES MÉTIER (24/10)
 
 - **Chargement commun** `lib/besoinsPublics` : besoins publiés et non échus, par profession et

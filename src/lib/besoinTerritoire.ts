@@ -10,6 +10,7 @@
 // pendant le pilote, à réviser après usage.
 
 import { contientUnNumero } from "@/lib/numeroTelephone";
+import { SEUIL_AGREGATION } from "@/lib/mesureRegles";
 
 export const NATURES_BESOIN = {
   INSTALLATION_LIBERALE: "Installation libérale",
@@ -91,4 +92,10 @@ export function auteurAffiche(client: { nom: string; type: string }, accordNom: 
 /** Consentement affiché avant d'exprimer un intérêt — la structure n'a pas de messagerie. */
 export function consentementInteret(auteur: string): string {
   return `En cliquant, votre nom et votre profil Soignect sont transmis à ${auteur} et à Soignect, pour qu'ils puissent revenir vers vous. Vous pouvez retirer votre intérêt à tout moment.`;
+}
+
+/** Affichages d'un besoin (24/10) — aucun chiffre sous le seuil d'agrégation, comme la mesure
+ *  des priorités. Ce sont des affichages (fil, pages publiques, hors robots), pas des personnes. */
+export function affichagesLisibles(n: number): string {
+  return n === 0 ? "aucun affichage" : n < SEUIL_AGREGATION ? `moins de ${SEUIL_AGREGATION} affichages` : `${n} affichages`;
 }

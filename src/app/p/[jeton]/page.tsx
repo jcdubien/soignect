@@ -84,7 +84,7 @@ export default async function PageClientPublique({ params }: { params: Promise<{
     prioritesDeLaPage(page, page.client.nom),
     prisma.communeAPL.aggregate({ where: { codeInsee: { in: page.communes } }, _max: { aplAnnee: true } }),
     // Besoins du territoire de CETTE structure (24/10) — aucun sur une page de démonstration.
-    page.demo ? Promise.resolve([]) : besoinsPublics({ clientId: page.clientId }),
+    page.demo ? Promise.resolve([]) : besoinsPublics({ clientId: page.clientId, lieu: "page-structure" }),
   ]);
 
   // Les noms jusqu'à trois communes (« Pointe-Noire » pour une MSP), puis la zone si elles en
