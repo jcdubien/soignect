@@ -7408,6 +7408,27 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 357 — CORRECTIF DE PAGINATION DU FIL : CLASSEMENT GLOBAL, PUIS PAGE (23/10)
+
+- **Le défaut** : `/api/feed` ne lisait que `limit` annonces (20) dans l'ordre SQL — note, puis date
+  — et n'appliquait qu'ensuite le classement (cabinet fondateur, abonnements, partenaire CPTS,
+  bonus saisonnier, priorité territoriale, densité). Une annonce au-delà des 20 premières lues ne
+  pouvait jamais être remontée ; seule la priorité territoriale avait une requête de rattrapage
+  (section 312). Au 23/10 : 43 annonces de remplaçants kiné et 23 de cabinets ouvertes. La vue
+  liste, elle, s'arrêtait aux 20 premières.
+- **Correctif** : lecture de toutes les annonces éligibles (au plus `PLAFOND_LECTURE_FIL` = 500),
+  classement global (`ordonnerFil`), puis découpe de la page. La requête de rattrapage disparaît
+  (couverte). Paramètre `apres` (position dans le classement) et en-tête `x-feed-restantes` ; la
+  vue liste (côté cabinet) propose « Voir plus (N autres) ». La vue cartes est inchangée : les
+  cartes choisies sortent du fil, l'appel suivant rend la suite du classement.
+- **Coût** : seules les opérations de classement portent sur toutes les annonces lues ; tout ce qui
+  suit (scores, traces, expurgation) porte sur la page, comme avant.
+- **Essai** (schéma `essai_p35`, comptes `.invalid`) : 25 annonces de cabinets, dont un Boost et le
+  fondateur notés 0 et les plus anciens — absents de la page 1 avec l'ancien code — → page 1 :
+  fondateur, Boost, puis les autres ; `apres=20` → les 5 dernières, sans doublon (25 sur 25) ;
+  côté cabinet, 20 puis 5 ; à l'écran, vue liste : 20 lignes, « Voir plus (5 autres) », 25 lignes.
+  Les 7 tests du classement passent.
+
 ### SECTION 356 — ENCART RELU POUR ÊTRE COMPRIS SANS CONNAÎTRE L'APL (23/10)
 
 - **Question de JC** : « que signifie 3e sur 32 ? vérifie l'intelligibilité du texte ». Relecture de

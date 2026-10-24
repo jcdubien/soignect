@@ -6,13 +6,17 @@ import { ProfileType, TitulaireKind, MissionType, Prisma } from "@prisma/client"
 import { stripMissionProfiles } from "@/lib/publicProfile";
 import { EST_UNE_OFFRE, offreOuverteLe } from "@/lib/feedFilters";
 import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
-import { chargerPrioritesTerritoriales, communesAvecPrioriteVivante, type PrioriteAppliquee } from "@/lib/territoire";
+import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
 import { boostRetenu, ordonnerFil } from "@/lib/boostTerritorial";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
 import { salariatPublicable, contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { professionPluriel } from "@/lib/professions";
 import { logTraceEvent } from "@/lib/trace";
 import { TOLERANCE_DATES_MAX_JOURS } from "@/lib/compatibilite";
+
+/** Annonces lues au plus pour un classement (23/10). Au-delà, les moins bien classées par le tri
+ *  SQL ne sont pas lues — largement au-dessus des volumes actuels. */
+const PLAFOND_LECTURE_FIL = 500;
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +48,9 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const location        = searchParams.get("location");
   const limit           = Math.min(parseInt(searchParams.get("limit") ?? "20"), 50);
+  // Position dans le classement (23/10) : la vue liste demande la suite (« Voir plus ») ; la vue
+  // cartes n'en a pas besoin — les cartes choisies sortent du fil, la page suivante est la suite.
+  const apres           = Math.max(0, Math.min(parseInt(searchParams.get("apres") ?? "0") || 0, PLAFOND_LECTURE_FIL));
   const targetMissionId = searchParams.get("targetMissionId");
 
   // ── FILTRE DE TYPES — CÔTÉ SERVEUR, ET C'EST LE POINT (section 282) ───────────────────────
@@ -192,25 +199,18 @@ export async function GET(req: NextRequest) {
     { profile: { ratingAvg: "desc" } },
     { createdAt: "desc" },
   ];
-  const premierePage = await prisma.mission.findMany({
-    where: whereFil, include: { profile: true }, orderBy: ordreSql, take: limit,
+  // CLASSEMENT GLOBAL, PUIS PAGE (23/10, correctif de pagination). Avant, la requête ne lisait que
+  // `limit` annonces dans l'ordre SQL (note, puis date) et n'appliquait qu'ensuite le classement
+  // (fondateur, abonnements, partenaire, saisonnier, priorité territoriale) : une annonce au-delà
+  // des 20 premières lues ne pouvait jamais être remontée — seule la priorité territoriale avait
+  // une requête de rattrapage (section 312). On lit désormais TOUTES les annonces éligibles (au
+  // plus PLAFOND_LECTURE_FIL — 66 annonces kiné ouvertes au 23/10), on les classe, puis on coupe la
+  // page. Le tri SQL ne sert plus qu'à départager les égalités, comme avant.
+  const toutesLues = await prisma.mission.findMany({
+    where: whereFil, include: { profile: true }, orderBy: ordreSql, take: PLAFOND_LECTURE_FIL,
   });
 
-  // REQUÊTE DE FUSION (section 312). La priorité territoriale réordonne la page APRÈS lecture :
-  // une annonce boostée classée au-delà de `limit` par le tri SQL (note, puis date) n'entrait
-  // jamais dans la page, donc jamais dans le fil. On va chercher, avec EXACTEMENT le même
-  // prédicat `whereFil`, les annonces des communes à priorité vivante pour la profession du
-  // lecteur, et on les fusionne avant le tri. La page est recoupée à `limit` après le tri :
-  // sans annonce boostée hors de la première page, le fil est identique à l'octet près.
-  // Candidat seulement — la priorité ne joue que dans ce sens (voir plus bas).
-  const communesBoostees = isCandidateViewer ? await communesAvecPrioriteVivante(myProfile.profession, maintenant) : [];
-  const supplement = communesBoostees.length > 0
-    ? await prisma.mission.findMany({
-        where: { AND: [whereFil, { location: { in: communesBoostees } }, { id: { notIn: premierePage.map((m) => m.id) } }] },
-        include: { profile: true }, orderBy: ordreSql, take: limit,
-      })
-    : [];
-  const missionsLues = [...premierePage, ...supplement];
+  const missionsLues = toutesLues;
 
   // Une offre où le candidat est ENTIÈREMENT pris (remplacement signé, dates bloquées) sort de
   // son fil (15/10) : la route de swipe refuserait son intérêt, la lui montrer ne sert à rien.
@@ -266,9 +266,10 @@ export async function GET(req: NextRequest) {
     scoreBase,
     (m) => boostRetenu([prioritesTerritoriales.get(m.location ?? "")?.points ?? 0]),
   );
-  // La page servie garde sa taille : le supplément de fusion entre en concurrence, il ne
-  // l'allonge pas.
-  missions.splice(0, missions.length, ...ordre.slice(0, limit));
+  // La page : `limit` annonces à partir de `apres` dans le classement global. `restantes` dit à la
+  // vue liste s'il y a une suite.
+  const restantes = Math.max(0, ordre.length - (apres + limit));
+  missions.splice(0, missions.length, ...ordre.slice(apres, apres + limit));
 
   /** Annonces de CE feed situées en zone prioritaire — calculé APRÈS le recoupage : la mention
    *  de transparence, la trace et l'en-tête parlent de ce qui est servi, pas de ce qui a été lu.
@@ -613,6 +614,8 @@ export async function GET(req: NextRequest) {
       // prioritaires » que lorsque c'est vrai POUR CE LECTEUR, et se taire sinon. C'est ce qui
       // manquait avant le 17/08 — la phrase était écrite en dur et affirmait toujours.
       "x-feed-priorite-territoriale": String(misesEnAvantTerritoire.length),
+      // Annonces classées au-delà de cette page (23/10) — « Voir plus » de la vue liste.
+      "x-feed-restantes": String(restantes),
       // B2 (20/08) — les institutions à créditer, pour que la mention les NOMME. Deux versions
       // de cette phrase ont déjà été fausses faute de pouvoir désigner un auteur ; elle ne
       // revient qu'adossée à des lignes `PrioriteTerritoriale` réelles, portées par une relation

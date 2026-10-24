@@ -757,7 +757,10 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // des mises à jour d'état sur un composant disparu.
   useEffect(() => () => controllerRef.current?.abort(), []);
 
-  const fetchFeed = useCallback(async (currentMissionId?: string | null) => {
+  // Annonces classées au-delà de ce qui est chargé (en-tête `x-feed-restantes`, 23/10) : la vue
+  // liste propose « Voir plus » tant qu'il en reste.
+  const [restantes, setRestantes] = useState(0);
+  const fetchFeed = useCallback(async (currentMissionId?: string | null, apres = 0) => {
     // ── UNE ANNULATION N'EST PAS UNE PANNE (section 275) ──────────────────────────────────
     //
     // Le `catch` traitait tout `AbortError` comme un échec et peignait « Impossible de charger
@@ -786,7 +789,9 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       // et capturer la valeur ferait partir la requête avec le filtre d'avant au moindre
       // changement — exactement le genre d'écart qui se voit comme un fil qui ne suit pas.
       const typeParam = filtreRef.current === "ALL" ? "" : `&types=${filtreRef.current}`;
-      const r = await fetch(`/api/feed?limit=20${missionParam}${typeParam}`, { signal: controller.signal });
+      const r = await fetch(`/api/feed?limit=20${missionParam}${typeParam}${apres > 0 ? `&apres=${apres}` : ""}`, { signal: controller.signal });
+      const restHdr = r.headers.get("x-feed-restantes");
+      if (restHdr != null) setRestantes(parseInt(restHdr, 10) || 0);
       if (!r.ok) {
         const text = await r.text().catch(() => "");
         console.error("[SwipeStack] feed non-OK", r.status, text);
@@ -1360,6 +1365,17 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
                   onOuvrir={() => { registerConsultation(mission.id); setDetailMission(mission); }}
                 />
               ))}
+              {/* Suite du classement (23/10) : la liste n'est plus bornée aux 20 premiers. */}
+              {restantes > 0 && (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => { void fetchFeed(activeMissionId, missions.length); }}
+                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 text-sm font-semibold text-[#0B3D5C] disabled:opacity-50"
+                >
+                  {loading ? "Chargement…" : `Voir plus (${restantes} autre${restantes > 1 ? "s" : ""})`}
+                </button>
+              )}
             </div>
           )
         ) : stack.length === 0 ? emptyState : (
