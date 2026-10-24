@@ -117,7 +117,12 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
     return () => { document.body.style.overflow = avant; };
   }, []);
 
+  // Premier chargement terminé (24/10, section 337) : tant qu'il ne l'est pas, l'interrogation
+  // périodique attend — sinon, partie sans repère de date, elle relisait toute la liste et
+  // l'ajoutait à la suite (message affiché en double quand le premier chargement dépassait 3 s).
+  const premierChargementRef = useRef(false);
   const fetchMessages = useCallback(async (initial = false) => {
+    if (!initial && !premierChargementRef.current) return;
     const url = initial
       ? `/api/matches/${matchId}/messages`
       : `/api/matches/${matchId}/messages${lastTimestampRef.current ? `?after=${encodeURIComponent(lastTimestampRef.current)}` : ""}`;
@@ -125,13 +130,19 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
     const res = await fetch(url);
     if (!res.ok) return;
     const fresh: Message[] = await res.json();
+    if (initial) premierChargementRef.current = true;
 
     if (fresh.length > 0) {
       lastTimestampRef.current = fresh[fresh.length - 1].createdAt;
       if (initial) {
         setMessages(fresh);
       } else {
-        setMessages((prev) => [...prev, ...fresh]);
+        // Fusion par identifiant : un message déjà affiché (envoyé d'ici, ou relu) ne s'ajoute pas
+        // une seconde fois.
+        setMessages((prev) => {
+          const vus = new Set(prev.map((m) => m.id));
+          return [...prev, ...fresh.filter((m) => !vus.has(m.id))];
+        });
       }
     }
   }, [matchId]);
@@ -187,7 +198,11 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
       });
       if (res.ok) {
         const real: Message = await res.json();
-        setMessages((prev) => prev.map((m) => m.id === optimistic.id ? real : m));
+        // Si l'interrogation périodique a déjà rapporté ce message, on retire la version provisoire
+        // au lieu de la remplacer — sinon il s'afficherait deux fois.
+        setMessages((prev) => prev.some((m) => m.id === real.id)
+          ? prev.filter((m) => m.id !== optimistic.id)
+          : prev.map((m) => m.id === optimistic.id ? real : m));
         lastTimestampRef.current = real.createdAt;
       }
     } finally {
