@@ -17,6 +17,9 @@ const schema = z.object({
   endDate: z.coerce.date().nullable().optional(),
   minMonths: z.number().int().min(1).max(120).nullable().optional(),
   retrocessionRate: z.number().int().min(0).max(100),
+  retrocessionMode: z.enum(["POURCENTAGE", "FIXE", "PLAFONNEE"]).nullable().optional(),
+  retrocessionFixeEuros: z.number().int().min(1).max(100000).nullable().optional(),
+  retrocessionPlafondEuros: z.number().int().min(1).max(100000).nullable().optional(),
   location: z.string().trim().min(1).max(120),
   rpps: z.string().trim().max(L.rpps).nullable().optional(),
   numeroOrdre: z.string().trim().max(L.numeroOrdre).nullable().optional(),
@@ -25,8 +28,10 @@ const schema = z.object({
   if (d.missionType === "REMPLACEMENT") {
     if (!d.endDate) ctx.addIssue({ code: "custom", path: ["endDate"], message: "Date de fin requise pour un remplacement" });
     else if (d.endDate < d.startDate) ctx.addIssue({ code: "custom", path: ["endDate"], message: "La fin précède le début" });
-  } else if (!d.minMonths) {
-    ctx.addIssue({ code: "custom", path: ["minMonths"], message: "Durée minimale (mois) requise" });
+  } else {
+    if (!d.minMonths) ctx.addIssue({ code: "custom", path: ["minMonths"], message: "Durée minimale (mois) requise" });
+    if (d.retrocessionMode === "FIXE" && !d.retrocessionFixeEuros) ctx.addIssue({ code: "custom", path: ["retrocessionFixeEuros"], message: "Montant mensuel de la redevance requis" });
+    if (d.retrocessionMode === "PLAFONNEE" && !d.retrocessionPlafondEuros) ctx.addIssue({ code: "custom", path: ["retrocessionPlafondEuros"], message: "Plafond mensuel requis" });
   }
 });
 

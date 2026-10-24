@@ -4,6 +4,8 @@ import type { MissionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { appBaseUrl } from "@/lib/appUrl";
 import { logTraceEventAttendu } from "@/lib/trace";
+import { modesRedevanceAutorises, normaliserRetrocession } from "@/lib/retrocession";
+import type { RetrocessionMode } from "@prisma/client";
 
 // Confrère trouvé HORS Soignect, ajouté « à la volée » (24/10) — un titulaire a déjà convenu d'un
 // remplacement ou d'un assistanat en dehors de la plateforme et veut s'en servir pour le contrat.
@@ -33,6 +35,11 @@ export interface ConfrereSaisi {
   endDate: Date | null;
   minMonths: number | null;
   retrocessionRate: number;
+  /** Mode de la redevance (section 296) — assistanat/collaboration libéral hors infirmier ;
+   *  ramené à POURCENTAGE ailleurs. */
+  retrocessionMode?: RetrocessionMode | null;
+  retrocessionFixeEuros?: number | null;
+  retrocessionPlafondEuros?: number | null;
   location: string;
   rpps?: string | null;
   numeroOrdre?: string | null;
@@ -96,6 +103,7 @@ export async function creerConfrereHorsSoignect(titulaireProfileId: string, s: C
         endDate: remplacement ? s.endDate : null,
         minMonths: remplacement ? null : s.minMonths,
         retrocessionRate: s.retrocessionRate,
+        ...normaliserRetrocession(modesRedevanceAutorises(s.missionType, false, titulaire.profession), s.retrocessionMode, s.retrocessionFixeEuros, s.retrocessionPlafondEuros),
         isActive: true,
         // Déjà pourvue : jamais une offre (EST_UNE_OFFRE exige RECHERCHE), mais présente au Planning.
         briqueStatus: remplacement ? "CONFIRME" : "OCCUPE",

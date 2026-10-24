@@ -7435,6 +7435,11 @@ disposition ne le montre ; seul un partage depuis un téléphone tranche.
 - **Partage du PDF** (page contrat) : « Partager l'aperçu » et « Partager le PDF officiel » ouvrent
   la feuille de partage du système quand le navigateur sait partager un fichier ; sinon le
   téléchargement habituel. Rien ne change pour les autres boutons.
+- **Mode de redevance** (ajout du même jour) : assistanat et collaboration libéral hors infirmier —
+  pourcentage, forfait mensuel, pourcentage plafonné (`LIBELLE_MODE`, `normaliserRetrocession`,
+  section 296). Remplacement : pourcentage seul. Essai `essai_p44` : forfait 900 € et plafond
+  1 200 € portés au PDF ; forfait sans montant refusé ; un mode envoyé sur un remplacement retombe
+  à POURCENTAGE.
 - **Traces** `CONFRERE_HORS_SOIGNECT` (ajout, activation ; type de poste seulement, sans nom).
 - **Essai** (schéma `essai_p43`, comptes `.invalid`) : ajout 200, doublon 409, remplacement sans fin
   400 ; connexion refusée avant activation ; brouillon PDF généré ; activation sans CGU 400, avec

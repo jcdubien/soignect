@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { LIBELLE_MODE } from "@/lib/retrocession";
 
 // Confrère trouvé hors Soignect (24/10) — voir lib/confrereHorsSoignect.
 
@@ -27,13 +28,16 @@ async function partagerLien(nom: string, lien: string): Promise<string> {
   catch { return "Copiez le lien ci-dessus."; }
 }
 
-export default function ConfreresClient({ communes, communeParDefaut, initiaux }: { communes: string[]; communeParDefaut: string; initiaux: Confrere[] }) {
+export default function ConfreresClient({ communes, communeParDefaut, initiaux, modesRedevance }: { communes: string[]; communeParDefaut: string; initiaux: Confrere[]; modesRedevance: boolean }) {
   const [liste, setListe] = useState(initiaux);
-  const [f, setF] = useState({ prenom: "", nom: "", email: "", missionType: "ASSISTANAT", startDate: "", endDate: "", minMonths: "", taux: "", location: communeParDefaut, rpps: "", numeroOrdre: "", adresse: "" });
+  const [f, setF] = useState({ prenom: "", nom: "", email: "", missionType: "ASSISTANAT", startDate: "", endDate: "", minMonths: "", taux: "", mode: "POURCENTAGE", fixe: "", plafond: "", location: communeParDefaut, rpps: "", numeroOrdre: "", adresse: "" });
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [statut, setStatut] = useState<Record<string, string>>({});
   const remplacement = f.missionType === "REMPLACEMENT";
+  // Forfait et plafond : redevance d'un assistant ou d'un collaborateur seulement (section 296).
+  const avecModes = modesRedevance && !remplacement;
+  const mode = avecModes ? f.mode : "POURCENTAGE";
   const maj = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
 
   async function ajouter(e: React.FormEvent) {
@@ -46,7 +50,10 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux }
           prenom: f.prenom, nom: f.nom, email: f.email, missionType: f.missionType, location: f.location,
           startDate: f.startDate, endDate: remplacement ? f.endDate || null : null,
           minMonths: remplacement ? null : Number(f.minMonths) || null,
-          retrocessionRate: Number(f.taux),
+          retrocessionRate: mode === "FIXE" ? 0 : Number(f.taux),
+          retrocessionMode: mode,
+          retrocessionFixeEuros: mode === "FIXE" ? Number(f.fixe) || null : null,
+          retrocessionPlafondEuros: mode === "PLAFONNEE" ? Number(f.plafond) || null : null,
           rpps: f.rpps || null, numeroOrdre: f.numeroOrdre || null, adresse: f.adresse || null,
         }),
       });
@@ -93,8 +100,17 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux }
           {remplacement
             ? <label className="text-xs font-semibold text-gray-600">Fin<input required type="date" value={f.endDate} onChange={maj("endDate")} className={champ} /></label>
             : <label className="text-xs font-semibold text-gray-600">Durée minimale (mois)<input required type="number" min={1} max={120} value={f.minMonths} onChange={maj("minMonths")} className={champ} /></label>}
-          <label className="text-xs font-semibold text-gray-600">{remplacement ? "Part du remplaçant (%)" : "Redevance (%)"}<input required type="number" min={0} max={100} value={f.taux} onChange={maj("taux")} className={champ} /></label>
+          {mode === "FIXE"
+            ? <label className="text-xs font-semibold text-gray-600">Redevance mensuelle (€)<input required type="number" min={1} value={f.fixe} onChange={maj("fixe")} className={champ} /></label>
+            : <label className="text-xs font-semibold text-gray-600">{remplacement ? "Part du remplaçant (%)" : "Redevance au cabinet (%)"}<input required type="number" min={0} max={100} value={f.taux} onChange={maj("taux")} className={champ} /></label>}
         </div>
+        {avecModes && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="text-xs font-semibold text-gray-600">Mode de redevance<select value={f.mode} onChange={maj("mode")} className={champ}>{(["POURCENTAGE", "FIXE", "PLAFONNEE"] as const).map((m) => <option key={m} value={m}>{LIBELLE_MODE[m]}</option>)}</select></label>
+            {mode === "PLAFONNEE" && <label className="text-xs font-semibold text-gray-600">Plafond mensuel de la redevance (€)<input required type="number" min={1} value={f.plafond} onChange={maj("plafond")} className={champ} /></label>}
+          </div>
+        )}
+        {remplacement && <p className="text-[11px] text-gray-400 -mt-1">Un remplaçant se rétrocède en pourcentage (forfait et plafond : assistanat et collaboration seulement).</p>}
         <details className="text-xs text-gray-600">
           <summary className="cursor-pointer font-semibold">Identité professionnelle du confrère (facultatif)</summary>
           <p className="text-gray-400 mt-1">Portée au contrat. Laissée vide, il la complétera lui-même dans son compte.</p>
