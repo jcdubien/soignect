@@ -11,7 +11,7 @@ const L = LIMITES_CONFRERE;
 const schema = z.object({
   prenom: z.string().trim().min(1, "Prénom requis").max(L.prenom),
   nom: z.string().trim().min(1, "Nom requis").max(L.nom),
-  email: z.string().trim().email("Email invalide").max(200),
+  email: z.union([z.literal(""), z.string().trim().email("Email invalide").max(200)]).nullable().optional(),
   missionType: z.enum(["REMPLACEMENT", "ASSISTANAT", "COLLABORATION"]),
   startDate: z.coerce.date(),
   endDate: z.coerce.date().nullable().optional(),

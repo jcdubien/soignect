@@ -29,7 +29,8 @@ export const LIMITES_CONFRERE = { prenom: 60, nom: 60, rpps: 20, numeroOrdre: 30
 export interface ConfrereSaisi {
   prenom: string;
   nom: string;
-  email: string;
+  /** Facultatif : sans lui, le confrère saisit son email à l'activation. */
+  email?: string | null;
   missionType: MissionType;
   startDate: Date;
   endDate: Date | null;
@@ -44,6 +45,15 @@ export interface ConfrereSaisi {
   rpps?: string | null;
   numeroOrdre?: string | null;
   adresse?: string | null;
+}
+
+/** Email provisoire quand le titulaire n'a pas saisi celui du confrère (24/10, « juste un lien ») :
+ *  le confrère donne le sien à l'activation. Domaine réservé `.local` — jamais une boîte réelle, et
+ *  distinct du `.invalid` des comptes d'essai (purgés). Aucun email n'est envoyé à ces comptes
+ *  (emailOptIn false jusqu'à l'activation). */
+export const DOMAINE_EMAIL_ATTENTE = "activation.soignect.local";
+export function emailProvisoire(email: string): boolean {
+  return email.endsWith(`@${DOMAINE_EMAIL_ATTENTE}`);
 }
 
 export function lienActivation(token: string): string {
@@ -65,11 +75,11 @@ export async function creerConfrereHorsSoignect(titulaireProfileId: string, s: C
   if (!titulaire || titulaire.type !== "TITULAIRE" || titulaire.titulaireKind === "STRUCTURE") {
     return { ok: false, status: 403, error: "Réservé aux cabinets libéraux." };
   }
-  const email = s.email.toLowerCase().trim();
+  const token = randomBytes(32).toString("hex");
+  const email = s.email?.trim() ? s.email.toLowerCase().trim() : `attente-${token.slice(0, 20)}@${DOMAINE_EMAIL_ATTENTE}`;
   if (await prisma.user.findUnique({ where: { email }, select: { id: true } })) {
     return { ok: false, status: 409, error: "Un compte Soignect existe déjà pour cet email : ce confrère peut vous retrouver depuis son compte." };
   }
-  const token = randomBytes(32).toString("hex");
   // Mot de passe inutilisable : personne ne le connaît, il est remplacé à l'activation.
   const passwordHash = await hash(randomBytes(32).toString("hex"), 12);
   const nomComplet = `${s.prenom.trim()} ${s.nom.trim()}`;
@@ -173,20 +183,25 @@ export async function activationEnAttente(token: string) {
   });
   const m = u?.profile?.matchesB[0];
   if (!u || !m) return null;
-  return { userId: u.id, email: u.email, nom: u.profile!.name ?? "", titulaire: m.profileA.name ?? "Votre confrère", missionType: m.missionA?.missionType ?? null, matchId: m.id };
+  return { userId: u.id, email: emailProvisoire(u.email) ? null : u.email, nom: u.profile!.name ?? "", titulaire: m.profileA.name ?? "Votre confrère", missionType: m.missionA?.missionType ?? null, matchId: m.id };
 }
 
-/** Activation par le confrère lui-même : son mot de passe, son consentement, ses préférences. */
-export async function activerCompte(token: string, password: string, emailOptIn: boolean): Promise<{ email: string; matchId: string } | null> {
+/** Activation par le confrère lui-même : son email (il peut corriger celui saisi par le titulaire),
+ *  son mot de passe, son consentement, ses préférences. */
+export async function activerCompte(token: string, emailSaisi: string, password: string, emailOptIn: boolean): Promise<{ email: string; matchId: string } | { erreur: string } | null> {
   const a = await activationEnAttente(token);
   if (!a) return null;
+  const email = emailSaisi.toLowerCase().trim();
+  if (emailProvisoire(email)) return { erreur: "Saisissez votre adresse email." };
+  const autre = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (autre && autre.id !== a.userId) return { erreur: "Un compte Soignect existe déjà pour cet email : connectez-vous avec, ou choisissez une autre adresse." };
   const passwordHash = await hash(password, 12);
   const r = await prisma.user.updateMany({
     // Garde atomique : un second envoi du même lien ne réactive pas.
     where: { id: a.userId, resetToken: token, acceptedTermsAt: null },
-    data: { passwordHash, acceptedTermsAt: new Date(), emailOptIn, resetToken: null, resetTokenExpiry: null },
+    data: { email, passwordHash, acceptedTermsAt: new Date(), emailOptIn, resetToken: null, resetTokenExpiry: null },
   });
   if (r.count !== 1) return null;
   await logTraceEventAttendu({ eventType: "CONFRERE_HORS_SOIGNECT", metadata: { etape: "activation", missionType: a.missionType } });
-  return { email: a.email, matchId: a.matchId };
+  return { email, matchId: a.matchId };
 }

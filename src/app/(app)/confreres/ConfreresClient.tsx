@@ -47,7 +47,7 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
       const r = await fetch("/api/confreres", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prenom: f.prenom, nom: f.nom, email: f.email, missionType: f.missionType, location: f.location,
+          prenom: f.prenom, nom: f.nom, email: f.email || null, missionType: f.missionType, location: f.location,
           startDate: f.startDate, endDate: remplacement ? f.endDate || null : null,
           minMonths: remplacement ? null : Number(f.minMonths) || null,
           retrocessionRate: mode === "FIXE" ? 0 : Number(f.taux),
@@ -89,8 +89,8 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
           <label className="text-xs font-semibold text-gray-600">Prénom<input required maxLength={60} value={f.prenom} onChange={maj("prenom")} className={champ} /></label>
           <label className="text-xs font-semibold text-gray-600">Nom<input required maxLength={60} value={f.nom} onChange={maj("nom")} className={champ} /></label>
         </div>
-        <label className="block text-xs font-semibold text-gray-600">Email du confrère<input required type="email" maxLength={200} value={f.email} onChange={maj("email")} className={champ} />
-          <span className="font-normal text-gray-400">Son identifiant de connexion. Rien ne lui est envoyé.</span></label>
+        <label className="block text-xs font-semibold text-gray-600">Email du confrère (facultatif)<input type="email" maxLength={200} value={f.email} onChange={maj("email")} className={champ} />
+          <span className="font-normal text-gray-400">Laissé vide, il saisira le sien en activant son compte. Rien ne lui est envoyé.</span></label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="text-xs font-semibold text-gray-600">Type<select value={f.missionType} onChange={maj("missionType")} className={champ}>{TYPES.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}</select></label>
           <label className="text-xs font-semibold text-gray-600">Commune d&apos;exercice<select required value={f.location} onChange={maj("location")} className={champ}><option value="">—</option>{communes.map((c) => <option key={c}>{c}</option>)}</select></label>

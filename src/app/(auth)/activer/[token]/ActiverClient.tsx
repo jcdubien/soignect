@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 
-export default function ActiverClient({ token, email }: { token: string; email: string }) {
+export default function ActiverClient({ token, email: emailInitial }: { token: string; email: string | null }) {
+  const [email, setEmail] = useState(emailInitial ?? "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [accepte, setAccepte] = useState(false);
@@ -17,7 +18,7 @@ export default function ActiverClient({ token, email }: { token: string; email: 
     if (password !== confirm) { setErreur("Les mots de passe ne correspondent pas."); return; }
     setEnvoi(true);
     try {
-      const r = await fetch("/api/activer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, password, acceptedTerms: accepte, emailOptIn }) });
+      const r = await fetch("/api/activer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, email, password, acceptedTerms: accepte, emailOptIn }) });
       const d = await r.json().catch(() => null);
       if (!r.ok) { setErreur(d?.error ?? "Activation impossible."); return; }
       const s = await signIn("credentials", { email: d.email, password, redirect: false });
@@ -28,7 +29,7 @@ export default function ActiverClient({ token, email }: { token: string; email: 
   const champ = "w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm";
   return (
     <form onSubmit={activer} className="mt-6 space-y-3">
-      <label className="block text-xs font-semibold text-gray-600">Email<input value={email} disabled className={`${champ} bg-gray-50 text-gray-500`} /></label>
+      <label className="block text-xs font-semibold text-gray-600">Votre email (votre identifiant de connexion)<input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={champ} /></label>
       <label className="block text-xs font-semibold text-gray-600">Mot de passe (8 caractères au moins)<input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className={champ} /></label>
       <label className="block text-xs font-semibold text-gray-600">Confirmer<input type="password" required minLength={8} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={champ} /></label>
       <label className="flex gap-2 items-start text-xs text-gray-600">

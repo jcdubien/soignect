@@ -7408,6 +7408,30 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 365 — CLAUSES BALNÉO ET AIDE À LA TÉLÉTRANSMISSION ; LIEN SANS EMAIL (24/10)
+
+- **Clauses optionnelles** (modèles kiné libéraux : remplacement, assistanat, collaboration ;
+  `lib/contrats/clausesHonoraires`, source unique des options et des phrases) :
+  - balnéothérapie : comprise dans l'assiette de la rétrocession / redevance, reversée en totalité
+    au titulaire, ou conservée en totalité par le remplaçant / l'assistant / le collaborateur ;
+  - aide à la télétransmission : reste acquise au praticien, ou reversée au titulaire selon les
+    mêmes modalités de paiement. Fond donné par JC : le remplaçant facture sur sa CPS de
+    remplaçant ; l'aide est reversée si les parties l'ont décidé.
+  - Non choisies (défaut) : aucune phrase, contrat inchangé. Insérées DANS l'article de la
+    rétrocession (art. 6) ou de la redevance (art. 4 / 5), sans renuméroter : la clause de
+    non-concurrence (art. 19 assistanat, art. 20 collaboration) et la non-installation (art. 9
+    remplacement) restent intactes. Rédaction Soignect, **à valider par JC**.
+- **« Juste un lien »** (JC : produit d'appel pour ceux qui ne veulent pas rédiger leurs contrats
+  seuls) : l'email du confrère devient facultatif sur `/confreres`. Sans lui, le compte porte un
+  email provisoire `@activation.soignect.local` (jamais une boîte réelle, distinct du `.invalid` des
+  essais) ; le confrère saisit le sien à l'activation (email déjà inscrit refusé), puis arrive
+  connecté sur sa proposition de contrat. Phrase d'accueil sur la page d'activation : contrats
+  suivants pré-remplis et signés en ligne.
+- **Essai** (schéma `essai_p45`) : texte des PDF lu avec `pdftotext` — aucune phrase sans option ;
+  phrases attendues avec options ; valeur inconnue ignorée ; articles de non-concurrence présents
+  et à leur numéro ; ajout sans email, activation avec email (déjà pris → 409), connexion avec
+  l'email choisi, contrat visible.
+
 ### SECTION 364 — CONFRÈRE TROUVÉ HORS SOIGNECT : SAISIE, CONTRAT, COMPTE À ACTIVER, PARTAGE (24/10)
 
 - **Besoin (JC)** : deux assistants convenus hors Soignect pour janvier. Saisir leurs
