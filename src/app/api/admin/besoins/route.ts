@@ -3,7 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { LIMITES_BESOIN } from "@/lib/besoinTerritoire";
-import { deciderBesoin } from "@/lib/besoinTerritoireServeur";
+import { deciderBesoin, retirerBesoinAdmin } from "@/lib/besoinTerritoireServeur";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +23,15 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (session?.user?.role !== "ADMIN") return NextResponse.json({ error: "Interdit" }, { status: 403 });
-  const d = z.object({ id: z.string(), decision: z.enum(["valider", "refuser"]), motif: z.string().trim().max(LIMITES_BESOIN.motifMax).nullish() })
+  const d = z.object({ id: z.string(), decision: z.enum(["valider", "refuser", "retirer"]), motif: z.string().trim().max(LIMITES_BESOIN.motifMax).nullish() })
     .safeParse(await req.json().catch(() => null));
   if (!d.success) return NextResponse.json({ error: "Décision invalide." }, { status: 400 });
   // Le validateur est nommé au journal : son nom de profil, à défaut « Administration Soignect ».
   const profil = session.user.id ? await prisma.profile.findUnique({ where: { userId: session.user.id }, select: { name: true } }) : null;
   const nom = `${profil?.name?.trim() || "Administration Soignect"} (administration)`;
-  const r = await deciderBesoin(d.data.id, d.data.decision, { id: session.user.id ?? null, nom }, d.data.motif ?? null);
+  const auteur = { id: session.user.id ?? null, nom };
+  const r = d.data.decision === "retirer"
+    ? await retirerBesoinAdmin(d.data.id, auteur, d.data.motif ?? null)
+    : await deciderBesoin(d.data.id, d.data.decision, auteur, d.data.motif ?? null);
   return r.ok ? NextResponse.json({ ok: true, besoin: r.besoin }) : NextResponse.json({ error: r.error }, { status: r.status });
 }

@@ -7408,6 +7408,19 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 359 — BESOINS : L'ADMINISTRATION PRÉVENUE DE CHAQUE PUBLICATION, LISTE COMPLÈTE, RETRAIT MOTIVÉ (24/10)
+
+- **Notification** (cloche, aucun email) à chaque publication : « à valider » pour la première d'une
+  structure, « publié » ensuite.
+- **`/admin/besoins`** (« Besoins du territoire ») : les besoins à valider, puis tous les autres
+  (publiés, brouillons, archivés, 200 au plus) avec les soignants intéressés (nom — ils ont consenti
+  à la transmission à la structure et à Soignect).
+- **Retrait** d'un besoin publié par l'administration (`retirerBesoinAdmin`) : modération après coup
+  des publications qui ne passent plus par la validation. Motif obligatoire, inscrit au journal (avec
+  « Structure liée à l'administrateur » quand c'est le cas) ; le besoin est archivé.
+- **Essai** (schéma `essai_p37`) : notifications « à valider » puis « publié » ; liste avec
+  intéressé ; retrait sans motif → 400, avec motif → archivé, journal au nom de l'administrateur.
+
 ### SECTION 358 — LES BESOINS DU TERRITOIRE DANS LE FIL, AVEC UN CONTACT PAR CONSENTEMENT (24/10)
 
 - **Décision de JC** : afficher les besoins dans le fil (après le correctif de pagination, section

@@ -7,12 +7,20 @@ import BesoinsClient from "./BesoinsClient";
 
 export const dynamic = "force-dynamic";
 
-// Besoins du territoire à valider (23/10) — première publication de chaque structure.
+// Besoins du territoire (23/10) — à valider (première publication de chaque structure), puis tous
+// les autres (24/10) : publiés, brouillons, archivés, avec les soignants intéressés.
 export default async function AdminBesoinsPage() {
   await exigerAdmin();
   const besoins = await prisma.besoinTerritoire.findMany({
     where: { statut: "A_VALIDER" }, orderBy: { updatedAt: "asc" },
     include: { client: { select: { nom: true } } },
+  });
+  const tous = await prisma.besoinTerritoire.findMany({
+    where: { statut: { not: "A_VALIDER" } }, orderBy: [{ statut: "asc" }, { updatedAt: "desc" }], take: 200,
+    include: { client: { select: { nom: true } }, interets: { select: { profileId: true, createdAt: true } } },
+  });
+  const profils = await prisma.profile.findMany({
+    where: { id: { in: tous.flatMap((b) => b.interets.map((i) => i.profileId)) } }, select: { id: true, name: true },
   });
   const liees = new Set((await Promise.all(Array.from(new Set(besoins.map((b) => b.clientId))).map(async (id) => ((await structureLieeAdmin(id)) ? id : null)))).filter(Boolean));
   return (
@@ -25,6 +33,12 @@ export default async function AdminBesoinsPage() {
         profession: PROFESSION_LABELS[b.profession] + (b.specialite ? ` — ${b.specialite}` : ""),
         nature: NATURES_BESOIN[b.nature], texte: b.texte, proposition: b.proposition,
         demandeLe: b.updatedAt.toISOString(),
+      }))}
+      tous={tous.map((b) => ({
+        id: b.id, statut: b.statut, structure: b.client.nom, commune: b.commune,
+        profession: PROFESSION_LABELS[b.profession] + (b.specialite ? ` — ${b.specialite}` : ""),
+        nature: NATURES_BESOIN[b.nature], texte: b.texte, expireLe: b.expireLe?.toISOString() ?? null,
+        interesses: b.interets.map((i) => profils.find((p) => p.id === i.profileId)?.name ?? "Sans nom"),
       }))}
     />
   );

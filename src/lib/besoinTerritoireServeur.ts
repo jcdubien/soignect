@@ -134,14 +134,16 @@ export async function demanderPublication(client: Client, id: string, auteur: Au
       await journaliser(tx, b, client, dejaValidee ? "PUBLICATION" : "DEMANDE_PUBLICATION", "BROUILLON", auteur);
       return b;
     });
-    if (!dejaValidee) {
-      const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
-      await Promise.all(admins.map((a) => createNotification({
-        userId: a.id, type: "besoin",
-        message: `Besoin du territoire à valider — ${client.nom} : ${besoin.commune}`.slice(0, 300),
-        linkUrl: "/admin/besoins",
-      })));
-    }
+    // L'administration est prévenue de CHAQUE publication (24/10) : à valider pour la première
+    // d'une structure, pour information ensuite — elle peut toujours la retirer.
+    const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+    await Promise.all(admins.map((a) => createNotification({
+      userId: a.id, type: "besoin",
+      message: (dejaValidee
+        ? `Besoin du territoire publié — ${client.nom} : ${besoin.commune}`
+        : `Besoin du territoire à valider — ${client.nom} : ${besoin.commune}`).slice(0, 300),
+      linkUrl: "/admin/besoins",
+    })));
     return { ok: true, besoin };
   } catch (e) {
     // L'index unique partiel tranche une course entre deux structures sur la même case.
@@ -174,6 +176,23 @@ export async function deciderBesoin(id: string, decision: "valider" | "refuser",
         : { statut: "BROUILLON", motifRefus: motif!.trim().slice(0, LIMITES_BESOIN.motifMax) },
     });
     await journaliser(tx, b, avant.client, decision === "valider" ? "VALIDATION" : "REFUS", "A_VALIDER", auteur, motifJournal);
+    return b;
+  });
+  return { ok: true, besoin };
+}
+
+/** Retrait d'un besoin publié par l'administration (24/10) — modération après coup des
+ *  publications qui ne passent plus par la validation. Motif obligatoire, inscrit au journal. */
+export async function retirerBesoinAdmin(id: string, auteur: AuteurBesoin, motif: string | null): Promise<Resultat<BesoinTerritoire>> {
+  const avant = await prisma.besoinTerritoire.findUnique({ where: { id }, include: { client: { select: { id: true, nom: true } } } });
+  if (!avant) return { ok: false, status: 404, error: "Besoin introuvable." };
+  if (avant.statut !== "PUBLIE") return { ok: false, status: 409, error: "Seul un besoin publié se retire." };
+  if (!(motif ?? "").trim()) return { ok: false, status: 400, error: "Un retrait se motive." };
+  const lie = await structureLieeAdmin(avant.clientId);
+  const motifJournal = [lie ? MENTION_LIEN_ADMIN : null, motif!.trim()].filter(Boolean).join(" — ");
+  const besoin = await prisma.$transaction(async (tx) => {
+    const b = await tx.besoinTerritoire.update({ where: { id }, data: { statut: "ARCHIVE" } });
+    await journaliser(tx, b, avant.client, "ARCHIVAGE", "PUBLIE", auteur, motifJournal);
     return b;
   });
   return { ok: true, besoin };

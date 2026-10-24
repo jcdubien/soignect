@@ -9,12 +9,19 @@ interface Besoin {
   texte: string; proposition: string | null; demandeLe: string; liee: boolean;
 }
 
-export default function BesoinsClient({ besoins, criteres, mentionLien }: { besoins: Besoin[]; criteres: readonly string[]; mentionLien: string }) {
+interface BesoinListe {
+  id: string; statut: "BROUILLON" | "PUBLIE" | "ARCHIVE" | "A_VALIDER"; structure: string; commune: string;
+  profession: string; nature: string; texte: string; expireLe: string | null; interesses: string[];
+}
+
+const STATUT: Record<BesoinListe["statut"], string> = { PUBLIE: "Publié", BROUILLON: "Brouillon", ARCHIVE: "Archivé", A_VALIDER: "À valider" };
+
+export default function BesoinsClient({ besoins, tous, criteres, mentionLien }: { besoins: Besoin[]; tous: BesoinListe[]; criteres: readonly string[]; mentionLien: string }) {
   const router = useRouter();
   const [motifs, setMotifs] = useState<Record<string, string>>({});
   const [etat, setEtat] = useState<string | null>(null);
 
-  async function decider(id: string, decision: "valider" | "refuser") {
+  async function decider(id: string, decision: "valider" | "refuser" | "retirer") {
     setEtat(null);
     const r = await fetch("/api/admin/besoins", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -22,13 +29,14 @@ export default function BesoinsClient({ besoins, criteres, mentionLien }: { beso
     });
     const d = await r.json().catch(() => null);
     if (!r.ok) { setEtat(d?.error ?? "Action impossible."); return; }
-    setEtat(decision === "valider" ? "Besoin validé et publié." : "Besoin renvoyé en brouillon, avec le motif.");
+    setEtat(decision === "valider" ? "Besoin validé et publié." : decision === "retirer" ? "Besoin retiré (archivé), avec le motif." : "Besoin renvoyé en brouillon, avec le motif.");
     router.refresh();
   }
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-xl font-bold text-gray-900">Besoins du territoire à valider</h1>
+      <h1 className="text-xl font-bold text-gray-900">Besoins du territoire</h1>
+      <h2 className="mt-4 text-lg font-bold text-gray-900">À valider</h2>
       <p className="mt-1 text-sm text-gray-500">
         La première publication de chaque structure passe ici. Les suivantes sont publiées directement,
         et restent visibles dans le journal de la structure.
@@ -66,6 +74,32 @@ export default function BesoinsClient({ besoins, criteres, mentionLien }: { beso
                 <button type="button" onClick={() => decider(b.id, "valider")} className="rounded-lg bg-[#0B3D5C] px-3 py-2 text-xs font-bold text-white">Valider et publier</button>
                 <button type="button" onClick={() => decider(b.id, "refuser")} className="rounded-lg border border-red-300 px-3 py-2 text-xs font-bold text-red-700">Refuser</button>
               </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <h2 className="mt-8 text-lg font-bold text-gray-900">Tous les besoins</h2>
+      <p className="mt-1 text-sm text-gray-500">Publiés, brouillons et archivés. Un besoin publié se retire avec un motif, inscrit au journal de la structure.</p>
+      {tous.length === 0 ? <p className="mt-3 text-sm text-gray-400">Aucun.</p> : (
+        <ul className="mt-3 space-y-2 list-none p-0">
+          {tous.map((b) => (
+            <li key={b.id} className="rounded-xl border border-gray-200 bg-white p-3">
+              <p className="text-sm m-0">
+                <span className="mr-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-gray-700">{STATUT[b.statut]}</span>
+                <strong>{b.structure}</strong> · {b.commune} · {b.profession} · <span className="text-gray-500">{b.nature}</span>
+              </p>
+              <p className="text-xs text-gray-600 mt-1 mb-0 line-clamp-2">{b.texte}</p>
+              {b.statut === "PUBLIE" && b.expireLe && <p className="text-[11px] text-gray-500 mt-1 mb-0">Publié jusqu&apos;au {new Date(b.expireLe).toLocaleDateString("fr-FR")}.</p>}
+              {b.interesses.length > 0 && (
+                <p className="text-xs text-emerald-800 mt-1 mb-0">{b.interesses.length} intéressé{b.interesses.length > 1 ? "s" : ""} : {b.interesses.join(", ")}</p>
+              )}
+              {b.statut === "PUBLIE" && (
+                <div className="mt-2 flex gap-2 flex-wrap items-start">
+                  <input value={motifs[b.id] ?? ""} maxLength={300} onChange={(e) => setMotifs({ ...motifs, [b.id]: e.target.value })}
+                    placeholder="Motif du retrait" className="flex-1 min-w-[200px] rounded-lg border border-gray-200 px-2 py-1.5 text-xs" />
+                  <button type="button" onClick={() => decider(b.id, "retirer")} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-bold text-red-700">Retirer</button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
