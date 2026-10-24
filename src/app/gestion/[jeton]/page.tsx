@@ -64,6 +64,12 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
     ? await prisma.besoinTerritoire.findMany({ where: { clientId: page.clientId }, orderBy: [{ updatedAt: "desc" }] })
     : [];
   const dejaValidee = besoins.some((b) => b.valideLe !== null);
+  // Soignants intéressés (24/10) : leur nom n'est montré qu'aux éditeurs connectés — ils ont
+  // consenti à la transmission à la structure, pas à quiconque détient le lien.
+  const interets = besoins.length ? await prisma.besoinInteret.findMany({ where: { besoinId: { in: besoins.map((b) => b.id) } }, orderBy: { createdAt: "asc" } }) : [];
+  const profilsInteresses = editeur && interets.length
+    ? await prisma.profile.findMany({ where: { id: { in: interets.map((i) => i.profileId) } }, select: { id: true, name: true, profession: true, type: true } })
+    : [];
   const humaines = vues.filter((v) => !(v.metadata as { robot?: boolean } | null)?.robot);
   const il30j = Date.now() - 30 * 86400_000;
 
@@ -101,6 +107,11 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
               id: b.id, codeInsee: b.codeInsee, commune: b.commune, profession: b.profession, specialite: b.specialite,
               nature: b.nature, texte: b.texte, proposition: b.proposition, statut: b.statut,
               expireLe: b.expireLe?.toISOString() ?? null, motifRefus: b.motifRefus,
+              nbInteresses: interets.filter((i) => i.besoinId === b.id).length,
+              interesses: interets.filter((i) => i.besoinId === b.id).map((i) => {
+                const pr = profilsInteresses.find((x) => x.id === i.profileId);
+                return pr ? { nom: pr.name ?? "Sans nom", profession: PROFESSION_LABELS[pr.profession], le: i.createdAt.toISOString() } : null;
+              }).filter((x): x is { nom: string; profession: string; le: string } => x !== null),
             })),
           }}
         />

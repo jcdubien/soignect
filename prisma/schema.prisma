@@ -1137,9 +1137,25 @@ model BesoinTerritoire {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
+  interets    BesoinInteret[]
+
   @@index([statut, profession])
   @@index([clientId])
   @@index([codeInsee, profession])
+}
+
+// Intérêt d'un soignant pour un besoin du territoire (24/10). Exprimé avec un consentement
+// explicite : son nom et son profil sont transmis aux éditeurs de la structure, qui n'a pas de
+// messagerie Soignect. Retirable.
+model BesoinInteret {
+  id        String           @id @default(cuid())
+  besoinId  String
+  besoin    BesoinTerritoire @relation(fields: [besoinId], references: [id], onDelete: Cascade)
+  profileId String
+  createdAt DateTime         @default(now())
+
+  @@unique([besoinId, profileId])
+  @@index([profileId])
 }
 
 enum ActionBesoin {

@@ -7408,6 +7408,33 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 358 — LES BESOINS DU TERRITOIRE DANS LE FIL, AVEC UN CONTACT PAR CONSENTEMENT (24/10)
+
+- **Décision de JC** : afficher les besoins dans le fil (après le correctif de pagination, section
+  357) ; contact par transmission du nom avec consentement explicite, la structure n'ayant pas de
+  messagerie Soignect.
+- **Affichage** (`components/territoire/BesoinsDuFil`, `GET /api/besoins/fil`) : au-dessus du fil,
+  pour les soignants de la profession du besoin (pas pour un établissement), au plus 3, les plus
+  récents. Hors du classement des annonces : ni dans la pagination, ni devant une annonce. Étiquette
+  « Besoin du territoire — déclaré par … » : le nom de la structure seulement si son accord de
+  publication est noté (`PageClient.accord` = OUI, hors démonstration), sinon « une CPTS », « une
+  maison de santé »… « Masquer » : 30 jours, dans ce navigateur.
+- **« Je suis intéressé·e »** (`/api/besoins/[id]/interet`) : affiche d'abord le consentement
+  (`consentementInteret`) — nom et profil transmis à la structure et à Soignect, retirable — puis
+  « Transmettre mon nom ». Refusé sans consentement (400), pour une autre profession ou un
+  établissement (403), sur un besoin non publié (409). Les éditeurs actifs de la structure sont
+  prévenus dans la cloche (lien vers leur page de gestion), aucun email. Trace `BESOIN_INTERET`
+  sans identifiant de personne. « Retirer mon intérêt » supprime la ligne.
+- **Table** `BesoinInteret` (migration additive `20261024010000_besoin_interet`, appliquée en
+  production le 24/10, RLS activée).
+- **Page de gestion** : « N soignants intéressés » pour tous ; les noms (et profession, date) pour
+  les éditeurs connectés seulement — ils ont consenti à la transmission à la structure, pas à
+  quiconque détient le lien. Mise en relation : par le compte Soignect de l'éditeur ou par Soignect.
+- **Essai** (schéma `essai_p36`, comptes `.invalid`) : infirmière → 1 besoin, « déclaré par une
+  CPTS » (accord NON) ; kiné et établissement → 0 ; refus sans consentement, autre profession,
+  établissement ; intérêt → notification de l'éditeur avec lien de gestion ; page de gestion : nom
+  pour l'éditeur, nombre seul en consultation ; retrait → 0 ligne ; carte vue à l'écran.
+
 ### SECTION 357 — CORRECTIF DE PAGINATION DU FIL : CLASSEMENT GLOBAL, PUIS PAGE (23/10)
 
 - **Le défaut** : `/api/feed` ne lisait que `limit` annonces (20) dans l'ordre SQL — note, puis date

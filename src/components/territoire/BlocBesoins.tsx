@@ -17,6 +17,9 @@ export interface BesoinAffiche {
   nature: NatureBesoinCle; texte: string; proposition: string | null;
   statut: "BROUILLON" | "A_VALIDER" | "PUBLIE" | "ARCHIVE";
   expireLe: string | null; motifRefus: string | null;
+  /** Soignants intéressés : le nombre pour tous, les noms pour les éditeurs connectés (24/10). */
+  nbInteresses: number;
+  interesses: { nom: string; profession: string; le: string }[];
 }
 
 type Formulaire = { id: string | null; codeInsee: string; profession: string; specialite: string; nature: NatureBesoinCle; texte: string; proposition: string };
@@ -140,6 +143,17 @@ export default function BlocBesoins(props: {
               </div>
               <p className="text-sm text-gray-700 mt-1 mb-0 whitespace-pre-line line-clamp-3">{b.texte}</p>
               {b.statut === "PUBLIE" && b.expireLe && <p className="text-[11px] text-gray-500 mt-1 mb-0">Publié jusqu&apos;au {date(b.expireLe)}.</p>}
+              {b.nbInteresses > 0 && (
+                <div className="mt-2 rounded border border-emerald-200 bg-emerald-50 p-2">
+                  <p className="text-xs font-semibold text-emerald-800 m-0">{b.nbInteresses} soignant{b.nbInteresses > 1 ? "s" : ""} intéressé{b.nbInteresses > 1 ? "s" : ""}</p>
+                  {b.interesses.length > 0 && (
+                    <ul className="list-none p-0 m-0 mt-1 space-y-0.5">
+                      {b.interesses.map((i) => <li key={i.nom + i.le} className="text-xs text-emerald-900">{i.nom} · {i.profession} · le {date(i.le)}</li>)}
+                    </ul>
+                  )}
+                  <p className="text-[11px] text-emerald-800 mt-1 mb-0">Ils ont accepté que leur nom vous soit transmis. Pour les joindre, passez par votre compte Soignect ou par Soignect.</p>
+                </div>
+              )}
               {b.statut === "BROUILLON" && b.motifRefus && (
                 <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2 mt-2 mb-0">Renvoyé par Soignect : {b.motifRefus}</p>
               )}

@@ -76,3 +76,19 @@ export const CRITERES_VALIDATION: readonly string[] = [
 /** Mention inscrite au journal et affichée à la validation quand un administrateur est éditeur
  *  nommé de la structure — même règle pour toutes, aucun nom de structure dans le code. */
 export const MENTION_LIEN_ADMIN = "Structure liée à l'administrateur";
+
+/** Auteur affiché d'un besoin (24/10) : le nom de la structure seulement si elle a donné son
+ *  accord à la publication de son nom (PageClient.accord = OUI), comme sur sa page publique ;
+ *  sinon une désignation générique. */
+const DESIGNATION: Record<string, string> = {
+  CPTS: "une CPTS", MSP: "une maison de santé", COLLECTIVITE: "une collectivité", HOPITAL: "un hôpital",
+  EHPAD: "un EHPAD", SSIAD: "un SSIAD", SSR: "un SSR", CLINIQUE: "une clinique",
+};
+export function auteurAffiche(client: { nom: string; type: string }, accordNom: boolean): string {
+  return accordNom ? client.nom : DESIGNATION[client.type] ?? "une structure de santé";
+}
+
+/** Consentement affiché avant d'exprimer un intérêt — la structure n'a pas de messagerie. */
+export function consentementInteret(auteur: string): string {
+  return `En cliquant, votre nom et votre profil Soignect sont transmis à ${auteur} et à Soignect, pour qu'ils puissent revenir vers vous. Vous pouvez retirer votre intérêt à tout moment.`;
+}

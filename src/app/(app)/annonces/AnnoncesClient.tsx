@@ -15,6 +15,7 @@ import SuggestionLongTerme from "@/components/swipe/SuggestionLongTerme";
 import FeuilleDispoExpress from "@/components/swipe/FeuilleDispoExpress";
 import type { Disponibilite } from "@/lib/disponibilitePure";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
+import BesoinsDuFil from "@/components/territoire/BesoinsDuFil";
 
 interface Props {
   profileType: string;
@@ -214,6 +215,8 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
               salarie={signalLongTerme.salarie}
             />
           )}
+          {/* Besoins du territoire (24/10) — au-dessus du fil, hors du classement des annonces. */}
+          {!(profileType === "TITULAIRE" && titulaireKind === "STRUCTURE") && <BesoinsDuFil />}
           <SwipeStack
             onSwipeRight={() => setTrayKey(k => k + 1)}
             profileType={profileType}
