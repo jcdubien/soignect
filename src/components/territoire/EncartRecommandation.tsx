@@ -98,15 +98,29 @@ export default function EncartRecommandation(props: {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {principale.palier && (
+          {(principale.palier || principale.densite) && (
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-300 m-0 mb-2">Ce que montrent les données</p>
-              <p className="text-2xl font-extrabold leading-tight m-0">{principale.palier.rang}<sup className="text-xs">e</sup> sur {principale.palier.sur}</p>
-              <p className="text-sm mt-1 mb-0">{principale.commune} : APL {principale.palier.apl.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}.</p>
-              <p className="text-xs text-slate-300 mt-1 mb-0">DREES{props.source.annee ? `, APL ${props.source.annee}` : ""} · rang 1 = accès le plus faible</p>
+              {principale.palier ? (
+                <>
+                  <p className="text-2xl font-extrabold leading-tight m-0">{principale.palier.rang}<sup className="text-xs">e</sup> sur {principale.palier.sur}</p>
+                  <p className="text-sm mt-1 mb-0">{principale.commune} : APL {principale.palier.apl.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}.</p>
+                  <p className="text-xs text-slate-300 mt-1 mb-0">DREES{props.source.annee ? `, APL ${props.source.annee}` : ""} · rang 1 = accès le plus faible</p>
+                </>
+              ) : (
+                <p className="text-2xl font-extrabold leading-tight m-0">{principale.densite!.effectif}</p>
+              )}
+              {principale.densite && (
+                <p className="text-xs text-slate-300 mt-2 mb-0">
+                  {principale.densite.effectif} praticien{principale.densite.effectif > 1 ? "s" : ""} recensé{principale.densite.effectif > 1 ? "s" : ""}
+                  {principale.regle === "PERIMETRE_SANS_PRATICIEN" ? " sur vos communes" : ` à ${principale.commune}`}
+                  {" · "}{principale.densite.pour10k.toLocaleString("fr-FR")} pour 10 000 hab.
+                  {principale.densite.reference != null && ` (Guadeloupe : ${principale.densite.reference.toLocaleString("fr-FR")})`}
+                </p>
+              )}
             </div>
           )}
-          <div className={`rounded-xl border border-white/10 bg-white/5 p-4 ${principale.palier ? "" : "sm:col-span-2"}`}>
+          <div className={`rounded-xl border border-white/10 bg-white/5 p-4 ${principale.palier || principale.densite ? "" : "sm:col-span-2"}`}>
             <p className="text-[11px] font-bold uppercase tracking-widest text-slate-300 m-0 mb-2">Vos réglages</p>
             <p className="text-2xl font-extrabold leading-tight m-0">{props.resume.casesReglees} / {props.resume.casesApl}</p>
             <p className="text-sm mt-1 mb-0">cases désignées par l&apos;APL ont une priorité · {props.resume.reglagesHumains} réglage{props.resume.reglagesHumains > 1 ? "s" : ""} écrit{props.resume.reglagesHumains > 1 ? "s" : ""} par vous.</p>
@@ -144,6 +158,14 @@ export default function EncartRecommandation(props: {
         <summary className="cursor-pointer text-sm font-bold text-[#5eead4]">Voir le calcul</summary>
         <ul className="text-xs text-slate-200 mt-2 space-y-1 pl-4">
           <li>Source : {props.source.source ?? "inconnue"}{props.source.annee ? `, millésime ${props.source.annee}` : ""}{dateImport ? `, importée le ${dateImport}` : ""}.</li>
+          {props.source.effectifs?.praticiens && (
+            <li>
+              Praticiens recensés : {props.source.effectifs.praticiens}
+              {props.source.effectifs.extraitLe ? `, extraction du ${new Date(props.source.effectifs.extraitLe).toLocaleDateString("fr-FR", { timeZone: "UTC" })}` : ""} ;
+              {" "}population : {props.source.effectifs.population}. Un praticien compte dans chaque commune où il exerce ;
+              la référence est la Guadeloupe, calculée de la même façon. Aides-soignants : non recensés.
+            </li>
+          )}
           <li>Rang : position de la commune parmi les communes de son département présentes dans la source (1 = accès le plus faible).</li>
           <li>Palier : premier quart → « accès très faible », deuxième quart → « accès faible ». Convention Soignect, pas un seuil de la DREES.</li>
           <li>Un cran d&apos;écart avec l&apos;APL se règle librement ; au-delà, une justification écrite est demandée.</li>

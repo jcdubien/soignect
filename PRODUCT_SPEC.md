@@ -7408,6 +7408,30 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 353 — DENSITÉ DE PRATICIENS DANS L'ENCART, RÈGLE « AUCUNE ACTIVITÉ DÉCLARÉE » (23/10)
+
+- **Indicateur** (`lib/indicateursTerritoire`, source unique) : praticiens recensés pour 10 000
+  habitants, comparés à la Guadeloupe entière calculée de la même façon (Saint-Martin et
+  Saint-Barthélemy exclus de la référence). Données : section 352. Une profession absente de la
+  source donne « inconnu », jamais zéro.
+- **Dans l'encart** : chaque proposition qui porte sur une case montre « N praticiens recensés à … ·
+  X pour 10 000 hab. (Guadeloupe : Y) » ; « Voir le calcul » cite l'Annuaire Santé (date
+  d'extraction) et la population (INSEE 2023), et rappelle qu'un praticien compte dans chaque
+  commune où il exerce et que les aides-soignants ne sont pas recensés.
+- **Règle R8 `PERIMETRE_SANS_PRATICIEN`** : pour une profession affichée sans APL mais présente dans
+  l'Annuaire Santé, si AUCUN praticien n'a d'activité déclarée sur tout le périmètre, l'encart le
+  dit — en précisant que les patients peuvent consulter ailleurs, que c'est une indication et non un
+  constat de manque — et propose « Préparer… » sur la commune la plus peuplée (case libre, plafond
+  de besoins non atteint). Avec au moins un praticien : rien. « Données insuffisantes » ne vaut plus
+  que pour les professions sans aucune donnée (aide-soignant).
+- **Sur les pages réelles (calcul en lecture seule)** : Nord Basse-Terre — kiné à Pointe-Noire,
+  4 praticiens, 6,9 pour 10 000 (Guadeloupe : 26,5). Horizon (démonstration) — aucun dermatologue
+  sur ses 3 communes (Guadeloupe : 0,5 pour 10 000) ; « données insuffisantes » pour les
+  aides-soignants seulement.
+- **Essai** (schéma `essai_p33`, données publiques copiées, compte `.invalid`, à l'écran) : encart
+  R8 avec chiffres et sources ; « Préparer… » → formulaire prérempli sur Petit-Bourg, la commune la
+  plus peuplée du périmètre.
+
 ### SECTION 352 — IMPORT DES POPULATIONS ET DES EFFECTIFS DE SANTÉ PAR COMMUNE (23/10)
 
 - **Tables** (migration additive `20261023200000_demographie_effectifs`, appliquée en production le

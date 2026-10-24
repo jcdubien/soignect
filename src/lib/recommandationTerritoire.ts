@@ -15,6 +15,7 @@
 import type { PalierApl } from "@/lib/aplPalier";
 import { libelleAcces } from "@/lib/aplPalier";
 import { justificationRequise } from "@/lib/boostTerritorial";
+import { densiteDe, type Densite, type DonneesEffectifs } from "@/lib/indicateursTerritoire";
 
 export const MENTION_RECOMMANDATION = "Indicatif. Calculé à partir de données publiques. Ce n'est pas un zonage officiel.";
 
@@ -28,12 +29,13 @@ export type RegleRecommandation =
   | "RETIRER_SANS_APL"      // R3 bis — case ajoutée, APL dans la moyenne, sans justification
   | "COMMUNE_NON_REGLEE"    // R1 — palier APL ≥ 1, aucune priorité sur la case
   | "PREPARER_BESOIN"       // R5 — palier 2, aucun besoin en cours sur la case (une par profession)
+  | "PERIMETRE_SANS_PRATICIEN" // R8 — profession sans APL, aucun praticien recensé sur tout le périmètre
   | "DONNEES_INSUFFISANTES" // R6 — profession affichée sans aucune APL : rien à proposer
   | "REVUE_PROCHE";         // R7 — échéance de la relation dans moins de 30 jours
 
 /** Ordre d'affichage : ce qui est faux d'abord, puis ce qui manque, puis l'information. */
 export const ORDRE_REGLES: RegleRecommandation[] = [
-  "PRIORITE_ECHUE", "RELEVER", "ABAISSER", "RETIRER_SANS_APL", "COMMUNE_NON_REGLEE", "PREPARER_BESOIN", "DONNEES_INSUFFISANTES", "REVUE_PROCHE",
+  "PRIORITE_ECHUE", "RELEVER", "ABAISSER", "RETIRER_SANS_APL", "COMMUNE_NON_REGLEE", "PREPARER_BESOIN", "PERIMETRE_SANS_PRATICIEN", "DONNEES_INSUFFISANTES", "REVUE_PROCHE",
 ];
 
 export type ActionRecommandation =
@@ -54,6 +56,8 @@ export interface Recommandation {
   action: ActionRecommandation;
   /** DONNEES_INSUFFISANTES : toutes les professions concernées, en une seule proposition. */
   professionsSansDonnees?: string[];
+  /** Effectifs recensés (Annuaire Santé) : de la commune pour une case, du périmètre pour R8. */
+  densite?: Densite | null;
   /** COMMUNE_NON_REGLEE quand l'offre a déjà toutes ses cases : on le DIT, sans action ni
    *  invitation à changer d'offre (une recommandation n'est pas un argument de vente). */
   plafond?: number;
@@ -79,6 +83,8 @@ export function recommandationsDuTerritoire(e: {
   /** Besoins du territoire (23/10) : cases ayant déjà un besoin en cours (brouillon, à valider,
    *  publié — toutes structures) et besoins actifs de CETTE structure face au plafond. */
   besoins?: { casesOccupees: string[]; actifs: number; max: number };
+  /** Populations et effectifs de santé (23/10) — absents : les règles s'en passent. */
+  effectifs?: DonneesEffectifs;
   maintenant?: Date;
 }): Recommandation[] {
   const maintenant = e.maintenant ?? new Date();
@@ -142,8 +148,31 @@ export function recommandationsDuTerritoire(e: {
     }
   }
 
-  // Professions affichées sans aucune donnée publique dans le périmètre — une seule ligne.
-  const sansDonnees = e.professionsPage.filter((prof) => !e.paliers.some((p) => p.profession === prof));
+  // R8 — Professions affichées sans APL mais présentes dans l'Annuaire Santé : si AUCUN praticien
+  // n'est recensé sur tout le périmètre, on le dit, et on propose un besoin sur la commune la plus
+  // peuplée (si la case est libre et le plafond de besoins non atteint). Avec au moins un praticien,
+  // rien : l'indicateur seul ne dit pas qu'il en manque.
+  const codes = e.communes.map((c) => c.code);
+  const sansApl = e.professionsPage.filter((prof) => !e.paliers.some((p) => p.profession === prof));
+  const traitees = new Set<string>();
+  if (e.effectifs) {
+    for (const prof of sansApl) {
+      const d = densiteDe(e.effectifs, codes, prof);
+      if (!d) continue;
+      traitees.add(prof);
+      if (d.effectif > 0) continue;
+      const peuplee = [...codes].sort((a, b) => (e.effectifs!.population[b] ?? 0) - (e.effectifs!.population[a] ?? 0))[0];
+      const libre = e.besoins && e.besoins.actifs < e.besoins.max && !e.besoins.casesOccupees.includes(`${peuplee}:${prof}`);
+      recos.push({
+        regle: "PERIMETRE_SANS_PRATICIEN", codeInsee: peuplee ?? null, commune: peuplee ? nomDe(peuplee) : null, profession: prof,
+        palier: null, niveauActuel: null, densite: d,
+        action: libre && peuplee ? agir({ type: "preparerBesoin", codeInsee: peuplee, profession: prof }) : null,
+      });
+    }
+  }
+
+  // Professions affichées sans aucune donnée publique (ni APL, ni effectif) — une seule ligne.
+  const sansDonnees = sansApl.filter((prof) => !traitees.has(prof));
   if (sansDonnees.length > 0) {
     recos.push({ regle: "DONNEES_INSUFFISANTES", codeInsee: null, commune: null, profession: null, palier: null, niveauActuel: null, action: null, professionsSansDonnees: sansDonnees });
   }
@@ -153,6 +182,12 @@ export function recommandationsDuTerritoire(e: {
     recos.push({ regle: "REVUE_PROCHE", codeInsee: null, commune: null, profession: null, palier: null, niveauActuel: null, action: null });
   }
 
+  // Densité de la commune pour toute proposition qui porte sur une case (affichée dans l'encart).
+  if (e.effectifs) {
+    for (const r of recos) {
+      if (r.densite === undefined && r.codeInsee && r.profession) r.densite = densiteDe(e.effectifs, [r.codeInsee], r.profession);
+    }
+  }
   return recos.sort((a, b) => ORDRE_REGLES.indexOf(a.regle) - ORDRE_REGLES.indexOf(b.regle));
 }
 
@@ -182,6 +217,8 @@ export function texteRecommandation(r: Recommandation, prof: string): { phrase: 
       return { phrase: `Régler ${r.commune} en priorité « ${acces} » pour ${prof}.`, parce: `Proposé parce que la commune est au ${rang} et n'a aucun réglage.` };
     case "PREPARER_BESOIN":
       return { phrase: `Préparer un besoin du territoire pour ${prof} à ${r.commune}.`, parce: `Proposé parce que la commune est au ${rang}, dans le premier quart, et qu'aucun besoin n'y est en cours pour cette profession. Le brouillon est prérempli ; vous le relisez avant toute publication.` };
+    case "PERIMETRE_SANS_PRATICIEN":
+      return { phrase: `Aucune activité déclarée sur votre territoire pour ${prof}.`, parce: `D'après l'Annuaire Santé, aucun n'a d'activité déclarée dans vos communes (${r.densite?.population.toLocaleString("fr-FR")} habitants)${r.densite?.reference != null ? ` ; en Guadeloupe : ${r.densite.reference.toLocaleString("fr-FR")} pour 10 000 habitants` : ""}. Les patients peuvent consulter ailleurs : c'est une indication, pas un constat de manque.` };
     case "DONNEES_INSUFFISANTES":
       return { phrase: `Données insuffisantes pour ${prof}.`, parce: "Aucune donnée publique d'accessibilité n'est importée pour ces professions : Soignect ne recommande rien sans chiffre sourcé." };
     case "REVUE_PROCHE":

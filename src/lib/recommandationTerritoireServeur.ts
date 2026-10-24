@@ -2,6 +2,27 @@ import { prisma } from "@/lib/prisma";
 import { casesTenues } from "@/lib/casesPriorite";
 import { limitesDuClient } from "@/lib/tarifsPartenaire";
 import { BESOINS_ACTIFS_MAX } from "@/lib/besoinTerritoire";
+import { DEPARTEMENT_REFERENCE, pour10k, type DonneesEffectifs } from "@/lib/indicateursTerritoire";
+
+/** Populations et effectifs (tables de totaux publics, quelques centaines de lignes). */
+async function chargerEffectifs(): Promise<DonneesEffectifs | undefined> {
+  const [pops, effs] = await Promise.all([
+    prisma.demographieCommune.findMany({ select: { codeInsee: true, population: true, source: true, millesime: true } }),
+    prisma.effectifPraticiens.findMany({ select: { codeInsee: true, profession: true, effectif: true, effectifLiberal: true, source: true, extraitLe: true } }),
+  ]);
+  if (pops.length === 0 || effs.length === 0) return undefined;
+  const population = Object.fromEntries(pops.map((p) => [p.codeInsee, p.population]));
+  const parCase = Object.fromEntries(effs.map((e) => [`${e.codeInsee}:${e.profession}`, { effectif: e.effectif, effectifLiberal: e.effectifLiberal }]));
+  const couvertes = Array.from(new Set(effs.map((e) => e.profession as string)));
+  const popRef = pops.filter((p) => p.codeInsee.startsWith(DEPARTEMENT_REFERENCE)).reduce((s, p) => s + p.population, 0);
+  const reference = Object.fromEntries(couvertes.map((prof) => [prof, pour10k(
+    effs.filter((e) => e.profession === prof && e.codeInsee.startsWith(DEPARTEMENT_REFERENCE)).reduce((s, e) => s + e.effectif, 0), popRef,
+  )]));
+  return {
+    couvertes, parCase, population, reference,
+    source: { praticiens: effs[0].source, extraitLe: effs[0].extraitLe.toISOString(), population: pops[0].source, millesime: pops[0].millesime },
+  };
+}
 import { paliersApl } from "@/lib/aplPalier";
 import { libellesDuCode, prioritesDeLaPage } from "@/lib/pageClient";
 import { recommandationsDuTerritoire, texteRecommandation, cleRecommandation, type PrioriteEntree, type Recommandation } from "@/lib/recommandationTerritoire";
@@ -12,7 +33,11 @@ import type { Profession } from "@prisma/client";
 // par la route qui trace les clics, pour qu'un clic ne puisse se rapporter qu'à une proposition
 // réellement calculée pour cette page.
 
-export interface SourceApl { source: string | null; annee: number | null; importeLe: string | null }
+export interface SourceApl {
+  source: string | null; annee: number | null; importeLe: string | null;
+  /** Sources des effectifs et populations (23/10), quand ils sont importés. */
+  effectifs?: DonneesEffectifs["source"];
+}
 
 /** « Vos réglages » : sur les cases que l'APL désigne (palier ≥ 1), combien ont une priorité,
  *  et combien de réglages la structure a écrits elle-même (écart ou ajout justifié). */
@@ -26,7 +51,7 @@ export async function recommandationsDeLaPage(page: {
   id: string; clientId: string; demo: boolean; communes: string[]; professions: string[];
   client: { nom: string; revueLe: Date };
 }): Promise<{ recommandations: RecommandationAffichee[]; source: SourceApl; resume: ResumeReglages }> {
-  const [priorites, paliers, ligneSource, client, tenues, besoinsEnCours] = await Promise.all([
+  const [priorites, paliers, ligneSource, client, tenues, besoinsEnCours, effectifs] = await Promise.all([
     page.demo
       ? prioritesDeLaPage(page as Parameters<typeof prioritesDeLaPage>[0], page.client.nom).then((zs) => zs.map((z): PrioriteEntree => ({
           id: `${z.codeInsee}-${z.profession}`, codeInsee: z.codeInsee, commune: z.commune, profession: z.profession,
@@ -48,6 +73,7 @@ export async function recommandationsDeLaPage(page: {
       where: { codeInsee: { in: page.communes }, statut: { in: ["BROUILLON", "A_VALIDER", "PUBLIE"] } },
       select: { codeInsee: true, profession: true, clientId: true, statut: true },
     }),
+    chargerEffectifs(),
   ]);
   const brutes = recommandationsDuTerritoire({
     clientId: page.clientId, demo: page.demo,
@@ -59,6 +85,7 @@ export async function recommandationsDeLaPage(page: {
       actifs: besoinsEnCours.filter((b) => b.clientId === page.clientId && b.statut !== "BROUILLON").length,
       max: BESOINS_ACTIFS_MAX,
     },
+    effectifs,
   });
   const lib = (p: string) => PROFESSION_LABELS[p as Profession] ?? p;
   const recommandations: RecommandationAffichee[] = brutes.map((r) => {
@@ -78,7 +105,7 @@ export async function recommandationsDeLaPage(page: {
   return {
     recommandations,
     resume,
-    source: { source: ligneSource?.aplSource ?? null, annee: ligneSource?.aplAnnee ?? null, importeLe: ligneSource?.aplImportedAt?.toISOString() ?? null },
+    source: { source: ligneSource?.aplSource ?? null, annee: ligneSource?.aplAnnee ?? null, importeLe: ligneSource?.aplImportedAt?.toISOString() ?? null, effectifs: effectifs?.source },
   };
 }
 
