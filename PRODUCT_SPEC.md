@@ -7408,6 +7408,24 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 362 — PAGES « EMPLOI » ET « MAISON DE SANTÉ » : QUI EST MONTRÉ, SOUS QUELLE ÉTIQUETTE (24/10)
+
+- **Constat** (24/10, production) : la page « emploi » (établissements) montrait tous les candidats,
+  étiquetés « Remplaçant » ; le fil d'un établissement ne lui propose que ceux ouverts au salariat.
+  Kinés : 45 montrés, 21 ouverts ; infirmiers : 5 montrés, 0 ouvert.
+- **Principe (JC)** : une CPTS ou une MSP recherche un salarié OU un libéral ; un établissement
+  (hôpital, clinique, EHPAD, SSR, SSIAD) recrute des salariés.
+- **Page « emploi »** : seuls les candidats ouverts au salariat (`ouvertSalariat`), étiquetés
+  « Candidat·e » — sauf profession salariée par nature (`contratFourniParEmployeur`, ex.
+  aide-soignant), inchangée. Sans candidat : « Aucun candidat ouvert au salariat … pour le moment —
+  publiez votre offre, elle sera visible dès qu'il y en aura. »
+- **Page « maison de santé »** : tous les candidats, étiquette habituelle (« Remplaçant·e »,
+  « Assistant·e »), plus « ouvert·e au salariat » quand le candidat l'a dit.
+- **Reste ouvert** : le FIL d'une MSP inscrite comme établissement ne montre que les candidats
+  ouverts au salariat — à régler dans l'audit des comptes de structure.
+- **Essai** (schéma `essai_p40`, 3 candidats `.invalid`) : emploi-kine 1 candidat « Candidat·e » ;
+  maison-de-sante-kine 2 candidats dont 1 badge ; emploi-infirmier : message d'absence.
+
 ### SECTION 361 — MESURE DES BESOINS : AFFICHAGES ET INTÉRÊTS, AVEC LE SEUIL D'AGRÉGATION (24/10)
 
 - **Trace `BESOIN_VUE`** à chaque affichage d'un besoin : dans le fil (`/api/besoins/fil`), sur la

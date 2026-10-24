@@ -13,6 +13,7 @@ import { besoinsPublics } from "@/lib/besoinsPublics";
 import type { Profession as PrismaProfession } from "@prisma/client";
 import BlocBesoinsPublics from "@/components/territoire/BlocBesoinsPublics";
 import { inseeOfCommune } from "@/lib/communes";
+import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 // Gabarit commun des pages de diffusion « à annonces » (section 212) — portes CABINET,
 // ÉTABLISSEMENT et MAISON DE SANTÉ, et toutes les pages infirmier (section 299). La porte
@@ -33,10 +34,16 @@ export default async function PagePorte({
   /** Bas de page propre à la porte — ce qui est vrai par construction, jamais du marché. */
   basDePage: React.ReactNode;
 }) {
+  // Porte « emploi » (établissements, 24/10) : un établissement recrute des salariés — la page ne
+  // montre que les candidats ouverts au salariat, comme son fil (sauf profession salariée par
+  // nature, ex. aide-soignant). Les autres portes candidats (cabinets, maisons de santé) montrent
+  // tout le monde : une MSP recrute un salarié ou un libéral.
+  const salarieSeulement = porte.slug === "emploi" && !contratFourniParEmployeur(profession.enumBase);
+  const filtre = filtreAnnoncesVivantes(zones, communes, profession.enumBase, porte.montre);
   const missions = await prisma.mission.findMany({
     // Le camp vient de la PORTE, qui le déclare : une porte employeur montre des candidats.
-    where: filtreAnnoncesVivantes(zones, communes, profession.enumBase, porte.montre),
-    include: { profile: { select: { type: true, name: true, titulaireKind: true } } },
+    where: salarieSeulement ? { ...filtre, profile: { ...filtre.profile, ouvertSalariat: true } } : filtre,
+    include: { profile: { select: { type: true, name: true, titulaireKind: true, ouvertSalariat: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     // Échantillon, pas inventaire : 8 suffisent à montrer qu'il se passe quelque chose.
     // Au-delà, la page devient une liste à faire défiler et le CTA disparaît sous le pli.
@@ -109,7 +116,11 @@ export default async function PagePorte({
       <h2 className="text-lg font-bold text-gray-800 mb-4">
         {missions.length > 0
           ? `${missions.length} annonce${missions.length > 1 ? "s" : ""} ${territoire.preposition} ${territoire.nom}`
-          : "Aucune annonce pour le moment — soyez le premier à publier !"}
+          : salarieSeulement
+            // Page « emploi » sans candidat ouvert au salariat (24/10) : le dire, plutôt qu'« aucune
+            // annonce », qui laisserait croire que personne n'est inscrit.
+            ? `Aucun candidat ouvert au salariat ${territoire.preposition} ${territoire.nom} pour le moment — publiez votre offre, elle sera visible dès qu'il y en aura.`
+            : "Aucune annonce pour le moment — soyez le premier à publier !"}
       </h2>
 
       {missions.length > 0 && (
@@ -124,8 +135,14 @@ export default async function PagePorte({
             // les offres viennent d'EHPAD et de SSIAD (section 305).
             // Un aide-soignant qui se propose n'est pas un « Remplaçant » non plus (section 304) : la
             // page est celle d'UNE profession, toutes ses annonces la partagent.
-            const label = libelleRoleSalariat({ ...m.profile, profession: profession.enumBase })
-              ?? { REMPLACANT: "Remplaçant", ASSISTANT: "Assistant", TITULAIRE: "Cabinet" }[m.profile.type];
+            // Sur la page « emploi », tout candidat montré est ouvert au salariat : « Candidat·e ». Sur
+            // la page des maisons de santé, l'étiquette habituelle, et « ouvert·e au salariat »
+            // quand le candidat l'a dit — une MSP voit d'un coup d'œil les deux possibilités.
+            const estCand = m.profile.type !== "TITULAIRE";
+            const label = (salarieSeulement && estCand ? "Candidat·e" : null)
+              ?? libelleRoleSalariat({ ...m.profile, profession: profession.enumBase })
+              ?? { REMPLACANT: "Remplaçant·e", ASSISTANT: "Assistant·e", TITULAIRE: "Cabinet" }[m.profile.type];
+            const ouvertSalariat = porte.slug === "maison-de-sante" && estCand && m.profile.ouvertSalariat;
             return (
               <div key={m.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
@@ -134,6 +151,7 @@ export default async function PagePorte({
                     m.profile.type === "ASSISTANT" ? "bg-violet-100 text-violet-700" :
                     "bg-blue-100 text-blue-700"
                   }`}>{label}</span>
+                  {ouvertSalariat && <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">ouvert·e au salariat</span>}
                 </div>
                 <h3 className="font-semibold text-gray-800 text-sm">{m.title}</h3>
                 <p className="text-gray-400 text-xs mt-1">
