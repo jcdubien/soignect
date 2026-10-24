@@ -30,6 +30,7 @@ export const config = {
     "/disponibilites/:path*",
     "/planning/:path*",
     "/compte/:path*",
+    "/confreres/:path*",
     "/matches/:path*",
     "/match/:path*",
     "/missions/:path*",

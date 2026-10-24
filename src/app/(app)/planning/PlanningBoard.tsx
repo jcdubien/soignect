@@ -3060,6 +3060,10 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
           {/* +1 : le titulaire lui-même occupe un poste (sa ligne est affichée dans le planning),
               en plus des CabinetPost de l'équipe. */}
           <p className="text-xs text-gray-400 truncate">{posts.length} poste{posts.length !== 1 ? "s" : ""} · {cabinetName}</p>
+          {/* Confrère trouvé hors Soignect (24/10) — cabinets libéraux seulement. */}
+          {!isEmployeur && (
+            <a href="/confreres" className="text-xs font-semibold text-kine-700 underline">+ Un confrère trouvé hors Soignect</a>
+          )}
         </div>
 
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">

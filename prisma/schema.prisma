@@ -563,6 +563,9 @@ model Match {
   aiScore           Float?
   aiFactors         Json?
   status            MatchStatus @default(EN_ATTENTE)
+  // Relation convenue HORS Soignect, saisie par le titulaire (24/10, lib/confrereHorsSoignect) :
+  // le compte du confrère a été créé à cette occasion et s'active par lien. Défaut false.
+  horsSoignect      Boolean     @default(false)
   ratings           Rating[]
   cabinetRatings    CabinetRating[]
   remplacantRatings RemplacantRating[]

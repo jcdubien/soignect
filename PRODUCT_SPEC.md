@@ -7408,6 +7408,41 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 364 — CONFRÈRE TROUVÉ HORS SOIGNECT : SAISIE, CONTRAT, COMPTE À ACTIVER, PARTAGE (24/10)
+
+- **Besoin (JC)** : deux assistants convenus hors Soignect pour janvier. Saisir leurs
+  caractéristiques et les conditions, éditer le contrat, créer leur compte, leur faire récupérer le
+  contrat dans l'application et par le partage du système.
+- **Écran `/confreres`** (cabinets libéraux ; lien « + Un confrère trouvé hors Soignect » dans
+  l'en-tête du Planning) : prénom, nom, email, type (remplacement, assistanat, collaboration),
+  commune, début, fin (remplacement) ou durée minimale (assistanat, collaboration), part du
+  remplaçant ou redevance ; RPPS, n° Ordre, adresse facultatifs. Liste des confrères ajoutés :
+  statut d'activation, signatures, « Préparer / récupérer le contrat », « Partager le lien
+  d'activation » (feuille de partage du système, sinon copie), « Nouveau lien ».
+- **Création** (`lib/confrereHorsSoignect`, une transaction) :
+  - compte du confrère SANS mot de passe utilisable ni consentement (`acceptedTermsAt` nul) — il ne
+    peut pas se connecter avant d'avoir activé ;
+  - annonce du titulaire déjà pourvue (`OCCUPE` / `CONFIRME`) : jamais dans le fil, visible au
+    Planning ;
+  - mise en relation confirmée, `Match.horsSoignect = true` (migration additive
+    `20261024200000_match_hors_soignect`, défaut false — appliquée en production, 24 relations
+    existantes inchangées) ;
+  - la page contrat existante fonctionne telle quelle ; un email déjà inscrit est refusé (409) ;
+    aucun email n'est envoyé.
+- **Activation `/activer/[token]`** (90 jours, non indexée) : le confrère choisit son mot de passe,
+  accepte lui-même les CGU, choisit les notifications email, puis arrive sur le contrat. Lien à
+  usage unique.
+- **Partage du PDF** (page contrat) : « Partager l'aperçu » et « Partager le PDF officiel » ouvrent
+  la feuille de partage du système quand le navigateur sait partager un fichier ; sinon le
+  téléchargement habituel. Rien ne change pour les autres boutons.
+- **Traces** `CONFRERE_HORS_SOIGNECT` (ajout, activation ; type de poste seulement, sans nom).
+- **Essai** (schéma `essai_p43`, comptes `.invalid`) : ajout 200, doublon 409, remplacement sans fin
+  400 ; connexion refusée avant activation ; brouillon PDF généré ; activation sans CGU 400, avec
+  CGU 200, lien réutilisé 400 ; le confrère accède au contrat ; l'annonce n'apparaît pas dans le fil
+  d'un autre assistant ; écran vérifié dans le navigateur.
+- **Limite connue** : « mot de passe oublié » sur un compte non activé permet de définir un mot de
+  passe sans passer par l'acceptation des CGU (même chemin que les comptes d'éditeur, section 314).
+
 ### SECTION 363 — UNE MSP N'EMBAUCHE PAS : PAGES « MAISON DE SANTÉ » RÉÉCRITES (24/10)
 
 - **Règle (JC, 24/10)** : « la MSP ne peut embaucher personne. Elle recouvre une SISA de membres
