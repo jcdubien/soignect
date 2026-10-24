@@ -64,7 +64,14 @@ export default async function PagePorte({
     porte.slug === "poste" ? "&profileType=REMPLACANT"
     : porte.slug === "emploi" ? "&profileType=TITULAIRE&structure=1"
     : "";
-  const inscription = `/register?profession=${profession.enumBase}${typeCompte}&src=${cleTracePage(porte, profession, territoire)}`;
+  // Porte MSP (24/10) : l'appel ouvre la demande de partenariat — une MSP n'a pas de compte
+  // recruteur. Les membres, eux, publient depuis leur compte cabinet (lien dédié plus bas).
+  const inscription = porte.ctaPartenariat
+    ? lienPartenariat(porte.ctaPartenariat, cleTracePage(porte, profession, territoire))
+    : `/register?profession=${profession.enumBase}${typeCompte}&src=${cleTracePage(porte, profession, territoire)}`;
+  const inscriptionMembre = porte.ctaPartenariat
+    ? `/register?profession=${profession.enumBase}&profileType=TITULAIRE&src=membre-${cleTracePage(porte, profession, territoire)}`
+    : null;
 
   // Besoins du territoire (24/10) — seulement sur les portes qui s'adressent aux soignants (celles
   // qui leur montrent des employeurs), pour la profession de la page et les communes du territoire.
@@ -92,7 +99,7 @@ export default async function PagePorte({
 
       <div className="bg-gradient-to-br from-kine-600 to-kine-800 rounded-2xl p-6 text-white mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
-          <p className="font-bold text-lg mb-1">Rejoignez Soignect</p>
+          <p className="font-bold text-lg mb-1">{porte.titreAppel ?? "Rejoignez Soignect"}</p>
           <p className="text-kine-100 text-sm">{porte.ctaSous}</p>
           {gratuite && <p className="text-white text-sm font-semibold mt-1">{gratuite}</p>}
         </div>
@@ -107,6 +114,12 @@ export default async function PagePorte({
           {porte.cta}
         </Link>
       </div>
+      {inscriptionMembre && (
+        <p className="-mt-4 mb-6 text-sm text-gray-600">
+          Vous êtes membre de la MSP ?{" "}
+          <Link href={inscriptionMembre} className="font-semibold text-kine-700 underline">Publiez votre poste depuis votre compte cabinet</Link>.
+        </p>
+      )}
       {/* Retour d'un compte déjà inscrit (22/10) : aucune page de diffusion ne menait à /login. */}
       <p className="-mt-5 mb-8 text-sm text-gray-500 text-right">
         Déjà inscrit ?{" "}
@@ -179,7 +192,7 @@ export default async function PagePorte({
         );
         return soeurs.length > 0 ? (
           <p className="mt-6 text-sm text-gray-500 text-center">
-            Vous recrutez aussi{" "}
+            {porte.ctaPartenariat ? "Votre MSP a aussi besoin" : "Vous recrutez aussi"}{" "}
             {soeurs.map((x, i) => (
               <span key={x.profession.slug}>
                 {i > 0 && (i === soeurs.length - 1 ? " ou " : ", ")}

@@ -7408,6 +7408,30 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 363 — UNE MSP N'EMBAUCHE PAS : PAGES « MAISON DE SANTÉ » RÉÉCRITES (24/10)
+
+- **Règle (JC, 24/10)** : « la MSP ne peut embaucher personne. Elle recouvre une SISA de membres
+  autonomes. Son coordinateur ne peut qu'exprimer un besoin et mettre en relation. » Même chose
+  pour les CPTS : les besoins du territoire suffisent, pas de compte recruteur ni d'annonces.
+- **Corrige la section 299**, qui faisait « recruter » une MSP comme un cabinet (« publiez le poste
+  de votre MSP », contrat pré-rempli). L'orientation des MSP vers le compte cabinet (d87be19) a été
+  annulée (d2fb3e8).
+- **Pages « maison de santé »** (kiné, infirmier ; `PORTES.MAISON_DE_SANTE`) :
+  - titre « Votre maison de santé a besoin d'un … ? » ; accroche : le coordinateur déclare le
+    besoin, les disponibles manifestent leur intérêt, la mise en relation se fait avec les membres,
+    chaque membre publie depuis son propre compte ;
+  - appel principal « Déclarer le besoin de la MSP » → demande de partenariat (`ctaPartenariat`,
+    `lienPartenariat("MSP")`), pas une inscription ;
+  - lien secondaire « Vous êtes membre de la MSP ? Publiez votre poste depuis votre compte
+    cabinet » (`src=membre-…`) ;
+  - bas de page commun (`basDePageMsp`) ; plus aucune mention de contrat ;
+  - les candidats disponibles restent affichés, avec « ouvert·e au salariat ».
+- **Page territoire** : « Vous coordonnez une maison de santé ? ».
+- **Essai** (schéma `essai_p42`) : deux pages rendues, liens vérifiés, image de partage 200,
+  aucune occurrence de « contrat ».
+- **Audit des comptes de structure (même jour)** : un seul compte « Établissement », une profession
+  par compte ; plusieurs professions par compte écarté pour l'instant (touche le fil et le score).
+
 ### SECTION 362 — PAGES « EMPLOI » ET « MAISON DE SANTÉ » : QUI EST MONTRÉ, SOUS QUELLE ÉTIQUETTE (24/10)
 
 - **Constat** (24/10, production) : la page « emploi » (établissements) montrait tous les candidats,

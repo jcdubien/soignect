@@ -180,11 +180,11 @@ export default async function Page() {
         <BlocPartenaire profession={PRO} inscription={lienPartenariat("CPTS", `partenaire-${PORTE.slug}-${PRO.slug}`)} porteSlug={PORTE.slug} />
       </div>
 
-      {/* Une MSP ou un établissement recrute : leur page est celle d'un employeur, pas celle-ci
-          (sections 299, 304). Les liens se dérivent du registre des pages publiées. */}
+      {/* Une MSP (besoin et mise en relation, 24/10) ou un établissement (employeur) ont leur
+          propre page (sections 299, 304). Les liens se dérivent du registre des pages publiées. */}
       <div className="mb-8 space-y-2">
       {[
-        { porte: PORTES.MAISON_DE_SANTE, question: "Vous êtes une maison de santé qui recrute ?" },
+        { porte: PORTES.MAISON_DE_SANTE, question: "Vous coordonnez une maison de santé ?" },
         { porte: PORTES.ETABLISSEMENT, question: "Vous êtes un EHPAD, une SSR, une clinique ou un hôpital ?" },
       ].map(({ porte, question }) => (
         <p key={porte.slug} className="text-sm text-gray-500">

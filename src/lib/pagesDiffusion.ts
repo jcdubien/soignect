@@ -227,6 +227,11 @@ export interface Porte {
   mentionGratuite?: boolean;
   /** Ce que le visiteur vient chercher, sous le CTA. */
   ctaSous: string;
+  /** L'appel ouvre la demande de partenariat de ce type au lieu de l'inscription (MSP, 24/10 :
+   *  une MSP n'a pas de compte recruteur, son coordinateur déclare un besoin). */
+  ctaPartenariat?: "MSP";
+  /** Titre de l'encart d'appel ; « Rejoignez Soignect » par défaut. */
+  titreAppel?: string;
   /** Image de partage (section 300) : titre COURT — l'image en a 600 px utiles, recadrée au carré
    *  par certaines destinations — et une phrase. */
   ogTitre: (p: Profession, t: Territoire) => string;
@@ -318,26 +323,28 @@ export const PORTES: Record<string, Porte> = {
     montre: "CANDIDAT",
     offrePartenaire: true,
   },
-  // Une MSP recrute comme un cabinet — même camp montré, mêmes types de poste — mais elle a un
-  // argument qu'un cabinet isolé n'a pas : l'exercice coordonné. La case existe sur l'annonce
-  // (section 190) et compte dans le score de compatibilité d'un candidat qui la recherche
-  // (`rechercheExerciceCoordonne`). On ne promet RIEN de plus : ni badge sur la carte, ni
-  // meilleur rang dans le fil — le fil trie sur la désirabilité, pas sur ce critère.
+  // UNE MSP N'EMBAUCHE PERSONNE (24/10, JC) : elle recouvre une SISA de membres autonomes. Son
+  // coordinateur exprime un besoin et met en relation ; chaque membre publie ses postes depuis son
+  // propre compte cabinet. La section 299 la faisait « recruter comme un cabinet » (« publiez le
+  // poste de votre MSP », contrat pré-rempli) : c'était faux. L'appel principal ouvre donc la
+  // demande de partenariat (besoins du territoire, lib/partenariat), pas une inscription.
   MAISON_DE_SANTE: {
     slug: "maison-de-sante",
     libelle: "Maison de santé (MSP)",
-    cible: "Maisons de santé pluriprofessionnelles qui recrutent — exercice coordonné",
-    titre: (p, t) => `Notre maison de santé cherche ${p.unSingulier} ${t.preposition} ${t.nom}`,
-    accroche: (p, t) =>
-      `${formesDuPoste(p)} : publiez le poste de votre MSP et cochez « exercice coordonné ». Les ${p.pluriel} disponibles ${t.preposition} ${t.nom} vous répondent sans intermédiaire, et le score de compatibilité en tient compte pour ceux qui recherchent ce mode d'exercice.`,
-    metaTitre: (p, t) => `Maison de santé ${t.preposition} ${t.nom} : recruter un ${p.court} — ${listePersonnes(p)} | Soignect`,
+    cible: "Coordinateurs de maisons de santé pluriprofessionnelles — besoin et mise en relation",
+    titre: (p, t) => `Votre maison de santé a besoin d'${p.unSingulier} ${t.preposition} ${t.nom} ?`,
+    accroche: () =>
+      "Le coordinateur de la MSP déclare le besoin, les professionnels disponibles manifestent leur intérêt, et la mise en relation se fait avec les membres. Chaque membre publie ses postes depuis son propre compte.",
+    metaTitre: (p, t) => `Maison de santé ${t.preposition} ${t.nom} : besoin ${p.deCourt} — déclarer et mettre en relation | Soignect`,
     metaDescription: (p, t) =>
-      `MSP de ${t.nom} : publiez vos postes ${p.deSingulier} et signalez l'exercice coordonné. ${listeTypes(p)} — ${p.contratPreRempli}, sans commission sur les honoraires.`,
-    cta: "Publier le poste de la MSP →",
-    ctaSous: "Publication gratuite pendant la bêta.",
-    ogTitre: (p) => `Votre maison de santé recrute ${p.unSingulier}`,
-    ogSousTitre: (p) => `${formesDuPoste(p)}. Publiez le poste et signalez l'exercice coordonné.`,
-    /** même camp que la porte CABINET : une MSP qui recrute vient voir qui est disponible. */
+      `MSP de ${t.nom} : déclarez le besoin de votre maison de santé en ${p.discipline}. Les ${p.pluriel} disponibles manifestent leur intérêt ; les membres publient leurs postes depuis leur compte.`,
+    cta: "Déclarer le besoin de la MSP →",
+    ctaPartenariat: "MSP",
+    titreAppel: "Déclarer le besoin de votre MSP",
+    ctaSous: "Le coordinateur exprime le besoin ; la mise en relation se fait avec les membres.",
+    ogTitre: (p) => `Votre maison de santé a besoin d'${p.unSingulier} ?`,
+    ogSousTitre: () => "Le coordinateur déclare le besoin, les professionnels disponibles se manifestent.",
+    /** même camp que la porte CABINET : la page montre qui est disponible. */
     montre: "CANDIDAT",
     offrePartenaire: true,
   },
@@ -472,5 +479,14 @@ export function metadonneesPage(porte: Porte, p: Profession, t: Territoire) {
     title: porte.metaTitre(p, t),
     description: porte.metaDescription(p, t),
     openGraph: { url: chemin, title: porte.metaTitre(p, t), description: porte.metaDescription(p, t), type: "website" as const },
+  };
+}
+
+/** Bas de page des pages « maison de santé » (24/10) — une seule écriture pour toutes les
+ *  professions. Une MSP n'embauche pas : son coordinateur déclare le besoin, les membres publient. */
+export function basDePageMsp(p: Profession, t: Territoire): { titre: string; texte: string } {
+  return {
+    titre: `Besoin d'${p.unSingulier} en maison de santé ${t.preposition} ${t.nom}`,
+    texte: `Une maison de santé pluriprofessionnelle n'embauche pas : ses membres exercent de façon autonome. Le coordinateur déclare le besoin de la MSP ; les ${p.pluriel} disponibles manifestent leur intérêt, et la mise en relation se fait avec les membres. Un membre qui cherche un confrère publie son poste depuis son compte cabinet et peut cocher « exercice coordonné » : un candidat qui recherche ce mode d'exercice le retrouve dans son score de compatibilité.`,
   };
 }
