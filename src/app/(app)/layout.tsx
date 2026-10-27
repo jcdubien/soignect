@@ -263,7 +263,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               actif alors que tout est débloqué pour tous. Réapparaît dès freeAccessMode=false. */}
           {/* …et masquée pour un établissement tant que son abonnement est fermé (22/10) : elle
               l'invitait à « passer Premium » vers une offre qu'il ne peut pas souscrire. */}
-          {profileType === "TITULAIRE" && souscriptionEnLigneOuverte(freeAccess) && (
+          {/* Établissements seulement : un praticien n'a rien à souscrire (27/10, lib/gratuite). */}
+          {profileType === "TITULAIRE" && profile?.titulaireKind === "STRUCTURE" && souscriptionEnLigneOuverte(freeAccess) && (
             <Link
               href="/premium"
               title={isPaid ? "Votre abonnement" : "Vous êtes en plan Gratuit — découvrir Premium"}

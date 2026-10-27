@@ -78,6 +78,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       subscriptionPlan: myProfile.subscriptionPlan,
       billingTriggeredAt: myProfile.billingTriggeredAt,
       isFounding: myProfile.isFounding,
+      estStructure: myProfile.titulaireKind === "STRUCTURE",
     }));
 
   // Type de contrat : l'annonce du TITULAIRE d'abord, comme la génération (section 238). Ce

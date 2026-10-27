@@ -15,6 +15,8 @@ import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
 import { accrocheProfilExemple } from "@/lib/exemplesPublication";
 import { CONSENTEMENT_WHATSAPP } from "@/lib/whatsapp";
+import { TARIF_STRUCTURE } from "@/lib/tarifsPartenaire";
+import { PRATICIENS_GRATUITS } from "@/lib/gratuite";
 
 const REGION_LABELS: Record<Region, string> = {
   GUADELOUPE: "Guadeloupe", SAINT_MARTIN: "Saint-Martin", SAINT_BARTH: "Saint-Barth",
@@ -22,9 +24,11 @@ const REGION_LABELS: Record<Region, string> = {
   MAYOTTE: "Mayotte", METROPOLE: "Métropole",
 };
 
+// Prix lus à la source unique (lib/tarifsPartenaire) ; Premium et Boost ne se vendent plus
+// (praticiens gratuits, 27/10) — leurs libellés restent pour un compte qui les porterait.
 const PLAN_LABELS: Record<SubscriptionPlan, string> = {
-  FREE: "Gratuit", PREMIUM: "Premium — 9€/mois", BOOST: "Boost — 29€/mois",
-  STRUCTURE: "Structure — 89€/mois + 20€/contrat",
+  FREE: "Gratuit", PREMIUM: "Premium", BOOST: "Boost",
+  STRUCTURE: `Structure — ${TARIF_STRUCTURE.mensuelEuros}€/mois + ${TARIF_STRUCTURE.parContratEuros}€/contrat`,
 };
 
 interface ProfileData {
@@ -467,7 +471,7 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
           </div>
           {kind === "STRUCTURE" && souscriptionOuverte && (
             <p className="text-[11px] text-gray-400 mt-2">
-              Les structures privées relèvent d&apos;une offre dédiée (89€/mois + 20€/contrat) — voir la page Premium.
+              Les structures privées relèvent d&apos;une offre dédiée ({TARIF_STRUCTURE.mensuelEuros}€/mois + {TARIF_STRUCTURE.parContratEuros}€/contrat) — voir la page Offre.
             </p>
           )}
         </section>
@@ -628,14 +632,15 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
             {profile.isFounding && (
               <p className="text-xs text-yellow-600 font-medium">⭐ Cabinet fondateur</p>
             )}
-            {profile.type === "REMPLACANT" && (
-              <p className="text-xs text-emerald-600 font-medium">
-                {salarieSeul ? "Accès gratuit à vie pour les candidat·es" : "Accès gratuit à vie pour les remplaçants"}
-              </p>
+            {profile.type === "REMPLACANT" && salarieSeul ? (
+              <p className="text-xs text-emerald-600 font-medium">Accès gratuit à vie pour les candidat·es</p>
+            ) : PRATICIENS_GRATUITS && profile.titulaireKind !== "STRUCTURE" && (
+              <p className="text-xs text-emerald-600 font-medium">Soignect est gratuit pour les praticiens</p>
             )}
           </div>
           {/* Souscription fermée (vente fermée ou mode gratuit, 23/10) : pas de « Passer Premium ». */}
-          {profile.type === "TITULAIRE" && profile.subscriptionPlan === "FREE" && souscriptionOuverte && (
+          {/* Établissements seulement : un praticien n'a rien à souscrire (27/10, lib/gratuite). */}
+          {profile.type === "TITULAIRE" && profile.titulaireKind === "STRUCTURE" && profile.subscriptionPlan === "FREE" && souscriptionOuverte && (
             <Link
               href="/premium"
               className="px-4 py-2 bg-kine-600 text-white text-xs font-bold rounded-xl hover:bg-kine-700 transition"

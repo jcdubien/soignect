@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
+import { souscriptionEnLigneOuverte, TARIF_STRUCTURE } from "@/lib/tarifsPartenaire";
 
 const DISMISS_KEY = "soignect_launch_banner_dismissed_v1";
 
@@ -40,7 +40,9 @@ export default function LaunchOfferBanner({
         // Abonné payant → pas de bandeau
         const paid = ["PREMIUM", "BOOST", "STRUCTURE"].includes(p.subscriptionPlan);
         if (paid) return;
-        setIsStructure(p.titulaireKind === "STRUCTURE");
+        // Établissements seulement : les praticiens sont gratuits (27/10, lib/gratuite).
+        if (p.titulaireKind !== "STRUCTURE") return;
+        setIsStructure(true);
         setVisible(true);
       })
       .catch(() => {});
@@ -68,9 +70,8 @@ export default function LaunchOfferBanner({
       <p className="text-xs sm:text-[13px] text-amber-900 min-w-0 flex-1 leading-snug">
         Vous êtes en <strong>plan Gratuit</strong>.{" "}
         <span className="text-amber-700">
-          {isStructure
-            ? "L'offre Établissement (89 €/mois + 20 €/contrat) débloque les vacations illimitées et l'accès aux profils."
-            : "Premium (dès 9 €/mois) débloque les annonces illimitées et l'accès aux scores des remplaçants."}
+          {isStructure &&
+            `L'offre Établissement (${TARIF_STRUCTURE.mensuelEuros} €/mois + ${TARIF_STRUCTURE.parContratEuros} €/contrat) débloque les vacations illimitées et l'accès aux profils.`}
         </span>
       </p>
       <Link

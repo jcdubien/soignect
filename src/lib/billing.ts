@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { sendBillingTriggeredEmail } from "@/lib/email";
 import { isFreeAccessMode } from "@/lib/platform";
 import { VENTE_EN_LIGNE_OUVERTE } from "@/lib/tarifsPartenaire";
+import { PRATICIENS_GRATUITS } from "@/lib/gratuite";
 
 // Bascule individuelle vers le payant (sections 99/100). Seuils configurables (pas de
 // valeur codée en dur dispersée dans le code).
@@ -22,6 +23,8 @@ export async function triggerBillingIfNeeded(profileId: string): Promise<boolean
   if (await isFreeAccessMode()) return false;
   const p = await prisma.profile.findUnique({ where: { id: profileId }, select: { titulaireKind: true } });
   if (p?.titulaireKind === "STRUCTURE" && !VENTE_EN_LIGNE_OUVERTE) return false;
+  // Un cabinet libéral n'est jamais basculé vers le payant : les praticiens sont gratuits (27/10).
+  if (PRATICIENS_GRATUITS && p?.titulaireKind !== "STRUCTURE") return false;
   const res = await prisma.profile.updateMany({
     where: { id: profileId, type: "TITULAIRE", billingTriggeredAt: null },
     data: { billingTriggeredAt: new Date() },

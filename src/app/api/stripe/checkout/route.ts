@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { appBaseUrl } from "@/lib/appUrl";
 import { souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
+import { PRATICIENS_GRATUITS } from "@/lib/gratuite";
 import { isFreeAccessMode } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,11 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { plan } = parsed.data;
+
+  // Praticiens gratuits (27/10, lib/gratuite) : plus d'abonnement Premium ni Boost à vendre.
+  if (PRATICIENS_GRATUITS && plan !== "STRUCTURE") {
+    return NextResponse.json({ error: "Soignect est gratuit pour les praticiens : aucun abonnement n'est nécessaire." }, { status: 410 });
+  }
 
   // Premium, Boost et Structure (23/10) : aucune souscription tant que la vente est fermée ou que
   // le mode gratuit est actif — même règle que les écrans.

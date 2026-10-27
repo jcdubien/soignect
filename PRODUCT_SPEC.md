@@ -7408,6 +7408,31 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 368 — GRATUIT POUR LES PRATICIENS, PAYANT POUR LES INSTITUTIONS (27/10)
+
+Décision de JC après l'audit du 27/10 : aucun compte payant sur 123 ; concurrence gratuite
+(Kinexion, MKDE, PhysioJob, Rempleo — contrat intégré —, groupes Facebook ; Kinejob 9 €,
+Physiorama 11,90 à 95,20 € : tarifs relevés chez un concurrent, **à vérifier**).
+
+- **Source unique** `lib/gratuite` : `PRATICIENS_GRATUITS = true` et la liste de ce qu'un praticien
+  a gratuitement (`GRATUIT_POUR_PRATICIEN`). Prix de l'abonnement Structure ramenés à
+  `TARIF_STRUCTURE` (lib/tarifsPartenaire) ; ils étaient écrits en dur dans quatre écrans.
+- **Accès** : `hasPremiumAccess` reçoit `estStructure` ; un praticien (`false` explicite) a tout,
+  mode lancement actif ou non. Les quatre appelants le passent (page et route du contrat,
+  `contrat-info`, page de mise en relation, fil). Un établissement garde la règle d'avant.
+- **Bascule payante** (`triggerBillingIfNeeded`) : jamais pour un cabinet libéral.
+- **Paiement** : Premium et Boost refusés (410) ; Structure inchangé (fermé tant que la vente l'est).
+- **/premium** (URL gardée pour les liens et emails existants) : pour un praticien, « Soignect est
+  gratuit pour les praticiens », la liste, et un lien vers l'offre partenaire ; pour un
+  établissement, l'offre Structure. Les cartes Premium 9 € et Boost 29 € ont disparu. Pastille
+  d'en-tête, bandeau et « Passer Premium » du compte : établissements seulement. Compte : « Soignect
+  est gratuit pour les praticiens ».
+- Non touché : le classement par plan (`desirability`, aucun compte payant), le webhook Stripe.
+- Essai `essai_p49` (purgé), **mode lancement désactivé** : cabinet et remplaçant ont l'accès
+  contrat, brouillon 200 ; contrat signé des deux côtés sans bascule payante ; établissement sans
+  accès (règle d'avant) ; paiement Premium et Boost 410, Structure 403 (vente fermée) ; /premium
+  vérifié dans le navigateur.
+
 ### SECTION 367 — CONTRAT EN TROIS GESTES ; TERMES FIGÉS À LA PREMIÈRE SIGNATURE (27/10)
 
 Audit du 27/10 (production) : 29 mises en relation, 4 contrats avec une signature, **1 signé des

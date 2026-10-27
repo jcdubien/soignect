@@ -1,3 +1,4 @@
+import { PRATICIENS_GRATUITS } from "@/lib/gratuite";
 import { prisma } from "@/lib/prisma";
 import { graceEndsAt } from "@/lib/billing";
 
@@ -32,7 +33,11 @@ export async function hasPremiumAccess(input?: {
   subscriptionPlan?: string | null;
   billingTriggeredAt?: Date | null;
   isFounding?: boolean | null;
+  /** Compte établissement (titulaireKind STRUCTURE). `false` explicite = praticien, gratuit
+   *  (PRATICIENS_GRATUITS, 27/10) ; absent = aucune exemption, règle d'avant. */
+  estStructure?: boolean | null;
 }): Promise<boolean> {
+  if (PRATICIENS_GRATUITS && input?.estStructure === false) return true;
   const plan = input?.subscriptionPlan;
   if (plan === "PREMIUM" || plan === "BOOST" || plan === "STRUCTURE") return true;
   // Cabinet fondateur : accès Premium À VIE, décision commerciale de Jean-Charles (06/08).

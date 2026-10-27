@@ -33,7 +33,7 @@ export default async function AnnoncesPage({ searchParams }: { searchParams: Pro
     });
     profession = me?.profession ?? null;
     titulaireKind = me?.titulaireKind ?? null;
-    isPremium = await hasPremiumAccess({ subscriptionPlan: me?.subscriptionPlan, billingTriggeredAt: me?.billingTriggeredAt, isFounding: me?.isFounding });
+    isPremium = await hasPremiumAccess({ subscriptionPlan: me?.subscriptionPlan, billingTriggeredAt: me?.billingTriggeredAt, isFounding: me?.isFounding, estStructure: me?.titulaireKind === "STRUCTURE" });
   }
 
   // Mode lancement gratuit : masque toute communication « gratuit → payant » (section 2).

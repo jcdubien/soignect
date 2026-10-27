@@ -25,6 +25,10 @@ export function souscriptionEnLigneOuverte(freeAccessMode: boolean): boolean {
 // /premium (89 €/mois + 20 € par contrat signé) — affichage ET route de paiement. Aucun compte
 // n'y était abonné. La commission au contrat est un point signalé à faire relire (section 7).
 
+/** Abonnement Structure (établissements privés) — affiché par /premium. Souscription fermée
+ *  (`souscriptionEnLigneOuverte`) ; montants à faire relire (section 7). */
+export const TARIF_STRUCTURE = { mensuelEuros: 89, parContratEuros: 20 } as const;
+
 export interface TarifPartenaire {
   cle: ClePalier;
   pour: string;

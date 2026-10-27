@@ -144,7 +144,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   // ou partenaire CPTS (Premium gratuit, item 25). Cohérent avec /annonces et /match/[id].
   const myProfile = role === "REMPLACE" && match.remplace ? match.remplace : role === "A" ? match.profileA : match.profileB;
   const mp = myProfile as typeof myProfile & { subscriptionPlan: SubscriptionPlan; billingTriggeredAt?: Date | null; institutionalPartner?: boolean; isFounding?: boolean };
-  const allowed = mp.institutionalPartner || await hasPremiumAccess({ subscriptionPlan: mp.subscriptionPlan, billingTriggeredAt: mp.billingTriggeredAt, isFounding: mp.isFounding });
+  const allowed = mp.institutionalPartner || await hasPremiumAccess({ subscriptionPlan: mp.subscriptionPlan, billingTriggeredAt: mp.billingTriggeredAt, isFounding: mp.isFounding, estStructure: myProfile.titulaireKind === "STRUCTURE" });
   if (!allowed) {
     return NextResponse.json({ error: "Fonctionnalité réservée aux abonnés Premium" }, { status: 403 });
   }
