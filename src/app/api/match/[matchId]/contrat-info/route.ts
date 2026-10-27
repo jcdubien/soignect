@@ -3,7 +3,7 @@ import { contratSalarie, natureDuContrat, modelesDuMatch } from "@/lib/contrats/
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
-import { missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
+import { missingContractLabels, missingContractFields, contractFieldLabel, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
 import { periodeParDefaut } from "@/lib/contrats/periode";
 import { cotesDuMatch, typeDeMissionDuContrat, roleDansLeMatch } from "@/lib/contrats/cotes";
 import { contratEtabliParLEmployeur } from "@/lib/contrats/gabaritsSalarie";
@@ -183,6 +183,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
       plafondEuros: missionTitulaire?.retrocessionPlafondEuros ?? null,
     },
     missingSelf,      // champs manquants du profil courant → lien /compte
+    // Les mêmes, avec leur clé : l'écran les demande au moment de signer, sans renvoyer vers
+    // /compte (27/10). Enregistrés par PATCH /api/profiles/{monProfileId}.
+    identiteAFournir: missingContractFields(myProfile).map((cle) => ({ cle, label: contractFieldLabel(cle, myProfile) })),
+    monProfileId: myProfile.id,
+    // Termes figés à la première signature (lib/contrats/termes) — l'écran les montre au lieu du
+    // formulaire. null = encore modifiables.
+    termes: match.termesContrat ?? null,
     missingOther,     // champs manquants de l'autre partie → message informatif
     enforce,          // true = blocage dur ; false = avertissement non bloquant
     isSalariat,       // recruteur = structure employeuse → pas de PDF libéral (section 161)

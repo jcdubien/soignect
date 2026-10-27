@@ -7408,6 +7408,39 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 367 — CONTRAT EN TROIS GESTES ; TERMES FIGÉS À LA PREMIÈRE SIGNATURE (27/10)
+
+Audit du 27/10 (production) : 29 mises en relation, 4 contrats avec une signature, **1 signé des
+deux côtés** ; identité contractuelle complète sur 9 profils sur 123. C'est la fuite principale.
+
+- **Défaut trouvé : les termes n'étaient stockés nulle part.** Chaque partie recalculait le contrat
+  depuis SON écran (paramètres de la route de génération) : le cabinet réglait 75 % et signait, le
+  remplaçant voyait les valeurs par défaut ; le PDF « officiel » dépendait de qui le téléchargeait.
+- **Termes figés** (`Match.termesContrat`, migration additive `20261027130000_match_termes_contrat`,
+  `lib/contrats/termes`) : la première signature enregistre la chaîne de paramètres affichée
+  (sans `draft`, écriture conditionnelle) ; la seconde partie signe ces termes ; la route de
+  génération les lit en priorité, brouillon comme officiel. « Annuler pour corriger » les efface.
+  Contrats antérieurs (termes null) : paramètres de l'écran, inchangé.
+- **Écran** (« Votre contrat ») : un résumé en quelques lignes lu sur la même chaîne que le PDF
+  (modèle, période, rétrocession ou redevance, salaire, balnéo, télétransmission, non-installation /
+  non-concurrence, paiement) ; « Relire le contrat (PDF) » et « Partager » dans ce bloc ; le
+  formulaire complet replié sous « Modifier les conditions » (ouvert d'office s'il reste un modèle
+  à choisir ou un salaire à saisir), absent une fois les termes figés.
+- **Identité demandée au moment de signer** : les champs manquants du signataire (RPPS, n° Ordre,
+  adresse, SIRET selon le profil ; `contrat-info.identiteAFournir`) s'affichent au-dessus du bouton
+  de signature et sont enregistrés sur le profil (PATCH `/api/profiles/{id}`) avant la signature.
+  Plus de détour par /compte. Laissés vides : « à compléter » au contrat, comme avant
+  (`enforceContractProfile` reste à false).
+- Parcours d'un signataire avec signature conservée : ouvrir le contrat → (relire) → signer.
+- Essai `essai_p48` (purgé ; faux stockage local, rien envoyé au stockage réel) : termes stockés
+  sans `draft` ; l'autre partie voit les mêmes ; un brouillon demandé avec d'autres paramètres
+  reste à 75 % / 15 km ; seconde signature avec d'autres termes : termes inchangés ; PDF officiel
+  identique pour les deux ; annulation après deux signatures 409 ; annuler pour corriger efface
+  termes et signatures ; sans termes figés, l'écran fait foi ; signature sans termes (ancien
+  navigateur) : termes restés null. Navigateur : résumé, formulaire replié, champ N° Ordre, puis
+  signature depuis l'écran — termes figés, N° Ordre enregistré, avertissement disparu.
+- **Mise en production** : migration avant le push, comme la section 366.
+
 ### SECTION 366 — REMPLACEMENT D'UN ASSISTANT DU CABINET : L'ASSISTANT EST LA PARTIE QUI SIGNE (27/10)
 
 JC : « il peut être la partie qui signe quand il est remplacé ».

@@ -30,6 +30,11 @@ interface MatchInfo {
   contratEtabliParLEmployeur?: boolean;
   /** Profession du contrat — nomme l'ordre et l'article de code exacts (section 240). */
   profession?: string;
+  /** Identité manquante du lecteur, demandée au moment de signer (27/10). */
+  identiteAFournir?: { cle: string; label: string }[];
+  monProfileId?: string;
+  /** Termes figés à la première signature (lib/contrats/termes) — null = encore modifiables. */
+  termes?: string | null;
   /** Durée, préavis et non-concurrence (section 237, lot 4). */
   defautsDuree?: {
     preavisJours: number; preavisCommunAccordJours: number; preavisUnilateralJours: number;
@@ -69,6 +74,7 @@ interface SigStatus {
   /** Le lecteur suit le contrat sans le signer : un assistant du cabinet est le remplacé (27/10). */
   observateur?: boolean;
   nomRemplace?: string | null;
+  termesFiges?: boolean;
 }
 
 const SIGNATURE_LEGAL =
@@ -286,6 +292,27 @@ export default function ContratPage() {
   const [enregistrerSignature, setEnregistrerSignature] = useState(false);
   const [oubliEnCours, setOubliEnCours] = useState(false);
   const [annulEnCours, setAnnulEnCours] = useState(false);
+  // Identité saisie au moment de signer (27/10) — plus de détour par /compte.
+  const [identite, setIdentite] = useState<Record<string, string>>({});
+
+  /** Recharge les infos du contrat sans toucher au formulaire (termes figés, identité). */
+  function rechargerInfo() {
+    fetch(`/api/match/${id}/contrat-info`).then(r => (r.ok ? r.json() : null)).then(d => { if (d) setInfo(d); }).catch(() => {});
+  }
+
+  /** Avant une signature : enregistre l'identité saisie sur la page et joint les termes affichés,
+   *  que la première signature fige (lib/contrats/termes). `false` = ne pas signer. */
+  async function preparerSignature(fd: FormData): Promise<boolean> {
+    const saisie = Object.fromEntries(Object.entries(identite).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v));
+    if (Object.keys(saisie).length > 0 && info?.monProfileId) {
+      const r = await fetch(`/api/profiles/${info.monProfileId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(saisie),
+      });
+      if (!r.ok) { setError("Impossible d'enregistrer votre identité professionnelle."); return false; }
+    }
+    if (!info?.termes) fd.append("termes", buildUrl(false).split("?")[1] ?? "");
+    return true;
+  }
 
   function loadSig() {
     fetch(`/api/match/${id}/signature`).then(r => (r.ok ? r.json() : null)).then(setSig).catch(() => {});
@@ -362,10 +389,12 @@ export default function ContratPage() {
       fd.append("file", file);
       // N'est proposé — donc n'est transmis — que si aucune signature n'est déjà conservée.
       if (enregistrerSignature && !sig?.signatureEnregistree) fd.append("enregistrer", "true");
+      if (!(await preparerSignature(fd))) return;
       const res = await fetch(`/api/match/${id}/signature`, { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error ?? "Échec de l'envoi de la signature."); return; }
       loadSig();
+      rechargerInfo();
     } catch {
       setError("Erreur réseau lors de l'envoi de la signature.");
     } finally {
@@ -380,10 +409,12 @@ export default function ContratPage() {
     try {
       const fd = new FormData();
       fd.append("reutiliser", "true");
+      if (!(await preparerSignature(fd))) return;
       const res = await fetch(`/api/match/${id}/signature`, { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error ?? "Échec de l'apposition de la signature."); return; }
       loadSig();
+      rechargerInfo();
     } catch {
       setError("Erreur réseau lors de l'apposition de la signature.");
     } finally {
@@ -406,6 +437,7 @@ export default function ContratPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error ?? "Impossible d'annuler ce contrat."); return; }
       loadSig();
+      rechargerInfo();
     } catch {
       setError("Erreur réseau lors de l'annulation.");
     } finally {
@@ -837,13 +869,47 @@ export default function ContratPage() {
   // exactement le défaut qu'on ferme depuis deux semaines.
   const repartitionIncomplete =
     tempsPartiel && repartition.filter(r => r.jour && r.debut && r.fin).length === 0;
+  // Termes figés : le PDF ne lit plus l'écran, il n'y a donc plus rien à y compléter.
+  const termesFiges = !!info.termes;
   const salariatIncomplet =
-    !!info.isSalariat && (!remuneration || Number(remuneration) <= 0 || repartitionIncomplete);
+    !termesFiges && !!info.isSalariat && (!remuneration || Number(remuneration) <= 0 || repartitionIncomplete);
 
   const theirSigned = sig ? (sig.mySide === "titulaire" ? sig.remplacantSigned : sig.titulaireSigned) : false;
   const bothSigned  = !!sig?.bothSigned;
   const locked      = bothSigned; // formulaire verrouillé une fois le contrat officiel
   const oneSigned   = !!sig && !bothSigned && (sig.mineSigned || theirSigned);
+
+  // ── Résumé des termes (27/10) ──────────────────────────────────────────────────────────
+  // Ce que dira le contrat, en quelques lignes, lu sur la MÊME chaîne de paramètres que le PDF :
+  // les termes figés s'il y en a, sinon ceux de l'écran. Il remplace la lecture du formulaire
+  // entier pour la plupart des contrats — le formulaire reste accessible, replié.
+  const termesAffiches = new URLSearchParams(info.termes ?? (buildUrl(false).split("?")[1] ?? ""));
+  const euros = (v: number | null | undefined) => (v ?? 0).toLocaleString("fr-FR");
+  const lignesResume: string[] = [];
+  {
+    const t = termesAffiches;
+    const g = info.gabarits?.find((x) => x.id === t.get("gabaritId"));
+    if (g) lignesResume.push(`Modèle : ${g.libelle}`);
+    const debut = t.get("dateDebut"), fin = t.get("dateFin");
+    if (debut || fin) lignesResume.push(`Période : ${periodeAnnonce({ debut: debut || null, fin: fin || null })}`);
+    if (t.has("retrocessionPct")) lignesResume.push(`Rétrocession au remplaçant : ${t.get("retrocessionPct")} %`);
+    if (t.has("redevancePct")) {
+      lignesResume.push(retrocession.mode === "FIXE"
+        ? `Redevance forfaitaire : ${euros(retrocession.fixeEuros)} € par mois`
+        : `Redevance au titulaire : ${t.get("redevancePct")} %${retrocession.mode === "PLAFONNEE" && retrocession.plafondEuros ? `, plafonnée à ${euros(retrocession.plafondEuros)} € par mois` : ""}`);
+    }
+    if (t.get("remunerationBrutMensuelle")) lignesResume.push(`Salaire brut mensuel : ${euros(Number(t.get("remunerationBrutMensuelle")))} €`);
+    const balneoT = t.get("balneo") as OptionBalneo | null, teleT = t.get("aideTeletransmission") as OptionTeletransmission | null;
+    if (balneoT && LIBELLE_BALNEO[balneoT]) lignesResume.push(`Balnéothérapie : ${LIBELLE_BALNEO[balneoT]}`);
+    if (teleT && LIBELLE_TELETRANSMISSION[teleT]) lignesResume.push(`Aide à la télétransmission : ${LIBELLE_TELETRANSMISSION[teleT]}`);
+    if (t.has("rayonKm")) lignesResume.push(`${isRemplacement ? "Non-installation" : "Non-concurrence"} : ${t.get("rayonKm")} km${t.has("dureeAns") ? `, ${t.get("dureeAns")} an${Number(t.get("dureeAns")) > 1 ? "s" : ""}` : ""}`);
+    if (t.get("periodeEssai") === "true") lignesResume.push("Période d'essai : oui");
+    if (t.get("modePaiement")) lignesResume.push(`Paiement : ${t.get("modePaiement")}, sous ${t.get("delaiPaiementJours") ?? "5"} jours`);
+  }
+  // Le formulaire s'ouvre d'office quand il reste quelque chose à y faire : un modèle à choisir,
+  // ou le salaire d'un contrat de travail.
+  const formulaireOuvert = (!gabaritId && (info.gabarits?.length ?? 0) > 1) || salariatIncomplet;
+  const identiteAFournir = info.identiteAFournir ?? [];
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8 flex flex-col gap-6">
@@ -853,7 +919,7 @@ export default function ContratPage() {
         <Link href={`/match/${id}`} className="text-sm text-gray-400 hover:text-kine-600 transition">
           ← Retour au match
         </Link>
-        <h1 className="text-xl font-black text-gray-900 mt-3">Générer le contrat PDF</h1>
+        <h1 className="text-xl font-black text-gray-900 mt-3">Votre contrat</h1>
         <p className="text-sm text-gray-500 mt-1">
           {typeLabel} · {info.theirName ?? "Autre partie"}
         </p>
@@ -865,7 +931,7 @@ export default function ContratPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-800">
           ⚠️ <strong>Informations manquantes pour le contrat.</strong>
           {missingSelf.length > 0 && (
-            <> Votre profil : {missingSelf.join(", ")} — <Link href="/compte" className="underline font-semibold">compléter mon profil</Link>.</>
+            <> Votre profil : {missingSelf.join(", ")} — à renseigner au moment de signer, plus bas.</>
           )}
           {missingOther.length > 0 && (
             <> {info.theirName ?? "L'autre partie"} doit compléter : {missingOther.join(", ")}.</>
@@ -880,6 +946,57 @@ export default function ContratPage() {
         </div>
       )}
 
+      {/* ── Résumé et relecture (27/10) ─────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
+        <h2 className="text-sm font-bold text-gray-800">{termesFiges || bothSigned ? "Les termes du contrat" : "Ce que dira le contrat"}</h2>
+        <ul className="text-sm text-gray-700 flex flex-col gap-1 list-none p-0 m-0">
+          {lignesResume.map((l) => <li key={l}>{l}</li>)}
+        </ul>
+        {termesFiges && !bothSigned && (
+          <p className="text-xs text-gray-500">
+            Fixés par la première signature : l&apos;autre partie signe exactement ces termes. Pour les
+            changer, annulez le contrat plus bas.
+          </p>
+        )}
+        {!bothSigned && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => handleGenerate(true)}
+              disabled={generating || salariatIncomplet}
+              className="px-4 py-2 bg-white border-2 border-kine-300 text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition disabled:opacity-60"
+            >
+              {generating ? "Génération…" : "Relire le contrat (PDF)"}
+            </button>
+            {partageFichier && (
+              <button onClick={() => handleGenerate(true, true)} disabled={generating || salariatIncomplet}
+                className="text-sm font-semibold text-kine-700 underline disabled:opacity-60">
+                Partager (WhatsApp, mail…)
+              </button>
+            )}
+          </div>
+        )}
+        {/* Le brouillon est bloqué lui aussi tant que le salaire manque : laisser relire un
+            salaire inventé serait pire que de ne rien produire. */}
+        {salariatIncomplet && (
+          <p className="text-xs text-amber-700">
+            Complétez la rémunération{repartitionIncomplete ? " et la répartition des horaires" : ""} dans
+            « Modifier les conditions » pour générer le contrat.
+          </p>
+        )}
+        {!bothSigned && (
+          <p className="text-[11px] text-gray-400">
+            Aperçu filigrané « non officiel ». Le PDF officiel, avec les signatures, est disponible
+            quand les deux parties ont signé.
+          </p>
+        )}
+      </div>
+
+      {/* Conditions détaillées — repliées : les valeurs reprises de l'annonce suffisent le plus
+          souvent. Absentes une fois les termes figés (l'écran ne les lit plus). */}
+      {!termesFiges && (
+      <details open={formulaireOuvert} className="group flex flex-col gap-6">
+      <summary className="cursor-pointer list-none text-sm font-semibold text-kine-700 underline mb-4">Modifier les conditions</summary>
+      <div className="flex flex-col gap-6">
       {/* Formulaire */}
       <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-5 ${locked ? "opacity-60 pointer-events-none" : ""}`}>
 
@@ -1702,6 +1819,9 @@ export default function ContratPage() {
         )}
       </div>
       )}
+      </div>
+      </details>
+      )}
 
       {/* Mention légale */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-xs text-amber-700">
@@ -1791,6 +1911,26 @@ export default function ContratPage() {
               className="hidden"
               onChange={handleSignFile}
             />
+            {/* Identité professionnelle demandée ICI (27/10) : elle figure au contrat, et le
+                détour par /compte perdait la plupart des signataires. Enregistrée sur le profil
+                au moment de signer ; laissée vide, le contrat porte « à compléter ». */}
+            {!sig?.mineSigned && identiteAFournir.length > 0 && (
+              <fieldset className="flex flex-col gap-2 border border-amber-200 bg-amber-50 rounded-xl p-3">
+                <legend className="text-xs font-semibold text-amber-800 px-1">Votre identité pour le contrat</legend>
+                {identiteAFournir.map((c) => (
+                  <label key={c.cle} className="text-xs font-semibold text-gray-700">
+                    {c.label}
+                    <input
+                      value={identite[c.cle] ?? ""}
+                      onChange={(e) => setIdentite((v) => ({ ...v, [c.cle]: e.target.value }))}
+                      maxLength={c.cle === "adresse" ? 200 : 30}
+                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-normal"
+                    />
+                  </label>
+                ))}
+                <p className="text-[11px] text-amber-700">Enregistrée sur votre profil quand vous signez. Laissée vide, le contrat portera « à compléter ».</p>
+              </fieldset>
+            )}
             {/* ── Signature conservée (section 242) ────────────────────────────────────
                 Deux chemins, jamais un seul : la signature déjà conservée est proposée en
                 premier, mais reprendre une photo reste toujours accessible — une signature
@@ -1880,36 +2020,6 @@ export default function ContratPage() {
           className="mt-2 w-full py-3 bg-white border-2 border-kine-300 text-kine-700 rounded-2xl font-bold text-sm disabled:opacity-60">
           Partager le PDF officiel
         </button>
-      )}
-      {bothSigned ? null : (
-        <div className="flex flex-col items-center gap-2">
-          <button
-            onClick={() => handleGenerate(true)}
-            disabled={generating || salariatIncomplet}
-            className="w-full py-4 bg-white border-2 border-kine-300 text-kine-700 rounded-2xl font-bold text-base shadow-sm hover:bg-kine-50 active:scale-[0.98] transition disabled:opacity-60"
-          >
-            {generating ? "Génération en cours…" : "Télécharger l'aperçu (brouillon) →"}
-          </button>
-          {partageFichier && (
-            <button onClick={() => handleGenerate(true, true)} disabled={generating || salariatIncomplet}
-              className="text-sm font-semibold text-kine-700 underline disabled:opacity-60">
-              Partager l&apos;aperçu (WhatsApp, mail…)
-            </button>
-          )}
-          {/* Le brouillon est bloqué lui aussi, et non le seul PDF officiel : son objet est la
-              relecture avant signature, et laisser relire un salaire inventé serait pire que de
-              ne rien produire. */}
-          {salariatIncomplet && (
-            <p className="text-xs text-amber-700 text-center">
-              Complétez la rémunération{repartitionIncomplete ? " et la répartition des horaires" : ""} pour
-              générer le contrat.
-            </p>
-          )}
-          <p className="text-xs text-gray-400 text-center">
-            Document filigrané « non officiel », pour relecture avant signature. Le PDF officiel
-            (sans filigrane, avec les signatures) sera disponible une fois les deux parties signées.
-          </p>
-        </div>
       )}
     </div>
   );

@@ -14,6 +14,7 @@ import {
   BUCKET_SIGNATURES, cheminSignatureProfil, copierSignatureVersMatch,
 } from "@/lib/signatureEnregistree";
 import { roleDansLeMatch, coteDeSignature } from "@/lib/contrats/cotes";
+import { normaliserTermes } from "@/lib/contrats/termes";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -79,6 +80,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
     mySide: side,
     observateur: sideReel === null,
     nomRemplace: match.remplace?.name ?? null,
+    termesFiges: !!match.termesContrat,
     titulaireSigned,
     remplacantSigned,
     titulaireAt: match.signatureTitulaireAt,
@@ -145,6 +147,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     data: {
       signatureTitulaireUrl: null, signatureTitulaireAt: null,
       signatureRemplacantUrl: null, signatureRemplacantAt: null,
+      // Les termes redeviennent modifiables : c'est l'objet même de l'annulation.
+      termesContrat: null,
     },
   });
 
@@ -300,6 +304,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
   }
 
   const now = new Date();
+  // Termes figés (27/10, lib/contrats/termes) : la PREMIÈRE signature fige ce que l'écran du
+  // signataire affiche ; ensuite, plus personne ne les modifie — la seconde partie signe ceux-là.
+  // Un navigateur ancien qui n'envoie rien laisse le comportement d'avant (termes non figés).
+  // Écriture conditionnelle : deux premières signatures simultanées ne peuvent pas s'écraser.
+  const termes = match.termesContrat ? null : normaliserTermes(form?.get("termes"));
+  if (termes) {
+    await prisma.match.updateMany({ where: { id: matchId, termesContrat: null }, data: { termesContrat: termes } });
+  }
   const updated = await prisma.match.update({
     where: { id: matchId },
     data: side === "titulaire"

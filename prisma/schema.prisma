@@ -584,6 +584,11 @@ model Match {
   signatureTitulaireAt    DateTime?
   signatureRemplacantUrl  String?
   signatureRemplacantAt   DateTime?
+  // Termes du contrat FIGÉS à la première signature (27/10) : la chaîne de paramètres que lit la
+  // route de génération. L'autre partie signe exactement ces termes, et le PDF officiel est le même
+  // pour les deux. Null = pas encore figés (et contrats antérieurs : paramètres de l'écran, comme
+  // avant). Effacés par « Annuler pour corriger ».
+  termesContrat           String?
 
   // UNICITÉ (section 209) — elle porte désormais sur la PAIRE DE MISSIONS, plus sur la paire
   // de personnes : un cabinet et un candidat ouverts à la fois au remplacement et à

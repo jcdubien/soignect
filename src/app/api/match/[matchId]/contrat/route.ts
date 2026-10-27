@@ -23,6 +23,7 @@ import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractFields } from "@/lib/contractProfile";
 import { periodeParDefaut, periodeDemandee } from "@/lib/contrats/periode";
 import { cotesDuMatch, typeDeMissionDuContrat, roleDansLeMatch } from "@/lib/contrats/cotes";
+import { parametresDuContrat } from "@/lib/contrats/termes";
 import { lireOption, OPTIONS_BALNEO, OPTIONS_TELETRANSMISSION } from "@/lib/contrats/clausesHonoraires";
 import {
   lieuTravailParDefaut,
@@ -218,8 +219,9 @@ export async function GET(req: NextRequest, { params }: Params) {
   const titulaireParty = partyFromProfile(signataireTitulaire, locationTitulaire);
   const autreParty     = partyFromProfile(profileAutre, locationAutre);
 
-  // Paramètres depuis query string
-  const sp = new URL(req.url).searchParams;
+  // Paramètres : les termes FIGÉS à la première signature s'il y en a (27/10, lib/contrats/termes)
+  // — les deux parties signent et téléchargent alors le même contrat — sinon ceux de l'écran.
+  const sp = parametresDuContrat(match.termesContrat, new URL(req.url).searchParams);
   const rayonKm      = Math.max(1, parseInt(sp.get("rayonKm")      ?? "20", 10));
   const dureeAns     = Math.max(1, parseInt(sp.get("dureeAns")     ?? "2",  10));
   const periodeEssai = sp.get("periodeEssai") === "true";
