@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { COMMUNES_GUADELOUPE } from "@/lib/communes";
-import { confreresAjoutes } from "@/lib/confrereHorsSoignect";
+import { confreresAjoutes, assistantsRattaches } from "@/lib/confrereHorsSoignect";
 import ConfreresClient from "./ConfreresClient";
 import { modesRedevanceAutorises } from "@/lib/retrocession";
 
@@ -22,6 +22,7 @@ export default async function ConfreresPage() {
       communeParDefaut={derniere?.location && (COMMUNES_GUADELOUPE as readonly string[]).includes(derniere.location) ? derniere.location : ""}
       initiaux={await confreresAjoutes(profileId)}
       modesRedevance={modesRedevanceAutorises("ASSISTANAT", false, p.profession)}
+      assistants={(await assistantsRattaches(profileId)).map(({ postId, nom }) => ({ postId, nom }))}
     />
   );
 }

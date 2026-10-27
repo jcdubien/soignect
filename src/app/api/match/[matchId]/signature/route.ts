@@ -13,6 +13,7 @@ import { missingContractFields, missingContractLabels, CONTRACT_IDENTITY_SELECT 
 import {
   BUCKET_SIGNATURES, cheminSignatureProfil, copierSignatureVersMatch,
 } from "@/lib/signatureEnregistree";
+import { roleDansLeMatch, coteDeSignature } from "@/lib/contrats/cotes";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,20 +21,33 @@ export const runtime = "nodejs";
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
-// Côté de signature de l'utilisateur courant : le titulaire (recruteur) signe le
-// slot "titulaire", tout autre profil signe le slot "remplacant".
-function mySide(type: string): "titulaire" | "remplacant" {
-  return type === "TITULAIRE" ? "titulaire" : "remplacant";
-}
+// Côté de signature de l'utilisateur courant : le titulaire (recruteur) signe le slot
+// "titulaire", tout autre profil signe le slot "remplacant" — sauf quand un assistant du cabinet
+// est le remplacé (27/10) : c'est lui qui signe le slot "titulaire", et le titulaire du compte
+// voit le contrat sans le signer. Voir lib/contrats/cotes.
 
 async function loadMatch(matchId: string, profileId: string) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
-    include: { profileA: { select: { type: true } }, profileB: { select: { type: true } } },
+    include: { profileA: { select: { type: true } }, profileB: { select: { type: true } }, remplace: { select: { name: true } } },
   });
   if (!match) return null;
-  if (match.profileAId !== profileId && match.profileBId !== profileId) return null;
+  if (!roleDansLeMatch(match, profileId)) return null;
   return match;
+}
+
+/** Les autres personnes à prévenir : toutes les parties du match sauf le lecteur. Sans remplacé
+ *  désigné, c'est exactement « l'autre partie », comme avant. */
+function autresParties(match: { profileAId: string; profileBId: string; remplaceProfileId: string | null }, profileId: string): string[] {
+  return [match.profileAId, match.profileBId, match.remplaceProfileId]
+    .filter((x): x is string => !!x && x !== profileId);
+}
+
+function libelleSignataire(match: { profileAId: string; profileBId: string; remplaceProfileId: string | null; profileA: { type: string }; profileB: { type: string } }, profileId: string): string {
+  const role = roleDansLeMatch(match, profileId);
+  if (role === "REMPLACE") return "Le remplacé";
+  const type = role === "A" ? match.profileA.type : match.profileB.type;
+  return type === "TITULAIRE" ? "Le cabinet" : "Le remplaçant";
 }
 
 // GET — statut des signatures du match
@@ -45,8 +59,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
   const match = await loadMatch(matchId, session.user.profileId as string);
   if (!match) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
-  const myProfile = match.profileAId === session.user.profileId ? match.profileA : match.profileB;
-  const side = mySide(myProfile.type);
+  // `observateur` : le titulaire du compte quand un assistant est le remplacé — il suit les
+  // signatures du point de vue du cabinet, sans bouton pour signer.
+  const sideReel = coteDeSignature(match, session.user.profileId as string);
+  const side = sideReel ?? "titulaire";
   const titulaireSigned = !!match.signatureTitulaireUrl;
   const remplacantSigned = !!match.signatureRemplacantUrl;
 
@@ -61,6 +77,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ mat
   return NextResponse.json({
     signatureEnregistree: !!moi?.signatureUrl,
     mySide: side,
+    observateur: sideReel === null,
+    nomRemplace: match.remplace?.name ?? null,
     titulaireSigned,
     remplacantSigned,
     titulaireAt: match.signatureTitulaireAt,
@@ -139,24 +157,24 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   // L'autre partie doit l'apprendre. Elle a peut-être déjà le PDF sous les yeux.
-  const myProfile = match.profileAId === session.user.profileId ? match.profileA : match.profileB;
-  const autreProfileId = match.profileAId === session.user.profileId ? match.profileBId : match.profileAId;
-  const annuleParLabel = myProfile.type === "TITULAIRE" ? "Le cabinet" : "Le remplaçant";
-  const autre = await prisma.profile.findUnique({
-    where: { id: autreProfileId },
-    select: { user: { select: { id: true, email: true, emailOptIn: true } } },
-  });
-  if (autre?.user) {
-    await createNotification({
-      userId: autre.user.id,
-      type: "signature",
-      message: `${annuleParLabel} a annulé le contrat pour le corriger — ne signez pas la version précédente.`,
-      linkUrl: `/match/${matchId}/contrat`,
+  const annuleParLabel = libelleSignataire(match, session.user.profileId as string);
+  for (const autreProfileId of autresParties(match, session.user.profileId as string)) {
+    const autre = await prisma.profile.findUnique({
+      where: { id: autreProfileId },
+      select: { user: { select: { id: true, email: true, emailOptIn: true } } },
     });
-    if (autre.user.email) {
-      await sendContratAnnuleEmail(autre.user.email, {
-        annuleParLabel, matchId, optIn: autre.user.emailOptIn,
+    if (autre?.user) {
+      await createNotification({
+        userId: autre.user.id,
+        type: "signature",
+        message: `${annuleParLabel} a annulé le contrat pour le corriger — ne signez pas la version précédente.`,
+        linkUrl: `/match/${matchId}/contrat`,
       });
+      if (autre.user.email) {
+        await sendContratAnnuleEmail(autre.user.email, {
+          annuleParLabel, matchId, optIn: autre.user.emailOptIn,
+        });
+      }
     }
   }
 
@@ -172,8 +190,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
   const match = await loadMatch(matchId, session.user.profileId as string);
   if (!match) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
 
-  const myProfile = match.profileAId === session.user.profileId ? match.profileA : match.profileB;
-  const side = mySide(myProfile.type);
+  const side = coteDeSignature(match, session.user.profileId as string);
+  if (!side) {
+    return NextResponse.json(
+      { error: `C'est ${match.remplace?.name ?? "l'assistant remplacé"} qui signe ce contrat, en tant que remplacé.` },
+      { status: 403 },
+    );
+  }
 
   // Identité contractuelle (section 150) — MÊME garde que la génération du PDF, appliqué ici
   // aussi. Il ne vivait que dans contrat/route.ts : le parcours normal était bien fermé (sans
@@ -182,7 +205,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
   // est incomplète. Une signature engage : elle mérite le même contrôle que le document.
   if (await isContractProfileEnforced()) {
     const parties = await prisma.profile.findMany({
-      where: { id: { in: [match.profileAId, match.profileBId] } },
+      // Les deux SIGNATAIRES : le remplacé désigné prend la place du titulaire du compte.
+      where: { id: { in: match.remplaceProfileId
+        ? [match.remplaceProfileId, match.profileA.type === "TITULAIRE" ? match.profileBId : match.profileAId]
+        : [match.profileAId, match.profileBId] } },
       // Liste dérivée de la source unique (section 236), plus recopiée : cette copie-ci avait
       // oublié `name`, et bloquait la signature de tout le monde sur un champ pourtant rempli.
       select: { id: true, ...CONTRACT_IDENTITY_SELECT },
@@ -286,9 +312,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
 
   // Notification à l'autre partie — une signature vient d'être apposée (section notifications).
   // Fire-and-forget, soumise au consentement email global (emailOptIn).
-  const otherProfileId = match.profileAId === session.user.profileId ? match.profileBId : match.profileAId;
-  const signerLabel = myProfile.type === "TITULAIRE" ? "Le cabinet" : "Le remplaçant";
-  prisma.profile
+  const signerLabel = libelleSignataire(match, session.user.profileId as string);
+  for (const otherProfileId of autresParties(match, session.user.profileId as string)) prisma.profile
     .findUnique({
       where: { id: otherProfileId },
       select: { user: { select: { id: true, email: true, emailOptIn: true } } },

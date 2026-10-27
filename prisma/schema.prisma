@@ -325,6 +325,7 @@ model Profile {
   messagesSent              Message[]
   matchesA                  Match[]          @relation("MatchProfileA")
   matchesB                  Match[]          @relation("MatchProfileB")
+  matchesRemplace           Match[]          @relation("MatchRemplace")
   cabinetRatingsGiven       CabinetRating[]  @relation("CabinetRatingRater")
   cabinetRatingsReceived    CabinetRating[]  @relation("CabinetRatingRated")
   remplacantRatingsGiven    RemplacantRating[] @relation("RemplacantRatingRater")
@@ -566,6 +567,12 @@ model Match {
   // Relation convenue HORS Soignect, saisie par le titulaire (24/10, lib/confrereHorsSoignect) :
   // le compte du confrère a été créé à cette occasion et s'active par lien. Défaut false.
   horsSoignect      Boolean     @default(false)
+  // Partie REMPLACÉE quand ce n'est pas le titulaire du compte (27/10) : un assistant rattaché à
+  // un poste du cabinet, remplacé pendant son absence. Il figure au contrat et signe à la place
+  // du titulaire du compte, qui garde la mission dans son Planning. Null = le titulaire (défaut,
+  // tous les contrats antérieurs).
+  remplaceProfileId String?
+  remplace          Profile?    @relation("MatchRemplace", fields: [remplaceProfileId], references: [id], onDelete: SetNull)
   ratings           Rating[]
   cabinetRatings    CabinetRating[]
   remplacantRatings RemplacantRating[]

@@ -7408,6 +7408,36 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 366 — REMPLACEMENT D'UN ASSISTANT DU CABINET : L'ASSISTANT EST LA PARTIE QUI SIGNE (27/10)
+
+JC : « il peut être la partie qui signe quand il est remplacé ».
+
+- **Saisie** (`/confreres`, remplacement seulement) : « Qui est remplacé ? » — « Moi-même » (défaut)
+  ou un assistant rattaché à un poste du cabinet (`CabinetPost.linkedUserId`, hors siège du
+  titulaire). Le poste doit appartenir au cabinet (400 sinon) ; un assistanat ne peut pas désigner
+  de remplacé (400).
+- **Modèle** : `Match.remplaceProfileId` (facultatif, `ON DELETE SET NULL`), migration additive
+  `20261027120000_match_remplace`. Null = le titulaire du compte, comme avant : **tous les contrats
+  existants sont inchangés**. La mission reste celle du cabinet, placée sur le poste de l'assistant
+  (sa ligne du Planning).
+- **Contrat** : l'identité de la partie remplacée (nom, RPPS, Ordre, adresse) est celle de
+  l'assistant ; le gabarit reste choisi d'après le cabinet (profession, nature). Contrôle d'identité
+  sur les deux signataires.
+- **Signature** (`lib/contrats/cotes` : `roleDansLeMatch`, `coteDeSignature`) : l'assistant signe le
+  côté « titulaire » ; le titulaire du compte voit le contrat et l'état des signatures sans pouvoir
+  signer (403, message sur la page). Les notifications de signature et d'annulation vont à toutes
+  les parties sauf l'auteur — sans remplacé désigné, c'est l'autre partie, comme avant.
+- **Prévenir l'assistant** : notification in-app à la création, lien vers le contrat. Aucun email.
+- Essai `essai_p47` (purgé) : poste d'un autre cabinet 400 ; assistanat + remplacé 400 ; mission sur
+  le poste ; titulaire observateur, signature refusée 403 ; assistant côté titulaire ; PDF au nom et
+  RPPS de l'assistant, sans ceux du titulaire ; autre cabinet 403 ; après activation le remplaçant a
+  l'assistant en face ; sans remplacé : contrat au nom du titulaire, assistant 403.
+- Non fait : la page de la mise en relation (`/match/[id]`, messagerie) reste aux deux parties ;
+  l'assistant accède au contrat par la notification. Même chose possible plus tard pour un
+  remplacement publié par l'assistant lui-même dans Soignect — non branché (contrats existants).
+- **Ordre de mise en production** : migration en base AVANT le push du code (le client Prisma lit
+  la colonne sur chaque requête `Match`).
+
 ### SECTION 365 — CLAUSES BALNÉO ET AIDE À LA TÉLÉTRANSMISSION ; LIEN SANS EMAIL (24/10)
 
 - **Clauses optionnelles** (modèles kiné libéraux : remplacement, assistanat, collaboration ;

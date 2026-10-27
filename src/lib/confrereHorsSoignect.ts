@@ -6,6 +6,7 @@ import { appBaseUrl } from "@/lib/appUrl";
 import { logTraceEventAttendu } from "@/lib/trace";
 import { modesRedevanceAutorises, normaliserRetrocession } from "@/lib/retrocession";
 import type { RetrocessionMode } from "@prisma/client";
+import { createNotification } from "@/lib/notifications";
 
 // Confrère trouvé HORS Soignect, ajouté « à la volée » (24/10) — un titulaire a déjà convenu d'un
 // remplacement ou d'un assistanat en dehors de la plateforme et veut s'en servir pour le contrat.
@@ -45,6 +46,21 @@ export interface ConfrereSaisi {
   rpps?: string | null;
   numeroOrdre?: string | null;
   adresse?: string | null;
+  /** Remplacement d'un assistant du cabinet (27/10) : le poste auquel il est rattaché. Il devient
+   *  la partie remplacée du contrat, et c'est lui qui le signe. Absent = le titulaire lui-même. */
+  remplacePostId?: string | null;
+}
+
+/** Assistants rattachés aux postes de ce cabinet — ceux qui peuvent être « le remplacé ». */
+export async function assistantsRattaches(titulaireProfileId: string) {
+  const posts = await prisma.cabinetPost.findMany({
+    where: { cabinetId: titulaireProfileId, isActive: true, isOwnerSeat: false, linkedUserId: { not: null } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, label: true, linkedUser: { select: { profile: { select: { id: true, name: true } } } } },
+  });
+  return posts
+    .filter((p) => p.linkedUser?.profile)
+    .map((p) => ({ postId: p.id, profileId: p.linkedUser!.profile!.id, nom: p.linkedUser!.profile!.name || p.label }));
 }
 
 /** Email provisoire quand le titulaire n'a pas saisi celui du confrère (24/10, « juste un lien ») :
@@ -84,6 +100,13 @@ export async function creerConfrereHorsSoignect(titulaireProfileId: string, s: C
   const passwordHash = await hash(randomBytes(32).toString("hex"), 12);
   const nomComplet = `${s.prenom.trim()} ${s.nom.trim()}`;
   const remplacement = s.missionType === "REMPLACEMENT";
+  // Le remplacé désigné doit être un assistant rattaché à un poste DE CE cabinet.
+  let remplace: { postId: string; profileId: string; nom: string } | null = null;
+  if (s.remplacePostId) {
+    if (!remplacement) return { ok: false, status: 400, error: "Seul un remplacement peut concerner un de vos assistants." };
+    remplace = (await assistantsRattaches(titulaire.id)).find((a) => a.postId === s.remplacePostId) ?? null;
+    if (!remplace) return { ok: false, status: 400, error: "Ce poste n'a pas d'assistant rattaché à votre cabinet." };
+  }
 
   const matchId = await prisma.$transaction(async (tx) => {
     const u = await tx.user.create({
@@ -118,18 +141,25 @@ export async function creerConfrereHorsSoignect(titulaireProfileId: string, s: C
         // Déjà pourvue : jamais une offre (EST_UNE_OFFRE exige RECHERCHE), mais présente au Planning.
         briqueStatus: remplacement ? "CONFIRME" : "OCCUPE",
         matchedName: nomComplet.slice(0, 120),
+        // Sur la ligne de l'assistant remplacé dans le Planning.
+        cabinetPostId: remplace?.postId ?? null,
       },
       select: { id: true },
     });
     const m = await tx.match.create({
-      data: { profileAId: titulaire.id, profileBId: u.profile!.id, missionAId: mission.id, status: "CONFIRME", horsSoignect: true },
+      data: { profileAId: titulaire.id, profileBId: u.profile!.id, missionAId: mission.id, status: "CONFIRME", horsSoignect: true, remplaceProfileId: remplace?.profileId ?? null },
       select: { id: true },
     });
     return m.id;
   });
 
   // Sans nom ni email : le type et la profession suffisent à compter l'usage.
-  await logTraceEventAttendu({ eventType: "CONFRERE_HORS_SOIGNECT", profileId: titulaire.id, profession: titulaire.profession, metadata: { etape: "ajout", missionType: s.missionType } });
+  await logTraceEventAttendu({ eventType: "CONFRERE_HORS_SOIGNECT", profileId: titulaire.id, profession: titulaire.profession, metadata: { etape: "ajout", missionType: s.missionType, assistantRemplace: !!remplace } });
+  if (remplace) {
+    // In-app seulement : c'est lui qui signera, il doit savoir où trouver le contrat.
+    const u = await prisma.profile.findUnique({ where: { id: remplace.profileId }, select: { userId: true } });
+    await createNotification({ userId: u?.userId, type: "signature", message: `Votre remplacement par ${nomComplet} : le contrat est à relire et à signer, en tant que remplacé.`, linkUrl: `/match/${matchId}/contrat` });
+  }
   return { ok: true, matchId, lien: lienActivation(token) };
 }
 
@@ -140,6 +170,7 @@ export async function confreresAjoutes(titulaireProfileId: string) {
     orderBy: { createdAt: "desc" },
     select: {
       id: true, createdAt: true, signatureTitulaireAt: true, signatureRemplacantAt: true,
+      remplace: { select: { name: true } },
       missionA: { select: { missionType: true, startDate: true, endDate: true, minMonths: true } },
       profileB: { select: { name: true, user: { select: { acceptedTermsAt: true, resetToken: true, resetTokenExpiry: true } } } },
     },
@@ -161,6 +192,7 @@ export async function confreresAjoutes(titulaireProfileId: string) {
         lien: lienValide ? lienActivation(u.resetToken!) : null,
         signeTitulaire: !!m.signatureTitulaireAt,
         signeConfrere: !!m.signatureRemplacantAt,
+        remplace: m.remplace?.name ?? null,
       };
     });
 }

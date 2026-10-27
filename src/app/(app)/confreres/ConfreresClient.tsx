@@ -9,6 +9,8 @@ import { LIBELLE_MODE } from "@/lib/retrocession";
 interface Confrere {
   matchId: string; nom: string; missionType: string; startDate: string | null; endDate: string | null;
   minMonths: number | null; active: boolean; lien: string | null; signeTitulaire: boolean; signeConfrere: boolean;
+  /** Assistant du cabinet remplacé, quand ce n'est pas le titulaire (27/10). */
+  remplace?: string | null;
 }
 
 const TYPES = [
@@ -28,9 +30,9 @@ async function partagerLien(nom: string, lien: string): Promise<string> {
   catch { return "Copiez le lien ci-dessus."; }
 }
 
-export default function ConfreresClient({ communes, communeParDefaut, initiaux, modesRedevance }: { communes: string[]; communeParDefaut: string; initiaux: Confrere[]; modesRedevance: boolean }) {
+export default function ConfreresClient({ communes, communeParDefaut, initiaux, modesRedevance, assistants }: { communes: string[]; communeParDefaut: string; initiaux: Confrere[]; modesRedevance: boolean; assistants: { postId: string; nom: string }[] }) {
   const [liste, setListe] = useState(initiaux);
-  const [f, setF] = useState({ prenom: "", nom: "", email: "", missionType: "ASSISTANAT", startDate: "", endDate: "", minMonths: "", taux: "", mode: "POURCENTAGE", fixe: "", plafond: "", location: communeParDefaut, rpps: "", numeroOrdre: "", adresse: "" });
+  const [f, setF] = useState({ prenom: "", nom: "", email: "", missionType: "ASSISTANAT", startDate: "", endDate: "", minMonths: "", taux: "", mode: "POURCENTAGE", fixe: "", plafond: "", location: communeParDefaut, rpps: "", numeroOrdre: "", adresse: "", remplacePostId: "" });
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [statut, setStatut] = useState<Record<string, string>>({});
@@ -55,6 +57,7 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
           retrocessionFixeEuros: mode === "FIXE" ? Number(f.fixe) || null : null,
           retrocessionPlafondEuros: mode === "PLAFONNEE" ? Number(f.plafond) || null : null,
           rpps: f.rpps || null, numeroOrdre: f.numeroOrdre || null, adresse: f.adresse || null,
+          remplacePostId: remplacement && f.remplacePostId ? f.remplacePostId : null,
         }),
       });
       const d = await r.json().catch(() => null);
@@ -110,6 +113,16 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
             {mode === "PLAFONNEE" && <label className="text-xs font-semibold text-gray-600">Plafond mensuel de la redevance (€)<input required type="number" min={1} value={f.plafond} onChange={maj("plafond")} className={champ} /></label>}
           </div>
         )}
+        {/* Remplacement d'un assistant du cabinet (27/10) : il est la partie remplacée et signe. */}
+        {remplacement && assistants.length > 0 && (
+          <label className="block text-xs font-semibold text-gray-600">Qui est remplacé ?
+            <select value={f.remplacePostId} onChange={maj("remplacePostId")} className={champ}>
+              <option value="">Moi-même</option>
+              {assistants.map((a) => <option key={a.postId} value={a.postId}>{a.nom} (assistant du cabinet)</option>)}
+            </select>
+            {f.remplacePostId && <span className="font-normal text-gray-400">Le contrat est entre votre assistant et le remplaçant : c&apos;est votre assistant qui le signe, avec son identité professionnelle. Vous le suivez depuis votre compte.</span>}
+          </label>
+        )}
         {remplacement && <p className="text-[11px] text-gray-400 -mt-1">Un remplaçant se rétrocède en pourcentage (forfait et plafond : assistanat et collaboration seulement).</p>}
         {/* Rappel (24/10, JC : « attention à ne pas l'oublier ») — la clause est toujours au contrat ;
             son rayon et sa durée se règlent sur la page contrat, préremplis à 20 km et 2 ans. */}
@@ -138,12 +151,12 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
             <div key={c.matchId} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
               <p className="font-semibold text-gray-900 m-0">{c.nom}</p>
               <p className="text-xs text-gray-500 m-0">
-                {TYPES.find((t) => t.v === c.missionType)?.l} · dès le {date(c.startDate)}
+                {TYPES.find((t) => t.v === c.missionType)?.l}{c.remplace ? ` de ${c.remplace}` : ""} · dès le {date(c.startDate)}
                 {c.endDate ? ` jusqu'au ${date(c.endDate)}` : c.minMonths ? ` · ${c.minMonths} mois min.` : ""}
               </p>
               <p className="text-xs mt-1 m-0">
                 <span className={c.active ? "text-emerald-700 font-semibold" : "text-amber-700 font-semibold"}>{c.active ? "Compte activé" : "En attente d'activation"}</span>
-                {" · "}contrat signé : vous {c.signeTitulaire ? "oui" : "non"}, lui {c.signeConfrere ? "oui" : "non"}
+                {" · "}contrat signé : {c.remplace ?? "vous"} {c.signeTitulaire ? "oui" : "non"}, {c.nom} {c.signeConfrere ? "oui" : "non"}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Link href={`/match/${c.matchId}/contrat`} className="rounded-lg bg-kine-600 px-3 py-1.5 text-xs font-bold text-white">Préparer / récupérer le contrat</Link>

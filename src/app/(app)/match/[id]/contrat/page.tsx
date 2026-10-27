@@ -66,6 +66,9 @@ interface SigStatus {
   bothSigned: boolean;
   /** Une signature manuscrite est conservée sur le profil du lecteur (section 242). */
   signatureEnregistree?: boolean;
+  /** Le lecteur suit le contrat sans le signer : un assistant du cabinet est le remplacé (27/10). */
+  observateur?: boolean;
+  nomRemplace?: string | null;
 }
 
 const SIGNATURE_LEGAL =
@@ -1716,9 +1719,9 @@ export default function ContratPage() {
 
         {sig && (
           <div className="flex flex-col gap-2">
-            {/* Ma signature */}
+            {/* Ma signature — ou celle du remplacé, quand le lecteur ne signe pas */}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-gray-600">Ma signature</span>
+              <span className="text-sm text-gray-600">{sig.observateur ? `Signature de ${sig.nomRemplace ?? "l'assistant remplacé"} (remplacé)` : "Ma signature"}</span>
               {sig.mineSigned ? (
                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">Signée ✓</span>
               ) : (
@@ -1727,7 +1730,7 @@ export default function ContratPage() {
             </div>
             {/* Signature de l'autre partie */}
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-gray-600">Signature de l&apos;autre partie</span>
+              <span className="text-sm text-gray-600">{sig.observateur ? "Signature du remplaçant" : <>Signature de l&apos;autre partie</>}</span>
               {(sig.mySide === "titulaire" ? sig.remplacantSigned : sig.titulaireSigned) ? (
                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">Signée ✓</span>
               ) : (
@@ -1740,7 +1743,9 @@ export default function ContratPage() {
         {oneSigned && (
           <>
             <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-center">
-              {sig?.mineSigned
+              {sig?.observateur
+                ? "⏳ Une partie a signé — en attente de la seconde signature"
+                : sig?.mineSigned
                 ? "⏳ En attente de la signature de l'autre partie"
                 : "✍️ L'autre partie a signé — à votre tour de signer"}
             </p>
@@ -1770,6 +1775,11 @@ export default function ContratPage() {
         {sig?.bothSigned ? (
           <p className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-center">
             ✅ Contrat confirmé — les deux parties ont signé
+          </p>
+        ) : sig?.observateur ? (
+          <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+            C&apos;est {sig.nomRemplace ?? "l'assistant remplacé"}, en tant que remplacé, qui signe ce
+            contrat avec le remplaçant. Vous le suivez depuis le cabinet.
           </p>
         ) : (
           <>

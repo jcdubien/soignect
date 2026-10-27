@@ -22,7 +22,7 @@ import { sendContratEmail } from "@/lib/email";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractFields } from "@/lib/contractProfile";
 import { periodeParDefaut, periodeDemandee } from "@/lib/contrats/periode";
-import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
+import { cotesDuMatch, typeDeMissionDuContrat, roleDansLeMatch } from "@/lib/contrats/cotes";
 import { lireOption, OPTIONS_BALNEO, OPTIONS_TELETRANSMISSION } from "@/lib/contrats/clausesHonoraires";
 import {
   lieuTravailParDefaut,
@@ -116,13 +116,15 @@ export async function GET(req: NextRequest, { params }: Params) {
       profileB: true,
       missionA: true,
       missionB: true,
+      remplace: true,
     },
   });
 
   if (!match) return NextResponse.json({ error: "Match introuvable" }, { status: 404 });
 
-  // Vérifier l'appartenance
-  if (match.profileAId !== profileId && match.profileBId !== profileId) {
+  // Vérifier l'appartenance — les deux parties, ou l'assistant désigné comme remplacé (27/10).
+  const role = roleDansLeMatch(match, profileId);
+  if (!role) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
@@ -139,7 +141,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   // Accès Premium — via le helper unifié (mode gratuit global + grâce billing, section 100),
   // ou partenaire CPTS (Premium gratuit, item 25). Cohérent avec /annonces et /match/[id].
-  const myProfile = match.profileAId === profileId ? match.profileA : match.profileB;
+  const myProfile = role === "REMPLACE" && match.remplace ? match.remplace : role === "A" ? match.profileA : match.profileB;
   const mp = myProfile as typeof myProfile & { subscriptionPlan: SubscriptionPlan; billingTriggeredAt?: Date | null; institutionalPartner?: boolean; isFounding?: boolean };
   const allowed = mp.institutionalPartner || await hasPremiumAccess({ subscriptionPlan: mp.subscriptionPlan, billingTriggeredAt: mp.billingTriggeredAt, isFounding: mp.isFounding });
   if (!allowed) {
@@ -165,13 +167,19 @@ export async function GET(req: NextRequest, { params }: Params) {
   // pas le même type de contrat.
   const { profilTitulaire: profileTitulaire, profilCandidat: profileAutre,
           missionTitulaire, missionCandidat: missionAutre } = cotesDuMatch(match);
+  // Côté remplacé du CONTRAT : l'assistant désigné s'il y en a un (27/10), sinon le titulaire.
+  // `profileTitulaire` garde le choix du gabarit (profession, cabinet, salariat) ; seule
+  // l'identité de la partie qui signe change.
+  const signataireTitulaire = match.remplace ?? profileTitulaire;
 
   // Identité contractuelle (section 150) — blocage dur si activé et une des 2 parties
   // incomplète (RPPS/N° Ordre/adresse praticiens, SIRET/adresse structures). En phase
   // d'avertissement (flag off), on laisse générer avec des placeholders « à compléter ».
   if (await isContractProfileEnforced()) {
-    const missSelf  = missingContractFields(myProfile);
-    const missOther = missingContractFields(profileId === profileTitulaire.id ? profileAutre : profileTitulaire);
+    // Les deux SIGNATAIRES — le lecteur en fait partie, sauf le titulaire du compte qui suit le
+    // contrat d'un assistant remplacé.
+    const missSelf  = missingContractFields(signataireTitulaire);
+    const missOther = missingContractFields(profileAutre);
     if (missSelf.length > 0 || missOther.length > 0) {
       return NextResponse.json(
         { error: "Identité contractuelle incomplète — complétez votre profil (et l'autre partie le sien) avant de générer le contrat." },
@@ -207,7 +215,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const locationTitulaire = lieuTravailParDefaut(missionTitulaire, profileTitulaire);
   const locationAutre     = missionAutre?.location ?? profileAutre.name ?? "domicile";
 
-  const titulaireParty = partyFromProfile(profileTitulaire, locationTitulaire);
+  const titulaireParty = partyFromProfile(signataireTitulaire, locationTitulaire);
   const autreParty     = partyFromProfile(profileAutre, locationAutre);
 
   // Paramètres depuis query string

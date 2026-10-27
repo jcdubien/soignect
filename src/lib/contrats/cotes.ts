@@ -78,3 +78,35 @@ export function typeDeMissionDuContrat<T>(
 ): T | null {
   return missionTitulaire?.missionType ?? missionCandidat?.missionType ?? null;
 }
+
+// ── Partie remplacée distincte du titulaire du compte (27/10) ─────────────────────────────────
+//
+// Un assistant rattaché à un poste du cabinet peut être celui qu'on remplace. Le contrat est
+// alors entre LUI et le remplaçant, et c'est lui qui signe le côté « titulaire ». Le titulaire du
+// compte reste partie à la mise en relation (la mission est dans son Planning) : il voit le
+// contrat, il ne le signe pas. `Match.remplaceProfileId` null = le titulaire, comme avant.
+
+/** Rôle du lecteur dans le match : une des deux parties, ou le remplacé désigné. */
+export function roleDansLeMatch(
+  match: { profileAId: string; profileBId: string; remplaceProfileId?: string | null },
+  profileId: string,
+): "A" | "B" | "REMPLACE" | null {
+  if (match.remplaceProfileId && match.remplaceProfileId === profileId) return "REMPLACE";
+  if (match.profileAId === profileId) return "A";
+  if (match.profileBId === profileId) return "B";
+  return null;
+}
+
+/** Côté de signature du lecteur, ou `null` s'il voit le contrat sans le signer (le titulaire du
+ *  compte quand un assistant est le remplacé). */
+export function coteDeSignature(
+  match: { profileAId: string; profileBId: string; remplaceProfileId?: string | null; profileA: { type: string }; profileB: { type: string } },
+  profileId: string,
+): "titulaire" | "remplacant" | null {
+  const role = roleDansLeMatch(match, profileId);
+  if (role === null) return null;
+  if (role === "REMPLACE") return "titulaire";
+  const type = role === "A" ? match.profileA.type : match.profileB.type;
+  if (type === "TITULAIRE") return match.remplaceProfileId ? null : "titulaire";
+  return "remplacant";
+}

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hasPremiumAccess, isContractProfileEnforced } from "@/lib/platform";
 import { missingContractLabels, CONTRACT_IDENTITY_SELECT } from "@/lib/contractProfile";
 import { periodeParDefaut } from "@/lib/contrats/periode";
-import { cotesDuMatch, typeDeMissionDuContrat } from "@/lib/contrats/cotes";
+import { cotesDuMatch, typeDeMissionDuContrat, roleDansLeMatch } from "@/lib/contrats/cotes";
 import { contratEtabliParLEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import {
   lieuTravailParDefaut, HEURES_HEBDOMADAIRES_DEFAUT, HEURES_COMPLEMENTAIRES_DEFAUT,
@@ -43,6 +43,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       // de champs recopiée est une liste qui divergera — c'est le motif même de cette constante.
       profileA: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
       profileB: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
+      remplace: { select: { id: true, subscriptionPlan: true, billingTriggeredAt: true, institutionalPartner: true, isFounding: true, ...IDENTITY_SELECT } },
       // `startDate`/`endDate` : l'écran doit pré-remplir la période ET pouvoir dire d'où elle
       // vient quand les deux annonces divergent (section 237).
       missionA: { select: { missionType: true, retrocessionRate: true, retrocessionMode: true, retrocessionFixeEuros: true, retrocessionPlafondEuros: true, startDate: true, endDate: true, location: true, minMonths: true, estSalariat: true, natureSalariat: true, createdAt: true, remunerationBrute: true } },
@@ -51,17 +52,21 @@ export async function GET(_req: NextRequest, { params }: Params) {
   });
 
   if (!match) return NextResponse.json({ error: "Match introuvable" }, { status: 404 });
-  if (match.profileAId !== profileId && match.profileBId !== profileId) {
+  const role = roleDansLeMatch(match, profileId);
+  if (!role) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
-
-  const isA       = match.profileAId === profileId;
-  const myProfile = isA ? match.profileA : match.profileB;
-  const theirProfile = isA ? match.profileB : match.profileA;
 
   // Côtés du match — MÊME fonction que la route de génération (section 238). Ce fichier les
   // déduisait auparavant par ses propres moyens, et n'en tirait pas les mêmes conclusions.
   const { profilTitulaire, profilCandidat, missionTitulaire, missionCandidat } = cotesDuMatch(match);
+
+  // Assistant désigné comme remplacé (27/10) : il signe à la place du titulaire du compte.
+  // « L'autre partie » est alors, pour lui, le remplaçant ; pour le remplaçant, c'est lui ; et le
+  // titulaire du compte, qui suit le contrat sans le signer, voit le remplaçant en face.
+  const signataireTitulaire = match.remplace ?? profilTitulaire;
+  const myProfile = role === "REMPLACE" && match.remplace ? match.remplace : role === "A" ? match.profileA : match.profileB;
+  const theirProfile = myProfile.id === profilCandidat.id ? signataireTitulaire : profilCandidat;
 
   // Même logique que la route de génération PDF (fce5be5) : partenaire institutionnel OU
   // accès premium effectif (hasPremiumAccess prend en compte freeAccessMode, fondateur,
@@ -182,7 +187,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     enforce,          // true = blocage dur ; false = avertissement non bloquant
     isSalariat,       // recruteur = structure employeuse → pas de PDF libéral (section 161)
     periode,          // dates par défaut + provenance, pour pré-remplir et signaler la divergence
-    jeSuisTitulaire: profilTitulaire.id === profileId,
+    jeSuisTitulaire: profilTitulaire.id === profileId || role === "REMPLACE",
     defautsSalarie,   // valeurs pré-remplies du contrat de travail (aucune n'atteint le PDF sans être vue)
     defautsInfirmier, // idem pour les honoraires et reversements des modèles CNOI
     // Profession du contrat — celle du TITULAIRE, comme le gabarit (section 240). L'écran en a

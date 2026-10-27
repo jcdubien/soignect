@@ -24,6 +24,7 @@ const schema = z.object({
   rpps: z.string().trim().max(L.rpps).nullable().optional(),
   numeroOrdre: z.string().trim().max(L.numeroOrdre).nullable().optional(),
   adresse: z.string().trim().max(L.adresse).nullable().optional(),
+  remplacePostId: z.string().trim().max(40).nullable().optional(),
 }).superRefine((d, ctx) => {
   if (d.missionType === "REMPLACEMENT") {
     if (!d.endDate) ctx.addIssue({ code: "custom", path: ["endDate"], message: "Date de fin requise pour un remplacement" });
