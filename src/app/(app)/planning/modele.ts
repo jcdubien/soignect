@@ -66,6 +66,8 @@ export interface UnlinkedMission {
   isActive: boolean;
 }
 
+// ── Constantes de la timeline ──────────────────────────────────────────────────
+
 export type Zoom = "month" | "quarter" | "year" | "triennial";
 
 export const ZOOM_DAYS: Record<Zoom, number> = { month: 30, quarter: 91, year: 365, triennial: 730 };
@@ -379,6 +381,8 @@ export interface MobileBrick {
   onClick: (e: React.MouseEvent) => void;
 }
 
+// ── Panel types ────────────────────────────────────────────────────────────────
+
 export type Panel =
   | { type: "uncovered"; post: PostData }
   | { type: "covered"; mission: MissionData; post: PostData }
@@ -548,7 +552,6 @@ export function statutStocke(mission: MissionData): string {
   return "RECHERCHE";
 }
 
-// ── Menu à 3 choix au clic sur un poste (section 55) ─────────────────────────────
 
 export interface UncoveredChoiceState {
   post: PostData;
