@@ -7408,6 +7408,39 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 374 — PLANNING DÉCOUPÉ ; « MODIFIER LA PÉRIODE » RÉPARÉ (28/10)
+
+`PlanningBoard.tsx` faisait 3 374 lignes : types, calculs, frise, menus, panneau et formulaires
+dans un seul fichier. Il est découpé **à l'identique**, en deux commits de pur déplacement
+(chaque déclaration déplacée d'un bloc avec ses commentaires, imports recâblés) :
+
+| Fichier | Contenu |
+|---|---|
+| `modele.ts` | types, constantes de la frise, sous-lignes, plage de dates, statuts, calculs purs |
+| `frise.tsx` | `MissionBrick`, `TimelineRow`, `MobilePostCard` |
+| `PostMenu.tsx` | menu d'un poste ou d'une brique |
+| `FormulairePeriode.tsx` | modifier les dates d'une période |
+| `panneau.tsx` | panneau latéral, suivi d'une annonce ou d'un poste, compte assistant, annulation |
+| `formulaires.tsx` | déclarer une absence, ajouter un poste |
+| `modales.tsx` | choix sur une zone non couverte, confirmation |
+| `encarts.tsx` | période écoulée, poste déjà tenu |
+
+`PlanningBoard.tsx` garde le composant principal (833 lignes).
+
+- **Preuve d'identité du rendu** : essai `essai_p54` (purgé), un cabinet aux postes variés
+  (siège avec absence et annonce qui la couvre, confrère, assistant occupé puis préavis,
+  collaboration en recherche, poste vide, annonce non rattachée). Le HTML rendu de `/planning`
+  est **identique au caractère près** à la référence prise avant tout changement, après chaque
+  étape. Les parties qui ne s'affichent qu'au clic (menus, panneau, formulaires, fenêtre de
+  zone non couverte) ont été ouvertes une à une dans le navigateur.
+- **Tests** : la règle des sous-lignes (section 264 : une inclusion reste sur la bande de son
+  hôte, un croisement en ouvre une seconde, un hôte entièrement recouvert aussi) a ses tests
+  (`planningModele.test.ts`), possibles maintenant que le calcul est un module pur.
+- **Défaut trouvé pendant la vérification, antérieur au découpage** (depuis `d2badf6`,
+  section 266) : dans le menu d'un poste occupé, « Modifier la période » ouvrait une fenêtre
+  vide — le bouton changeait d'étape sans désigner la période à modifier. Réparé dans un commit
+  séparé ; vérifié jusqu'à l'enregistrement de la nouvelle date de fin.
+
 ### SECTION 373 — MOT DE PASSE OUBLIÉ ET CONFRÈRE PAS ENCORE ACTIVÉ (28/10)
 
 Le compte d'un confrère hors Soignect est créé par le cabinet, puis activé par le confrère

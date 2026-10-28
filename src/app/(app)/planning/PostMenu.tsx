@@ -291,8 +291,10 @@ export function PostMenu({
             {/* [1] Poser une annonce */}
             <Button onClick={onPoserAnnonce} className="w-full">Poser une annonce →</Button>
             {/* [2] Modifier la période — TOUTE occupation reste éditable, y compris issue d'un match */}
+            {/* La cible des dates doit être posée (section 266) : `setStep("modifier")` seul
+                ouvrait une fenêtre vide — le formulaire ne s'affiche que pour `cibleDates`. */}
             {mission && (
-              <Button variant="outlined" onClick={() => setStep("modifier")} className="w-full !py-2.5">
+              <Button variant="outlined" onClick={() => ouvrirDates(mission)} className="w-full !py-2.5">
                 Modifier la période
               </Button>
             )}
