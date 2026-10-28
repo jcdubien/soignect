@@ -1,6 +1,7 @@
 "use client";
 
 import { jourLocalUtc } from "@/lib/jourLocal";
+import { CONTRAT_DIRECT } from "@/lib/contratDirect";
 import { useState, useRef, useEffect } from "react";
 import { cheminPartageAnnonce } from "@/lib/partageAnnonce";
 import Link from "next/link";
@@ -3061,8 +3062,14 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
               en plus des CabinetPost de l'équipe. */}
           <p className="text-xs text-gray-400 truncate">{posts.length} poste{posts.length !== 1 ? "s" : ""} · {cabinetName}</p>
           {/* Confrère trouvé hors Soignect (24/10) — cabinets libéraux seulement. */}
+          {/* Section 372 : un vrai bouton, plus un lien souligné en petit sous le titre. */}
           {!isEmployeur && (
-            <a href="/confreres" className="text-xs font-semibold text-kine-700 underline">+ Un confrère trouvé hors Soignect</a>
+            <a
+              href={CONTRAT_DIRECT.href}
+              className="mt-1.5 inline-flex items-center gap-1 rounded-lg border border-kine-600 px-3 py-1.5 text-xs font-semibold text-kine-700 hover:bg-kine-50 transition"
+            >
+              📝 {CONTRAT_DIRECT.libelle} {CONTRAT_DIRECT.complement}
+            </a>
           )}
         </div>
 

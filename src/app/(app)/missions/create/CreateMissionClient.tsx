@@ -14,6 +14,7 @@ import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { assistanceIADisponible } from "@/lib/annonceAI";
 import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
 import { titreAuto, accrocheAuto, estAccrocheAuto, estTitreAutoDate } from "@/lib/annonceRapide";
+import { CONTRAT_DIRECT } from "@/lib/contratDirect";
 
 export const dynamic = "force-dynamic";
 
@@ -1739,6 +1740,23 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
 
   const formulaireRapide = (
     <div ref={blocChampsRef} className="space-y-5">
+      {/* Section 372 : publier une annonce n'est utile qu'à qui cherche encore. Celui qui a déjà
+          trouvé passe directement au contrat — l'entrée mobile de « Faire un contrat ». Affichée
+          une fois le profil chargé (`hasPhoto` posé) : avant, un établissement n'est pas encore
+          reconnu comme tel, et la ligne s'afficherait le temps d'un éclair. */}
+      {status === "authenticated" && hasPhoto !== null && !isEmployeur && (
+      <Link
+        href={CONTRAT_DIRECT.href}
+        className="flex items-center gap-3 rounded-xl border border-kine-200 bg-white px-4 py-3 hover:bg-kine-50 transition"
+      >
+        <span className="text-xl" aria-hidden>📝</span>
+        <span className="min-w-0 flex-1 text-xs text-gray-600 leading-snug">
+          <span className="block font-semibold text-gray-800">{CONTRAT_DIRECT.question}</span>
+          {CONTRAT_DIRECT.invitation}
+        </span>
+        <span className="shrink-0 text-xs font-bold text-kine-700">{CONTRAT_DIRECT.libelle} →</span>
+      </Link>
+      )}
       {sourceReprise && repriseFaite.length === 0 && (
         <button
           type="button"

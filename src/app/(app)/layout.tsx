@@ -14,6 +14,7 @@ async function cibleConnexion(): Promise<string> {
 }
 import Link from "next/link";
 import LienParcourir from "@/components/nav/LienParcourir";
+import { CONTRAT_DIRECT, contratDirectOuvert } from "@/lib/contratDirect";
 import Image from "next/image";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { prisma } from "@/lib/prisma";
@@ -244,6 +245,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 candidat déclare une « disponibilité ». */}
             {profileType === "TITULAIRE" ? "+ Annonce" : "+ Disponibilité"}
           </Link>
+          {/* « Faire un contrat » (section 372) : le contrat avec un confrère déjà trouvé était
+              un lien au fond du Planning. Dès `md` seulement : à `sm` l'en-tête déborde déjà ;
+              sur mobile, l'entrée est en tête de la publication d'annonce (bouton « + »). */}
+          {contratDirectOuvert({ type: profileType, titulaireKind: profile?.titulaireKind }) && (
+            <Link
+              href={CONTRAT_DIRECT.href}
+              className="hidden md:inline-flex items-center gap-1 text-xs px-3 py-1.5 border border-kine-600 text-kine-700 rounded-lg font-semibold hover:bg-kine-50 transition"
+            >
+              📝 {CONTRAT_DIRECT.libelle}
+            </Link>
+          )}
           {/* Parcourir le fil (section 263) — `/annonces` n'existait QUE dans la barre du bas
               mobile. Sur desktop, depuis l'écran d'édition d'une annonce, il fallait passer par
               le logo (qui mène au Planning) ou taper l'URL. Placé avant la liste personnelle :

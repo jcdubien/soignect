@@ -7408,6 +7408,29 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 372 — « FAIRE UN CONTRAT » EN ENTRÉE PRINCIPALE DU CABINET (28/10)
+
+Le contrat avec un confrère trouvé hors Soignect (sections 363 et suivantes) n'était accessible
+que par un lien souligné en petit sous le titre du Planning. C'est pourtant ce que la
+concurrence n'offre pas, et c'est le chemin le plus court vers un contrat signé. Trois entrées,
+cabinets libéraux seulement (`lib/contratDirect` : libellés et règle d'accès lus à un seul
+endroit) :
+
+- **En-tête** : bouton « 📝 Faire un contrat » à côté de « + Annonce », dès la largeur `md`
+  (à `sm` l'en-tête déborde déjà).
+- **Publication d'annonce** (annonce en 4 champs, section 369) : en tête, « Vous avez trouvé
+  votre remplaçant ou votre assistant en dehors de Soignect ? Faites le contrat ici… ». C'est
+  l'entrée mobile, atteinte par le bouton « + » de la barre du bas. Affichée une fois le profil
+  chargé, pour ne pas apparaître un instant chez un établissement.
+- **Planning** : un vrai bouton « Faire un contrat avec un confrère hors Soignect ».
+- Le texte dit « en dehors de Soignect » parce que le parcours refuse un confrère déjà inscrit
+  (409) ; il ne promet pas le contraire. 28/10 également : la photo reste obligatoire à
+  l'inscription (décision de JC, proposition retirée avant commit).
+- Essai `essai_p52` (purgé) : cabinet — bouton d'en-tête sur toutes les pages, ligne en tête de
+  la publication, bouton du Planning, `/confreres` 200 ; établissement et remplaçant — aucune
+  entrée, `/confreres` redirigé vers le fil ; établissement sur son écran de publication
+  habituel.
+
 ### SECTION 370 — L'INSCRIPTION EN UN ÉCRAN (28/10)
 
 L'inscription tenait en trois écrans : le profil, l'identité, puis « Votre accroche » avec les
