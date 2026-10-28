@@ -7408,6 +7408,25 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 370 — L'INSCRIPTION EN UN ÉCRAN (28/10)
+
+L'inscription tenait en trois écrans : le profil, l'identité, puis « Votre accroche » avec les
+CGU. L'accroche n'a jamais été exigée par le serveur, mais elle se présentait comme une étape.
+Les écrans 2 et 3 n'en font plus qu'un : email, mot de passe, nom, profession, photo, CGU, et
+« Rejoindre Soignect ». Le téléphone (avec le consentement WhatsApp) et l'accroche (avec ses
+débuts de phrase) sont repliés sous « Téléphone et accroche (facultatif, modifiable plus tard) ».
+
+- Le choix du profil reste un écran à part : c'est un clic, et il fixe les libellés du formulaire
+  (nom du cabinet, profession recherchée…). Sauté comme avant quand la page d'entrée l'a déjà
+  posé (`?profileType=`), avec « Changer ».
+- Rien ne change dans ce qui est exigé ni envoyé : photo obligatoire, profession sans défaut
+  (section 283), CGU obligatoires, notifications email cochées par défaut et visibles, WhatsApp
+  non coché ; même appel `/api/profiles`, mêmes destinations après inscription.
+- Essai `essai_p51` (purgé) : un remplaçant venu de `?profileType=REMPLACANT` s'inscrit sans
+  ouvrir le volet (pas d'accroche ni de téléphone), arrive sur la publication de disponibilité ;
+  un cabinet passé par l'écran de profil remplit téléphone et accroche (« Je propose… »),
+  arrive sur le fil ; photo enregistrée pour les deux ; bouton grisé sans photo ou sans CGU.
+
 ### SECTION 369 — L'ANNONCE EN 4 CHAMPS ; « REPUBLIER COMME LA DERNIÈRE » (28/10)
 
 Audit du 27/10 : publier une annonce demandait un texte libre d'au moins 40 caractères, un titre,

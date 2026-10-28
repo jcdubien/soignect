@@ -45,21 +45,6 @@ const BIO_STARTERS_CANDIDATE = ["Je suis…", "Je cherche…", "J'aspire à…"]
 const BIO_STARTERS_TITULAIRE = ["Je propose…"] as const;           // cabinet libéral (singulier)
 const BIO_STARTERS_STRUCTURE = ["Nous proposons…"] as const;       // établissement employeur (pluriel)
 
-function StepIndicator({ current, total }: { current: number; total: number }) {
-  return (
-    <div className="flex items-center gap-1.5 mb-6">
-      {Array.from({ length: total }).map((_, i) => (
-        <div
-          key={i}
-          className={`h-1 rounded-full transition-all duration-300 ${
-            i < current ? "bg-kine-600 flex-1" : i === current ? "bg-kine-400 flex-1" : "bg-gray-200 flex-1"
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
-
 export default function RegisterPage() {
   // Suspense requis car RegisterForm lit useSearchParams (section 3)
   return (
@@ -96,7 +81,7 @@ function RegisterForm() {
   const rawProfileType = searchParams.get("profileType");
   const preselected = (["TITULAIRE", "REMPLACANT", "ASSISTANT"] as const).find((t) => t === rawProfileType) ?? null;
 
-  const [step, setStep] = useState<1 | 2 | 3>(preselected ? 2 : 1);
+  const [step, setStep] = useState<1 | 2>(preselected ? 2 : 1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -181,10 +166,12 @@ function RegisterForm() {
   const maxBioText = starter ? bioLimit - starter.length - 1 : bioLimit;
   const bioFull = starter && bioText.trim() ? `${starter} ${bioText.trim()}` : bioText.trim();
 
+  const formulairePret =
+    Boolean(email && password && name && profession && pendingPhotoBlob && acceptedTerms) && emailAvailable !== false;
+
   async function handleFinalSubmit() {
     // Photo principale obligatoire pour finaliser le profil (régression corrigée)
     if (!pendingPhotoBlob) {
-      setStep(2);
       setError("Une photo de profil est obligatoire pour finaliser votre inscription.");
       return;
     }
@@ -294,7 +281,7 @@ function RegisterForm() {
           <Image src="/GeminiLogo.png" alt="Soignect" width={132} height={132} priority className="rounded-2xl shadow-xl" />
         </Link>
         <p className="text-kine-100 text-xs font-medium tracking-wide">
-          {step === 1 ? "Bienvenue !" : step === 2 ? titreIdentite(profileType, structure) : "Votre présentation"}
+          {step === 1 ? "Bienvenue !" : titreIdentite(profileType, structure)}
         </p>
       </div>
 
@@ -388,7 +375,6 @@ function RegisterForm() {
           {/* ── ÉCRAN 2 : Identité ── */}
           {step === 2 && (
             <>
-              <StepIndicator current={1} total={2} />
               <h2 className="text-lg font-bold text-gray-800 mb-5">
                 {titreIdentite(profileType, structure)}
               </h2>
@@ -408,7 +394,7 @@ function RegisterForm() {
               )}
 
               <form
-                onSubmit={(e) => { e.preventDefault(); if (email && password && name && emailAvailable !== false) setStep(3); }}
+                onSubmit={(e) => { e.preventDefault(); if (formulairePret) void handleFinalSubmit(); }}
                 className="space-y-4"
               >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -511,58 +497,117 @@ function RegisterForm() {
                     La géographie, elle, appartient à la disponibilité (macro-zones), pas au
                     compte. */}
 
-                {/* Téléphone (section 50-51) */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Téléphone
-                    <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={phoneCountry}
-                      onChange={(e) => setPhoneCountry(e.target.value)}
-                      className="px-2 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm shrink-0"
-                      aria-label="Indicatif pays"
-                    >
-                      {PHONE_COUNTRIES.map((c) => (
-                        <option key={c.code} value={c.code}>{c.dial} {c.code}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ""))}
-                      className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-                      placeholder="690 12 34 56"
-                    />
-                  </div>
-                  {phone.trim() && (
-                    <label className="mt-2 flex items-start gap-2.5 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={whatsappOptIn}
-                        onChange={(e) => setWhatsappOptIn(e.target.checked)}
-                        className="w-4 h-4 mt-0.5 rounded accent-kine-600 shrink-0"
-                      />
-                      <span className="text-sm text-gray-600">
-                        {CONSENTEMENT_WHATSAPP.libelle}
-                        <span className="block text-[11px] leading-snug text-gray-400 mt-0.5">{CONSENTEMENT_WHATSAPP.detail}</span>
-                      </span>
-                    </label>
-                  )}
-                </div>
+                {/* ── UN SEUL ÉCRAN (section 370) ───────────────────────────────────────────
+                    Identité et accroche étaient deux écrans ; l'accroche, facultative côté serveur
+                    depuis toujours, se présentait pourtant comme une étape. Elle rejoint le
+                    téléphone dans un volet replié : rien de ce qu'il contient n'est exigé. */}
+                <details className="rounded-xl border border-gray-200">
+                  <summary className="cursor-pointer select-none px-3 py-2.5 text-sm font-semibold text-gray-700">
+                    Téléphone et accroche{" "}
+                    <span className="font-normal text-gray-400">(facultatif, modifiable plus tard)</span>
+                  </summary>
+                  <div className="space-y-4 px-3 pb-3 pt-1">
+                    {/* Téléphone (section 50-51) */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Téléphone
+                        <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          value={phoneCountry}
+                          onChange={(e) => setPhoneCountry(e.target.value)}
+                          className="px-2 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm shrink-0"
+                          aria-label="Indicatif pays"
+                        >
+                          {PHONE_COUNTRIES.map((c) => (
+                            <option key={c.code} value={c.code}>{c.dial} {c.code}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, ""))}
+                          className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                          placeholder="690 12 34 56"
+                        />
+                      </div>
+                      {phone.trim() && (
+                        <label className="mt-2 flex items-start gap-2.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={whatsappOptIn}
+                            onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                            className="w-4 h-4 mt-0.5 rounded accent-kine-600 shrink-0"
+                          />
+                          <span className="text-sm text-gray-600">
+                            {CONSENTEMENT_WHATSAPP.libelle}
+                            <span className="block text-[11px] leading-snug text-gray-400 mt-0.5">{CONSENTEMENT_WHATSAPP.detail}</span>
+                          </span>
+                        </label>
+                      )}
+                    </div>
 
-                {/* Opt-in notifications email (coché par défaut) */}
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={emailOptIn}
-                    onChange={(e) => setEmailOptIn(e.target.checked)}
-                    className="w-4 h-4 rounded accent-kine-600"
-                  />
-                  <span className="text-sm text-gray-600">Recevoir les notifications par email</span>
-                </label>
+                    <div>
+                      <p className="block text-xs font-medium text-gray-600 mb-1">Votre accroche</p>
+                      <p className="text-gray-400 text-xs mb-3">
+                        {bioLimit} caractères : le début s&apos;affiche sur votre carte.
+                      </p>
+                      {/* Boutons starter */}
+                      <div className="flex gap-2 flex-wrap mb-3">
+                        {(profileType === "TITULAIRE"
+                            ? (structure ? BIO_STARTERS_STRUCTURE : BIO_STARTERS_TITULAIRE)
+                            : BIO_STARTERS_CANDIDATE
+                          ).map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setStarter(starter === s ? "" : s)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                              starter === s
+                                ? "bg-kine-600 text-white border-kine-600"
+                                : "bg-white text-kine-700 border-kine-300 hover:border-kine-500"
+                            }`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="relative mb-1">
+                        {starter && (
+                          <span className="absolute left-3 top-3 text-xs text-kine-500 font-medium pointer-events-none select-none">
+                            {starter}&nbsp;
+                          </span>
+                        )}
+                        <textarea
+                          value={bioText}
+                          onChange={(e) => { if (e.target.value.length <= maxBioText) setBioText(e.target.value); }}
+                          rows={4}
+                          className={`w-full px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm ${starter ? "pt-7 pb-2" : "py-3"}`}
+                          placeholder={
+                            starter
+                              ? "…complétez en quelques mots"
+                              : profileType === "TITULAIRE"
+                              // Un établissement n'est pas un cabinet kiné : l'exemple ne lui prête ni
+                              // patientèle ni plateau technique (section 304).
+                              ? structure
+                                ? "Établissement à Pointe-à-Pitre, équipe stable, plannings connus à l'avance, intégration accompagnée…"
+                                : "Cabinet dynamique à Pointe-à-Pitre, patientèle sport et gériatrique, plateau technique complet, logement possible…"
+                              // Suit la profession choisie plus haut (section 278) : elle était
+                              // en dur sur « Kiné passionné de sport », servie telle quelle à l'infirmière
+                              // qui venait de se déclarer infirmière.
+                              : accrocheProfilExemple(profession as Profession)
+                          }
+                        />
+                      </div>
+                      <p className="text-right text-xs text-gray-300 mb-4">
+                        {(starter ? starter.length + 1 : 0) + bioText.length}/{bioLimit}
+                      </p>
+                    </div>
+                  </div>
+                </details>
 
                 {/* Photo de profil OBLIGATOIRE (régression corrigée) */}
                 <div className="pt-2 border-t border-gray-100">
@@ -581,6 +626,38 @@ function RegisterForm() {
                   )}
                 </div>
 
+                {/* Opt-in notifications email (coché par défaut) */}
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={emailOptIn}
+                    onChange={(e) => setEmailOptIn(e.target.checked)}
+                    className="w-4 h-4 rounded accent-kine-600"
+                  />
+                  <span className="text-sm text-gray-600">Recevoir les notifications par email</span>
+                </label>
+
+                {error && (
+                  <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{error}</p>
+                )}
+
+                {/* Acceptation obligatoire des documents légaux (section 150) */}
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-kine-600 shrink-0"
+                  />
+                  <span className="text-xs text-gray-500 leading-snug">
+                    J&apos;ai lu et j&apos;accepte les{" "}
+                    <a href="/cgu" target="_blank" rel="noopener noreferrer" className="text-kine-600 underline">CGU/CGV</a>, la{" "}
+                    <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-kine-600 underline">politique de confidentialité</a>{" "}
+                    et les{" "}
+                    <a href="/mentions-legales" target="_blank" rel="noopener noreferrer" className="text-kine-600 underline">mentions légales</a>.
+                  </span>
+                </label>
+
                 <div className="flex gap-3 pt-1">
                   <button
                     type="button"
@@ -591,126 +668,18 @@ function RegisterForm() {
                   </button>
                   <button
                     type="submit"
-                    // `!profession` rejoint la liste (section 283) : `required` sur le select
-                    // suffirait à bloquer la soumission, mais le bouton grisé DIT qu'il manque
-                    // quelque chose, là où la validation native ne parle qu'après le clic. Les
-                    // autres champs obligatoires de cet écran sont traités ainsi ; la profession
-                    // ne doit pas faire exception.
-                    disabled={!email || !password || !name || !profession || emailAvailable === false || !pendingPhotoBlob}
+                    // Le bouton grisé DIT qu'il manque quelque chose (section 283), là où la
+                    // validation native ne parle qu'après le clic.
+                    disabled={loading || !formulairePret}
                     className="md3-ripple flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
                   >
-                    Continuer →
+                    {loading ? "Création…" : "Rejoindre Soignect 🚀"}
                   </button>
                 </div>
               </form>
               {/* Écran 2 : c'est là qu'arrive un établissement venu d'une page « emploi » (l'écran 1
                   est sauté) — le lien de connexion n'existait que sur l'écran 1 (22/10). */}
               <DejaUnCompte returnTo={returnTo} className="mt-6" />
-            </>
-          )}
-
-          {/* ── ÉCRAN 3 : BioTinder ── */}
-          {step === 3 && (
-            <>
-              <StepIndicator current={2} total={2} />
-              <h2 className="text-lg font-bold text-gray-800 mb-1">Votre accroche</h2>
-              <p className="text-gray-400 text-sm mb-4">
-                {bioLimit} caractères pour convaincre — le début s&apos;affiche sur votre carte, soignez-le.
-              </p>
-
-              {/* Boutons starter */}
-              <div className="flex gap-2 flex-wrap mb-3">
-                {(profileType === "TITULAIRE"
-                    ? (structure ? BIO_STARTERS_STRUCTURE : BIO_STARTERS_TITULAIRE)
-                    : BIO_STARTERS_CANDIDATE
-                  ).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setStarter(starter === s ? "" : s)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                      starter === s
-                        ? "bg-kine-600 text-white border-kine-600"
-                        : "bg-white text-kine-700 border-kine-300 hover:border-kine-500"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-
-              <div className="relative mb-1">
-                {starter && (
-                  <span className="absolute left-3 top-3 text-xs text-kine-500 font-medium pointer-events-none select-none">
-                    {starter}&nbsp;
-                  </span>
-                )}
-                <textarea
-                  value={bioText}
-                  onChange={(e) => { if (e.target.value.length <= maxBioText) setBioText(e.target.value); }}
-                  rows={4}
-                  className={`w-full px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-none text-sm ${starter ? "pt-7 pb-2" : "py-3"}`}
-                  placeholder={
-                    starter
-                      ? "…complétez en quelques mots"
-                      : profileType === "TITULAIRE"
-                      // Un établissement n'est pas un cabinet kiné : l'exemple ne lui prête ni
-                      // patientèle ni plateau technique (section 304).
-                      ? structure
-                        ? "Établissement à Pointe-à-Pitre, équipe stable, plannings connus à l'avance, intégration accompagnée…"
-                        : "Cabinet dynamique à Pointe-à-Pitre, patientèle sport et gériatrique, plateau technique complet, logement possible…"
-                      // Suit la profession choisie à l'écran PRÉCÉDENT (section 278) : elle était
-                      // en dur sur « Kiné passionné de sport », servie telle quelle à l'infirmière
-                      // qui venait de se déclarer infirmière.
-                      : accrocheProfilExemple(profession as Profession)
-                  }
-                />
-              </div>
-              <p className="text-right text-xs text-gray-300 mb-4">
-                {(starter ? starter.length + 1 : 0) + bioText.length}/{bioLimit}
-              </p>
-
-              {error && (
-                <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100 mb-3">{error}</p>
-              )}
-
-              {/* Acceptation obligatoire des documents légaux (section 150) */}
-              <label className="flex items-start gap-2.5 mb-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 accent-kine-600 shrink-0"
-                />
-                <span className="text-xs text-gray-500 leading-snug">
-                  J&apos;ai lu et j&apos;accepte les{" "}
-                  <a href="/cgu" target="_blank" rel="noopener noreferrer" className="text-kine-600 underline">CGU/CGV</a>, la{" "}
-                  <a href="/confidentialite" target="_blank" rel="noopener noreferrer" className="text-kine-600 underline">politique de confidentialité</a>{" "}
-                  et les{" "}
-                  <a href="/mentions-legales" target="_blank" rel="noopener noreferrer" className="text-kine-600 underline">mentions légales</a>.
-                </span>
-              </label>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="px-4 py-3 border border-gray-200 rounded-xl text-gray-500 text-sm hover:bg-gray-50 transition"
-                >
-                  ←
-                </button>
-                <button
-                  onClick={handleFinalSubmit}
-                  disabled={loading || !acceptedTerms}
-                  className="md3-ripple flex-1 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 active:scale-[0.98] transition disabled:opacity-40 text-sm"
-                >
-                  {loading ? "Création…" : "Rejoindre Soignect 🚀"}
-                </button>
-              </div>
-
-              <p className="text-center text-xs text-gray-400 mt-4">
-                Votre accroche peut être modifiée à tout moment depuis votre profil.
-              </p>
             </>
           )}
 
