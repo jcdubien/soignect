@@ -7408,6 +7408,34 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 373 — MOT DE PASSE OUBLIÉ ET CONFRÈRE PAS ENCORE ACTIVÉ (28/10)
+
+Le compte d'un confrère hors Soignect est créé par le cabinet, puis activé par le confrère
+lui-même (lien `/activer/<jeton>` : mot de passe, acceptation des conditions). Ce lien porte le
+même jeton que la réinitialisation de mot de passe (`User.resetToken`). Deux défauts :
+
+- **Contournement de l'activation** : ouvert sur `/reset-password?token=…`, le lien d'activation
+  posait un mot de passe sans acceptation des conditions, et le compte devenait utilisable.
+- **Lien cassé** : « Mot de passe oublié » sur l'email saisi par le cabinet remplaçait le jeton ;
+  le lien d'activation partagé cessait de fonctionner, sans explication.
+
+Correctif, règle écrite une fois (`lib/compteEnAttente`) — « compte de confrère en attente » =
+pas d'acceptation des conditions ET partie invitée d'une mise en relation hors Soignect :
+
+- `forgot-password` : jeton conservé, aucun email, réponse 200 inchangée (rien n'est révélé).
+- `reset-password` : 400 « Ce compte n'est pas encore activé. Ouvrez le lien d'activation que le
+  cabinet vous a transmis… ».
+- Connexion : refusée pour ce compte (défense en profondeur ; son mot de passe initial est
+  inutilisable de toute façon).
+- **Étroit à dessein** : 4 comptes sur 123 n'ont pas d'acceptation enregistrée en production le
+  28/10, dont **1 seul** confrère en attente. Les 3 autres sont des comptes ordinaires anciens :
+  ils se connectent et réinitialisent comme avant.
+- Essai `essai_p53` (purgé, aucun email envoyé) : lien d'activation intact après « oublié » ;
+  réinitialisation par le jeton d'activation refusée, ni mot de passe ni conditions posés ;
+  connexion refusée même avec un mot de passe connu ; activation normale puis connexion,
+  « oublié » et réinitialisation comme pour tout compte ; compte ancien sans acceptation
+  inchangé (connexion, réinitialisation).
+
 ### SECTION 372 — « FAIRE UN CONTRAT » EN ENTRÉE PRINCIPALE DU CABINET (28/10)
 
 Le contrat avec un confrère trouvé hors Soignect (sections 363 et suivantes) n'était accessible

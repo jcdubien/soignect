@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { estCompteConfrereEnAttente } from "@/lib/compteEnAttente";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -38,6 +39,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await compare(parsed.data.password, user.passwordHash);
         if (!valid) return null;
+        // Confrère pas encore activé (section 373) : il n'entre que par son lien d'activation.
+        // Seuls les comptes sans acceptation paient la requête supplémentaire.
+        if (!user.acceptedTermsAt && (await estCompteConfrereEnAttente(user.id))) return null;
 
         return {
           id: user.id,

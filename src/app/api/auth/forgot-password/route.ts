@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 import { sendEmail } from "@/lib/email";
 import { appBaseUrl } from "@/lib/appUrl";
+import { estCompteConfrereEnAttente } from "@/lib/compteEnAttente";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,14 @@ export async function POST(req: NextRequest) {
 
   // Toujours répondre 200 pour ne pas révéler si l'email existe
   if (!user) {
+    return NextResponse.json({ ok: true });
+  }
+
+  // Confrère pas encore activé (section 373) : son jeton EST son lien d'activation. Le remplacer
+  // casserait le lien partagé par le cabinet ; on n'y touche pas et on n'envoie rien. Réponse
+  // identique aux autres cas, pour ne rien révéler.
+  if (await estCompteConfrereEnAttente(user.id)) {
+    console.warn("[forgot-password] compte confrère en attente d'activation — jeton conservé, aucun email");
     return NextResponse.json({ ok: true });
   }
 

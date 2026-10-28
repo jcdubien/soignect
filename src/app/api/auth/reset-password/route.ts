@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { z } from "zod";
+import { estCompteConfrereEnAttente, MESSAGE_COMPTE_EN_ATTENTE } from "@/lib/compteEnAttente";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,12 @@ export async function POST(req: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Lien invalide ou expiré" }, { status: 400 });
+  }
+
+  // Le lien d'activation d'un confrère porte le même jeton (section 373) : ici, il poserait un
+  // mot de passe sans acceptation des conditions. L'activation se fait par /activer/<jeton>.
+  if (await estCompteConfrereEnAttente(user.id)) {
+    return NextResponse.json({ error: MESSAGE_COMPTE_EN_ATTENTE }, { status: 400 });
   }
 
   const passwordHash = await hash(password, 12);
