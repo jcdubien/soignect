@@ -7408,6 +7408,40 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 369 — L'ANNONCE EN 4 CHAMPS ; « REPUBLIER COMME LA DERNIÈRE » (28/10)
+
+Audit du 27/10 : publier une annonce demandait un texte libre d'au moins 40 caractères, un titre,
+puis des champs repliés derrière un lien sur mobile. Un cabinet libéral qui **crée** une annonce
+voit désormais quatre champs : **type, dates, commune, argent** (rétrocession ou redevance ; la
+rémunération brute pour un poste salarié). Le reste (texte libre et assistance IA, titre,
+accroche, flexibilité des dates, logement, véhicule, secrétariat, exercice coordonné, CA) est
+replié sous « Plus de détails », facultatif.
+
+- **Titre et accroche déduits** (`lib/annonceRapide`) des seuls champs saisis : « Remplacement à
+  Le Gosier · 02/08 → 20/08 » ; « Remplacement à Le Gosier du 02/08/2027 au 20/08/2027.
+  Rétrocession de 70 % pour le remplaçant. » Ce que le cabinet écrit lui-même prime toujours.
+  Comme ils portent les dates, ils sont **reconnus à leur forme exacte** (commune de la liste
+  fermée comprise) et recomposés quand les dates changent, en modification comme à la
+  republication ; un texte écrit à la main n'est jamais touché (tests `annonceRapide.test.ts`).
+- **Préremplissage visible** (`GET /api/missions/derniere`) : la commune et l'argent de la
+  dernière annonce, dans les champs visibles, avec la mention « repris de votre dernière
+  annonce ». L'argent est repris **par type** : le pourcentage change de sens (part du remplaçant
+  sur un remplacement, redevance au cabinet sur un assistanat) ; changer de type remplace le
+  chiffre repris, jamais un chiffre saisi par le cabinet. Brouillon restauré : rien n'est écrasé.
+- **« Republier comme la dernière »** : type, commune, argent, durée minimale, options et texte ;
+  ce qui est repris est énuméré à l'écran. **Jamais les dates ni le poste du Planning** : la route
+  ne les renvoie pas (même principe que la section 243). Depuis le siège du titulaire, c'est le
+  dernier remplacement qui est repris.
+- Inchangés : l'édition (écran complet), l'établissement (cartes salariées), l'assistant en
+  couverture, la route de création. Le formulaire est découpé en blocs définis une fois, rendus
+  dans l'une ou l'autre mise en page.
+- Essai `essai_p50` (purgé) : route sans dates ni poste, sans les annonces d'un autre cabinet,
+  absences exclues, 401 anonyme ; préremplissage 70 % → 25 % → vide → 70 % selon le type, 72 %
+  saisi conservé ; publication avec les quatre champs seuls (titre et accroche déduits en base) ;
+  republication : ancienne accroche datée écartée, recomposée avec les nouvelles dates ;
+  modification d'une date : titre et accroche suivent, annonce rédigée à la main intacte ;
+  établissement sur l'écran habituel.
+
 ### SECTION 368 — GRATUIT POUR LES PRATICIENS, PAYANT POUR LES INSTITUTIONS (27/10)
 
 Décision de JC après l'audit du 27/10 : aucun compte payant sur 123 ; concurrence gratuite

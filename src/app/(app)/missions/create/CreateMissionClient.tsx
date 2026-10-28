@@ -13,6 +13,7 @@ import { mentionExerciceCoordonne } from "@/lib/professions";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { assistanceIADisponible } from "@/lib/annonceAI";
 import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
+import { titreAuto, accrocheAuto, estAccrocheAuto, estTitreAutoDate } from "@/lib/annonceRapide";
 
 export const dynamic = "force-dynamic";
 
@@ -273,6 +274,15 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   const editId = searchParams.get("editId");
   const isEdit = !!editId;
 
+  // ── ANNONCE EN 4 CHAMPS (section 369) ─────────────────────────────────────────────────────
+  //
+  // Le cabinet libéral qui CRÉE une annonce ne voit plus que le type, les dates, la commune et
+  // l'argent ; le reste (texte, titre, accroche, logement, véhicule…) est replié sous « Plus de
+  // détails ». Le titre et l'accroche se déduisent alors des champs saisis (lib/annonceRapide).
+  // L'édition, l'établissement et l'assistant en couverture gardent l'écran complet : on y
+  // modifie des champs précis, ou le parcours a ses propres règles.
+  const modeRapide = !isEdit && profileType === "TITULAIRE" && !coverMode && !employeurSalarie;
+
   // Item 8 — photo obligatoire avant publication
   const profileId = (session?.user as { profileId?: string })?.profileId;
   const [hasPhoto, setHasPhoto] = useState<boolean | null>(null); // null = en cours de chargement
@@ -312,6 +322,128 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
     retrocessionPlafondEuros: "",
     rawText: "",            // texte libre de l'annonce (refonte saisie texte-libre)
   });
+
+  // ── Reprise de la dernière annonce (section 369) ──────────────────────────────────────────
+  //
+  // Jamais les dates ni le poste du Planning (section 243 : la route ne les renvoie pas). Ce qui
+  // est repris s'AFFICHE : la commune et l'argent dans les champs visibles, avec la mention
+  // « repris de votre dernière annonce » ; le reste énuméré sous le bouton « Republier ».
+  type Reprise = {
+    missionType: string; location: string;
+    retrocessionRate: number | null; retrocessionMode: string | null;
+    retrocessionFixeEuros: number | null; retrocessionPlafondEuros: number | null;
+    minMonths: number | null; dateFlexibility: number | null;
+    logementPropose: boolean; vehiculePropose: boolean;
+    secretairePresente: boolean; exerciceCoordonne: boolean;
+    demiJourneesLibres: number | null; caMensuelEstime: number | null;
+    rawText: string; accroche: string;
+  };
+  const [reprises, setReprises] = useState<{ derniere: Reprise | null; parType: Record<string, Reprise> } | null>(null);
+  // Commune posée par la reprise : la mention s'efface dès que le cabinet en choisit une autre.
+  const [communeReprise, setCommuneReprise] = useState<string | null>(null);
+  const [argentRepris, setArgentRepris] = useState(false);
+  const [repriseFaite, setRepriseFaite] = useState<string[]>([]);
+  // Valeurs d'argent posées automatiquement : tant que le cabinet n'y a pas touché, changer de
+  // type les remplace par celles de SA dernière annonce de ce type. Le pourcentage change de sens
+  // d'un type à l'autre (part du remplaçant / redevance au cabinet) : on ne garde jamais l'un
+  // pour l'autre.
+  const argentAuto = useRef<string | null>(null);
+  const empreinteArgent = (f: typeof form) =>
+    JSON.stringify([f.retrocessionRate, f.retrocessionMode, f.retrocessionFixeEuros, f.retrocessionPlafondEuros]);
+  const argentDe = (r: Reprise) => ({
+    retrocessionRate: r.retrocessionRate != null ? String(r.retrocessionRate) : "",
+    retrocessionMode: r.retrocessionMode ?? "POURCENTAGE",
+    retrocessionFixeEuros: r.retrocessionFixeEuros != null ? String(r.retrocessionFixeEuros) : "",
+    retrocessionPlafondEuros: r.retrocessionPlafondEuros != null ? String(r.retrocessionPlafondEuros) : "",
+  });
+
+  useEffect(() => {
+    if (!modeRapide || !profileId || reprises) return;
+    fetch("/api/missions/derniere")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        setReprises({ derniere: d.derniere ?? null, parType: d.parType ?? {} });
+        const commune = d.derniere?.location;
+        if (typeof commune === "string" && COMMUNES_GUADELOUPE.includes(commune)) {
+          // Brouillon restauré ou commune déjà choisie : on n'y touche pas.
+          setForm((prev) => (prev.location ? prev : { ...prev, location: commune }));
+          setCommuneReprise(commune);
+          // Préremplissage = état de départ, pas une saisie : la garde de sortie ne doit pas
+          // demander confirmation sur un formulaire que personne n'a touché.
+          setTimeout(() => { referenceSaisie.current = null; }, 0);
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeRapide, profileId]);
+
+  useEffect(() => {
+    if (!modeRapide || !reprises) return;
+    const type = needType && needType !== "salariat" ? MISSION_TYPE_PAR_BESOIN[needType] : null;
+    const r = type ? reprises.parType[type] : undefined;
+    // Décidé HORS de la fonction de mise à jour : React la rejoue en développement, et un ref
+    // modifié à l'intérieur faisait échouer la seconde passe (le type changeait, le taux non).
+    const vierge = !form.retrocessionRate && !form.retrocessionFixeEuros && !form.retrocessionPlafondEuros;
+    const auto = argentAuto.current !== null && empreinteArgent(form) === argentAuto.current;
+    if (!vierge && !auto) return; // le cabinet a saisi son chiffre : il prime
+    const argent = r
+      ? argentDe(r)
+      : { retrocessionRate: "", retrocessionMode: "POURCENTAGE", retrocessionFixeEuros: "", retrocessionPlafondEuros: "" };
+    argentAuto.current = empreinteArgent({ ...form, ...argent });
+    setForm((prev) => ({ ...prev, ...argent }));
+    setArgentRepris(Boolean(r && (r.retrocessionRate != null || r.retrocessionFixeEuros != null)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeRapide, reprises, needType]);
+
+  const NEED_PAR_TYPE: Record<string, NeedType> = { REMPLACEMENT: "remplacement", ASSISTANAT: "assistant", COLLABORATION: "collaboration" };
+  // Depuis le siège du titulaire, seul un remplacement se publie : on reprend le dernier.
+  const sourceReprise: Reprise | null = (() => {
+    if (!reprises) return null;
+    const r = seatOnly ? reprises.parType.REMPLACEMENT ?? null : reprises.derniere;
+    return r && NEED_PAR_TYPE[r.missionType] && typesContractualisables.includes(r.missionType) ? r : null;
+  })();
+
+  function republierCommeLaDerniere() {
+    const r = sourceReprise;
+    if (!r) return;
+    const suivant = {
+      ...form,
+      ...argentDe(r),
+      title: "",
+      location: COMMUNES_GUADELOUPE.includes(r.location) ? r.location : form.location,
+      minMonths: r.minMonths ? String(r.minMonths) : "",
+      dateFlexibility: r.dateFlexibility ?? 0,
+      logementPropose: r.logementPropose,
+      vehiculePropose: r.vehiculePropose,
+      secretairePresente: salarieSeul ? false : r.secretairePresente,
+      exerciceCoordonne: salarieSeul ? false : r.exerciceCoordonne,
+      demiJourneesLibres: r.demiJourneesLibres != null ? String(r.demiJourneesLibres) : "",
+      caMensuelEstime: r.caMensuelEstime != null ? String(r.caMensuelEstime) : "",
+      rawText: r.rawText,
+      // Une accroche déduite porte les dates de l'ancienne annonce : on la laisse se recomposer.
+      accroche: estAccrocheAuto(r.accroche, needTypeLabels[NEED_PAR_TYPE[r.missionType] as keyof typeof needTypeLabels]) ? "" : r.accroche.slice(0, bioLimit),
+    };
+    argentAuto.current = empreinteArgent(suivant);
+    setForm(suivant);
+    setNeedType(NEED_PAR_TYPE[r.missionType]);
+    setCommuneReprise(null);
+    const libelle = needTypeLabels[NEED_PAR_TYPE[r.missionType] as keyof typeof needTypeLabels];
+    const argent = r.retrocessionMode === "FIXE" && r.retrocessionFixeEuros != null
+      ? `${r.retrocessionFixeEuros} €/mois`
+      : r.retrocessionRate != null ? `${r.retrocessionRate} %` : null;
+    setRepriseFaite([
+      libelle,
+      suivant.location,
+      argent,
+      r.minMonths ? `${r.minMonths} mois minimum` : null,
+      r.logementPropose ? "logement" : null,
+      r.vehiculePropose ? "véhicule" : null,
+      r.secretairePresente && !salarieSeul ? "secrétariat" : null,
+      r.exerciceCoordonne && !salarieSeul ? "exercice coordonné" : null,
+      suivant.rawText.trim() || suivant.accroche.trim() ? "texte de l'annonce" : null,
+    ].filter((x): x is string => Boolean(x)));
+  }
 
   // ── Assistance IA (refonte saisie) — chaque action = 1 appel serveur explicite ──
   const [aiBusy, setAiBusy] = useState<null | "extract" | "title" | "redaction" | "optimize">(null);
@@ -533,9 +665,10 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   // Sans nature, la génération n'aurait pas de quoi trancher entre CDI et CDD — le serveur
   // refuse déjà, on évite l'aller-retour.
   if (needType === "salariat" && !natureSalariat) missingRequired.push("la nature du contrat salarié");
-  if (!form.title.trim())                        missingRequired.push("un titre");
+  // En 4 champs, titre et accroche se déduisent des champs saisis : ils ne bloquent plus.
+  if (!modeRapide && !form.title.trim())         missingRequired.push("un titre");
   if (!form.location)                            missingRequired.push("la commune");
-  if (!contentValid)                             missingRequired.push("une description (≥ 40 caractères)");
+  if (!modeRapide && !contentValid)              missingRequired.push("une description (≥ 40 caractères)");
   if ((needType === "remplacement" || cddATerme) && (!form.startDate || !form.endDate)) missingRequired.push("les dates de début et de fin");
   // Annonce rattachée à un poste du Planning : sans date de début, la brique ne se place sur
   // aucune ligne. On le dit AVANT publication plutôt que de laisser partir une annonce fantôme.
@@ -590,6 +723,33 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
     ? dateEstPassee(form.endDate)
     : dateEstPassee(form.startDate);
 
+  // Ce que le cabinet a saisi, en clair — matière du titre et de l'accroche automatiques.
+  const champsRapides = (() => {
+    const type =
+      needType === "salariat"
+        ? (natureSalariat ? LIBELLE_NATURE[natureSalariat].titre : "Poste salarié")
+        : needType ? needTypeLabels[needType] : "Annonce";
+    let argent: string | undefined;
+    if (annonceSalariee) {
+      if (form.remunerationBrute) argent = `Rémunération brute de ${form.remunerationBrute} € par mois`;
+    } else if (modesRedevance && form.retrocessionMode === "FIXE") {
+      if (form.retrocessionFixeEuros) argent = `Redevance de ${form.retrocessionFixeEuros} € par mois versée au cabinet`;
+    } else if (form.retrocessionRate) {
+      argent = needType === "remplacement"
+        ? `Rétrocession de ${form.retrocessionRate} % pour le remplaçant`
+        : modesRedevance && form.retrocessionMode === "PLAFONNEE" && form.retrocessionPlafondEuros
+        ? `Redevance de ${form.retrocessionRate} % versée au cabinet, plafonnée à ${form.retrocessionPlafondEuros} € par mois`
+        : `Redevance de ${form.retrocessionRate} % versée au cabinet`;
+    }
+    return {
+      type, commune: form.location,
+      debut: form.startDate || undefined,
+      fin: showEndDate ? form.endDate || undefined : undefined,
+      minMonths: showMinMonths ? form.minMonths || undefined : undefined,
+      argent, logement: form.logementPropose, vehicule: form.vehiculePropose,
+    };
+  })();
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -599,17 +759,26 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
     // à défaut — IA indisponible et champ laissé vide — repli sur le texte libre tronqué au
     // cap de la colonne (700). Écrite sur pitch ET bioTinder : la carte de swipe et le score
     // DeepSeek lisent bioTinder, la fiche annonce publique lit pitch.
-    const pitchFull = accrocheTrim
+    // Accroche déduite (section 369) : recomposée avec les champs du moment, sans quoi une date
+    // modifiée laisserait l'ancienne période sur la carte.
+    const accrocheDeduite = Boolean(accrocheTrim) && estAccrocheAuto(accrocheTrim, champsRapides.type);
+    const pitchFull = accrocheDeduite
+      ? accrocheAuto(champsRapides).slice(0, bioLimit)
+      : accrocheTrim
       ? accrocheTrim.slice(0, bioLimit)
       : rawTextTrim
       ? rawTextTrim.slice(0, bioLimit)
+      : modeRapide
+      ? accrocheAuto(champsRapides).slice(0, bioLimit)
       : null;
 
     // `needType` peut valoir "" tant que rien n'est choisi — d'où le repli, inchangé.
     const missionTypeMap: Record<string, string | undefined> = MISSION_TYPE_PAR_BESOIN;
 
     const payload = {
-      title: form.title,
+      title: !form.title.trim()
+        ? (modeRapide ? titreAuto(champsRapides) : form.title)
+        : estTitreAutoDate(form.title.trim(), champsRapides.type) ? titreAuto(champsRapides) : form.title,
       location: form.location,
       specialties: form.specialties,
       startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
@@ -683,7 +852,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
     marquerSaisieEnCours(false);
     // L'en-tête (layout serveur) n'est pas recalculé par une navigation client : sans ce
     // refresh, il affichait « 0 annonces » juste après la première publication.
-    router.push(`/annonces?published=1&pid=${encodeURIComponent(publishedId)}&pt=${encodeURIComponent(form.title)}`);
+    router.push(`/annonces?published=1&pid=${encodeURIComponent(publishedId)}&pt=${encodeURIComponent(payload.title)}`);
     router.refresh();
   }
 
@@ -810,10 +979,816 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
         value={form.title}
         onChange={(e) => setForm({ ...form, title: e.target.value })}
         maxLength={100}
-        required
+        required={!modeRapide}
         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-        placeholder={cfg.titlePlaceholder}
+        placeholder={modeRapide ? titreAuto(champsRapides) : cfg.titlePlaceholder}
       />
+    </div>
+  );
+
+  // Les blocs du formulaire, définis une fois et rendus selon la mise en page (section 369) :
+  // l'ancienne (édition, établissement, assistant en couverture) ou l'annonce en 4 champs.
+  const blocTexteLibre = (
+    <>
+      <label className="block text-sm font-semibold text-kine-700">
+        Décrivez votre besoin en toute liberté{" "}
+        <span className="text-kine-400 font-normal">— dates, commune, taux, logement, ambiance…</span>
+      </label>
+      <textarea
+        value={form.rawText}
+        onChange={(e) => setForm({ ...form, rawText: e.target.value })}
+        rows={6}
+        maxLength={8000}
+        className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800"
+        placeholder={rawPlaceholder}
+      />
+      {/* Reprendre un texte précédent (section 243) — le TEXTE seul, jamais les dates ni
+          les montants d'une annonce passée. Posé sous le champ qu'il remplit. */}
+      <ReprendreTexte
+        champ="rawText"
+        valeurActuelle={form.rawText}
+        exclureId={editId}
+        onReprendre={(t) => setForm((prev) => ({ ...prev, rawText: t }))}
+      />
+      {/* Boutons d'assistance — chacun = 1 appel IA explicite (jamais à la frappe).
+          Libellés décrivant le RÉSULTAT, pas l'action : « Analyser » et « Optimiser »
+          sonnaient pareil et rien n'indiquait lequel modifiait quoi. La ligne d'aide
+          sous chacun dit ce qui change : les champs, le texte, ou rien. */}
+      {/* ── L'ASSISTANCE N'EXISTE QUE LÀ OÙ L'INVITE EST ÉCRITE (section 294) ────────
+          Les invites nomment « kinésithérapeute » : soumises au texte d'un infirmier,
+          elles extraient avec la mauvaise grille. On RETIRE les boutons plutôt que de
+          les griser — un bouton désactivé invite à chercher ce qui le débloquerait, et
+          ici rien ne le débloque. La saisie manuelle n'a jamais dépendu d'eux. */}
+      {assistanceIADisponible(profession) && (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <button type="button" onClick={() => runAI("extract")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
+          className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
+          <span className="text-xs font-bold">{aiBusy === "extract" ? "Analyse…" : "✨ Remplir les champs"}</span>
+          <span className="text-[10px] font-normal opacity-80 leading-snug">dates, commune, taux, accroche… extraits de votre texte</span>
+        </button>
+        <button type="button" onClick={() => runAI("redaction")} disabled={aiBusy !== null}
+          className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+          <span className="text-xs font-bold">{aiBusy === "redaction" ? "Rédaction…" : "✍️ Reformuler mon texte"}</span>
+          <span className="text-[10px] font-normal opacity-70 leading-snug">réécrit ci-dessus, vous pourrez annuler</span>
+        </button>
+        <button type="button" onClick={() => runAI("optimize")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
+          className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+          <span className="text-xs font-bold">{aiBusy === "optimize" ? "Analyse…" : "🚀 Qu'est-ce qui manque ?"}</span>
+          <span className="text-[10px] font-normal opacity-70 leading-snug">suggestions d&apos;ajouts, rien n&apos;est modifié</span>
+        </button>
+        {/* Regroupé ici avec les autres assistances : il était isolé dans l'encart
+            « ce que j'ai compris » et n'apparaissait qu'après extraction. */}
+        <button type="button" onClick={() => runAI("title")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
+          className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
+          <span className="text-xs font-bold">{aiBusy === "title" ? "Titre…" : "✨ Proposer un titre"}</span>
+          <span className="text-[10px] font-normal opacity-70 leading-snug">remplit l&apos;intitulé du poste ci-dessous</span>
+        </button>
+      </div>
+      )}
+
+      {/* Annulation de la reformulation — seul geste destructif du formulaire : la
+          réécriture remplace le texte de l'utilisateur sans confirmation. On garde
+          l'ancien en mémoire, un clic le restaure. */}
+      {rawTextBeforeRedaction !== null && (
+        <div className="flex items-center gap-2 text-xs bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          <span className="text-amber-800">Votre texte a été reformulé.</span>
+          <button
+            type="button"
+            onClick={() => {
+              setForm((p) => ({ ...p, rawText: rawTextBeforeRedaction }));
+              setRawTextBeforeRedaction(null);
+            }}
+            className="ml-auto shrink-0 font-bold text-amber-900 underline hover:text-amber-950"
+          >
+            Annuler la reformulation
+          </button>
+        </div>
+      )}
+
+      {aiDegraded && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          Assistance IA momentanément indisponible (limite atteinte). Aucun souci : remplissez les champs à la main ci-dessous, la publication reste possible.
+        </p>
+      )}
+      {aiNotice && !aiDegraded && (
+        <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">{aiNotice}</p>
+      )}
+      {optimizeTips.length > 0 && (
+        <div className="rounded-xl bg-kine-50 border border-kine-100 px-3 py-2.5">
+          <p className="text-[11px] font-bold text-kine-700 uppercase tracking-wide mb-1">Suggestions d&apos;ajout</p>
+          <ul className="list-disc pl-4 space-y-0.5">
+            {optimizeTips.map((t, i) => <li key={i} className="text-xs text-gray-700">{t}</li>)}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+
+  const blocResume = (
+    <>
+      {/* Résumé compact « ce que j'ai compris » + champs manquants requis (en tête de colonne) */}
+      {formType === "TITULAIRE" && extractDone && (
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-2">
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Ce que j&apos;ai compris</p>
+          <div className="flex flex-wrap gap-1.5">
+            {needType && <span className="px-2 py-0.5 rounded-full bg-kine-100 text-kine-700 text-[11px] font-semibold">{needTypeLabels[needType as keyof typeof needTypeLabels] ?? needType}</span>}
+            {form.location && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📍 {form.location}</span>}
+            {form.startDate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📅 {form.startDate}{form.endDate ? ` → ${form.endDate}` : ""}</span>}
+            {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
+            {modesRedevance && form.retrocessionMode === "FIXE" && form.retrocessionFixeEuros && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Redevance {form.retrocessionFixeEuros} €/mois</span>}
+            {!isEmployeur && !(modesRedevance && form.retrocessionMode === "FIXE") && form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{needType === "remplacement" ? "Rétro" : "Redevance"} {form.retrocessionRate}%{modesRedevance && form.retrocessionMode === "PLAFONNEE" && form.retrocessionPlafondEuros ? ` · max ${form.retrocessionPlafondEuros} €` : ""}</span>}
+            {!isEmployeur && form.caMensuelEstime && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.caMensuelEstime}€/mois</span>}
+            {annonceSalariee && form.remunerationBrute && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.remunerationBrute}€/mois brut</span>}
+            {form.demiJourneesLibres && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗓️ {form.demiJourneesLibres} dj/sem.</span>}
+            {form.logementPropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Logement</span>}
+            {form.vehiculePropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Véhicule</span>}
+            {form.secretairePresente && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗂️ Secrétariat</span>}
+            {form.exerciceCoordonne && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🤝 Exercice coordonné</span>}
+            {detectedTags.repartition && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.repartition}</span>}
+            {detectedTags.methode && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.methode}</span>}
+          </div>
+          {missingRequired.length > 0 && (
+            <p className="text-[11px] text-amber-700">À compléter : <strong>{missingRequired.join(", ")}</strong></p>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  const blocType = (
+    <>
+      {/* ── Sélecteur de besoin (TITULAIRE uniquement) ── */}
+      {profileType === "TITULAIRE" && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Type de besoin
+          </label>
+          {natureVerrouillee && (
+            <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 mb-2">
+              La nature du contrat ne se modifie pas sur une annonce publiée : retirez-la et
+              publiez-en une nouvelle pour changer de contrat.
+            </p>
+          )}
+          {/* On DIT pourquoi le choix est réduit, au lieu de faire disparaître deux options
+              sans explication — sinon le titulaire cherche ce qu'il a mal fait. */}
+          {seatOnly && (
+            <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 mb-2">
+              Depuis votre propre ligne, vous ne pouvez chercher qu&apos;un <strong>remplaçant</strong>.
+              Un assistant occupe un poste distinct : créez d&apos;abord ce poste dans le Planning,
+              puis publiez la demande depuis sa ligne.
+            </p>
+          )}
+          {/* Aucun gabarit pour cette profession : on le DIT, plutôt que d'afficher une grille
+              vide où l'utilisateur chercherait ce qui manque. Le cas ne concerne aujourd'hui
+              aucun compte — les 22 profils sont kiné — mais il devient atteignable dès qu'on
+              change sa profession dans /compte, et un blocage muet y serait pire que le défaut
+              qu'on vient de fermer. */}
+          {typesContractualisables.length === 0 && !salariatContractualisable && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 leading-relaxed">
+              Aucun modèle de contrat n&apos;est encore disponible pour votre profession. Publier une
+              annonce mènerait à une mise en relation dont le contrat ne pourrait pas être généré :
+              la publication est donc suspendue en attendant que les modèles de votre Ordre soient
+              intégrés.
+            </div>
+          )}
+          {employeurSalarie ? (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {CHOIX_EMPLOYEUR
+                  // Depuis sa propre ligne du Planning, on ne cherche qu'un poste daté.
+                  .filter((c) => !seatOnly || c.date)
+                  .map((c) => (
+                  <button
+                    key={c.choix}
+                    type="button"
+                    onClick={() => choisirEmployeur(choixEmployeur === c.choix ? "" : c.choix)}
+                    className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 text-center transition text-xs ${
+                      choixEmployeur === c.choix
+                        ? "border-kine-500 bg-kine-50 text-kine-700"
+                        : "border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="text-xl">{c.icon}</span>
+                    <span className="font-semibold text-gray-800">{c.titre}</span>
+                    <span className="text-gray-400 leading-snug">{c.sous}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-500 mt-2 leading-snug">
+                Contrat de travail : déclaration préalable à l&apos;embauche, paie et cotisations vous
+                incombent. {CONTRAT_RESTE_LE_VOTRE}
+              </p>
+            </>
+          ) : (<>
+          <div className={seatOnly ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 sm:grid-cols-4 gap-2"}>
+            {[
+              { value: "remplacement"  as NeedType, icon: "📅", label: needTypeLabels.remplacement,  sub: needTypeSubLabels.remplacement },
+              { value: "assistant"     as NeedType, icon: "📋", label: needTypeLabels.assistant,     sub: needTypeSubLabels.assistant },
+              { value: "collaboration" as NeedType, icon: "🤝", label: needTypeLabels.collaboration,  sub: needTypeSubLabels.collaboration },
+              { value: "salariat"      as NeedType, icon: "💼", label: "Salariat", sub: "Contrat de travail" },
+            ]
+              .filter((opt) => !seatOnly || opt.value === "remplacement")
+              // Un type sans gabarit de contrat pour cette profession n'est pas proposé.
+              // L'ASSISTANAT n'existe pas chez les infirmiers — le laisser afficher inviterait
+              // à publier un poste dont aucun contrat ne pourrait sortir, et l'échec
+              // n'apparaîtrait qu'à la génération, une fois les deux parties engagées.
+              .filter((opt) => {
+                // Le salariat ne se filtre pas sur les gabarits LIBÉRAUX : ses modèles vivent
+                // dans un registre séparé (gabaritsSalarie), et les quatre existent depuis le
+                // 23/09. Le passer dans le filtre ci-dessous l'aurait masqué chez l'infirmier,
+                // dont l'assistanat libéral n'existe pas.
+                //
+                // Il se filtre en revanche sur SON PROPRE registre depuis l'ouverture (section
+                // 278) : « pas de gabarit libéral » et « pas de gabarit du tout » ont cessé de
+                // coïncider le jour où une profession est entrée sans aucun des deux.
+                if (opt.value === "salariat") return salariatContractualisable;
+                const t = MISSION_TYPE_PAR_BESOIN[opt.value as Exclude<NeedType, "">];
+                return t !== undefined && typesContractualisables.includes(t);
+              })
+              .map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => { if (!natureVerrouillee) setNeedType(needType === opt.value ? "" : opt.value); }}
+                className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 text-center transition text-xs ${
+                  needType === opt.value
+                    ? "border-kine-500 bg-kine-50 text-kine-700"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <span className="text-xl">{opt.icon}</span>
+                <span className="font-semibold text-gray-800">{opt.label}</span>
+                <span className="text-gray-400">{opt.sub}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* ── Nature du contrat salarié (section 262) ────────────────────────────────────
+              Le vocabulaire est celui des DEUX modèles d'ordre — « terme précis » / « sans
+              terme précis » — et non « reconductible », qui ne figure dans aucun des deux :
+              le renouvellement y est fixe (deux fois, 18 mois) et n'est pas un choix.
+              Le libellé dit en clair ce que le jargon recouvre, pour qu'un cabinet n'ait pas
+              à connaître le Code du travail pour choisir. ── */}
+          {needType === "salariat" && (
+            <div className="mt-3 p-3 rounded-xl border border-kine-200 bg-kine-50/60">
+              <p className="text-xs font-semibold text-gray-700 mb-2">Nature du contrat</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {(["CDI", "CDD_TERME", "CDD_SANS_TERME"] as NatureSalariatChoix[]).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => { if (!natureVerrouillee) setNatureSalariat(natureSalariat === n ? "" : n); }}
+                    className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border-2 text-left transition text-xs ${
+                      natureSalariat === n
+                        ? "border-kine-500 bg-white text-kine-700"
+                        : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="font-semibold text-gray-800">{LIBELLE_NATURE[n].titre}</span>
+                    <span className="text-gray-400 leading-snug">{LIBELLE_NATURE[n].sous}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-500 mt-2 leading-snug">
+                Employer crée un lien de subordination : déclaration préalable à l&apos;embauche,
+                paie et cotisations vous incombent.{" "}
+                {salarieSeul
+                  ? "Le contrat de travail est le vôtre, selon votre convention collective : Soignect ne le génère pas."
+                  : "Le contrat généré suit le modèle-type de votre ordre professionnel."}
+              </p>
+            </div>
+          )}
+          </>)}
+        </div>
+      )}
+    </>
+  );
+
+  const blocAccroche = (
+    <>
+      {/* ── Accroche : champ EXTRAIT du texte libre (fusion des deux zones de saisie) ──
+           Le textarea n'apparaît QUE s'il a du contenu (extraction faite) ou si l'utilisateur
+           demande explicitement à l'écrire. Un textarea vide affiché en permanence redonnait
+           exactement la friction que cette refonte supprime : deux zones d'écriture côte à côte.
+           Repli : le lien ci-dessous reste toujours accessible, et à défaut d'accroche c'est le
+           texte libre tronqué qui alimente la carte — la publication n'est jamais bloquée. */}
+      {!form.accroche && !showAccrocheManual ? (
+        <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+          <span className="font-semibold text-gray-600">Accroche de la carte</span> — tirée de
+          votre texte par «&nbsp;✨ Analyser le texte&nbsp;».{" "}
+          <button
+            type="button"
+            onClick={() => setShowAccrocheManual(true)}
+            className="underline font-semibold text-kine-700 hover:text-kine-800"
+          >
+            L&apos;écrire à la main
+          </button>
+        </p>
+      ) : (
+      <div className="bg-kine-50 rounded-2xl p-4 space-y-2 border border-kine-100">
+        <label className="block text-sm font-semibold text-kine-700">
+          {cfg.pitchTitle}
+          <span className="text-kine-400 font-normal ml-1">({bioLimit} signes)</span>
+        </label>
+        <p className="text-xs text-kine-600/70">
+          {form.accroche
+            ? "Proposée à partir de votre texte — modifiez-la librement. C'est elle qui s'affiche sur votre carte et alimente le matching."
+            : "C'est elle qui s'affiche sur votre carte et alimente le matching."}
+        </p>
+        <textarea
+          value={form.accroche}
+          onChange={(e) => {
+            if (e.target.value.length <= bioLimit) setForm({ ...form, accroche: e.target.value });
+          }}
+          onFocus={() => setAccrocheFocused(true)}
+          onBlur={() => setAccrocheFocused(false)}
+          rows={3}
+          className="w-full py-2.5 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800 not-italic break-words whitespace-pre-wrap placeholder:text-gray-400 placeholder:italic"
+          placeholder={pitchPlaceholder}
+        />
+        <div className="flex justify-end items-center min-h-[16px]">
+          {!accrocheValid ? (
+            (accrocheFocused || accrocheTrim.length > 0) && (
+              <span className="text-xs text-amber-600 mr-auto">
+                40 caractères minimum ({accrocheRemaining} restant{accrocheRemaining > 1 ? "s" : ""}) — sinon votre texte libre sera utilisé
+              </span>
+            )
+          ) : (
+            <span className="text-xs text-gray-300">{form.accroche.length}/{bioLimit}</span>
+          )}
+        </div>
+        {/* Côté CANDIDAT, l'accroche EST le texte libre : le bouton s'y rattache. Côté cabinet
+            il est déjà posé sous le texte long, et le dupliquer ici sèmerait la confusion sur
+            lequel des deux champs serait rempli. */}
+        {formType !== "TITULAIRE" && (
+          <ReprendreTexte
+            champ="accroche"
+            valeurActuelle={form.accroche}
+            exclureId={editId}
+            onReprendre={(t) => setForm((prev) => ({ ...prev, accroche: t.slice(0, bioLimit) }))}
+          />
+        )}
+      </div>
+      )}
+    </>
+  );
+
+  const blocCommune = (
+    <>
+      {/* ── Commune ── */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {cfg.communeLabel}
+        </label>
+        <select
+          value={form.location}
+          onChange={(e) => setForm({ ...form, location: e.target.value })}
+          required
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+        >
+          <option value="">Sélectionner une commune…</option>
+          {COMMUNES_GUADELOUPE.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      {/* Zones géographiques retirées côté cabinet (section 144) — un cabinet a une
+          commune fixe ; la flexibilité géo n'existe que côté candidat (disponibilité). */}
+
+      {/* ── Spécialités retirées (section 69) — le matching est géré par
+           DeepSeek à partir du texte de l'accroche, plus de cases à cocher. ── */}
+
+    </>
+  );
+
+  const blocDuree90 = (
+    <>
+      {/* ── Avertissement durée minimale 3 mois ── */}
+      {under90Days && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
+          ⚠️ Les postes d&apos;{isEmployeur ? "CDD/CDI" : "assistanat"} nécessitent une durée minimale de <strong>3 mois (90 jours)</strong>.
+        </div>
+      )}
+    </>
+  );
+
+  const blocDates = (
+    <>
+      {/* ── Dates — le DÉBUT est demandé pour tous les types (il place la brique sur la
+           timeline) ; la FIN uniquement en remplacement. ── */}
+      {showStartDate && (
+        <div>
+          {/* RÈGLE ALIGNÉE SUR LE FORMULAIRE CANDIDAT (10/08) : la date de début est
+              OPTIONNELLE des deux côtés, et ne devient obligatoire que là où son absence
+              casse quelque chose — une annonce rattachée à un poste du Planning sans date de
+              début ne se place sur aucune ligne. Le libellé le disait nulle part : rien ne
+              distinguait un champ exigé d'un champ facultatif, ce que le candidat voit
+              pourtant écrit. */}
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {formType !== "TITULAIRE"
+              ? "Mes dates de disponibilité"
+              : cddATerme
+              ? "Durée du contrat"
+              : showEndDate
+              ? "Période de remplacement"
+              : "Date de prise de poste"}
+            {formType === "TITULAIRE" && !showEndDate && (
+              cabinetPostId
+                ? <span className="text-red-500 font-normal ml-1">· obligatoire</span>
+                : <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
+            )}
+          </label>
+          <div className={showEndDate ? "grid grid-cols-2 gap-3" : ""}>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">{showEndDate ? "Du" : "À partir du"}</label>
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+              />
+            </div>
+            {showEndDate && (
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Au</label>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                  min={form.startDate}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+                />
+              </div>
+            )}
+          </div>
+          {!showEndDate && (
+            <p className="text-xs text-gray-400 mt-1">
+              Sans cette date, l&apos;annonce n&apos;apparaîtra pas sur la ligne du poste dans votre planning.
+            </p>
+          )}
+          {/* Vérifiez l'année — le piège est là, pas dans le jour (section 250). */}
+          {periodePassee && (
+            <p className="mt-2 text-xs leading-snug rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+              ⚠️ <strong>Cette période est déjà passée.</strong> Vérifiez l&apos;année : une
+              annonce dont la période est terminée n&apos;est pas proposée aux candidats.
+            </p>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  const blocFlex = (
+    <>
+      {/* ── Flexibilité dates — porte sur une période, donc remplacement uniquement ── */}
+      {showEndDate && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Flexibilité sur les dates
+          </label>
+          <div className="grid grid-cols-5 gap-1">
+            {[
+              { value: 0, label: "Exact" },
+              { value: 1, label: "±3j" },
+              { value: 2, label: "±1sem" },
+              { value: 3, label: "±2sem" },
+              { value: 4, label: "±1mois" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setForm({ ...form, dateFlexibility: opt.value })}
+                className={`py-2 rounded-xl text-xs font-semibold border-2 transition ${
+                  form.dateFlexibility === opt.value
+                    ? "border-kine-500 bg-kine-50 text-kine-700"
+                    : "border-gray-200 text-gray-400 hover:border-gray-300"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const blocMinMonths = (
+    <>
+      {/* ── Durée minimale (ASSISTANT ou TITULAIRE-assistant) ── */}
+      {showMinMonths && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {formType === "TITULAIRE" ? "Durée minimale du contrat proposé" : "Durée minimale souhaitée"}
+          </label>
+          <select
+            value={form.minMonths}
+            onChange={(e) => setForm({ ...form, minMonths: e.target.value })}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+          >
+            <option value="">Non définie</option>
+            <option value="3">3 mois minimum</option>
+            <option value="6">6 mois minimum</option>
+            <option value="12">12 mois (1 an)</option>
+            <option value="18">18 mois</option>
+            <option value="24">24 mois (2 ans)</option>
+          </select>
+        </div>
+      )}
+    </>
+  );
+
+  const blocOptions = (
+    <>
+      {/* ── Logement proposé (section 120) — alimente le bonus logement du score ── */}
+      <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+        <input
+          type="checkbox"
+          checked={form.logementPropose}
+          onChange={(e) => setForm({ ...form, logementPropose: e.target.checked })}
+          className="w-4 h-4 rounded accent-kine-600"
+        />
+        <span className="text-sm text-gray-700">🏠 Logement proposé avec le poste</span>
+      </label>
+
+      {/* ── Véhicule proposé (feature terrain) — symétrique du logement, alimente le bonus
+           véhicule du score. Souvent annoncé collé au logement dans les annonces réelles. ── */}
+      <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+        <input
+          type="checkbox"
+          checked={form.vehiculePropose}
+          onChange={(e) => setForm({ ...form, vehiculePropose: e.target.checked })}
+          className="w-4 h-4 rounded accent-kine-600"
+        />
+        <span className="text-sm text-gray-700">🚗 Véhicule mis à disposition</span>
+      </label>
+
+      {!salarieSeul && (<>
+      {/* ── Secrétariat sur place (section 190) — alimente le bonus secrétariat du score.
+           Argument récurrent des annonces réelles : moins de charge administrative. ── */}
+      <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+        <input
+          type="checkbox"
+          checked={form.secretairePresente}
+          onChange={(e) => setForm({ ...form, secretairePresente: e.target.checked })}
+          className="w-4 h-4 rounded accent-kine-600"
+        />
+        <span className="text-sm text-gray-700">🗂️ Secrétariat sur place</span>
+      </label>
+
+      {/* ── Exercice coordonné (section 190) — le libellé NOMME L'AVANTAGE avant le dispositif :
+           « MSP » ne dit rien à qui n'y a jamais exercé, l'accès direct sans prescription
+           (Avenant 7, jusqu'à 8 séances) dit exactement ce qu'on y gagne. C'est aussi ce qui
+           justifie que ce critère pèse plus lourd que les trois autres au barème. ── */}
+      <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
+        <input
+          type="checkbox"
+          checked={form.exerciceCoordonne}
+          onChange={(e) => setForm({ ...form, exerciceCoordonne: e.target.checked })}
+          className="w-4 h-4 rounded accent-kine-600 mt-0.5"
+        />
+        <span className="text-sm text-gray-700">
+          🤝 Exercice coordonné (MSP, centre de santé, ESP)
+          {/* Phrase DÉRIVÉE de la profession (section 294), même raison que côté candidat. */}
+          <span className="block text-xs text-gray-500 mt-0.5">
+            {mentionExerciceCoordonne(profession)}
+          </span>
+        </span>
+      </label>
+      </>)}
+    </>
+  );
+
+  const blocChiffres = (
+    <>
+      {/* ── Demi-journées libres + CA estimé (feature terrain) — informations affichées sur
+           la fiche annonce (hors score). Critères de qualité de vie annoncés spontanément. ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Demi-journées libres <span className="text-gray-400 font-normal">/ sem. (opt.)</span>
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={10}
+            step={1}
+            value={form.demiJourneesLibres}
+            onChange={(e) => setForm({ ...form, demiJourneesLibres: e.target.value })}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+            placeholder="Ex : 3"
+          />
+        </div>
+        {/* Un SALARIÉ n'a pas de chiffre d'affaires : on lui demandait pourtant un « CA mensuel
+            estimé ». Le champ change de nature selon qui publie, et va dans une colonne
+            distincte — un CA et un salaire brut ne se comparent pas. */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {annonceSalariee ? "Rémunération brute mensuelle" : "CA mensuel estimé"}{" "}
+            <span className="text-gray-400 font-normal">€ (opt.)</span>
+          </label>
+          <input
+            type="number"
+            min={0}
+            // À l'euro près : un pas de 100 faisait refuser 1 850 € par le navigateur, sans
+            // message de Soignect. Le serveur attend un entier, rien de plus.
+            step={1}
+            value={annonceSalariee ? form.remunerationBrute : form.caMensuelEstime}
+            onChange={(e) =>
+              setForm(annonceSalariee
+                ? { ...form, remunerationBrute: e.target.value }
+                : { ...form, caMensuelEstime: e.target.value })
+            }
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+            placeholder={annonceSalariee ? "Ex : 2600" : "Ex : 8000"}
+          />
+          {annonceSalariee && (
+            <p className="text-xs text-gray-400 mt-1">
+              Brut mensuel du poste. Pour une vacation, indiquez l&apos;équivalent mensuel ou
+              laissez vide et précisez-le dans le texte.
+            </p>
+          )}
+        </div>
+      </div>
+    </>
+  );
+
+  const blocArgent = (
+    <>
+      {/* ── Taux de rétrocession / redevance (structuré — atterrit dans le contrat) ──
+           Le SENS de ce pourcentage s'inverse selon le type de poste, exactement comme sur
+           la page contrat (match/[id]/contrat) :
+             • remplacement           → part que le REMPLAÇANT conserve (contrat : « le
+               remplaçant percevra X% des honoraires »), usuellement 50-90
+             • assistanat/collaboration → part que l'assistant REVERSE au cabinet, usuellement 10-60
+           Le libellé figé « Taux de rétrocession » avec le placeholder « Ex : 25 » invitait à
+           saisir la part du cabinet : un remplacement à 75/25 se retrouvait contractualisé à
+           25% pour le remplaçant. */}
+      {/* MASQUÉ POUR UN EMPLOYEUR — un salarié ne reverse rien et ne conserve pas une part
+          d'honoraires : il est payé. Le champ n'était pas seulement mal nommé, il était sans
+          objet, et « Redevance versée au cabinet » s'affichait sur une offre de CDI. */}
+      {!annonceSalariee && (
+      <div>
+        {/* ── TROIS MODES, SUR UN ASSISTANAT OU UNE COLLABORATION (section 296) ──────────
+            La redevance que l'assistant ou le collaborateur verse au cabinet peut être un
+            pourcentage, un forfait mensuel, ou un pourcentage plafonné. Un remplacement se
+            rétrocède en pourcentage seulement. */}
+        {modesRedevance && (
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Comment la redevance est-elle calculée ?
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {([
+                ["POURCENTAGE", "Pourcentage"],
+                ["FIXE", "Montant fixe"],
+                ["PLAFONNEE", "Pourcentage plafonné"],
+              ] as const).map(([valeur, libelle]) => (
+                <button
+                  key={valeur}
+                  type="button"
+                  onClick={() => setForm({ ...form, retrocessionMode: valeur })}
+                  className={`rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition ${
+                    form.retrocessionMode === valeur
+                      ? "border-kine-600 bg-kine-50 text-kine-800"
+                      : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  {libelle}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* MONTANT FIXE — le pourcentage n'a alors plus d'objet et le champ disparaît. */}
+        {modesRedevance && form.retrocessionMode === "FIXE" ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Redevance versée au cabinet{" "}
+              <span className="text-gray-400 font-normal">€ par mois</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={50}
+              value={form.retrocessionFixeEuros}
+              onChange={(e) => setForm({ ...form, retrocessionFixeEuros: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+              placeholder="Ex : 1200"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              {needType === "collaboration" ? "Le collaborateur" : "L\u2019assistant"} verse
+              cette somme chaque mois, quel que soit son chiffre d&rsquo;affaires. Calculée au
+              prorata pour un mois incomplet, et reprise telle quelle au contrat.
+            </p>
+          </div>
+        ) : null}
+
+        <div className={modesRedevance && form.retrocessionMode === "FIXE" ? "hidden" : ""}>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {needType === "remplacement"
+            ? "Taux de rétrocession pour le remplaçant"
+            : "Redevance versée au cabinet"}{" "}
+          <span className="text-gray-400 font-normal">% (opt.)</span>
+        </label>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step={1}
+          value={form.retrocessionRate}
+          onChange={(e) => setForm({ ...form, retrocessionRate: e.target.value })}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+          placeholder={needType === "remplacement" ? "Ex : 75" : "Ex : 25"}
+        />
+        <p className="text-xs text-gray-400 mt-1">
+          {needType === "remplacement"
+            ? "Part des honoraires que le remplaçant conserve — c'est ce chiffre qui figurera au contrat. Un « 75/25 » se saisit 75."
+            : `Part des honoraires que ${needType === "collaboration" ? "le collaborateur" : "l'assistant"} reverse au cabinet — c'est ce chiffre qui figurera au contrat.`}
+        </p>
+        </div>
+
+        {/* PLAFOND — la redevance, c'est-à-dire la part du cabinet, ne dépasse jamais ce
+            montant. Un assistant très productif cesse d'être pénalisé par son propre volume. */}
+        {modesRedevance && form.retrocessionMode === "PLAFONNEE" ? (
+          <div className="mt-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Redevance plafonnée à{" "}
+              <span className="text-gray-400 font-normal">€ par mois</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={50}
+              value={form.retrocessionPlafondEuros}
+              onChange={(e) => setForm({ ...form, retrocessionPlafondEuros: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
+              placeholder="Ex : 1500"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Au-delà de ce montant, les honoraires restent intégralement acquis
+              {needType === "collaboration" ? " au collaborateur" : " à l\u2019assistant"}. Avec
+              « 25 % » ci-dessus, le cabinet perçoit 25 % sans jamais dépasser ce plafond.
+            </p>
+          </div>
+        ) : null}
+      </div>
+      )}
+    </>
+  );
+
+  const formulaireRapide = (
+    <div ref={blocChampsRef} className="space-y-5">
+      {sourceReprise && repriseFaite.length === 0 && (
+        <button
+          type="button"
+          onClick={republierCommeLaDerniere}
+          className="w-full rounded-xl border-2 border-dashed border-kine-300 bg-kine-50/50 px-4 py-3 text-left hover:bg-kine-50 transition"
+        >
+          <span className="block text-sm font-bold text-kine-700">↻ Republier comme la dernière</span>
+          <span className="block text-xs text-gray-500 mt-0.5">
+            Même type, même commune, mêmes conditions et même texte. Il ne reste que les dates.
+          </span>
+        </button>
+      )}
+      {repriseFaite.length > 0 && (
+        <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 leading-snug">
+          Repris de votre dernière annonce : <strong>{repriseFaite.join(" · ")}</strong>. Indiquez
+          les dates, vérifiez, publiez.
+        </p>
+      )}
+
+      {blocType}
+      {blocDates}
+      {blocMinMonths}
+      {blocDuree90}
+      <div>
+        {blocCommune}
+        {communeReprise !== null && form.location === communeReprise && repriseFaite.length === 0 && (
+          <p className="text-xs text-gray-400 mt-1">Reprise de votre dernière annonce.</p>
+        )}
+      </div>
+      <div>
+        {annonceSalariee ? blocChiffres : blocArgent}
+        {!annonceSalariee && argentRepris && empreinteArgent(form) === argentAuto.current && repriseFaite.length === 0 && (
+          <p className="text-xs text-gray-400 mt-1">Repris de votre dernière annonce de ce type. Modifiez-le si besoin.</p>
+        )}
+      </div>
+
+      <details className="rounded-xl border border-gray-200">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-gray-700">
+          Plus de détails{" "}
+          <span className="font-normal text-gray-400">: texte de l&apos;annonce, titre, logement, véhicule… (facultatif)</span>
+        </summary>
+        <div className="space-y-5 px-4 pb-4 pt-1">
+          {blocTexteLibre}
+          {titleField}
+          {blocAccroche}
+          {blocFlex}
+          {blocOptions}
+          {!annonceSalariee && blocChiffres}
+        </div>
+      </details>
     </div>
   );
 
@@ -839,742 +1814,71 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
 
-        {/* ── Grille 2 colonnes sur desktop (section 2) : à gauche le texte libre + l'assistance,
-            à droite l'extraction + les champs structurés éditables. Empilé sur mobile. ── */}
-        <div className={formType === "TITULAIRE" ? "lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0" : ""}>
+        {modeRapide ? formulaireRapide : (
+        <>
+          {/* ── Grille 2 colonnes sur desktop (section 2) : à gauche le texte libre + l'assistance,
+              à droite l'extraction + les champs structurés éditables. Empilé sur mobile. ── */}
+          <div className={formType === "TITULAIRE" ? "lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0" : ""}>
 
-        {/* ── Colonne GAUCHE : texte libre + assistance IA (cabinet, et assistant en couverture) ── */}
-        {formType === "TITULAIRE" && (
-          <div className="space-y-3">
-            <label className="block text-sm font-semibold text-kine-700">
-              Décrivez votre besoin en toute liberté{" "}
-              <span className="text-kine-400 font-normal">— dates, commune, taux, logement, ambiance…</span>
-            </label>
-            <textarea
-              value={form.rawText}
-              onChange={(e) => setForm({ ...form, rawText: e.target.value })}
-              rows={6}
-              maxLength={8000}
-              className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800"
-              placeholder={rawPlaceholder}
-            />
-            {/* Reprendre un texte précédent (section 243) — le TEXTE seul, jamais les dates ni
-                les montants d'une annonce passée. Posé sous le champ qu'il remplit. */}
-            <ReprendreTexte
-              champ="rawText"
-              valeurActuelle={form.rawText}
-              exclureId={editId}
-              onReprendre={(t) => setForm((prev) => ({ ...prev, rawText: t }))}
-            />
-            {/* Boutons d'assistance — chacun = 1 appel IA explicite (jamais à la frappe).
-                Libellés décrivant le RÉSULTAT, pas l'action : « Analyser » et « Optimiser »
-                sonnaient pareil et rien n'indiquait lequel modifiait quoi. La ligne d'aide
-                sous chacun dit ce qui change : les champs, le texte, ou rien. */}
-            {/* ── L'ASSISTANCE N'EXISTE QUE LÀ OÙ L'INVITE EST ÉCRITE (section 294) ────────
-                Les invites nomment « kinésithérapeute » : soumises au texte d'un infirmier,
-                elles extraient avec la mauvaise grille. On RETIRE les boutons plutôt que de
-                les griser — un bouton désactivé invite à chercher ce qui le débloquerait, et
-                ici rien ne le débloque. La saisie manuelle n'a jamais dépendu d'eux. */}
-            {assistanceIADisponible(profession) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button type="button" onClick={() => runAI("extract")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
-                className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
-                <span className="text-xs font-bold">{aiBusy === "extract" ? "Analyse…" : "✨ Remplir les champs"}</span>
-                <span className="text-[10px] font-normal opacity-80 leading-snug">dates, commune, taux, accroche… extraits de votre texte</span>
+          {/* ── Colonne GAUCHE : texte libre + assistance IA (cabinet, et assistant en couverture) ── */}
+          {formType === "TITULAIRE" && (
+            <div className="space-y-3">
+              {blocTexteLibre}
+
+              {/* Repli manuel (mobile) : révèle les champs détaillés en dessous. Sur desktop les
+                  champs sont toujours affichés dans la colonne de droite → toggle masqué (lg:hidden). */}
+              <button type="button" onClick={() => setShowManual((s) => !s)}
+                className="lg:hidden text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
+                {showManual ? "Masquer les champs détaillés" : "Vérifier / compléter les champs à la main"}
               </button>
-              <button type="button" onClick={() => runAI("redaction")} disabled={aiBusy !== null}
-                className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
-                <span className="text-xs font-bold">{aiBusy === "redaction" ? "Rédaction…" : "✍️ Reformuler mon texte"}</span>
-                <span className="text-[10px] font-normal opacity-70 leading-snug">réécrit ci-dessus, vous pourrez annuler</span>
-              </button>
-              <button type="button" onClick={() => runAI("optimize")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
-                className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
-                <span className="text-xs font-bold">{aiBusy === "optimize" ? "Analyse…" : "🚀 Qu'est-ce qui manque ?"}</span>
-                <span className="text-[10px] font-normal opacity-70 leading-snug">suggestions d&apos;ajouts, rien n&apos;est modifié</span>
-              </button>
-              {/* Regroupé ici avec les autres assistances : il était isolé dans l'encart
-                  « ce que j'ai compris » et n'apparaissait qu'après extraction. */}
-              <button type="button" onClick={() => runAI("title")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
-                className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
-                <span className="text-xs font-bold">{aiBusy === "title" ? "Titre…" : "✨ Proposer un titre"}</span>
-                <span className="text-[10px] font-normal opacity-70 leading-snug">remplit l&apos;intitulé du poste ci-dessous</span>
-              </button>
-            </div>
-            )}
 
-            {/* Annulation de la reformulation — seul geste destructif du formulaire : la
-                réécriture remplace le texte de l'utilisateur sans confirmation. On garde
-                l'ancien en mémoire, un clic le restaure. */}
-            {rawTextBeforeRedaction !== null && (
-              <div className="flex items-center gap-2 text-xs bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                <span className="text-amber-800">Votre texte a été reformulé.</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm((p) => ({ ...p, rawText: rawTextBeforeRedaction }));
-                    setRawTextBeforeRedaction(null);
-                  }}
-                  className="ml-auto shrink-0 font-bold text-amber-900 underline hover:text-amber-950"
-                >
-                  Annuler la reformulation
-                </button>
-              </div>
-            )}
-
-            {aiDegraded && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                Assistance IA momentanément indisponible (limite atteinte). Aucun souci : remplissez les champs à la main ci-dessous, la publication reste possible.
-              </p>
-            )}
-            {aiNotice && !aiDegraded && (
-              <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">{aiNotice}</p>
-            )}
-            {optimizeTips.length > 0 && (
-              <div className="rounded-xl bg-kine-50 border border-kine-100 px-3 py-2.5">
-                <p className="text-[11px] font-bold text-kine-700 uppercase tracking-wide mb-1">Suggestions d&apos;ajout</p>
-                <ul className="list-disc pl-4 space-y-0.5">
-                  {optimizeTips.map((t, i) => <li key={i} className="text-xs text-gray-700">{t}</li>)}
-                </ul>
-              </div>
-            )}
-
-            {/* Repli manuel (mobile) : révèle les champs détaillés en dessous. Sur desktop les
-                champs sont toujours affichés dans la colonne de droite → toggle masqué (lg:hidden). */}
-            <button type="button" onClick={() => setShowManual((s) => !s)}
-              className="lg:hidden text-xs font-semibold text-gray-500 hover:text-gray-700 underline">
-              {showManual ? "Masquer les champs détaillés" : "Vérifier / compléter les champs à la main"}
-            </button>
-
-            {/* Titre — juste APRÈS le texte libre, et hors du repli. Après, pour ne pas
-                accueillir l'utilisateur par un champ manuel : la refonte veut qu'il écrive
-                d'abord. Hors du repli, car le titre est OBLIGATOIRE et bloque la publication. */}
-            {titleField}
-          </div>
-        )}
-
-        {/* ── Colonne DROITE (desktop) / repli (mobile) : « ce que j'ai compris » + champs
-            structurés éditables. Toujours visible sur desktop (lg:block) ; sur mobile, révélée
-            après extraction (showManual passe à true) ou via le toggle. ── */}
-        <div ref={blocChampsRef} className={formType !== "TITULAIRE" ? "space-y-5" : `space-y-5 ${showManual ? "" : "hidden lg:block"}`}>
-
-        {/* Sans colonne gauche (remplaçant/assistant hors couverture), le titre n'a pas été
-            rendu au-dessus — on le place ici. En mode couverture la colonne gauche EXISTE :
-            tester le type brut y affichait le champ une seconde fois. */}
-        {formType !== "TITULAIRE" && titleField}
-
-        {/* Résumé compact « ce que j'ai compris » + champs manquants requis (en tête de colonne) */}
-        {formType === "TITULAIRE" && extractDone && (
-          <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-2">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Ce que j&apos;ai compris</p>
-            <div className="flex flex-wrap gap-1.5">
-              {needType && <span className="px-2 py-0.5 rounded-full bg-kine-100 text-kine-700 text-[11px] font-semibold">{needTypeLabels[needType as keyof typeof needTypeLabels] ?? needType}</span>}
-              {form.location && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📍 {form.location}</span>}
-              {form.startDate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">📅 {form.startDate}{form.endDate ? ` → ${form.endDate}` : ""}</span>}
-              {form.minMonths && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">≥ {form.minMonths} mois</span>}
-              {modesRedevance && form.retrocessionMode === "FIXE" && form.retrocessionFixeEuros && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">Redevance {form.retrocessionFixeEuros} €/mois</span>}
-              {!isEmployeur && !(modesRedevance && form.retrocessionMode === "FIXE") && form.retrocessionRate && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{needType === "remplacement" ? "Rétro" : "Redevance"} {form.retrocessionRate}%{modesRedevance && form.retrocessionMode === "PLAFONNEE" && form.retrocessionPlafondEuros ? ` · max ${form.retrocessionPlafondEuros} €` : ""}</span>}
-              {!isEmployeur && form.caMensuelEstime && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.caMensuelEstime}€/mois</span>}
-              {annonceSalariee && form.remunerationBrute && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">💶 {form.remunerationBrute}€/mois brut</span>}
-              {form.demiJourneesLibres && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗓️ {form.demiJourneesLibres} dj/sem.</span>}
-              {form.logementPropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🏠 Logement</span>}
-              {form.vehiculePropose && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🚗 Véhicule</span>}
-              {form.secretairePresente && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🗂️ Secrétariat</span>}
-              {form.exerciceCoordonne && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">🤝 Exercice coordonné</span>}
-              {detectedTags.repartition && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.repartition}</span>}
-              {detectedTags.methode && <span className="px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 text-[11px] font-semibold">{detectedTags.methode}</span>}
-            </div>
-            {missingRequired.length > 0 && (
-              <p className="text-[11px] text-amber-700">À compléter : <strong>{missingRequired.join(", ")}</strong></p>
-            )}
-          </div>
-        )}
-
-        {/* ── Sélecteur de besoin (TITULAIRE uniquement) ── */}
-        {profileType === "TITULAIRE" && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Type de besoin
-            </label>
-            {natureVerrouillee && (
-              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 mb-2">
-                La nature du contrat ne se modifie pas sur une annonce publiée : retirez-la et
-                publiez-en une nouvelle pour changer de contrat.
-              </p>
-            )}
-            {/* On DIT pourquoi le choix est réduit, au lieu de faire disparaître deux options
-                sans explication — sinon le titulaire cherche ce qu'il a mal fait. */}
-            {seatOnly && (
-              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 mb-2">
-                Depuis votre propre ligne, vous ne pouvez chercher qu&apos;un <strong>remplaçant</strong>.
-                Un assistant occupe un poste distinct : créez d&apos;abord ce poste dans le Planning,
-                puis publiez la demande depuis sa ligne.
-              </p>
-            )}
-            {/* Aucun gabarit pour cette profession : on le DIT, plutôt que d'afficher une grille
-                vide où l'utilisateur chercherait ce qui manque. Le cas ne concerne aujourd'hui
-                aucun compte — les 22 profils sont kiné — mais il devient atteignable dès qu'on
-                change sa profession dans /compte, et un blocage muet y serait pire que le défaut
-                qu'on vient de fermer. */}
-            {typesContractualisables.length === 0 && !salariatContractualisable && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 leading-relaxed">
-                Aucun modèle de contrat n&apos;est encore disponible pour votre profession. Publier une
-                annonce mènerait à une mise en relation dont le contrat ne pourrait pas être généré :
-                la publication est donc suspendue en attendant que les modèles de votre Ordre soient
-                intégrés.
-              </div>
-            )}
-            {employeurSalarie ? (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {CHOIX_EMPLOYEUR
-                    // Depuis sa propre ligne du Planning, on ne cherche qu'un poste daté.
-                    .filter((c) => !seatOnly || c.date)
-                    .map((c) => (
-                    <button
-                      key={c.choix}
-                      type="button"
-                      onClick={() => choisirEmployeur(choixEmployeur === c.choix ? "" : c.choix)}
-                      className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 text-center transition text-xs ${
-                        choixEmployeur === c.choix
-                          ? "border-kine-500 bg-kine-50 text-kine-700"
-                          : "border-gray-200 text-gray-500 hover:border-gray-300"
-                      }`}
-                    >
-                      <span className="text-xl">{c.icon}</span>
-                      <span className="font-semibold text-gray-800">{c.titre}</span>
-                      <span className="text-gray-400 leading-snug">{c.sous}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-gray-500 mt-2 leading-snug">
-                  Contrat de travail : déclaration préalable à l&apos;embauche, paie et cotisations vous
-                  incombent. {CONTRAT_RESTE_LE_VOTRE}
-                </p>
-              </>
-            ) : (<>
-            <div className={seatOnly ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 sm:grid-cols-4 gap-2"}>
-              {[
-                { value: "remplacement"  as NeedType, icon: "📅", label: needTypeLabels.remplacement,  sub: needTypeSubLabels.remplacement },
-                { value: "assistant"     as NeedType, icon: "📋", label: needTypeLabels.assistant,     sub: needTypeSubLabels.assistant },
-                { value: "collaboration" as NeedType, icon: "🤝", label: needTypeLabels.collaboration,  sub: needTypeSubLabels.collaboration },
-                { value: "salariat"      as NeedType, icon: "💼", label: "Salariat", sub: "Contrat de travail" },
-              ]
-                .filter((opt) => !seatOnly || opt.value === "remplacement")
-                // Un type sans gabarit de contrat pour cette profession n'est pas proposé.
-                // L'ASSISTANAT n'existe pas chez les infirmiers — le laisser afficher inviterait
-                // à publier un poste dont aucun contrat ne pourrait sortir, et l'échec
-                // n'apparaîtrait qu'à la génération, une fois les deux parties engagées.
-                .filter((opt) => {
-                  // Le salariat ne se filtre pas sur les gabarits LIBÉRAUX : ses modèles vivent
-                  // dans un registre séparé (gabaritsSalarie), et les quatre existent depuis le
-                  // 23/09. Le passer dans le filtre ci-dessous l'aurait masqué chez l'infirmier,
-                  // dont l'assistanat libéral n'existe pas.
-                  //
-                  // Il se filtre en revanche sur SON PROPRE registre depuis l'ouverture (section
-                  // 278) : « pas de gabarit libéral » et « pas de gabarit du tout » ont cessé de
-                  // coïncider le jour où une profession est entrée sans aucun des deux.
-                  if (opt.value === "salariat") return salariatContractualisable;
-                  const t = MISSION_TYPE_PAR_BESOIN[opt.value as Exclude<NeedType, "">];
-                  return t !== undefined && typesContractualisables.includes(t);
-                })
-                .map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => { if (!natureVerrouillee) setNeedType(needType === opt.value ? "" : opt.value); }}
-                  className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 text-center transition text-xs ${
-                    needType === opt.value
-                      ? "border-kine-500 bg-kine-50 text-kine-700"
-                      : "border-gray-200 text-gray-500 hover:border-gray-300"
-                  }`}
-                >
-                  <span className="text-xl">{opt.icon}</span>
-                  <span className="font-semibold text-gray-800">{opt.label}</span>
-                  <span className="text-gray-400">{opt.sub}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* ── Nature du contrat salarié (section 262) ────────────────────────────────────
-                Le vocabulaire est celui des DEUX modèles d'ordre — « terme précis » / « sans
-                terme précis » — et non « reconductible », qui ne figure dans aucun des deux :
-                le renouvellement y est fixe (deux fois, 18 mois) et n'est pas un choix.
-                Le libellé dit en clair ce que le jargon recouvre, pour qu'un cabinet n'ait pas
-                à connaître le Code du travail pour choisir. ── */}
-            {needType === "salariat" && (
-              <div className="mt-3 p-3 rounded-xl border border-kine-200 bg-kine-50/60">
-                <p className="text-xs font-semibold text-gray-700 mb-2">Nature du contrat</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {(["CDI", "CDD_TERME", "CDD_SANS_TERME"] as NatureSalariatChoix[]).map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => { if (!natureVerrouillee) setNatureSalariat(natureSalariat === n ? "" : n); }}
-                      className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border-2 text-left transition text-xs ${
-                        natureSalariat === n
-                          ? "border-kine-500 bg-white text-kine-700"
-                          : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
-                      }`}
-                    >
-                      <span className="font-semibold text-gray-800">{LIBELLE_NATURE[n].titre}</span>
-                      <span className="text-gray-400 leading-snug">{LIBELLE_NATURE[n].sous}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-gray-500 mt-2 leading-snug">
-                  Employer crée un lien de subordination : déclaration préalable à l&apos;embauche,
-                  paie et cotisations vous incombent.{" "}
-                  {salarieSeul
-                    ? "Le contrat de travail est le vôtre, selon votre convention collective : Soignect ne le génère pas."
-                    : "Le contrat généré suit le modèle-type de votre ordre professionnel."}
-                </p>
-              </div>
-            )}
-            </>)}
-          </div>
-        )}
-
-        {/* ── Accroche : champ EXTRAIT du texte libre (fusion des deux zones de saisie) ──
-             Le textarea n'apparaît QUE s'il a du contenu (extraction faite) ou si l'utilisateur
-             demande explicitement à l'écrire. Un textarea vide affiché en permanence redonnait
-             exactement la friction que cette refonte supprime : deux zones d'écriture côte à côte.
-             Repli : le lien ci-dessous reste toujours accessible, et à défaut d'accroche c'est le
-             texte libre tronqué qui alimente la carte — la publication n'est jamais bloquée. */}
-        {!form.accroche && !showAccrocheManual ? (
-          <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
-            <span className="font-semibold text-gray-600">Accroche de la carte</span> — tirée de
-            votre texte par «&nbsp;✨ Analyser le texte&nbsp;».{" "}
-            <button
-              type="button"
-              onClick={() => setShowAccrocheManual(true)}
-              className="underline font-semibold text-kine-700 hover:text-kine-800"
-            >
-              L&apos;écrire à la main
-            </button>
-          </p>
-        ) : (
-        <div className="bg-kine-50 rounded-2xl p-4 space-y-2 border border-kine-100">
-          <label className="block text-sm font-semibold text-kine-700">
-            {cfg.pitchTitle}
-            <span className="text-kine-400 font-normal ml-1">({bioLimit} signes)</span>
-          </label>
-          <p className="text-xs text-kine-600/70">
-            {form.accroche
-              ? "Proposée à partir de votre texte — modifiez-la librement. C'est elle qui s'affiche sur votre carte et alimente le matching."
-              : "C'est elle qui s'affiche sur votre carte et alimente le matching."}
-          </p>
-          <textarea
-            value={form.accroche}
-            onChange={(e) => {
-              if (e.target.value.length <= bioLimit) setForm({ ...form, accroche: e.target.value });
-            }}
-            onFocus={() => setAccrocheFocused(true)}
-            onBlur={() => setAccrocheFocused(false)}
-            rows={3}
-            className="w-full py-2.5 px-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800 not-italic break-words whitespace-pre-wrap placeholder:text-gray-400 placeholder:italic"
-            placeholder={pitchPlaceholder}
-          />
-          <div className="flex justify-end items-center min-h-[16px]">
-            {!accrocheValid ? (
-              (accrocheFocused || accrocheTrim.length > 0) && (
-                <span className="text-xs text-amber-600 mr-auto">
-                  40 caractères minimum ({accrocheRemaining} restant{accrocheRemaining > 1 ? "s" : ""}) — sinon votre texte libre sera utilisé
-                </span>
-              )
-            ) : (
-              <span className="text-xs text-gray-300">{form.accroche.length}/{bioLimit}</span>
-            )}
-          </div>
-          {/* Côté CANDIDAT, l'accroche EST le texte libre : le bouton s'y rattache. Côté cabinet
-              il est déjà posé sous le texte long, et le dupliquer ici sèmerait la confusion sur
-              lequel des deux champs serait rempli. */}
-          {formType !== "TITULAIRE" && (
-            <ReprendreTexte
-              champ="accroche"
-              valeurActuelle={form.accroche}
-              exclureId={editId}
-              onReprendre={(t) => setForm((prev) => ({ ...prev, accroche: t.slice(0, bioLimit) }))}
-            />
-          )}
-        </div>
-        )}
-
-        {/* ── Commune ── */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {cfg.communeLabel}
-          </label>
-          <select
-            value={form.location}
-            onChange={(e) => setForm({ ...form, location: e.target.value })}
-            required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-          >
-            <option value="">Sélectionner une commune…</option>
-            {COMMUNES_GUADELOUPE.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-
-        {/* Zones géographiques retirées côté cabinet (section 144) — un cabinet a une
-            commune fixe ; la flexibilité géo n'existe que côté candidat (disponibilité). */}
-
-        {/* ── Spécialités retirées (section 69) — le matching est géré par
-             DeepSeek à partir du texte de l'accroche, plus de cases à cocher. ── */}
-
-        {/* ── Avertissement durée minimale 3 mois ── */}
-        {under90Days && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
-            ⚠️ Les postes d&apos;{isEmployeur ? "CDD/CDI" : "assistanat"} nécessitent une durée minimale de <strong>3 mois (90 jours)</strong>.
-          </div>
-        )}
-
-        {/* ── Dates — le DÉBUT est demandé pour tous les types (il place la brique sur la
-             timeline) ; la FIN uniquement en remplacement. ── */}
-        {showStartDate && (
-          <div>
-            {/* RÈGLE ALIGNÉE SUR LE FORMULAIRE CANDIDAT (10/08) : la date de début est
-                OPTIONNELLE des deux côtés, et ne devient obligatoire que là où son absence
-                casse quelque chose — une annonce rattachée à un poste du Planning sans date de
-                début ne se place sur aucune ligne. Le libellé le disait nulle part : rien ne
-                distinguait un champ exigé d'un champ facultatif, ce que le candidat voit
-                pourtant écrit. */}
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {formType !== "TITULAIRE"
-                ? "Mes dates de disponibilité"
-                : cddATerme
-                ? "Durée du contrat"
-                : showEndDate
-                ? "Période de remplacement"
-                : "Date de prise de poste"}
-              {formType === "TITULAIRE" && !showEndDate && (
-                cabinetPostId
-                  ? <span className="text-red-500 font-normal ml-1">· obligatoire</span>
-                  : <span className="text-gray-400 font-normal ml-1">(optionnel)</span>
-              )}
-            </label>
-            <div className={showEndDate ? "grid grid-cols-2 gap-3" : ""}>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">{showEndDate ? "Du" : "À partir du"}</label>
-                <input
-                  type="date"
-                  value={form.startDate}
-                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-                />
-              </div>
-              {showEndDate && (
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Au</label>
-                  <input
-                    type="date"
-                    value={form.endDate}
-                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                    min={form.startDate}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-                  />
-                </div>
-              )}
-            </div>
-            {!showEndDate && (
-              <p className="text-xs text-gray-400 mt-1">
-                Sans cette date, l&apos;annonce n&apos;apparaîtra pas sur la ligne du poste dans votre planning.
-              </p>
-            )}
-            {/* Vérifiez l'année — le piège est là, pas dans le jour (section 250). */}
-            {periodePassee && (
-              <p className="mt-2 text-xs leading-snug rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
-                ⚠️ <strong>Cette période est déjà passée.</strong> Vérifiez l&apos;année : une
-                annonce dont la période est terminée n&apos;est pas proposée aux candidats.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* ── Flexibilité dates — porte sur une période, donc remplacement uniquement ── */}
-        {showEndDate && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Flexibilité sur les dates
-            </label>
-            <div className="grid grid-cols-5 gap-1">
-              {[
-                { value: 0, label: "Exact" },
-                { value: 1, label: "±3j" },
-                { value: 2, label: "±1sem" },
-                { value: 3, label: "±2sem" },
-                { value: 4, label: "±1mois" },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setForm({ ...form, dateFlexibility: opt.value })}
-                  className={`py-2 rounded-xl text-xs font-semibold border-2 transition ${
-                    form.dateFlexibility === opt.value
-                      ? "border-kine-500 bg-kine-50 text-kine-700"
-                      : "border-gray-200 text-gray-400 hover:border-gray-300"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Durée minimale (ASSISTANT ou TITULAIRE-assistant) ── */}
-        {showMinMonths && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {formType === "TITULAIRE" ? "Durée minimale du contrat proposé" : "Durée minimale souhaitée"}
-            </label>
-            <select
-              value={form.minMonths}
-              onChange={(e) => setForm({ ...form, minMonths: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-            >
-              <option value="">Non définie</option>
-              <option value="3">3 mois minimum</option>
-              <option value="6">6 mois minimum</option>
-              <option value="12">12 mois (1 an)</option>
-              <option value="18">18 mois</option>
-              <option value="24">24 mois (2 ans)</option>
-            </select>
-          </div>
-        )}
-
-        {/* ── Logement proposé (section 120) — alimente le bonus logement du score ── */}
-        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
-          <input
-            type="checkbox"
-            checked={form.logementPropose}
-            onChange={(e) => setForm({ ...form, logementPropose: e.target.checked })}
-            className="w-4 h-4 rounded accent-kine-600"
-          />
-          <span className="text-sm text-gray-700">🏠 Logement proposé avec le poste</span>
-        </label>
-
-        {/* ── Véhicule proposé (feature terrain) — symétrique du logement, alimente le bonus
-             véhicule du score. Souvent annoncé collé au logement dans les annonces réelles. ── */}
-        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
-          <input
-            type="checkbox"
-            checked={form.vehiculePropose}
-            onChange={(e) => setForm({ ...form, vehiculePropose: e.target.checked })}
-            className="w-4 h-4 rounded accent-kine-600"
-          />
-          <span className="text-sm text-gray-700">🚗 Véhicule mis à disposition</span>
-        </label>
-
-        {!salarieSeul && (<>
-        {/* ── Secrétariat sur place (section 190) — alimente le bonus secrétariat du score.
-             Argument récurrent des annonces réelles : moins de charge administrative. ── */}
-        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
-          <input
-            type="checkbox"
-            checked={form.secretairePresente}
-            onChange={(e) => setForm({ ...form, secretairePresente: e.target.checked })}
-            className="w-4 h-4 rounded accent-kine-600"
-          />
-          <span className="text-sm text-gray-700">🗂️ Secrétariat sur place</span>
-        </label>
-
-        {/* ── Exercice coordonné (section 190) — le libellé NOMME L'AVANTAGE avant le dispositif :
-             « MSP » ne dit rien à qui n'y a jamais exercé, l'accès direct sans prescription
-             (Avenant 7, jusqu'à 8 séances) dit exactement ce qu'on y gagne. C'est aussi ce qui
-             justifie que ce critère pèse plus lourd que les trois autres au barème. ── */}
-        <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
-          <input
-            type="checkbox"
-            checked={form.exerciceCoordonne}
-            onChange={(e) => setForm({ ...form, exerciceCoordonne: e.target.checked })}
-            className="w-4 h-4 rounded accent-kine-600 mt-0.5"
-          />
-          <span className="text-sm text-gray-700">
-            🤝 Exercice coordonné (MSP, centre de santé, ESP)
-            {/* Phrase DÉRIVÉE de la profession (section 294), même raison que côté candidat. */}
-            <span className="block text-xs text-gray-500 mt-0.5">
-              {mentionExerciceCoordonne(profession)}
-            </span>
-          </span>
-        </label>
-        </>)}
-
-        {/* ── Demi-journées libres + CA estimé (feature terrain) — informations affichées sur
-             la fiche annonce (hors score). Critères de qualité de vie annoncés spontanément. ── */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Demi-journées libres <span className="text-gray-400 font-normal">/ sem. (opt.)</span>
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={10}
-              step={1}
-              value={form.demiJourneesLibres}
-              onChange={(e) => setForm({ ...form, demiJourneesLibres: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-              placeholder="Ex : 3"
-            />
-          </div>
-          {/* Un SALARIÉ n'a pas de chiffre d'affaires : on lui demandait pourtant un « CA mensuel
-              estimé ». Le champ change de nature selon qui publie, et va dans une colonne
-              distincte — un CA et un salaire brut ne se comparent pas. */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {annonceSalariee ? "Rémunération brute mensuelle" : "CA mensuel estimé"}{" "}
-              <span className="text-gray-400 font-normal">€ (opt.)</span>
-            </label>
-            <input
-              type="number"
-              min={0}
-              // À l'euro près : un pas de 100 faisait refuser 1 850 € par le navigateur, sans
-              // message de Soignect. Le serveur attend un entier, rien de plus.
-              step={1}
-              value={annonceSalariee ? form.remunerationBrute : form.caMensuelEstime}
-              onChange={(e) =>
-                setForm(annonceSalariee
-                  ? { ...form, remunerationBrute: e.target.value }
-                  : { ...form, caMensuelEstime: e.target.value })
-              }
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-              placeholder={annonceSalariee ? "Ex : 2600" : "Ex : 8000"}
-            />
-            {annonceSalariee && (
-              <p className="text-xs text-gray-400 mt-1">
-                Brut mensuel du poste. Pour une vacation, indiquez l&apos;équivalent mensuel ou
-                laissez vide et précisez-le dans le texte.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* ── Taux de rétrocession / redevance (structuré — atterrit dans le contrat) ──
-             Le SENS de ce pourcentage s'inverse selon le type de poste, exactement comme sur
-             la page contrat (match/[id]/contrat) :
-               • remplacement           → part que le REMPLAÇANT conserve (contrat : « le
-                 remplaçant percevra X% des honoraires »), usuellement 50-90
-               • assistanat/collaboration → part que l'assistant REVERSE au cabinet, usuellement 10-60
-             Le libellé figé « Taux de rétrocession » avec le placeholder « Ex : 25 » invitait à
-             saisir la part du cabinet : un remplacement à 75/25 se retrouvait contractualisé à
-             25% pour le remplaçant. */}
-        {/* MASQUÉ POUR UN EMPLOYEUR — un salarié ne reverse rien et ne conserve pas une part
-            d'honoraires : il est payé. Le champ n'était pas seulement mal nommé, il était sans
-            objet, et « Redevance versée au cabinet » s'affichait sur une offre de CDI. */}
-        {!annonceSalariee && (
-        <div>
-          {/* ── TROIS MODES, SUR UN ASSISTANAT OU UNE COLLABORATION (section 296) ──────────
-              La redevance que l'assistant ou le collaborateur verse au cabinet peut être un
-              pourcentage, un forfait mensuel, ou un pourcentage plafonné. Un remplacement se
-              rétrocède en pourcentage seulement. */}
-          {modesRedevance && (
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Comment la redevance est-elle calculée ?
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {([
-                  ["POURCENTAGE", "Pourcentage"],
-                  ["FIXE", "Montant fixe"],
-                  ["PLAFONNEE", "Pourcentage plafonné"],
-                ] as const).map(([valeur, libelle]) => (
-                  <button
-                    key={valeur}
-                    type="button"
-                    onClick={() => setForm({ ...form, retrocessionMode: valeur })}
-                    className={`rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition ${
-                      form.retrocessionMode === valeur
-                        ? "border-kine-600 bg-kine-50 text-kine-800"
-                        : "border-gray-200 text-gray-500 hover:bg-gray-50"
-                    }`}
-                  >
-                    {libelle}
-                  </button>
-                ))}
-              </div>
+              {/* Titre — juste APRÈS le texte libre, et hors du repli. Après, pour ne pas
+                  accueillir l'utilisateur par un champ manuel : la refonte veut qu'il écrive
+                  d'abord. Hors du repli, car le titre est OBLIGATOIRE et bloque la publication. */}
+              {titleField}
             </div>
           )}
 
-          {/* MONTANT FIXE — le pourcentage n'a alors plus d'objet et le champ disparaît. */}
-          {modesRedevance && form.retrocessionMode === "FIXE" ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Redevance versée au cabinet{" "}
-                <span className="text-gray-400 font-normal">€ par mois</span>
-              </label>
-              <input
-                type="number"
-                min={0}
-                step={50}
-                value={form.retrocessionFixeEuros}
-                onChange={(e) => setForm({ ...form, retrocessionFixeEuros: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-                placeholder="Ex : 1200"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                {needType === "collaboration" ? "Le collaborateur" : "L\u2019assistant"} verse
-                cette somme chaque mois, quel que soit son chiffre d&rsquo;affaires. Calculée au
-                prorata pour un mois incomplet, et reprise telle quelle au contrat.
-              </p>
-            </div>
-          ) : null}
+          {/* ── Colonne DROITE (desktop) / repli (mobile) : « ce que j'ai compris » + champs
+              structurés éditables. Toujours visible sur desktop (lg:block) ; sur mobile, révélée
+              après extraction (showManual passe à true) ou via le toggle. ── */}
+          <div ref={blocChampsRef} className={formType !== "TITULAIRE" ? "space-y-5" : `space-y-5 ${showManual ? "" : "hidden lg:block"}`}>
 
-          <div className={modesRedevance && form.retrocessionMode === "FIXE" ? "hidden" : ""}>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {needType === "remplacement"
-              ? "Taux de rétrocession pour le remplaçant"
-              : "Redevance versée au cabinet"}{" "}
-            <span className="text-gray-400 font-normal">% (opt.)</span>
-          </label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            step={1}
-            value={form.retrocessionRate}
-            onChange={(e) => setForm({ ...form, retrocessionRate: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-            placeholder={needType === "remplacement" ? "Ex : 75" : "Ex : 25"}
-          />
-          <p className="text-xs text-gray-400 mt-1">
-            {needType === "remplacement"
-              ? "Part des honoraires que le remplaçant conserve — c'est ce chiffre qui figurera au contrat. Un « 75/25 » se saisit 75."
-              : `Part des honoraires que ${needType === "collaboration" ? "le collaborateur" : "l'assistant"} reverse au cabinet — c'est ce chiffre qui figurera au contrat.`}
-          </p>
+          {/* Sans colonne gauche (remplaçant/assistant hors couverture), le titre n'a pas été
+              rendu au-dessus — on le place ici. En mode couverture la colonne gauche EXISTE :
+              tester le type brut y affichait le champ une seconde fois. */}
+          {formType !== "TITULAIRE" && titleField}
+
+          {blocResume}
+
+          {blocType}
+
+          {blocAccroche}
+
+          {blocCommune}
+
+          {blocDuree90}
+
+          {blocDates}
+
+          {blocFlex}
+
+          {blocMinMonths}
+
+          {blocOptions}
+
+          {blocChiffres}
+
+          {blocArgent}
+
+
           </div>
+          {/* ── fin colonne droite ── */}
 
-          {/* PLAFOND — la redevance, c'est-à-dire la part du cabinet, ne dépasse jamais ce
-              montant. Un assistant très productif cesse d'être pénalisé par son propre volume. */}
-          {modesRedevance && form.retrocessionMode === "PLAFONNEE" ? (
-            <div className="mt-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Redevance plafonnée à{" "}
-                <span className="text-gray-400 font-normal">€ par mois</span>
-              </label>
-              <input
-                type="number"
-                min={0}
-                step={50}
-                value={form.retrocessionPlafondEuros}
-                onChange={(e) => setForm({ ...form, retrocessionPlafondEuros: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
-                placeholder="Ex : 1500"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Au-delà de ce montant, les honoraires restent intégralement acquis
-                {needType === "collaboration" ? " au collaborateur" : " à l\u2019assistant"}. Avec
-                « 25 % » ci-dessus, le cabinet perçoit 25 % sans jamais dépasser ce plafond.
-              </p>
-            </div>
-          ) : null}
-        </div>
+          </div>
+          {/* ── fin grille 2 colonnes ── */}
+        </>
         )}
-
-        </div>
-        {/* ── fin colonne droite ── */}
-
-        </div>
-        {/* ── fin grille 2 colonnes ── */}
 
         {/* ── Photo obligatoire (item 8) — non requise en édition ── */}
         {!isEdit && hasPhoto === false && (
@@ -1602,7 +1906,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
                 déjà dépliée à partir de `lg`, quel que soit showManual. Proposer de l'ouvrir sur
                 desktop désignait des champs visibles à l'écran, et le clic ne changeait rien.
                 Le message des prérequis, lui, reste utile aux deux tailles. */}
-            {formType === "TITULAIRE" && !showManual && (
+            {formType === "TITULAIRE" && !showManual && !modeRapide && (
               <button type="button" onClick={() => setShowManual(true)} className="lg:hidden ml-1 underline font-semibold text-kine-700">Ouvrir les champs</button>
             )}
           </p>
