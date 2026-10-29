@@ -45,7 +45,9 @@ export const COMMUNES_GUADELOUPE = [
 
 // ── Martinique (section 376) ────────────────────────────────────────────────────
 // Les 34 communes, regroupées par intercommunalité : CACEM au centre, Cap Nord, Espace Sud.
-// Découpage proposé par Soignect, **à vérifier par JC** avant toute mise en ligne.
+// Composition vérifiée le 28/10 sur les trois intercommunalités (4 + 18 + 12, à l'identique).
+// Pas de découpage CPTS possible : la carte de la FCPTS ne recense aucune CPTS en Martinique, et
+// la CPTS Madinina se présente comme couvrant toute l'île.
 // Libellés : ceux de CommuneAPL (INSEE), sauf « Sainte-Anne (Martinique) » — voir COMMUNE_INSEE.
 const COMMUNES_MARTINIQUE_PAR_ZONE = {
   MARTINIQUE_CENTRE: ["Fort-de-France", "Le Lamentin", "Schœlcher", "Saint-Joseph"],
@@ -185,7 +187,7 @@ export const COMMUNE_ZONE: Record<string, ZoneGeo> = {
   "Grand Case (Saint-Martin)":   "SAINT_MARTIN",
   // Saint-Barthélemy
   "Gustavia (Saint-Barth)":      "SAINT_BARTHELEMY",
-  // Martinique — voir ZONES_MARTINIQUE (découpage à vérifier par JC)
+  // Martinique — voir COMMUNES_MARTINIQUE_PAR_ZONE (intercommunalités)
   ...Object.fromEntries(
     (Object.entries(COMMUNES_MARTINIQUE_PAR_ZONE) as [ZoneGeo, readonly string[]][]).flatMap(([zone, cs]) => cs.map((c) => [c, zone])),
   ),

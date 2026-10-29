@@ -7421,7 +7421,12 @@ trois intercommunalités**.
   (972, données APL 2024 déjà présentes), sauf **« Sainte-Anne (Martinique) »** — la Guadeloupe a
   sa Sainte-Anne, déjà portée par des annonces sous le libellé nu. Trois zones :
   Centre (CACEM : Fort-de-France, Le Lamentin, Schœlcher, Saint-Joseph), Nord (Cap Nord, 18
-  communes), Sud (Espace Sud, 12 communes). **Découpage à vérifier par JC.**
+  communes), Sud (Espace Sud, 12 communes). **Vérifié le 28/10** (demande de JC : « vérifie le
+  découpage sur FCPTS ») : la carte de la FCPTS (561 CPTS, `adherent.fcpts.org/api/carte/
+  cpts-liste.json`) ne recense **aucune CPTS en Martinique** (trois en Guadeloupe : Horizon Santé
+  Guadeloupe, Nord Grande-Terre, du Levant) ; la CPTS Madinina, seule trouvée, se présente comme
+  couvrant toute l'île — pas de découpage CPTS possible. La composition des trois
+  intercommunalités (Wikipédia) correspond commune pour commune à celle du code.
 - **Territoire** (`GUADELOUPE` | `MARTINIQUE`) : le tableau d'annonces d'un compte ou d'une
   annonce, distinct de `Profile.region`, qui dit d'où vient la personne (2 comptes existants ont
   la région « Martinique » et travaillent sur le tableau de la Guadeloupe : s'en servir les aurait
