@@ -53,6 +53,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // flag legacy isEmployeur de titulaireKind pour que le parcours salarié
           // (libellés « établissement », placeholders « Vacation/CDD/CDI ») s'applique.
           isEmployeur: (user.profile?.isEmployeur ?? false) || user.profile?.titulaireKind === "STRUCTURE",
+          territoire: user.profile?.territoire ?? "GUADELOUPE",
         };
       },
     }),
@@ -91,11 +92,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Le client appelle `update()` après le changement ; on relit alors immédiatement.
     async jwt({ token, user, trigger }) {
       if (user) {
-        const u = user as { role: string; profileId: string | null; profileType: string | null; isEmployeur: boolean };
+        const u = user as { role: string; profileId: string | null; profileType: string | null; isEmployeur: boolean; territoire: string };
         token.role = u.role;
         token.profileId = u.profileId;
         token.profileType = u.profileType;
         token.isEmployeur = u.isEmployeur;
+        token.territoire = u.territoire;
         token.verifiedAt = Date.now();
         return token;
       }
@@ -108,7 +110,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { id: token.sub! },
           select: {
             role: true,
-            profile: { select: { id: true, type: true, isEmployeur: true, titulaireKind: true } },
+            profile: { select: { id: true, type: true, isEmployeur: true, titulaireKind: true, territoire: true } },
           },
         });
 
@@ -123,6 +125,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.profileType = compte.profile?.type ?? null;
         token.isEmployeur =
           (compte.profile?.isEmployeur ?? false) || compte.profile?.titulaireKind === "STRUCTURE";
+        token.territoire = compte.profile?.territoire ?? "GUADELOUPE";
         token.verifiedAt = Date.now();
       } catch {
         // PANNE BASE ≠ COMPTE SUPPRIMÉ. Une erreur de connexion ne prouve rien sur l'existence du
@@ -140,6 +143,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       (session.user as { profileId: string | null }).profileId = token.profileId as string | null;
       (session.user as { profileType: string | null }).profileType = token.profileType as string | null;
       (session.user as unknown as { isEmployeur: boolean }).isEmployeur = (token.isEmployeur as boolean) ?? false;
+      // Tableau d'annonces du compte (section 376). Un jeton antérieur n'en porte pas : Guadeloupe,
+      // comme la colonne, jusqu'à la revalidation suivante.
+      session.user.territoire = token.territoire === "MARTINIQUE" ? "MARTINIQUE" : "GUADELOUPE";
       return session;
     },
   },

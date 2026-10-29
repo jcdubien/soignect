@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
   COMMUNES_GUADELOUPE, COMMUNES_MARTINIQUE, COMMUNE_ZONE, ZONE_ORDER, ZONES_MARTINIQUE,
   inseeOfCommune, zoneOfCommune, territoireDeCommune, territoireDeZone,
+  libelleZones, territoiresVus, territoireDe,
 } from "../communes";
 
 test("34 communes, codes INSEE 97201 à 97234, chacun une seule fois", () => {
@@ -42,4 +43,20 @@ test("la Guadeloupe est inchangée", () => {
     assert.ok(ZONE_ORDER.includes(COMMUNE_ZONE[c]), c);
   }
   for (const z of ZONE_ORDER) assert.equal(territoireDeZone(z), "GUADELOUPE");
+});
+
+test("« Toute la … » suit le territoire ; un choix partiel nomme les zones", () => {
+  assert.equal(libelleZones([...ZONE_ORDER], "GUADELOUPE"), "Toute la Guadeloupe");
+  assert.equal(libelleZones([...ZONES_MARTINIQUE], "MARTINIQUE"), "Toute la Martinique");
+  assert.equal(libelleZones(["MARTINIQUE_SUD"], "MARTINIQUE"), "Sud (Espace Sud)");
+  assert.equal(libelleZones(["SUD_GRANDE_TERRE", "NORD_GRANDE_TERRE"], "GUADELOUPE"), "Sud Grande-Terre, Nord Grande-Terre");
+});
+
+test("chacun son île : un compte antérieur ne voit que la Guadeloupe", () => {
+  assert.deepEqual(territoiresVus({}), ["GUADELOUPE"]);
+  assert.deepEqual(territoiresVus({ territoire: "GUADELOUPE", voirAutreTerritoire: false }), ["GUADELOUPE"]);
+  assert.deepEqual(territoiresVus({ territoire: "MARTINIQUE" }), ["MARTINIQUE"]);
+  assert.deepEqual(territoiresVus({ territoire: "MARTINIQUE", voirAutreTerritoire: true }), ["MARTINIQUE", "GUADELOUPE"]);
+  assert.equal(territoireDe(undefined), "GUADELOUPE");
+  assert.equal(territoireDe("METROPOLE"), "GUADELOUPE");
 });

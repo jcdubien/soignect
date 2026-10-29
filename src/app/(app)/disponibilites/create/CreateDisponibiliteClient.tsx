@@ -9,7 +9,7 @@ import { AssistanceIA, useAssistanceIA } from "@/components/publication/Assistan
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
+import { ZONE_LABELS, ZONES_PAR_TERRITOIRE, LIBELLE_TERRITOIRE, libelleZones, territoireDe, type ZoneGeo } from "@/lib/communes";
 import ZoneSelector from "@/components/ui/ZoneSelector";
 import { lireBrouillon, ecrireBrouillon, effacerBrouillon } from "@/lib/brouillonLocal";
 import Link from "next/link";
@@ -38,6 +38,8 @@ export default function CreateDisponibiliteClient({
   const salarieSeul = contratFourniParEmployeur(profession);
 
   const profileType = (session?.user as { profileType?: string })?.profileType;
+  // Zones proposées, extraites et « Toute la … » : celles du territoire du compte (section 376).
+  const territoire = territoireDe(session?.user?.territoire);
 
   // TITULAIRE ne doit pas accéder à cette page
   useEffect(() => {
@@ -275,10 +277,7 @@ export default function CreateDisponibiliteClient({
 
     // location dérivé des zones (section 148) — plus de commune saisie côté remplaçant.
     // Sert uniquement à l'affichage (📍 carte/sheet) ; le matching se fait via zones.
-    const geoLabel =
-      form.zones.length === ZONE_ORDER.length
-        ? "Toute la Guadeloupe"
-        : form.zones.map((z) => ZONE_LABELS[z]).join(", ");
+    const geoLabel = libelleZones(form.zones, territoire);
 
     const res = await fetch(isEdit ? `/api/missions/${editId}` : "/api/missions", {
       method: isEdit ? "PATCH" : "POST",
@@ -354,7 +353,7 @@ export default function CreateDisponibiliteClient({
       ...(typeof f.endDate === "string" ? { endDate: f.endDate } : {}),
       ...(typeof f.minMonths === "number" ? { minMonths: String(f.minMonths) } : {}),
       ...(Array.isArray(f.zones)
-        ? { zones: (f.zones as unknown[]).filter((z): z is ZoneGeo => typeof z === "string" && (ZONE_ORDER as string[]).includes(z)) }
+        ? { zones: (f.zones as unknown[]).filter((z): z is ZoneGeo => typeof z === "string" && (ZONES_PAR_TERRITOIRE[territoire] as string[]).includes(z)) }
         : {}),
       ...(f.rechercheLogement === true ? { rechercheLogement: true } : {}),
       ...(f.rechercheVehicule === true ? { rechercheVehicule: true } : {}),
@@ -829,7 +828,8 @@ export default function CreateDisponibiliteClient({
           value={form.zones}
           onChange={(zones) => setForm({ ...form, zones })}
           label="Zones où vous cherchez à travailler"
-          hint="Sélectionnez une ou plusieurs zones, ou « Toute la Guadeloupe » pour ne poser aucune restriction géographique."
+          hint={`Sélectionnez une ou plusieurs zones, ou « Toute la ${LIBELLE_TERRITOIRE[territoire]} » pour ne poser aucune restriction géographique.`}
+          territoire={territoire}
         />
 
         {/* Spécialités retirées (section 69) — matching via DeepSeek à partir de l'accroche */}
@@ -952,7 +952,9 @@ export default function CreateDisponibiliteClient({
         {/* ── Diffusion sur la Page Facebook (section 234) ──
              Placée AVANT le bouton de publication et dite en clair : votre nom et vos dates
              partiront sur une page publique. C'est un acte distinct de publier ici, où le
-             lecteur est un professionnel connecté. Décochable, sans conséquence sur le reste. ── */}
+             lecteur est un professionnel connecté. Décochable, sans conséquence sur le reste.
+             Guadeloupe seulement (section 376) : la page n'est pas ouverte à la Martinique. ── */}
+        {territoire === "GUADELOUPE" && (
         <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
           <input
             type="checkbox"
@@ -968,6 +970,7 @@ export default function CreateDisponibiliteClient({
             </span>
           </span>
         </label>
+        )}
 
         <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
           <input

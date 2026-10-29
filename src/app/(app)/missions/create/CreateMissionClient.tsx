@@ -5,7 +5,7 @@ import type { ExemplesPublication } from "@/lib/exemplesPublication";
 import { marquerSaisieEnCours } from "@/lib/saisieEnCours";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { COMMUNES_PAR_TERRITOIRE, territoireDe, territoireDeCommune } from "@/lib/communes";
 import { bioLimitFor } from "@/lib/bio";
 import Link from "next/link";
 import ReprendreTexte from "@/components/missions/ReprendreTexte";
@@ -143,6 +143,8 @@ const MISSION_TYPE_PAR_BESOIN: Record<Exclude<NeedType, "">, string> = {
 
 export default function CreateMissionClient({ typesContractualisables, salariatContractualisable, exemples, profession }: { typesContractualisables: string[]; salariatContractualisable: boolean; exemples: ExemplesPublication; profession: string }) {
   const { data: session, status } = useSession();
+  // Communes proposées : celles du territoire du compte (section 376).
+  const communesDuTerritoire = COMMUNES_PAR_TERRITOIRE[territoireDe(session?.user?.territoire)];
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -368,7 +370,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
         if (!d) return;
         setReprises({ derniere: d.derniere ?? null, parType: d.parType ?? {} });
         const commune = d.derniere?.location;
-        if (typeof commune === "string" && COMMUNES_GUADELOUPE.includes(commune)) {
+        if (typeof commune === "string" && territoireDeCommune(commune) !== null) {
           // Brouillon restauré ou commune déjà choisie : on n'y touche pas.
           setForm((prev) => (prev.location ? prev : { ...prev, location: commune }));
           setCommuneReprise(commune);
@@ -414,7 +416,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
       ...form,
       ...argentDe(r),
       title: "",
-      location: COMMUNES_GUADELOUPE.includes(r.location) ? r.location : form.location,
+      location: territoireDeCommune(r.location) !== null ? r.location : form.location,
       minMonths: r.minMonths ? String(r.minMonths) : "",
       dateFlexibility: r.dateFlexibility ?? 0,
       logementPropose: r.logementPropose,
@@ -1212,7 +1214,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
           className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 text-sm"
         >
           <option value="">Sélectionner une commune…</option>
-          {COMMUNES_GUADELOUPE.map((c) => <option key={c} value={c}>{c}</option>)}
+          {communesDuTerritoire.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 

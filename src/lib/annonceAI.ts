@@ -8,7 +8,7 @@
 // Toute fonction renvoie null en cas d'échec réseau/parse → dégradation gracieuse côté UI.
 
 import { z } from "zod";
-import { COMMUNES_GUADELOUPE, ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
+import { COMMUNES_PAR_TERRITOIRE, ZONES_PAR_TERRITOIRE, ZONE_LABELS, LIBELLE_TERRITOIRE, type Territoire, type ZoneGeo } from "@/lib/communes";
 
 // TROIS rôles, pas deux (section 195). « cabinet » couvrait indistinctement le cabinet libéral
 // et l'établissement employeur : le modèle recevait donc « tu aides un cabinet de
@@ -179,10 +179,10 @@ const rawExtractionSchema = z.object({
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-// Rapproche une commune extraite du référentiel (tolérant casse/accents), sinon rejette.
-function matchCommune(raw: string): string | undefined {
+// Rapproche une commune extraite du référentiel du territoire (tolérant casse/accents), sinon rejette.
+function matchCommune(raw: string, territoire: Territoire): string | undefined {
   const n = norm(raw);
-  return COMMUNES_GUADELOUPE.find((c) => norm(c) === n || norm(c).includes(n) || n.includes(norm(c)));
+  return COMMUNES_PAR_TERRITOIRE[territoire].find((c) => norm(c) === n || norm(c).includes(n) || n.includes(norm(c)));
 }
 
 // `bioLimit` = cap de l'accroche du rôle (700 cabinet / 280 candidat, cf. lib/bio).
@@ -190,7 +190,10 @@ export async function extractAnnonceFields(
   text: string,
   role: AnnonceRole,
   bioLimit = 280,
+  // Territoire du compte (section 376) : communes, zones et île nommées dans l'invite.
+  territoire: Territoire = "GUADELOUPE",
 ): Promise<ExtractedFields | null> {
+  const ile = LIBELLE_TERRITOIRE[territoire];
   const source = text.trim();
   if (source.length < 10) return {};
 
@@ -208,11 +211,11 @@ export async function extractAnnonceFields(
   // « caMensuelEstime » revenait a ranger sa remuneration dans le champ du liberal — champ que
   // le formulaire employeur n'affiche plus et que la soumission met a null. Le chiffre saisi
   // dans le texte libre etait donc extrait, puis PERDU.
-  const employeurFields = `  "commune":           {"value":"<commune de Guadeloupe>","evidence":"..."} | null,
+  const employeurFields = `  "commune":           {"value":"<commune de ${ile}>","evidence":"..."} | null,
   "remunerationBrute": {"value":<entier euros/mois>,"evidence":"..."} | null, // salaire BRUT mensuel. Un « 2600 € brut » se saisit 2600. Ne JAMAIS remplir retrocessionRate ni caMensuelEstime pour un employeur : un salarie ne retrocede rien et ne realise pas de chiffre d'affaires.
   "demiJourneesLibres":{"value":<entier 0-10>,"evidence":"..."} | null,
   "repartition":       {"value":"<ex: plateau technique + chambres>","evidence":"..."} | null`;
-  const cabinetFields = `  "commune":           {"value":"<commune de Guadeloupe>","evidence":"..."} | null,
+  const cabinetFields = `  "commune":           {"value":"<commune de ${ile}>","evidence":"..."} | null,
   "retrocessionRate":  {"value":<entier 0-100>,"evidence":"..."} | null, // CONVENTION IMPÉRATIVE : pour un REMPLACEMENT, la part que le REMPLAÇANT CONSERVE (« 75/25 » → 75) ; pour un ASSISTANAT ou une COLLABORATION, la redevance REVERSÉE AU CABINET (« 75/25 » → 25). C'est ce chiffre qui ira au contrat.
   "caMensuelEstime":   {"value":<entier euros/mois>,"evidence":"..."} | null,
   "logementPropose":   {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le cabinet PROPOSE un logement
@@ -221,7 +224,7 @@ export async function extractAnnonceFields(
   "exerciceCoordonne": {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le cabinet exerce en MSP (maison de santé pluriprofessionnelle), centre de santé ou équipe de soins primaires. « pluridisciplinaire » ou « avec des médecins » NE SUFFIT PAS : il faut la structure de coordination nommée
   "demiJourneesLibres":{"value":<entier 0-10>,"evidence":"..."} | null,  // demi-journées libres/semaine
   "repartition":       {"value":"<ex: cabinet + domicile>","evidence":"..."} | null`;
-  const candidatFields = `  "zones":             {"value":[<une ou plusieurs clés parmi : ${ZONE_ORDER.map((z) => `${z} (${ZONE_LABELS[z]})`).join(", ")}>],"evidence":"..."} | null,
+  const candidatFields = `  "zones":             {"value":[<une ou plusieurs clés parmi : ${ZONES_PAR_TERRITOIRE[territoire].map((z) => `${z} (${ZONE_LABELS[z]})`).join(", ")}>],"evidence":"..."} | null,
   "rechercheLogement": {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le candidat CHERCHE un logement
   "rechercheVehicule": {"value":true,"evidence":"..."} | null,           // true UNIQUEMENT si le candidat a BESOIN d'un véhicule
   "rechercheSecretariat":{"value":true,"evidence":"..."} | null,         // true UNIQUEMENT si le candidat DEMANDE un cabinet avec secrétariat
@@ -235,7 +238,7 @@ export async function extractAnnonceFields(
   // qu'une seule zone de texte, l'accroche en est une condensation qu'il pourra corriger.
   const accrocheField = `  "accroche": "<une seule phrase, ${accrocheTarget} caractères max>" | null`;
 
-  const system = `Tu es un extracteur d'informations pour une plateforme de mise en relation de kinésithérapeutes en Guadeloupe.
+  const system = `Tu es un extracteur d'informations pour une plateforme de mise en relation de kinésithérapeutes en ${ile}.
 On te donne une annonce ${role === "employeur" ? "d'un établissement de santé qui EMBAUCHE un salarié (vacation, CDD ou CDI)" : role === "cabinet" ? "de cabinet libéral qui recrute" : "d'un remplaçant/assistant qui se propose"}, rédigée en texte libre.
 Tu dois extraire UNIQUEMENT les informations EXPLICITEMENT présentes dans le texte.
 
@@ -305,7 +308,7 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
 
   if (publieUneOffre(role)) {
     const com = accepted(r.commune);
-    if (typeof com === "string") { const m = matchCommune(com); if (m) out.commune = m; }
+    if (typeof com === "string") { const m = matchCommune(com, territoire); if (m) out.commune = m; }
 
     const rr = acceptedNumber(r.retrocessionRate);
     if (rr !== undefined && rr >= 0 && rr <= 100) out.retrocessionRate = rr;
@@ -331,7 +334,7 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
     const zf = r.zones;
     if (zf && Array.isArray(zf.value) && evidencePresent(zf.evidence, srcNorm)) {
       const valid = (zf.value as unknown[]).filter(
-        (z): z is ZoneGeo => typeof z === "string" && (ZONE_ORDER as string[]).includes(z),
+        (z): z is ZoneGeo => typeof z === "string" && (ZONES_PAR_TERRITOIRE[territoire] as string[]).includes(z),
       );
       if (valid.length) out.zones = Array.from(new Set(valid));
     }
@@ -347,10 +350,10 @@ N'ajoute aucun autre champ, aucun commentaire, aucune explication.`;
 
 // ── 2. Titre proposé ──────────────────────────────────────────────────────────────
 
-export async function proposeAnnonceTitle(text: string, role: AnnonceRole): Promise<string | null> {
+export async function proposeAnnonceTitle(text: string, role: AnnonceRole, territoire: Territoire = "GUADELOUPE"): Promise<string | null> {
   const source = text.trim();
   if (source.length < 10) return null;
-  const system = `Tu proposes un titre court et accrocheur pour une annonce ${role === "employeur" ? "d'un établissement de santé qui embauche un kinésithérapeute salarié" : role === "cabinet" ? "de cabinet de kinésithérapie qui recrute" : "d'un kinésithérapeute qui se propose"} en Guadeloupe.
+  const system = `Tu proposes un titre court et accrocheur pour une annonce ${role === "employeur" ? "d'un établissement de santé qui embauche un kinésithérapeute salarié" : role === "cabinet" ? "de cabinet de kinésithérapie qui recrute" : "d'un kinésithérapeute qui se propose"} en ${LIBELLE_TERRITOIRE[territoire]}.
 Le titre : localisation + type de poste + une ou deux caractéristiques fortes RÉELLEMENT présentes dans le texte. Max 90 caractères, sans guillemets, sans point final. N'invente rien.
 Réponds en JSON : {"title":"..."}.`;
   const parsed = await deepseekJSON(system, source, 60);
@@ -366,13 +369,15 @@ export async function redactionHelp(
   text: string,
   role: AnnonceRole,
   pastTexts: string[],
+  territoire: Territoire = "GUADELOUPE",
 ): Promise<string | null> {
+  const ile = LIBELLE_TERRITOIRE[territoire];
   const draft = text.trim();
   const refs = pastTexts.map((t) => t.trim()).filter(Boolean).slice(0, 3);
   const qui =
-    role === "employeur" ? "établissement de santé (clinique, EHPAD, centre) en Guadeloupe qui EMBAUCHE un kinésithérapeute SALARIÉ"
-    : role === "cabinet" ? "cabinet de kinésithérapie LIBÉRAL en Guadeloupe, qui ne salarie personne"
-    : "kinésithérapeute remplaçant/assistant en Guadeloupe";
+    role === "employeur" ? `établissement de santé (clinique, EHPAD, centre) en ${ile} qui EMBAUCHE un kinésithérapeute SALARIÉ`
+    : role === "cabinet" ? `cabinet de kinésithérapie LIBÉRAL en ${ile}, qui ne salarie personne`
+    : `kinésithérapeute remplaçant/assistant en ${ile}`;
   // Un employeur ne rétrocède rien et n'a pas de patientèle à partager : le vocabulaire libéral
   // produisait un texte hors sujet sur une offre de CDI.
   // Symétrique de l'interdit employeur : le modèle proposait spontanément « le taux de
@@ -406,6 +411,7 @@ export async function optimizeAnnonce(
   text: string,
   role: AnnonceRole,
   known: string[] = [],
+  territoire: Territoire = "GUADELOUPE",
 ): Promise<string[] | null> {
   const source = text.trim();
   if (source.length < 10) return [];
@@ -422,7 +428,7 @@ NE SUGGÈRE JAMAIS un chiffre d'affaires ni un taux de rétrocession : un salari
 Le chiffre d'affaires estimé et le taux de rétrocession sont les deux informations qui pèsent le plus : si — ET SEULEMENT SI — ils sont absents à la fois du texte et de la liste « déjà renseigné », propose-les en premier, avec un argument concret pour le candidat. Ils restent facultatifs : c'est une incitation, jamais une obligation.
 NE MENTIONNE JAMAIS de salaire ni de rémunération fixe : un cabinet libéral ne salarie pas. Un recruteur qui embauche s'inscrit comme établissement, et relève d'un autre cadre. Pour le champ économique, ne parle que de rétrocession et de chiffre d'affaires.`
       : `Côté candidat, ce qui le sécurise et évite les oublis : disponibilités précises (dates), mobilité/zones, méthodes pratiquées, attentes sur le taux, logement/véhicule recherchés, expérience.`;
-  const system = `Tu analyses une annonce ${role === "employeur" ? "d'établissement employeur" : role === "cabinet" ? "de cabinet libéral" : "de candidat"} kiné en Guadeloupe et proposes 1 à 3 AJOUTS concrets et actionnables qui MANQUENT dans le texte. ${roleGuidance}
+  const system = `Tu analyses une annonce ${role === "employeur" ? "d'établissement employeur" : role === "cabinet" ? "de cabinet libéral" : "de candidat"} kiné en ${LIBELLE_TERRITOIRE[territoire]} et proposes 1 à 3 AJOUTS concrets et actionnables qui MANQUENT dans le texte. ${roleGuidance}
 RÈGLE ABSOLUE : relis le texte avant chaque suggestion. Si l'information y figure — même en abrégé, même en style télégraphique (« clim », « logé », « 75/25 », « ca 8000 »), même formulée négativement (« véhicule non fourni » = l'information EST donnée) — alors elle n'est PAS manquante : ne la suggère pas.
 Mieux vaut renvoyer 0 suggestion qu'une suggestion portant sur quelque chose de déjà écrit.
 Sois concret (pas de généralité). Formulation courte, à l'impératif.

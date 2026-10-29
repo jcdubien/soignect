@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   // Refus EXPLICITE, et côté serveur : masquer le bouton suffit à l'écran, pas à la route. Un
   // 409 nommé vaut mieux qu'une extraction plausible et fausse — c'est précisément ce que
   // produirait une invite « kinésithérapeute » soumise au texte d'un infirmier.
-  const moi = await prisma.profile.findUnique({ where: { id: profileId }, select: { profession: true } });
+  const moi = await prisma.profile.findUnique({ where: { id: profileId }, select: { profession: true, territoire: true } });
   if (!assistanceIADisponible(moi?.profession)) {
     return NextResponse.json(
       { error: "L'assistance à la rédaction n'est pas encore disponible pour votre profession.", indisponible: true },
@@ -61,13 +61,13 @@ export async function POST(req: NextRequest) {
         // L'accroche fait partie de l'extraction (fusion des deux zones de saisie) : son cap
         // suit la limite du rôle — cabinet 700, candidat 280 (lib/bio, section 123).
         const bioLimit = role === "cabinet" ? BIO_LIMIT_TITULAIRE : BIO_LIMIT_DEFAULT;
-        const fields = await extractAnnonceFields(text, role as AnnonceRole, bioLimit);
+        const fields = await extractAnnonceFields(text, role as AnnonceRole, bioLimit, moi?.territoire);
         if (fields === null) return NextResponse.json({ degraded: true }); // échec réseau → repli
         await recordDeepSeekCall(profileId);
         return NextResponse.json({ fields });
       }
       case "title": {
-        const title = await proposeAnnonceTitle(text, role as AnnonceRole);
+        const title = await proposeAnnonceTitle(text, role as AnnonceRole, moi?.territoire);
         if (title === null) return NextResponse.json({ degraded: true });
         await recordDeepSeekCall(profileId);
         return NextResponse.json({ title });
@@ -81,13 +81,13 @@ export async function POST(req: NextRequest) {
           select: { rawText: true, pitch: true, description: true },
         });
         const pastTexts = past.map((m) => m.rawText ?? m.pitch ?? m.description ?? "").filter(Boolean);
-        const improved = await redactionHelp(text, role as AnnonceRole, pastTexts);
+        const improved = await redactionHelp(text, role as AnnonceRole, pastTexts, moi?.territoire);
         if (improved === null) return NextResponse.json({ degraded: true });
         await recordDeepSeekCall(profileId);
         return NextResponse.json({ text: improved });
       }
       case "optimize": {
-        const suggestions = await optimizeAnnonce(text, role as AnnonceRole, known ?? []);
+        const suggestions = await optimizeAnnonce(text, role as AnnonceRole, known ?? [], moi?.territoire);
         if (suggestions === null) return NextResponse.json({ degraded: true });
         await recordDeepSeekCall(profileId);
         return NextResponse.json({ suggestions });

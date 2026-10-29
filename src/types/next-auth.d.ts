@@ -7,6 +7,7 @@ declare module "next-auth" {
       role: string;
       profileId: string | null;
       profileType: string | null;
+      territoire: "GUADELOUPE" | "MARTINIQUE";
     };
   }
 }
@@ -17,6 +18,7 @@ declare module "next-auth/jwt" {
     profileId?: string | null;
     profileType?: string | null;
     isEmployeur?: boolean;
+    territoire?: string;
     /** Date (ms) de la dernière confrontation du jeton à la base — voir lib/auth.ts. */
     verifiedAt?: number;
   }

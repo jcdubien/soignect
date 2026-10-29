@@ -1,4 +1,4 @@
-import { COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { COMMUNES_GUADELOUPE, COMMUNES_MARTINIQUE } from "@/lib/communes";
 
 // Annonce en 4 champs (section 369) — titre et accroche DÉDUITS de ce que le cabinet a saisi.
 //
@@ -60,7 +60,7 @@ const D = String.raw`\d{2}/\d{2}/\d{4}`;
 const echappe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // La commune vient de la liste fermée : « Remplacement à Sainte-Anne, cabinet calme. » écrit à
 // la main ne doit pas passer pour une phrase déduite.
-const COMMUNE = `( à (${COMMUNES_GUADELOUPE.map(echappe).join("|")}))?`;
+const COMMUNE = `( à (${[...COMMUNES_GUADELOUPE, ...COMMUNES_MARTINIQUE].map(echappe).join("|")}))?`;
 const PERIODE = String.raw`( du ${D} au ${D}| à partir du ${D})?`;
 const PHRASES_SUIVANTES = [
   /^Durée minimale : \d+ mois\.$/,

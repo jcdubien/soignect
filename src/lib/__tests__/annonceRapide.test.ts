@@ -23,6 +23,9 @@ test("titre et accroche ne disent que ce qui a été saisi", () => {
 test("une accroche déduite est reconnue, quelle que soit sa composition", () => {
   assert.ok(estAccrocheAuto(accrocheAuto(remplacement), "Remplacement"));
   assert.ok(estAccrocheAuto(accrocheAuto({ type: "Remplacement", commune: "Le Gosier" }), "Remplacement"));
+  // Martinique (section 376), y compris le libellé désambiguïsé
+  assert.ok(estAccrocheAuto(accrocheAuto({ type: "Remplacement", commune: "Fort-de-France" }), "Remplacement"));
+  assert.ok(estAccrocheAuto(accrocheAuto({ type: "Remplacement", commune: "Sainte-Anne (Martinique)" }), "Remplacement"));
   assert.ok(estAccrocheAuto(accrocheAuto({ type: "Assistanat", commune: "Sainte-Anne", debut: "2027-09-01", minMonths: "12",
     argent: "Redevance de 25 % versée au cabinet, plafonnée à 1500 € par mois" }), "Assistanat"));
 });

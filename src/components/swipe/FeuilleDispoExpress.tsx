@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ZONE_ORDER, ZONE_LABELS, zoneOfCommune, type ZoneGeo } from "@/lib/communes";
+import { useSession } from "next-auth/react";
+import { ZONES_PAR_TERRITOIRE, ZONE_LABELS, zoneOfCommune, libelleZones, territoireDe, type ZoneGeo } from "@/lib/communes";
 import { finDePhrase, intervalleCourt, nbJours, phraseConflit, type Disponibilite, type Intervalle } from "@/lib/disponibilitePure";
 import { motsRecruteurs, quiAttend } from "@/lib/libellesPoste";
 
@@ -147,6 +148,8 @@ export default function FeuilleDispoExpress({
   // Guadeloupe » par défaut serait plus rapide mais ferait promettre une mobilité que personne
   // n'a déclarée — un cabinet des Saintes verrait remonter quelqu'un qui n'y mettra jamais
   // les pieds.
+  // Secteurs proposés : ceux du territoire du compte (section 376).
+  const territoire = territoireDe(useSession().data?.user?.territoire);
   const zoneAnnonce = annonce ? zoneOfCommune(annonce.location) : null;
   const [zones, setZones] = useState<ZoneGeo[]>(zoneAnnonce ? [zoneAnnonce] : []);
   const [envoi, setEnvoi] = useState(false);
@@ -167,10 +170,7 @@ export default function FeuilleDispoExpress({
     // `location` dérivé des zones, comme le formulaire complet (section 148) : côté candidat
     // la commune ne se saisit pas, elle sert d'étiquette d'affichage et le matching passe par
     // les zones. Réécrire cette dérivation autrement ferait diverger les deux chemins.
-    const etiquetteGeo =
-      zones.length === ZONE_ORDER.length
-        ? "Toute la Guadeloupe"
-        : zones.map((z) => ZONE_LABELS[z]).join(", ");
+    const etiquetteGeo = libelleZones(zones, territoire);
 
     const titre =
       forme === "REMPLACEMENT"
@@ -356,7 +356,7 @@ export default function FeuilleDispoExpress({
             Secteurs où vous pouvez exercer
           </label>
           <div className="flex flex-wrap gap-1.5">
-            {ZONE_ORDER.map((z) => (
+            {ZONES_PAR_TERRITOIRE[territoire].map((z) => (
               <button
                 key={z}
                 type="button"

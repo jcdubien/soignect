@@ -1,6 +1,6 @@
 "use client";
 
-import { ZONE_ORDER, ZONE_LABELS, type ZoneGeo } from "@/lib/communes";
+import { ZONES_PAR_TERRITOIRE, ZONE_LABELS, LIBELLE_TERRITOIRE, type Territoire, type ZoneGeo } from "@/lib/communes";
 
 // Sélecteur multi-zones géographiques (section 138). Chips toggle : plusieurs zones
 // activables (ex: « Nord Basse-Terre » + « Sud Basse-Terre » pour couvrir toute la
@@ -10,20 +10,25 @@ export default function ZoneSelector({
   onChange,
   label = "Zones géographiques souhaitées",
   hint = "Une annonce située dans l'une de ces zones sera considérée comme une bonne correspondance géographique.",
+  territoire = "GUADELOUPE",
 }: {
   value: ZoneGeo[];
   onChange: (zones: ZoneGeo[]) => void;
   label?: string;
   hint?: string;
+  // Les zones proposées sont celles du territoire du compte (section 376).
+  territoire?: Territoire;
 }) {
+  const zonesDuTerritoire = ZONES_PAR_TERRITOIRE[territoire];
   function toggle(z: ZoneGeo) {
     onChange(value.includes(z) ? value.filter((v) => v !== z) : [...value, z]);
   }
 
-  // « Toute la Guadeloupe » = les 10 zones cochées (section 148) → aucune restriction géo.
-  const allSelected = value.length === ZONE_ORDER.length;
+  // « Toute la Guadeloupe » = toutes les zones du territoire cochées (section 148) → aucune
+  // restriction géo.
+  const allSelected = value.length === zonesDuTerritoire.length;
   function toggleAll() {
-    onChange(allSelected ? [] : [...ZONE_ORDER]);
+    onChange(allSelected ? [] : [...zonesDuTerritoire]);
   }
 
   return (
@@ -45,9 +50,9 @@ export default function ZoneSelector({
               : "bg-white text-gray-600 border-gray-200 hover:border-kine-300"
           }`}
         >
-          🌴 Toute la Guadeloupe
+          🌴 Toute la {LIBELLE_TERRITOIRE[territoire]}
         </button>
-        {ZONE_ORDER.map((z) => {
+        {zonesDuTerritoire.map((z) => {
           const active = value.includes(z);
           return (
             <button

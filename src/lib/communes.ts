@@ -406,3 +406,25 @@ export function territoireDeCommune(commune?: string | null): Territoire | null 
 export function territoireDeZone(zone: ZoneGeo): Territoire {
   return ZONES_MARTINIQUE.includes(zone) ? "MARTINIQUE" : "GUADELOUPE";
 }
+
+/** Lecture tolérante (session, colonne, paramètre) : tout ce qui n'est pas MARTINIQUE est la
+ *  Guadeloupe — le défaut de la colonne et de tous les comptes antérieurs. */
+export function territoireDe(v?: string | null): Territoire {
+  return v === "MARTINIQUE" ? "MARTINIQUE" : "GUADELOUPE";
+}
+
+/** Libellé d'affichage d'une liste de zones : « Toute la Guadeloupe » / « Toute la Martinique »
+ *  quand toutes les zones du territoire sont cochées (section 148), sinon leurs noms. */
+export function libelleZones(zones: ZoneGeo[], territoire: Territoire): string {
+  const toutes = ZONES_PAR_TERRITOIRE[territoire];
+  return toutes.every((z) => zones.includes(z))
+    ? `Toute la ${LIBELLE_TERRITOIRE[territoire]}`
+    : zones.map((z) => ZONE_LABELS[z]).join(", ");
+}
+
+/** Territoires dont un compte voit les annonces (section 376) : le sien, plus l'autre île s'il a
+ *  coché « voir aussi ». Tous les comptes antérieurs : Guadeloupe seule, comme avant. */
+export function territoiresVus(p: { territoire?: string | null; voirAutreTerritoire?: boolean | null }): Territoire[] {
+  const sien = territoireDe(p.territoire);
+  return p.voirAutreTerritoire ? [sien, ...TERRITOIRES.filter((t) => t !== sien)] : [sien];
+}

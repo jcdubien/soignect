@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { creerConfrereHorsSoignect, confreresAjoutes, LIMITES_CONFRERE } from "@/lib/confrereHorsSoignect";
-import { COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { territoireDeCommune } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.profileId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Saisie invalide" }, { status: 400 });
-  if (!(COMMUNES_GUADELOUPE as readonly string[]).includes(parsed.data.location)) return NextResponse.json({ error: "Commune inconnue" }, { status: 400 });
+  if (territoireDeCommune(parsed.data.location) === null) return NextResponse.json({ error: "Commune inconnue" }, { status: 400 });
   const r = await creerConfrereHorsSoignect(session.user.profileId, { ...parsed.data, endDate: parsed.data.endDate ?? null, minMonths: parsed.data.minMonths ?? null });
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
   return NextResponse.json({ matchId: r.matchId, lien: r.lien });
