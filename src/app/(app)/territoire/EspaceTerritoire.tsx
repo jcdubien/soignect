@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { StatsTerritoire } from "@/lib/statsTerritoire";
+import { LIBELLE_TERRITOIRE, type Territoire } from "@/lib/communes";
 
 interface Demande {
   id: string; commune: string; profession: string; niveau: number; motif: string;
@@ -16,12 +18,15 @@ const STATUT = {
 };
 
 export default function EspaceTerritoire({
-  stats, demandes, communes, professions,
+  stats, demandes, communes, professions, territoire, iles,
 }: {
   stats: StatsTerritoire;
   demandes: Demande[];
   communes: string[];
   professions: { value: string; label: string }[];
+  territoire: Territoire;
+  /** Les îles entre lesquelles basculer — administrateur seulement ; null pour un partenaire. */
+  iles: Territoire[] | null;
 }) {
   const router = useRouter();
   const [commune, setCommune] = useState(communes[0] ?? "");
@@ -61,6 +66,16 @@ export default function EspaceTerritoire({
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-4xl">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-bold text-gray-800">📍 {LIBELLE_TERRITOIRE[territoire]}</p>
+        {iles && iles.map((t) => (
+          <Link key={t} href={`/territoire?ile=${t}`}
+            className={`text-xs px-2.5 py-1 rounded-full font-semibold ${t === territoire ? "bg-kine-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+            {LIBELLE_TERRITOIRE[t]}
+          </Link>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {carte(stats.annoncesActives, "Postes ouverts", "annonces de cabinets actuellement publiées")}
         {carte(stats.candidatsDisponibles, "Praticiens disponibles", "recherches publiées, tous statuts")}

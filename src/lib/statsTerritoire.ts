@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { BriqueStatus, ProfileType, MatchStatus, Profession } from "@prisma/client";
-import { zoneOfCommune } from "@/lib/communes";
+import { zoneOfCommune, ZONE_LABELS, COMMUNES_PAR_TERRITOIRE, inseeOfCommune, type Territoire } from "@/lib/communes";
 
 // Agrégats de l'écran partenaire territorial (section 233).
 //
@@ -24,16 +24,21 @@ export interface StatsTerritoire {
   prioritesEnVigueur: { commune: string; profession: Profession; niveau: number }[];
 }
 
-export async function statsTerritoire(): Promise<StatsTerritoire> {
+// UN ESPACE PAR ÎLE (section 377) : un partenaire de Martinique ne lit que la Martinique, un
+// partenaire de Guadeloupe que la Guadeloupe. Les annonces portent leur territoire (section 376) ;
+// les priorités se rattachent à l'île par le code INSEE de leur commune ; une mise en relation,
+// par le territoire de l'une de ses parties (elle compte pour les deux îles si elle les relie).
+export async function statsTerritoire(territoire: Territoire): Promise<StatsTerritoire> {
   const ilYA90j = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const codesInsee = COMMUNES_PAR_TERRITOIRE[territoire].map((c) => inseeOfCommune(c)).filter((c): c is string => !!c);
 
   const [missions, misesEnRelation90j, priorites] = await Promise.all([
     prisma.mission.findMany({
-      where: PUBLIE,
+      where: { ...PUBLIE, territoire },
       select: { location: true, profile: { select: { type: true } } },
     }),
     prisma.match.count({
-      where: { status: MatchStatus.CONFIRME, createdAt: { gte: ilYA90j } },
+      where: { status: MatchStatus.CONFIRME, createdAt: { gte: ilYA90j }, OR: [{ profileA: { territoire } }, { profileB: { territoire } }] },
     }),
     // Les priorités EN VIGUEUR, sans nommer l'institution qui les a déclarées ni qui les a
     // saisies : le partenaire doit savoir ce qui est déjà priorisé pour ne pas redemander ce
@@ -42,6 +47,7 @@ export async function statsTerritoire(): Promise<StatsTerritoire> {
       where: {
         OR: [{ expireLe: null }, { expireLe: { gt: new Date() } }],
         client: { clotureLe: null },
+        codeInsee: { in: codesInsee },
       },
       select: { commune: true, profession: true, niveau: true },
       orderBy: [{ profession: "asc" }, { commune: "asc" }],
@@ -55,7 +61,9 @@ export async function statsTerritoire(): Promise<StatsTerritoire> {
   // et un tableau où chaque ligne vaut 1 redevient nominatif pour qui connaît le terrain.
   const parZoneMap = new Map<string, { annonces: number; candidats: number }>();
   const ajouter = (loc: string, cle: "annonces" | "candidats") => {
-    const zone = zoneOfCommune(loc) ?? loc ?? "Non précisé";
+    // Libellé de la zone (« Centre (CACEM) ») et non sa clé technique, affichée telle quelle jusqu'ici.
+    const z = zoneOfCommune(loc);
+    const zone = z ? ZONE_LABELS[z] : loc || "Non précisé";
     const e = parZoneMap.get(zone) ?? { annonces: 0, candidats: 0 };
     e[cle]++;
     parZoneMap.set(zone, e);

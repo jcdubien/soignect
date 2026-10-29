@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
 import { z } from "zod";
-import { peutRemonterDemande } from "@/lib/roles";
+import { peutRemonterDemande, estAdmin } from "@/lib/roles";
+import { territoireDeCommune } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,12 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json({ error: "Demande incomplète", details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  // Un partenaire signale une commune de SON île (section 377) — l'administrateur, des deux.
+  const ile = territoireDeCommune(parsed.data.commune);
+  if (!ile || (!estAdmin(role) && ile !== session.user.territoire)) {
+    return NextResponse.json({ error: "Commune hors de votre territoire" }, { status: 400 });
   }
 
   const demande = await prisma.demandePriorite.create({
