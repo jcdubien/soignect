@@ -9,7 +9,8 @@
 // Balnéothérapie : validée par JC le 28/10 — trois choix, et aucun n'est imposé : intégralement
 // reversée au cabinet, soumise à la même rétrocession que les autres actes, ou gardée
 // intégralement par le remplaçant / l'assistant / le collaborateur.
-// Télétransmission : rédaction Soignect, à valider par JC. Fond donné par JC le 24/10 : le
+// Télétransmission : validée par JC le 28/10 — deux choix : reste acquise au praticien, ou
+// reversée au titulaire selon les mêmes modalités de paiement. Fond donné par JC le 24/10 : le
 // remplaçant facture sur sa CPS de remplaçant ; l'aide est reversée si c'est ce que les parties
 // ont décidé.
 

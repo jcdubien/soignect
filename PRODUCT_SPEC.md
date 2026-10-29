@@ -7672,7 +7672,8 @@ JC : « il peut être la partie qui signe quand il est remplacé ».
     non-concurrence (art. 19 assistanat, art. 20 collaboration) et la non-installation (art. 9
     remplacement) restent intactes. Rédaction Soignect. **Balnéo validée par JC le 28/10** (les
     trois choix : reversée au cabinet, même rétrocession que les actes, gardée par le praticien) ;
-    **télétransmission encore à valider par JC**.
+    **télétransmission validée par JC le 28/10** (reste acquise au praticien, ou reversée au
+    titulaire selon les mêmes modalités de paiement).
 - **« Juste un lien »** (JC : produit d'appel pour ceux qui ne veulent pas rédiger leurs contrats
   seuls) : l'email du confrère devient facultatif sur `/confreres`. Sans lui, le compte porte un
   email provisoire `@activation.soignect.local` (jamais une boîte réelle, distinct du `.invalid` des
