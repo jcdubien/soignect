@@ -7670,7 +7670,9 @@ JC : « il peut être la partie qui signe quand il est remplacé ».
   - Non choisies (défaut) : aucune phrase, contrat inchangé. Insérées DANS l'article de la
     rétrocession (art. 6) ou de la redevance (art. 4 / 5), sans renuméroter : la clause de
     non-concurrence (art. 19 assistanat, art. 20 collaboration) et la non-installation (art. 9
-    remplacement) restent intactes. Rédaction Soignect, **à valider par JC**.
+    remplacement) restent intactes. Rédaction Soignect. **Balnéo validée par JC le 28/10** (les
+    trois choix : reversée au cabinet, même rétrocession que les actes, gardée par le praticien) ;
+    **télétransmission encore à valider par JC**.
 - **« Juste un lien »** (JC : produit d'appel pour ceux qui ne veulent pas rédiger leurs contrats
   seuls) : l'email du confrère devient facultatif sur `/confreres`. Sans lui, le compte porte un
   email provisoire `@activation.soignect.local` (jamais une boîte réelle, distinct du `.invalid` des
