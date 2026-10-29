@@ -43,6 +43,49 @@ export const COMMUNES_GUADELOUPE = [
   "Gustavia (Saint-Barth)",
 ];
 
+// ── Martinique (section 376) ────────────────────────────────────────────────────
+// Les 34 communes, regroupées par intercommunalité : CACEM au centre, Cap Nord, Espace Sud.
+// Découpage proposé par Soignect, **à vérifier par JC** avant toute mise en ligne.
+// Libellés : ceux de CommuneAPL (INSEE), sauf « Sainte-Anne (Martinique) » — voir COMMUNE_INSEE.
+const COMMUNES_MARTINIQUE_PAR_ZONE = {
+  MARTINIQUE_CENTRE: ["Fort-de-France", "Le Lamentin", "Schœlcher", "Saint-Joseph"],
+  MARTINIQUE_NORD: [
+    "L'Ajoupa-Bouillon", "Basse-Pointe", "Bellefontaine", "Le Carbet", "Case-Pilote",
+    "Fonds-Saint-Denis", "Grand'Rivière", "Gros-Morne", "Le Lorrain", "Macouba", "Le Marigot",
+    "Le Morne-Rouge", "Le Morne-Vert", "Le Prêcheur", "Le Robert", "Saint-Pierre", "Sainte-Marie",
+    "La Trinité",
+  ],
+  MARTINIQUE_SUD: [
+    "Les Anses-d'Arlet", "Le Diamant", "Ducos", "Le François", "Le Marin", "Rivière-Pilote",
+    "Rivière-Salée", "Sainte-Anne (Martinique)", "Sainte-Luce", "Saint-Esprit", "Les Trois-Îlets",
+    "Le Vauclin",
+  ],
+} as const;
+
+export const COMMUNES_MARTINIQUE: string[] = Object.values(COMMUNES_MARTINIQUE_PAR_ZONE).flat();
+
+const INSEE_MARTINIQUE: Record<string, string> = {
+  "L'Ajoupa-Bouillon": "97201", "Les Anses-d'Arlet": "97202", "Basse-Pointe": "97203",
+  "Le Carbet": "97204", "Case-Pilote": "97205", "Le Diamant": "97206", "Ducos": "97207",
+  "Fonds-Saint-Denis": "97208", "Fort-de-France": "97209", "Le François": "97210",
+  "Grand'Rivière": "97211", "Gros-Morne": "97212", "Le Lamentin": "97213", "Le Lorrain": "97214",
+  "Macouba": "97215", "Le Marigot": "97216", "Le Marin": "97217", "Le Morne-Rouge": "97218",
+  "Le Prêcheur": "97219", "Rivière-Pilote": "97220", "Rivière-Salée": "97221", "Le Robert": "97222",
+  "Saint-Esprit": "97223", "Saint-Joseph": "97224", "Saint-Pierre": "97225",
+  "Sainte-Anne (Martinique)": "97226", "Sainte-Luce": "97227", "Sainte-Marie": "97228",
+  "Schœlcher": "97229", "La Trinité": "97230", "Les Trois-Îlets": "97231", "Le Vauclin": "97232",
+  "Le Morne-Vert": "97233", "Bellefontaine": "97234",
+};
+
+// ── Territoires (section 376) ─────────────────────────────────────────────────────
+// Le TERRITOIRE est le tableau d'annonces auquel appartient un compte ou une annonce : chacun
+// voit d'abord le sien. Distinct de `Profile.region`, qui dit d'où vient la personne (un
+// remplaçant de métropole travaille en Guadeloupe). Saint-Martin et Saint-Barthélemy restent
+// sur le tableau de la Guadeloupe, comme avant.
+export type Territoire = "GUADELOUPE" | "MARTINIQUE";
+export const TERRITOIRES: Territoire[] = ["GUADELOUPE", "MARTINIQUE"];
+export const LIBELLE_TERRITOIRE: Record<Territoire, string> = { GUADELOUPE: "Guadeloupe", MARTINIQUE: "Martinique" };
+
 // ── Macro-zones géographiques (section 138) ───────────────────────────────────
 // Union locale (pas d'import @prisma/client) pour rester utilisable côté client.
 // Les valeurs correspondent 1:1 à l'enum Prisma ZoneGeographique.
@@ -56,7 +99,10 @@ export type ZoneGeo =
   | "LES_SAINTES"
   | "LA_DESIRADE"
   | "SAINT_MARTIN"
-  | "SAINT_BARTHELEMY";
+  | "SAINT_BARTHELEMY"
+  | "MARTINIQUE_CENTRE"
+  | "MARTINIQUE_NORD"
+  | "MARTINIQUE_SUD";
 
 // Ordre d'affichage (Centre en tête, îles du Sud/annexes en fin).
 export const ZONE_ORDER: ZoneGeo[] = [
@@ -71,6 +117,9 @@ export const ZONE_ORDER: ZoneGeo[] = [
   "SAINT_MARTIN",
   "SAINT_BARTHELEMY",
 ];
+// ZONE_ORDER reste la liste de la Guadeloupe (ses lecteurs n'en connaissent pas d'autre).
+export const ZONES_MARTINIQUE: ZoneGeo[] = ["MARTINIQUE_CENTRE", "MARTINIQUE_NORD", "MARTINIQUE_SUD"];
+export const ZONES_PAR_TERRITOIRE: Record<Territoire, ZoneGeo[]> = { GUADELOUPE: ZONE_ORDER, MARTINIQUE: ZONES_MARTINIQUE };
 
 export const ZONE_LABELS: Record<ZoneGeo, string> = {
   CENTRE_CAP_EXCELLENCE: "Centre / Cap Excellence",
@@ -83,6 +132,9 @@ export const ZONE_LABELS: Record<ZoneGeo, string> = {
   LA_DESIRADE:           "La Désirade",
   SAINT_MARTIN:          "Saint-Martin",
   SAINT_BARTHELEMY:      "Saint-Barthélemy",
+  MARTINIQUE_CENTRE:     "Centre (CACEM)",
+  MARTINIQUE_NORD:       "Nord (Cap Nord)",
+  MARTINIQUE_SUD:        "Sud (Espace Sud)",
 };
 
 // Mapping figé commune → zone (section 138). Clés = chaînes EXACTES de
@@ -133,6 +185,10 @@ export const COMMUNE_ZONE: Record<string, ZoneGeo> = {
   "Grand Case (Saint-Martin)":   "SAINT_MARTIN",
   // Saint-Barthélemy
   "Gustavia (Saint-Barth)":      "SAINT_BARTHELEMY",
+  // Martinique — voir ZONES_MARTINIQUE (découpage à vérifier par JC)
+  ...Object.fromEntries(
+    (Object.entries(COMMUNES_MARTINIQUE_PAR_ZONE) as [ZoneGeo, readonly string[]][]).flatMap(([zone, cs]) => cs.map((c) => [c, zone])),
+  ),
 };
 
 export function zoneOfCommune(commune?: string | null): ZoneGeo | null {
@@ -215,6 +271,10 @@ export const COMMUNE_INSEE: Record<string, string | null> = {
   "Grand Case (Saint-Martin)":   "97801",
   // Saint-Barthélemy — collectivité unique (97701, ex-97123). Gustavia en est le chef-lieu.
   "Gustavia (Saint-Barth)":      "97701",
+  // Martinique (972) — noms et codes relevés dans CommuneAPL le 28/10, à l'identique, sauf
+  // « Sainte-Anne (Martinique) » : la Guadeloupe a aussi sa Sainte-Anne, déjà portée par des
+  // annonces sous ce libellé nu. Cas 1 ci-dessus, dans l'autre sens.
+  ...INSEE_MARTINIQUE,
 };
 
 /** Code INSEE d'un libellé de commune produit. `null` si le libellé est inconnu OU s'il ne
@@ -329,4 +389,20 @@ export function libelleCommune(saisie: string): string {
  *  partager un code (Marigot et Grand Case → Saint-Martin) : on les garde tous. */
 export function libellesDuCode(code: string): string[] {
   return Object.entries(COMMUNE_INSEE).filter(([, c]) => c === code).map(([l]) => l);
+}
+
+// ── Territoire d'une commune ou d'une zone (section 376) ─────────────────────────
+export const COMMUNES_PAR_TERRITOIRE: Record<Territoire, string[]> = {
+  GUADELOUPE: COMMUNES_GUADELOUPE,
+  MARTINIQUE: COMMUNES_MARTINIQUE,
+};
+
+/** Territoire d'un libellé de commune produit ; `null` si le libellé est inconnu. */
+export function territoireDeCommune(commune?: string | null): Territoire | null {
+  if (!commune) return null;
+  return TERRITOIRES.find((t) => COMMUNES_PAR_TERRITOIRE[t].includes(commune)) ?? null;
+}
+
+export function territoireDeZone(zone: ZoneGeo): Territoire {
+  return ZONES_MARTINIQUE.includes(zone) ? "MARTINIQUE" : "GUADELOUPE";
 }

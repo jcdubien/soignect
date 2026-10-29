@@ -7408,6 +7408,44 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 376 — OUVERTURE DE LA MARTINIQUE (28/10, en cours)
+
+Décisions de JC (28/10) : **chacun son île** — chacun voit d'abord les annonces de son
+territoire, une case « voir aussi l'autre île » ajoute l'autre ; **mêmes professions** qu'en
+Guadeloupe (kinés, infirmiers, aides-soignants), mêmes contrats et mêmes règles ; **zones = les
+trois intercommunalités**.
+
+**Étape 1 — référentiel et colonnes (aucun écran ne les lit encore)**
+
+- `lib/communes.ts`, source unique : les 34 communes, noms et codes INSEE relevés dans `CommuneAPL`
+  (972, données APL 2024 déjà présentes), sauf **« Sainte-Anne (Martinique) »** — la Guadeloupe a
+  sa Sainte-Anne, déjà portée par des annonces sous le libellé nu. Trois zones :
+  Centre (CACEM : Fort-de-France, Le Lamentin, Schœlcher, Saint-Joseph), Nord (Cap Nord, 18
+  communes), Sud (Espace Sud, 12 communes). **Découpage à vérifier par JC.**
+- **Territoire** (`GUADELOUPE` | `MARTINIQUE`) : le tableau d'annonces d'un compte ou d'une
+  annonce, distinct de `Profile.region`, qui dit d'où vient la personne (2 comptes existants ont
+  la région « Martinique » et travaillent sur le tableau de la Guadeloupe : s'en servir les aurait
+  basculés sur un fil vide). Saint-Martin et Saint-Barthélemy restent sur le tableau de la
+  Guadeloupe. `ZONE_ORDER` et `COMMUNES_GUADELOUPE` restent ceux de la Guadeloupe ;
+  `ZONES_PAR_TERRITOIRE`, `COMMUNES_PAR_TERRITOIRE`, `territoireDeCommune`, `territoireDeZone`.
+- Migration additive `20261028120000_territoire_martinique`, **appliquée en production le
+  28/10** : trois valeurs de `ZoneGeographique`, type `Territoire`, `Profile.territoire`
+  (défaut GUADELOUPE), `Profile.voirAutreTerritoire` (défaut false), `Mission.territoire`
+  (défaut GUADELOUPE). Vérifiée avant sur une copie du schéma de production (`essai_p56`,
+  purgé) : appliquée deux fois sans erreur, aucun écart avec `schema.prisma`. En production :
+  125 comptes et 108 annonces, tous GUADELOUPE.
+- 4 tests (`communesMartinique.test.ts`) : 34 communes, codes 97201 à 97234 chacun une fois,
+  chaque commune dans une zone de Martinique, aucun libellé commun aux deux îles, Guadeloupe
+  inchangée (35 communes, 10 zones).
+- **Non fait** : `CommuneZone` (table d'analyse, lue par aucun code) n'a pas encore les communes
+  de Martinique — `npm run db:sync-zones` après validation du découpage par JC. Les deux scripts
+  de contrôle (`db:check-insee`, `sync-commune-zone` sans écriture) n'ont pas pu être lancés
+  sur la production (refus du classificateur) ; les tests couvrent les mêmes points.
+
+**Étapes suivantes** : territoire du compte (inscription, page Compte, case « voir aussi ») ;
+formulaires et assistance IA par territoire ; fil et recommandations filtrés ; textes « en
+Guadeloupe » de l'application ; pages publiques Martinique (avec JC).
+
 ### SECTION 375 — ANNONCE ET DISPONIBILITÉ : LE CODE COMMUN EN UN SEUL ENDROIT (28/10)
 
 Les formulaires de publication (`missions/create` côté cabinet ou établissement,

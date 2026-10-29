@@ -239,6 +239,10 @@ model Profile {
   // Géographie & profession
   profession           Profession @default(KINESITHERAPEUTE)
   region               Region     @default(GUADELOUPE)
+  // Tableau d'annonces du compte (section 376) : chacun voit d'abord le sien ; la case « voir
+  // aussi l'autre île » ajoute l'autre. GUADELOUPE pour tous les comptes antérieurs.
+  territoire           Territoire @default(GUADELOUPE)
+  voirAutreTerritoire  Boolean    @default(false)
   zonage               ZonageType?
   institutionalPartner Boolean    @default(false) // CPTS / ARS / Collectivité
 
@@ -343,6 +347,8 @@ model Mission {
   title       String   @db.VarChar(100)
   description String?  @db.VarChar(500)
   location    String
+  // Tableau de l'annonce (section 376), celui de son auteur à la publication.
+  territoire  Territoire @default(GUADELOUPE)
   specialties String[]
 
   // Phrase libre (280 signes) — ex: "Je recherche un cabinet sport en Guadeloupe"
@@ -512,6 +518,16 @@ enum ZoneGeographique {
   LA_DESIRADE
   SAINT_MARTIN
   SAINT_BARTHELEMY
+  // Martinique (section 376) — CACEM, Cap Nord, Espace Sud
+  MARTINIQUE_CENTRE
+  MARTINIQUE_NORD
+  MARTINIQUE_SUD
+}
+
+// Tableau d'annonces d'un compte ou d'une annonce (section 376). Distinct de Region (provenance).
+enum Territoire {
+  GUADELOUPE
+  MARTINIQUE
 }
 
 // Correspondance commune → macro-zone — TABLE GÉNÉRÉE, NE JAMAIS L'ÉDITER À LA MAIN.
