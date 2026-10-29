@@ -14,7 +14,7 @@ import { stripMissionProfiles } from "@/lib/publicProfile";
 import { offreOuverteLe } from "@/lib/feedFilters";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { territoireDuProfil } from "@/lib/territoireServeur";
-import { territoiresVus } from "@/lib/communes";
+import { territoiresVus, LIBELLE_TERRITOIRE } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
 
@@ -420,11 +420,9 @@ export async function POST(req: NextRequest) {
   // prévisualisation, et un post intitulé « Congés ».
   const estCabinet = me?.type === "TITULAIRE";
   //
-  // GUADELOUPE SEULEMENT (section 376) : la Page parle aux Guadeloupéens ; une annonce de
-  // Martinique n'y part pas tant que JC n'a pas décidé où la diffuser.
+  // LES DEUX ÎLES SUR LA MÊME PAGE (section 376, décision de JC du 28/10).
   const diffusable =
     mission.isActive &&
-    mission.territoire === "GUADELOUPE" &&
     mission.briqueStatus === BriqueStatus.RECHERCHE &&
     (estCabinet || diffuserSurFacebook === true);
 
@@ -435,7 +433,9 @@ export async function POST(req: NextRequest) {
       message: messagePourAnnonce({
         estCabinet,
         titre: mission.title,
-        commune: mission.location || (me?.region ?? "Guadeloupe"),
+        // Sans commune : le nom de l'île de l'annonce. La région du profil donnait la valeur brute
+        // de l'enum (« GUADELOUPE »), et ne dit pas sur quel tableau l'annonce est publiée.
+        commune: mission.location || LIBELLE_TERRITOIRE[mission.territoire],
       }),
       cheminAnnonce: `/annonce/${mission.id}`,
     });
