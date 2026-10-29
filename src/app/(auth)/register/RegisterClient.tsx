@@ -352,7 +352,7 @@ function RegisterForm() {
                     <p className="text-sm text-gray-400">
                       {salarieSeul
                         ? "Je cherche un poste salarié — CDI, CDD, vacations"
-                        : "Je cherche des missions ponctuelles en Guadeloupe"}
+                        : "Je cherche des missions ponctuelles sur mon territoire"}
                     </p>
                   </div>
                   <span className="ml-auto text-gray-300 group-hover:text-kine-500 text-xl">→</span>
