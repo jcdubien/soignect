@@ -861,6 +861,9 @@ model ClientInstitutionnel {
   nom       String                         @unique // « CPTS Nord Basse-Terre »
   type      TypeInstitution
   nature    NatureRelationInstitutionnelle
+  // Île de la structure (section 379) : bornes de ses communes, de ses statistiques et de son
+  // Espace. GUADELOUPE pour toutes les relations antérieures.
+  territoire Territoire @default(GUADELOUPE)
   // Palier de l'offre (point 9, 22/10). null = déduit du type de structure (lib/tarifsPartenaire,
   // `PALIER_DU_TYPE`). PARTENAIRE_FONDATEUR : gratuit, mêmes règles, même étiquette, même journal
   // que les autres — ce qui le distingue est dans la grille, pas dans un cas spécial du code.
@@ -1266,6 +1269,7 @@ enum StatutPartenariat {
 model DemandePartenariat {
   id          String            @id @default(cuid())
   type        TypeInstitution
+  territoire  Territoire        @default(GUADELOUPE)
   structure   String            @db.VarChar(160)
   contactNom  String            @db.VarChar(120)
   fonction    String?           @db.VarChar(120)
