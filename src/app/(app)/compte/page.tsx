@@ -31,6 +31,8 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
       bio: true,
       bioTinder: true,
       region: true,
+      territoire: true,
+      voirAutreTerritoire: true,
       profession: true,
       isVerified: true,
       subscriptionPlan: true,

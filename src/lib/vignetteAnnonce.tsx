@@ -30,6 +30,7 @@ import { prisma } from "@/lib/prisma";
 import { MissionType } from "@prisma/client";
 import { phraseIntentionPartage } from "@/lib/libellesPoste";
 import { resumeRetrocession } from "@/lib/retrocession";
+import { LIBELLE_TERRITOIRE } from "@/lib/communes";
 
 // Image de partage Open Graph générée dynamiquement par annonce (section 158) — 1200×630.
 // Priorité aux 3 infos essentielles pour un candidat qui scrolle (mobile) : TYPE, DATES, COMMUNE.
@@ -228,7 +229,7 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
       // Section 298 : le prédicat unique — ni échue, ni déjà engagée.
       where: { id, ...offreOuverteLe(new Date()) },
       select: {
-        title: true, location: true, missionType: true, natureSalariat: true,
+        title: true, location: true, territoire: true, missionType: true, natureSalariat: true,
         startDate: true, endDate: true, minMonths: true,
         // Rétrocession (section 295) — affichée sur les REMPLACEMENTS seulement, voir plus bas.
         retrocessionRate: true,
@@ -535,7 +536,7 @@ export async function rendreVignetteJpeg(id: string): Promise<Buffer | null> {
 
         {/* Pied */}
         <div style={{ display: "flex", justifyContent: "center", fontSize: px(22), opacity: photo ? 0.95 : 0.82, maxWidth: px(SAFE), textAlign: "center", ...(photo ? { textShadow: OMBRE_TEXTE } : {}) }}>
-          La mise en relation des professionnels de santé en Guadeloupe
+          La mise en relation des professionnels de santé en {LIBELLE_TERRITOIRE[m.territoire]}
         </div>
         </div>
       </div>

@@ -7469,9 +7469,9 @@ trois intercommunalités**.
   comptes « aucun cabinet de votre profession » et « candidats ouverts au salariat » sont
   comptés sur ces mêmes territoires — sinon un kiné de Martinique se serait entendu dire que des
   cabinets existent.
-- **Page Facebook : Guadeloupe seulement.** Une annonce de Martinique n'y part pas, et la case
-  « Diffuser aussi sur la page Facebook » n'est pas proposée en Martinique — **à décider par
-  JC** (page dédiée, même page, ou pas de diffusion).
+- **Page Facebook : les deux îles sur la même page** (décision de JC du 28/10, d'abord réservée à
+  la Guadeloupe en attendant). Sans commune, le message nomme l'île de l'annonce — il donnait la
+  valeur brute de la région (« GUADELOUPE »).
 - Les pages publiques « …-guadeloupe » filtrent déjà par zones et communes de la Guadeloupe :
   une annonce de Martinique n'y apparaît pas.
 - **Essai** `essai_p57` (purgé), deux cabinets et deux remplaçants kinés `.invalid`, un par île :
@@ -7482,10 +7482,34 @@ trois intercommunalités**.
   (Martinique) », 3 zones, « Toute la Martinique », pas de case Facebook ; Guadeloupe → 35
   communes, 10 zones, « Toute la Guadeloupe », case Facebook présente. 21 tests.
 
-**Étapes suivantes** : territoire du compte à l'inscription et sur la page Compte, case « voir
-aussi » (rien n'est visible des utilisateurs tant que cette étape n'est pas livrée — **à ouvrir
-après validation des zones par JC**) ; textes « en Guadeloupe » de l'application ; pages
-publiques Martinique (avec JC).
+**Étape 4 — ouverture (découpage validé par JC le 28/10)**
+
+- **Inscription** : « Votre île » (Guadeloupe / Martinique) sous la profession, Guadeloupe par
+  défaut ou `?territoire=MARTINIQUE` depuis une page d'entrée. Île inconnue refusée (400).
+- **Page Compte** : « Votre île (annonces que vous voyez et publiez) », distincte de la zone
+  géographique (provenance), et « Voir aussi les annonces de la Guadeloupe / Martinique ». Changer
+  d'île : les annonces déjà publiées restent où elles sont (c'est dit sous le champ), les
+  suivantes prennent la nouvelle ; la session est relue aussitôt (`update({})` — sans argument,
+  `update()` n'est qu'une lecture et le jeton gardait l'ancienne île : trouvé à l'essai).
+- Le confrère ajouté par un cabinet prend l'île du cabinet.
+- **Textes** : les exemples des formulaires (lieux, « en Guadeloupe ») sont transposés pour un
+  compte de Martinique (`pourIle`, `exemplesPourIle` — Sud (Sainte-Luce, Le Diamant),
+  Fort-de-France, Le Lamentin) ; inchangés au caractère près en Guadeloupe (testé). Sous-titres
+  « Visible par … en Martinique ». Page publique d'une annonce, données Google Jobs et image de
+  partage : l'île de l'annonce. En-tête : un compte de Martinique y lit « Martinique » ; un compte
+  de Guadeloupe sa région, comme avant ; un cabinet sans annonce lisait la valeur brute
+  « GUADELOUPE », il lit « Guadeloupe ».
+- **Essai** `essai_p58` (purgé) : inscription par l'API sans île → GUADELOUPE, avec MARTINIQUE →
+  MARTINIQUE ; inscription complète dans le navigateur (photo, île Martinique) → session
+  Martinique, formulaire de disponibilité en Martinique (zones, exemples, sous-titre), fil = la
+  seule annonce de Fort-de-France ; page Compte d'un cabinet de Guadeloupe → Martinique + voir
+  aussi, enregistrés, session à jour sans reconnexion, 34 communes et exemples transposés dans le
+  formulaire d'annonce ; annonce de Martinique publiée → tentative Facebook dans le journal (jeton
+  absent), page publique « en Martinique » et `addressRegion` Martinique. 22 tests.
+- **Restent en Guadeloupe** : l'Espace territoire (institutions partenaires, données APL de la
+  Guadeloupe) ; l'écran de choix du profil à l'inscription (« missions ponctuelles en
+  Guadeloupe »), avant le choix de l'île ; les pages publiques « …-guadeloupe ». Pages publiques
+  Martinique : à faire avec JC. `CommuneZone` (analyse) : `npm run db:sync-zones`.
 
 ### SECTION 375 — ANNONCE ET DISPONIBILITÉ : LE CODE COMMUN EN UN SEUL ENDROIT (28/10)
 

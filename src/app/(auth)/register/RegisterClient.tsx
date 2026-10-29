@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { Profession } from "@prisma/client";
 import { PROFESSION_LABELS, GROUPES_PROFESSION } from "@/lib/professions";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
-import { accrocheProfilExemple } from "@/lib/exemplesPublication";
+import { accrocheProfilExemple, pourIle } from "@/lib/exemplesPublication";
 import { signIn, getSession } from "next-auth/react";
 import Image from "next/image";
 import { bioLimitFor } from "@/lib/bio";
@@ -14,6 +14,7 @@ import { destinationApresInscription, enTantQue, libelleInscription, titreIdenti
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { PHONE_COUNTRIES, toE164 } from "@/lib/phone";
 import { CONSENTEMENT_WHATSAPP } from "@/lib/whatsapp";
+import { TERRITOIRES, LIBELLE_TERRITOIRE, territoireDe, type Territoire } from "@/lib/communes";
 
 type ProfileTypeChoice = "TITULAIRE" | "REMPLACANT" | "ASSISTANT";
 
@@ -143,6 +144,9 @@ function RegisterForm() {
     return p && p in PROFESSION_LABELS ? p : "";
   })();
   const [profession, setProfession] = useState<string>(professionInitiale);
+  // Île du compte (section 376) : Guadeloupe par défaut, ou celle d'une page d'entrée
+  // (`?territoire=MARTINIQUE`).
+  const [territoire, setTerritoire] = useState<Territoire>(territoireDe(searchParams.get("territoire")));
   const salarieSeul = contratFourniParEmployeur(profession);
   // Notifications (section 50-51)
   const [phoneCountry, setPhoneCountry] = useState("GP");
@@ -185,6 +189,7 @@ function RegisterForm() {
         password,
         type: profileType,
         profession,
+        territoire,
         titulaireKind: profileType === "TITULAIRE" && structure ? "STRUCTURE" : undefined,
         name: name.trim() || undefined,
         bioTinder: bioFull || undefined,
@@ -483,6 +488,29 @@ function RegisterForm() {
                   </p>
                 </div>
 
+                {/* Île du compte (section 376) : chacun voit d'abord les annonces de son île. */}
+                <div>
+                  <span className="block text-xs font-medium text-gray-600 mb-1">Votre île</span>
+                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Votre île">
+                    {TERRITOIRES.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        role="radio"
+                        aria-checked={territoire === t}
+                        onClick={() => setTerritoire(t)}
+                        className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                          territoire === t
+                            ? "bg-kine-600 text-white border-kine-600"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-kine-300"
+                        }`}
+                      >
+                        {LIBELLE_TERRITOIRE[t]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* « Commune principale » et « N° RPPS » se trouvaient ici. Tous deux SAISIS PUIS
                     JETÉS : jamais transmis à /api/profiles, absents du schéma serveur, et
                     Profile n'a même pas de colonne `commune`. Ils coûtaient de la friction sur
@@ -598,7 +626,7 @@ function RegisterForm() {
                               // Suit la profession choisie plus haut (section 278) : elle était
                               // en dur sur « Kiné passionné de sport », servie telle quelle à l'infirmière
                               // qui venait de se déclarer infirmière.
-                              : accrocheProfilExemple(profession as Profession)
+                              : pourIle(accrocheProfilExemple(profession as Profession), territoire)
                           }
                         />
                       </div>

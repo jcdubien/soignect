@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
 import { salariatPublicable } from "@/lib/contrats/gabaritsSalarie";
-import { exemplesPour } from "@/lib/exemplesPublication";
+import { exemplesPourIle } from "@/lib/exemplesPublication";
 import CreateMissionClient from "./CreateMissionClient";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,7 @@ export default async function CreateMissionPage() {
 
   const profil = await prisma.profile.findUnique({
     where: { id: session.user.profileId as string },
-    select: { profession: true },
+    select: { profession: true, territoire: true },
   });
   if (!profil) redirect("/login");
 
@@ -39,7 +39,7 @@ export default async function CreateMissionPage() {
     <CreateMissionClient
       typesContractualisables={missionTypesPour(profil.profession)}
       salariatContractualisable={salariatPublicable(profil.profession)}
-      exemples={exemplesPour(profil.profession)}
+      exemples={exemplesPourIle(profil.profession, profil.territoire)}
       // La phrase de l'exercice coordonné en dépend (section 294) : « jusqu'à 8 séances » est
       // l'Avenant 7 des kinés, pas une règle commune.
       profession={profil.profession}

@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { supprimerCompte } from "@/lib/suppressionCompte";
 import { z } from "zod";
-import { Profession, Region, TitulaireKind } from "@prisma/client";
+import { Profession, Region, TitulaireKind, Territoire } from "@prisma/client";
 import { stripSensitiveProfile } from "@/lib/publicProfile";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,10 @@ const updateSchema = z.object({
   photoUrl: z.string().url().optional(),
   isActive: z.boolean().optional(),
   region: z.nativeEnum(Region).optional(),
+  // Île du compte et « voir aussi l'autre île » (section 376). Les annonces déjà publiées gardent
+  // l'île où elles l'ont été ; les suivantes prennent la nouvelle.
+  territoire: z.nativeEnum(Territoire).optional(),
+  voirAutreTerritoire: z.boolean().optional(),
   profession: z.nativeEnum(Profession).optional(),
   // isVerified retiré du schéma user-facing (audit #5) : le badge « vérifié » ne doit PAS être
   // auto-attribuable. Il est posé uniquement par la vérification RPPS serveur (/api/rpps/verify)

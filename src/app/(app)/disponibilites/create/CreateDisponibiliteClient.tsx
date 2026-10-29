@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { ExemplesPublication } from "@/lib/exemplesPublication";
+import { pourIle, type ExemplesPublication } from "@/lib/exemplesPublication";
 import { professionLabel, libelleOrdre, mentionExerciceCoordonne } from "@/lib/professions";
 import { assistanceIADisponible } from "@/lib/annonceAI";
 import { useAllerAuxChamps } from "@/lib/useAllerAuxChamps";
@@ -535,10 +535,10 @@ export default function CreateDisponibiliteClient({
         <p className="text-gray-400 text-sm">
           {salarieSeul
             // L'inscription ne propose plus que le compte établissement pour cette profession.
-            ? "Visible par les établissements qui recrutent en Guadeloupe"
+            ? pourIle("Visible par les établissements qui recrutent en Guadeloupe", territoire)
             : isAssistant
             ? "Visible par les cabinets proposant des postes longue durée"
-            : "Visible par les cabinets recherchant un remplaçant en Guadeloupe"}
+            : pourIle("Visible par les cabinets recherchant un remplaçant en Guadeloupe", territoire)}
         </p>
       </div>
 
@@ -952,9 +952,7 @@ export default function CreateDisponibiliteClient({
         {/* ── Diffusion sur la Page Facebook (section 234) ──
              Placée AVANT le bouton de publication et dite en clair : votre nom et vos dates
              partiront sur une page publique. C'est un acte distinct de publier ici, où le
-             lecteur est un professionnel connecté. Décochable, sans conséquence sur le reste.
-             Guadeloupe seulement (section 376) : la page n'est pas ouverte à la Martinique. ── */}
-        {territoire === "GUADELOUPE" && (
+             lecteur est un professionnel connecté. Décochable, sans conséquence sur le reste. ── */}
         <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
           <input
             type="checkbox"
@@ -970,7 +968,6 @@ export default function CreateDisponibiliteClient({
             </span>
           </span>
         </label>
-        )}
 
         <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
           <input

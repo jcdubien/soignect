@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { PROFESSION_LABELS, libelleNumeroOrdre } from "@/lib/professions";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { TERRITOIRES, LIBELLE_TERRITOIRE, type Territoire } from "@/lib/communes";
 import Link from "next/link";
 import { Profession, Region, SubscriptionPlan, ProfileType, TitulaireKind } from "@prisma/client";
 import CompteTimeline from "./CompteTimeline";
@@ -13,7 +14,7 @@ import { bioLimitFor } from "@/lib/bio";
 import { missingContractLabels } from "@/lib/contractProfile";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { libelleRoleSalariat } from "@/lib/libellesPoste";
-import { accrocheProfilExemple } from "@/lib/exemplesPublication";
+import { accrocheProfilExemple, pourIle } from "@/lib/exemplesPublication";
 import { CONSENTEMENT_WHATSAPP } from "@/lib/whatsapp";
 import { TARIF_STRUCTURE } from "@/lib/tarifsPartenaire";
 import { PRATICIENS_GRATUITS } from "@/lib/gratuite";
@@ -37,6 +38,8 @@ interface ProfileData {
   bio: string | null;
   bioTinder: string | null;
   region: Region;
+  territoire: Territoire;
+  voirAutreTerritoire: boolean;
   profession: Profession;
   isVerified: boolean;
   subscriptionPlan: SubscriptionPlan;
@@ -72,6 +75,10 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
   const [name, setName]           = useState(profile.name ?? "");
   const [bioTinder, setBioTinder] = useState(profile.bioTinder ?? "");
   const [region, setRegion]       = useState<Region>(profile.region);
+  // Île du compte (section 376) : le tableau d'annonces que l'on voit et où l'on publie.
+  const [territoire, setTerritoire] = useState<Territoire>(profile.territoire);
+  const [voirAutreTerritoire, setVoirAutreTerritoire] = useState(profile.voirAutreTerritoire);
+  const { update: majSession } = useSession();
   const [profession, setProfession] = useState<Profession>(profile.profession);
   const [rpps, setRpps]           = useState(profile.rpps ?? "");
   const [numeroOrdre, setNumeroOrdre] = useState(profile.numeroOrdre ?? "");
@@ -147,6 +154,7 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
         name: name.trim() || undefined,
         bioTinder: bioTinder.trim() || undefined,
         region, profession, titulaireKind: kind,
+        territoire, voirAutreTerritoire,
         // Identité contractuelle (section 150) — persistée pour injection PDF
         rpps: rpps.trim() || null,
         numeroOrdre: numeroOrdre.trim() || null,
@@ -160,7 +168,13 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
         ...(isCandidat ? { ouvertSalariat } : {}),
       }),
     });
-    if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    if (res.ok) {
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+      // L'île voyage dans la session (formulaires) : on la fait relire tout de suite. Avec un
+      // argument : sans lui, update() n'est qu'une lecture, et le jeton garde l'ancienne île
+      // jusqu'à la revalidation suivante (même geste que ChangementCamp).
+      if (territoire !== profile.territoire) await majSession({});
+    }
     else { setSaveError("Erreur lors de la sauvegarde"); }
     setSaving(false);
   }
@@ -330,6 +344,31 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
           </div>
         </div>
 
+        {/* Île du compte (section 376) — distincte de la zone géographique ci-dessus, qui dit
+            d'où l'on vient : ici, le tableau d'annonces que l'on voit et où l'on publie. */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Votre île (annonces que vous voyez et publiez)</label>
+          <select
+            value={territoire}
+            onChange={e => setTerritoire(e.target.value as Territoire)}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-kine-400"
+          >
+            {TERRITOIRES.map(t => <option key={t} value={t}>{LIBELLE_TERRITOIRE[t]}</option>)}
+          </select>
+          <label className="mt-2 flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={voirAutreTerritoire}
+              onChange={e => setVoirAutreTerritoire(e.target.checked)}
+              className="w-4 h-4 rounded accent-kine-600"
+            />
+            Voir aussi les annonces de la {LIBELLE_TERRITOIRE[TERRITOIRES.find(t => t !== territoire)!]}
+          </label>
+          {territoire !== profile.territoire && (
+            <p className="text-xs text-gray-400 mt-1">Vos annonces déjà publiées restent en {LIBELLE_TERRITOIRE[profile.territoire]} ; les suivantes seront publiées en {LIBELLE_TERRITOIRE[territoire]}.</p>
+          )}
+        </div>
+
         {/* ── Identité contractuelle (section 150) — figure dans le PDF de contrat ── */}
         {salarieSeul ? (
           <p className="text-[11px] text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
@@ -496,7 +535,7 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
                 // l'exemple de SA propre accroche, sur l'écran où il se décrit. Le module des
                 // exemples (section 278) tenait déjà la phrase infirmière — elle n'était
                 // branchée qu'à l'inscription, pas ici (section 294).
-                : accrocheProfilExemple(profession as Profession)
+                : pourIle(accrocheProfilExemple(profession as Profession), territoire)
             }
           />
         </div>

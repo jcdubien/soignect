@@ -117,6 +117,7 @@ export async function creerConfrereHorsSoignect(titulaireProfileId: string, s: C
           create: {
             type: remplacement ? "REMPLACANT" : "ASSISTANT",
             profession: titulaire.profession,
+            territoire: titulaire.territoire, // l'île du cabinet qui l'a trouvé (section 376)
             name: nomComplet,
             rpps: s.rpps?.trim() || null,
             numeroOrdre: s.numeroOrdre?.trim() || null,

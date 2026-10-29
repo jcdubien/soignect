@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { exemplesPour } from "@/lib/exemplesPublication";
+import { exemplesPourIle } from "@/lib/exemplesPublication";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
 import { salariatPublicable } from "@/lib/contrats/gabaritsSalarie";
 import CreateDisponibiliteClient from "./CreateDisponibiliteClient";
@@ -20,7 +20,7 @@ export default async function CreateDisponibilitePage() {
 
   const profil = await prisma.profile.findUnique({
     where: { id: profileId },
-    select: { profession: true },
+    select: { profession: true, territoire: true },
   });
   if (!profil) redirect("/login");
 
@@ -41,7 +41,7 @@ export default async function CreateDisponibilitePage() {
 
   return (
     <CreateDisponibiliteClient
-      exemples={exemplesPour(profil.profession)}
+      exemples={exemplesPourIle(profil.profession, profil.territoire)}
       sansModeleDeContrat={sansModeleDeContrat}
       profession={profil.profession}
     />

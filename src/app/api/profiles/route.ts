@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { z } from "zod";
-import { ProfileType, TitulaireKind, Profession } from "@prisma/client";
+import { ProfileType, TitulaireKind, Profession, Territoire } from "@prisma/client";
 import { sendWelcomeEmail } from "@/lib/email";
 import { publicationPour, cibleVisibilitePour } from "@/lib/camp";
 import { logTraceEvent } from "@/lib/trace";
@@ -31,6 +31,8 @@ const createProfileSchema = z.object({
   // Nature du titulaire (Cabinet libéral vs Structure privée) posée dès l'inscription
   // pour l'entrée « Établissement ». Ignoré pour les remplaçants (défaut CABINET).
   titulaireKind: z.nativeEnum(TitulaireKind).optional(),
+  // Île du compte (section 376) : celle de son tableau d'annonces. Absente = Guadeloupe.
+  territoire: z.nativeEnum(Territoire).optional(),
   name: z.string().max(100).optional(),
   bio: z.string().max(300).optional(),
   bioTinder: z.string().max(700).optional(),
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email: rawEmail, password, type, profession, titulaireKind, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, whatsappOptIn, acceptedTerms, inviteToken, src } = parsed.data;
+  const { email: rawEmail, password, type, profession, titulaireKind, territoire, name, bio, bioTinder, photoUrl, phone, phoneCountry, emailOptIn, whatsappOptIn, acceptedTerms, inviteToken, src } = parsed.data;
   // Email normalisé à la source : la connexion, check-email et forgot-password comparent tous
   // en minuscules. Enregistrer une saisie capitalisée créait un compte que son propriétaire ne
   // pouvait plus retrouver — et un doublon possible face à un compte déjà existant.
@@ -82,7 +84,7 @@ export async function POST(req: NextRequest) {
       profile: {
         // `profession` est désormais garantie par le schéma : plus de repli conditionnel, qui
         // n'aurait fait que masquer un jour une validation devenue inopérante.
-        create: { type, name, bio, bioTinder, photoUrl, profession, ...(kind ? { titulaireKind: kind } : {}) },
+        create: { type, name, bio, bioTinder, photoUrl, profession, ...(territoire ? { territoire } : {}), ...(kind ? { titulaireKind: kind } : {}) },
       },
     },
     include: { profile: true },

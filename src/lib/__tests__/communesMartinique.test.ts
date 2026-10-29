@@ -60,3 +60,15 @@ test("chacun son île : un compte antérieur ne voit que la Guadeloupe", () => {
   assert.equal(territoireDe(undefined), "GUADELOUPE");
   assert.equal(territoireDe("METROPOLE"), "GUADELOUPE");
 });
+
+test("exemples : inchangés en Guadeloupe, transposés en Martinique", async () => {
+  const { exemplesPour, exemplesPourIle, pourIle } = await import("../exemplesPublication");
+  assert.deepEqual(exemplesPourIle("KINESITHERAPEUTE", "GUADELOUPE"), exemplesPour("KINESITHERAPEUTE"));
+  assert.deepEqual(exemplesPourIle("KINESITHERAPEUTE", undefined), exemplesPour("KINESITHERAPEUTE"));
+  const mq = JSON.stringify(exemplesPourIle("KINESITHERAPEUTE", "MARTINIQUE"));
+  for (const lieu of ["Guadeloupe", "Grande-Terre", "Gosier", "Pointe-à-Pitre", "Sainte-Anne"]) assert.ok(!mq.includes(lieu), lieu);
+  assert.ok(mq.includes("le Sud (Sainte-Luce, Le Diamant)"));
+  assert.equal(pourIle("Visible par les cabinets recherchant un remplaçant en Guadeloupe", "MARTINIQUE"),
+    "Visible par les cabinets recherchant un remplaçant en Martinique");
+  assert.equal(pourIle("Ex : Notre clinique aux Abymes recrute", "MARTINIQUE"), "Ex : Notre clinique au Lamentin recrute");
+});

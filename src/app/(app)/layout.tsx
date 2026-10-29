@@ -27,6 +27,7 @@ import NotificationBell from "@/components/ui/NotificationBell";
 import { EST_UNE_OFFRE } from "@/lib/feedFilters";
 import { libelleRoleSalariat, libelleTypePoste } from "@/lib/libellesPoste";
 import { souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
+import { LIBELLE_TERRITOIRE, territoireDe } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     select: {
       name: true,
       region: true,
+      territoire: true,
       // Pour le badge de rôle : un EHPAD n'est pas « Titulaire », un aide-soignant pas « Remplaçant ».
       titulaireKind: true,
       profession: true,
@@ -120,7 +122,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Annonces actives du cabinet (compteur cliquable, section 21/102) — pour le TITULAIRE.
   // Le compteur reste _count.missions (inchangé) ; on liste ici les mêmes missions actives
   // pour ouvrir directement leur édition (flux « Modifier l'annonce » existant).
-  const titulaireLoc = firstMission?.location ?? (profile?.region ?? "Guadeloupe");
+  // Sans annonce : l'île du compte (section 376). La région donnait la valeur brute de l'enum
+  // (« GUADELOUPE » en capitales dans l'en-tête).
+  const ile = LIBELLE_TERRITOIRE[territoireDe(profile?.territoire)];
+  const titulaireLoc = firstMission?.location ?? ile;
 
   // Candidatures « en attente » (section 157) = swipes RIGHT reçus sur l'annonce mais pas
   // encore réciproques (pending = likes reçus − mises en relation confirmées). Un seul groupBy.
@@ -172,7 +177,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         MARTINIQUE: "Martinique", GUYANE: "Guyane", REUNION: "La Réunion",
         MAYOTTE: "Mayotte", METROPOLE: "Métropole",
       };
-      contextLine = regionLabel[profile?.region ?? "GUADELOUPE"] ?? "Guadeloupe";
+      // Compte de Martinique (section 376) : son île — la région, laissée au défaut, aurait dit
+      // « Guadeloupe ». Comptes de Guadeloupe : la région, comme avant.
+      contextLine = profile?.territoire === "MARTINIQUE"
+        ? ile
+        : regionLabel[profile?.region ?? "GUADELOUPE"] ?? "Guadeloupe";
     }
   }
 

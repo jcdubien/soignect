@@ -13,6 +13,7 @@ import { headers } from "next/headers";
 import ShareActions from "@/components/share/ShareActions";
 import { appBaseUrl as baseUrl } from "@/lib/appUrl";
 import { libelleTypePoste, estEtablissement } from "@/lib/libellesPoste";
+import { LIBELLE_TERRITOIRE } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ async function getMission(id: string) {
     // page publique, exactement comme une annonce dépubliée (404).
     where: { id, ...offreOuverteLe(new Date()) },
     select: {
-      id: true, title: true, location: true, startDate: true, endDate: true,
+      id: true, title: true, location: true, startDate: true, endDate: true, territoire: true,
       minMonths: true, missionType: true, natureSalariat: true, estSalariat: true, pitch: true, bioTinder: true,
       demiJourneesLibres: true, caMensuelEstime: true, remunerationBrute: true, // feature terrain
       createdAt: true, updatedAt: true, vignetteAt: true,
@@ -74,7 +75,7 @@ function employmentType(m: { missionType: string; estSalariat: boolean; natureSa
 function jobPostingLd(m: NonNullable<Awaited<ReturnType<typeof getMission>>>, url: string) {
   const type = typeLabel(m);
   const description =
-    (m.pitch ?? m.bioTinder ?? `${type} en Guadeloupe`).trim() +
+    (m.pitch ?? m.bioTinder ?? `${type} en ${LIBELLE_TERRITOIRE[m.territoire]}`).trim() +
     ` — ${type} · ${m.location} · ${periodLabel(m)}.`;
   // JAMAIS le nom du profil (23/10, arbitrage JC) : il sortait en clair dans le code source de
   // chaque annonce publique (et dans les données de rendu), lu par Google et tout robot, alors que
@@ -94,7 +95,7 @@ function jobPostingLd(m: NonNullable<Awaited<ReturnType<typeof getMission>>>, ur
       address: {
         "@type": "PostalAddress",
         addressLocality: m.location,
-        addressRegion: "Guadeloupe",
+        addressRegion: LIBELLE_TERRITOIRE[m.territoire],
         addressCountry: "FR",
       },
     },
@@ -271,7 +272,7 @@ export default async function PublicAnnoncePage({ params, searchParams }: {
       </div>
 
       <p className="text-white/70 text-xs mt-6 text-center max-w-md">
-        Soignect — la mise en relation intelligente des professionnels de santé en Guadeloupe.
+        Soignect — la mise en relation intelligente des professionnels de santé en {LIBELLE_TERRITOIRE[m.territoire]}.
       </p>
     </div>
   );

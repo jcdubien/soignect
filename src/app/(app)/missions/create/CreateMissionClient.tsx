@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { ExemplesPublication } from "@/lib/exemplesPublication";
+import { pourIle, type ExemplesPublication } from "@/lib/exemplesPublication";
 import { marquerSaisieEnCours } from "@/lib/saisieEnCours";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -177,7 +177,11 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
     coverMode ? "TITULAIRE"
     : profileType === "TITULAIRE" && isEmployeur ? "TITULAIRE_EMPLOYEUR"
     : profileType;
-  const cfg = CONFIG[cfgKey] ?? CONFIG.REMPLACANT;
+  // Textes d'exemple transposés pour l'île du compte (section 376) ; Guadeloupe : inchangés.
+  const cfgBrut = CONFIG[cfgKey] ?? CONFIG.REMPLACANT;
+  const cfg = Object.fromEntries(
+    Object.entries(cfgBrut).map(([k, v]) => [k, typeof v === "string" ? pourIle(v, session?.user?.territoire) : v]),
+  ) as typeof cfgBrut;
 
   // Les exemples CÔTÉ CANDIDAT dépendent de la profession et viennent du module (section 278) ;
   // ceux du cabinet restent dans CONFIG — ils parlent de rétrocession et de patientèle, pas d'un

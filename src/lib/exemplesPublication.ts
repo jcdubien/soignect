@@ -115,3 +115,31 @@ export function accrocheProfilExemple(profession: Profession): string {
     `${PROFESSION_LABELS[profession]}, expérience 5 ans, disponible été et Noël, mobile sur toute la Guadeloupe…`
   );
 }
+
+// ── LES EXEMPLES SUIVENT L'ÎLE DU COMPTE (section 376) ───────────────────────────────────────
+//
+// Les exemples sont écrits pour la Guadeloupe, et le restent mot pour mot. Pour un compte de
+// Martinique, les lieux sont transposés — un kiné de Fort-de-France à qui l'on suggère « Sud
+// Grande-Terre (Sainte-Anne, Le Gosier) » comprendrait qu'il n'est pas chez lui. Ordre utile : les
+// expressions longues d'abord, le nom de l'île en dernier.
+const LIEUX_MARTINIQUE: [string, string][] = [
+  ["le Sud Grande-Terre (Sainte-Anne, Le Gosier)", "le Sud (Sainte-Luce, Le Diamant)"],
+  ["sur Grande-Terre", "dans le Centre"],
+  ["Pointe-à-Pitre", "Fort-de-France"],
+  ["à Sainte-Anne", "à Sainte-Luce"],
+  ["aux Abymes", "au Lamentin"],
+  ["Guadeloupe", "Martinique"],
+];
+
+/** Un texte d'exemple pour l'île du compte. Guadeloupe : inchangé. */
+export function pourIle(texte: string, territoire?: string | null): string {
+  if (territoire !== "MARTINIQUE") return texte;
+  return LIEUX_MARTINIQUE.reduce((t, [de, vers]) => t.split(de).join(vers), texte);
+}
+
+/** Les exemples d'une profession, pour l'île du compte. */
+export function exemplesPourIle(profession: Profession, territoire?: string | null): ExemplesPublication {
+  const e = exemplesPour(profession);
+  if (territoire !== "MARTINIQUE") return e;
+  return JSON.parse(pourIle(JSON.stringify(e), territoire)) as ExemplesPublication;
+}
