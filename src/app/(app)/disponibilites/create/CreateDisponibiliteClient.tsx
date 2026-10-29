@@ -1010,8 +1010,8 @@ export default function CreateDisponibiliteClient({
           </span>
         </label>
 
-        {/* ── Ouverture au salariat (section 154) — opt-in : rend le profil visible/matchable
-             avec les postes salariés (CDD/CDI/Stage/Vacation) publiés par les établissements ── */}
+        {/* ── Ouverture au salariat (section 154) — déclarative depuis la section 378 : elle ne
+             filtre plus le fil, elle s'affiche aux établissements ── */}
         {!salarieSeul && (
         <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border border-gray-200 px-4 py-3 hover:border-kine-300 transition">
           <input
@@ -1022,7 +1022,7 @@ export default function CreateDisponibiliteClient({
           />
           <span className="text-sm text-gray-700">
             💼 Je suis aussi ouvert·e aux postes salariés (CDD / CDI / Stage / Vacation)
-            <span className="block text-xs text-gray-400">Vous serez alors proposé·e aux établissements (EHPAD, clinique, SSR…).</span>
+            <span className="block text-xs text-gray-400">Les établissements (EHPAD, clinique, SSR…) verront que vous êtes ouvert·e à un poste salarié.</span>
           </span>
         </label>
         )}

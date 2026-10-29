@@ -644,9 +644,9 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
             <span className="text-sm text-gray-700">
               💼 Je suis aussi ouvert·e aux postes salariés
               <span className="block text-xs text-gray-400">
-                CDD, CDI, stage, vacation. Vous verrez alors les offres des établissements
-                (EHPAD, clinique, SSR…) et ils vous verront. Sans cette option, vous ne voyez
-                que les cabinets libéraux.
+                CDD, CDI, stage, vacation. Vous voyez déjà toutes les offres, établissements
+                compris ; cette mention dit aux établissements (EHPAD, clinique, SSR…) qu&apos;un
+                poste salarié vous intéresse.
               </span>
             </span>
             <button

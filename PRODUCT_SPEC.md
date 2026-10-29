@@ -7408,6 +7408,45 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 378 — UN SEUL CHERCHEUR DE POSTE, UN FIL QUI MONTRE TOUT (29/10, étapes 1 à 3)
+
+Demande de JC (29/10) : fusionner à l'inscription les chercheurs de poste ; un candidat voit tous
+les postes (remplacements, assistanats, collaborations, postes salariés) et les besoins
+territoriaux ; un recruteur voit tous les candidats aux dates compatibles et peut proposer un
+assistanat à qui cherche un remplacement, et inversement ; un établissement peut proposer un poste
+salarié à qui ne cherche qu'un remplacement. Décisions (29/10) : **lever la barrière du
+salariat** ; compte enregistré **REMPLACANT**, types choisis dans la disponibilité ; CPTS/MSP
+autonomes **après validation admin** (étape 4, à venir) ; ordre : inscription et fil d'abord.
+
+**1. Inscription** — une carte « Je cherche un poste » remplace « Remplaçant·e » et
+« Assistant·e / Collaborateur·rice ». Le compte est REMPLACANT ; la disponibilité dit ce qu'il
+cherche (elle le permettait déjà, section 191). Les comptes ASSISTANT existants ne bougent pas ;
+`?profileType=ASSISTANT` reste accepté. Libellé « Inscription en tant que candidat·e ».
+
+**2. Fil du candidat**
+- Barrière du salariat levée dans `/api/feed` : un candidat non opté voit les postes des
+  établissements ; un établissement voit tous les candidats. « Ouvert au salariat » reste
+  déclaré (compte, disponibilité) et s'affiche aux établissements ; il ne filtre plus. Textes
+  des deux cases et message du fil vide d'un établissement mis à jour.
+- Cartes : « 💼 Poste salarié » sur un poste d'établissement ou salarié ; « 💼 Ouvert·e au
+  salariat » sur un candidat qui l'a dit.
+- Besoins territoriaux : déjà dans le fil (24/10) ; désormais limités à l'île du lecteur
+  (plus l'autre s'il a coché « voir aussi »).
+
+**3. Fil du recruteur** — il voyait déjà tous les candidats, et le filtre de dates laisse passer
+les disponibilités sans date de fin (section 256). Le score ne pénalise pas un type différent et
+le contrat suit l'annonce de celui qui propose (`posteId`, côté titulaire). La carte d'un candidat
+dit ce qu'il cherche (« Cherche un assistanat », « Remplaçant disponible ») suivi de « vous pouvez
+lui proposer tout type de poste ».
+
+**Essai essai_p60** (comptes fictifs .invalid, schéma supprimé) : candidat non opté → voit le
+cabinet ET le CDI de l'établissement ; établissement → voit le candidat non opté ; besoins :
+Guadeloupe → Le Gosier seul, Martinique → Le Lamentin seul, établissement → aucun ; écran
+d'inscription à une seule carte chercheur ; cartes vérifiées à l'écran.
+
+**À venir** : étape 4 (comptes CPTS/MSP, outils des établissements), 5 (module de promotion d'un
+territoire), 6 (mise en avant payante des postes salariés, construite éteinte — vente fermée).
+
 ### SECTION 377 — TEXTES SANS ÎLE, ESPACE TERRITOIRE PAR ÎLE, PAGES PUBLIQUES FACTORISÉES (29/10)
 
 Demande de JC (29/10) : « texte générique : missions ponctuelles sur votre territoire, espace

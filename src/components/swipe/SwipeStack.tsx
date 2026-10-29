@@ -16,7 +16,7 @@ import { trackRecentMission, RecentMission } from "./RecentMissionsTray";
 import { getInitials, getInitialsColor } from "@/components/ui/PhotoUpload";
 import { fmtDayAuto } from "@/lib/dates";
 import MissionSelector, { TitulaireMission } from "./MissionSelector";
-import { libelleAuteur } from "@/lib/libellesPoste";
+import { libelleAuteur, libelleTypePoste } from "@/lib/libellesPoste";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import MissionDetailSheet from "./MissionDetailSheet";
 import FeuilleDispoExpress from "@/components/swipe/FeuilleDispoExpress";
@@ -340,6 +340,14 @@ function Card({
               🏛️ Partenaire CPTS
             </span>
           )}
+          {/* Le fil mêle libéral et salariat depuis la section 378 : la carte dit lequel. Un poste
+              d'établissement est salarié par nature ; un candidat dit s'il est ouvert au salariat. */}
+          {p.type === "TITULAIRE" && (mission.estSalariat || p.titulaireKind === "STRUCTURE") && (
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold text-white shadow bg-slate-700">💼 Poste salarié</span>
+          )}
+          {p.type !== "TITULAIRE" && p.ouvertSalariat && (
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold text-white shadow bg-slate-700">💼 Ouvert·e au salariat</span>
+          )}
         </div>
 
         {/* Rating */}
@@ -403,6 +411,16 @@ function Card({
             </p>
             <p className="text-kine-700 text-[10px] leading-snug m-0">{mentionMiseEnAvant(mission.zonePrioritaire)}</p>
           </div>
+        )}
+
+        {/* Ce que le candidat cherche, et qu'on peut lui proposer autre chose (section 378) : un
+            cabinet propose son assistanat à qui cherche un remplacement, un établissement son
+            poste salarié — le contrat suit l'annonce de celui qui propose. */}
+        {p.type !== "TITULAIRE" && (
+          <p className="text-[11px] text-gray-500 leading-snug shrink-0">
+            <span className="font-semibold text-gray-700">{libelleTypePoste(mission.missionType, p, mission.natureSalariat)}</span>
+            {" "}· vous pouvez lui proposer tout type de poste
+          </p>
         )}
 
         {/* ── Convergence de dates (section 282) ─────────────────────────────────────────
@@ -1114,7 +1132,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             : filter !== "ALL"
             ? `Aucune annonce "${libellesFiltres[filter]}" pour le moment`
             : salariatOptIn === 0
-            ? (salarieSeul ? "Aucun candidat disponible pour le moment" : "Aucun candidat ouvert aux postes salariés pour l'instant")
+            ? "Aucun candidat disponible pour le moment"
             : isTitulaire
             ? (seenAvailable > 0
                 ? "Vous avez déjà vu tous les candidats disponibles"
@@ -1134,12 +1152,10 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
                 : `Publiez votre recherche : vous serez visible dès qu'un ${salarieSeul ? "établissement" : "cabinet"} publie.`)
             : filter === "POSTES" && remplacementsMasques > 0
             ? `${remplacementsMasques} annonce${remplacementsMasques > 1 ? "s" : ""} de remplacement ${remplacementsMasques > 1 ? "sont" : "est"} masquée${remplacementsMasques > 1 ? "s" : ""} par ce filtre. Les postes longue durée vous sont proposés en premier, mais rien ne vous y oblige.`
-            : salariatOptIn === 0 && salarieSeul
-            // Un aide-soignant est salarié par nature (section 304) : aucune case à cocher n'est
-            // en cause, il n'y a simplement encore personne de sa profession.
-            ? "Votre annonce est en ligne. Aucun candidat de cette profession n'est encore inscrit : ils apparaîtront ici dès le premier."
+            // Tout candidat est visible d'un établissement depuis la section 378 : aucune case
+            // à cocher n'est en cause, il n'y a simplement encore personne de sa profession.
             : salariatOptIn === 0
-            ? "Votre annonce est en ligne. Seuls les professionnels ayant coché « ouvert aux postes salariés » dans leur compte peuvent la voir et vous être proposés — aucun ne l'a fait à ce jour. Ils apparaîtront ici dès qu'un premier l'activera."
+            ? "Votre annonce est en ligne. Aucun candidat de cette profession n'est encore inscrit : ils apparaîtront ici dès le premier."
             : isTitulaire
             ? (seenAvailable > 0
                 ? `Vous avez parcouru ${seenAvailable} profil${seenAvailable > 1 ? "s" : ""} actuellement disponible${seenAvailable > 1 ? "s" : ""}. De nouveaux candidats apparaîtront ici dès leur inscription — retrouvez ceux qui vous intéressent dans « Vos mises en relation ».`

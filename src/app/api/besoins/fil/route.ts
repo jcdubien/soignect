@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { NATURES_BESOIN, auteurAffiche, consentementInteret, etiquetteBesoin, ETIQUETTE_PROPOSITION } from "@/lib/besoinTerritoire";
 import { archiverBesoinsEchus } from "@/lib/besoinTerritoireServeur";
 import { logTraceEvent } from "@/lib/trace";
+import { COMMUNES_PAR_TERRITOIRE, inseeOfCommune, territoiresVus } from "@/lib/communes";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,14 @@ const AFFICHES_MAX = 3;
 export async function GET() {
   const session = await auth();
   if (!session?.user?.profileId) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-  const moi = await prisma.profile.findUnique({ where: { id: session.user.profileId }, select: { id: true, profession: true, titulaireKind: true, type: true } });
+  const moi = await prisma.profile.findUnique({ where: { id: session.user.profileId }, select: { id: true, profession: true, titulaireKind: true, type: true, territoire: true, voirAutreTerritoire: true } });
   if (!moi || (moi.type === "TITULAIRE" && moi.titulaireKind === "STRUCTURE")) return NextResponse.json({ besoins: [] });
   await archiverBesoinsEchus();
+  const codesVus = territoiresVus(moi).flatMap((t) => COMMUNES_PAR_TERRITOIRE[t].map((c) => inseeOfCommune(c)).filter((c): c is string => !!c));
   const besoins = await prisma.besoinTerritoire.findMany({
-    where: { statut: "PUBLIE", profession: moi.profession, expireLe: { gt: new Date() } },
+    // Chacun son île (sections 376, 378) : les besoins des communes de l'île du lecteur, plus
+    // l'autre s'il a coché « voir aussi ».
+    where: { statut: "PUBLIE", profession: moi.profession, expireLe: { gt: new Date() }, codeInsee: { in: codesVus } },
     orderBy: { publieLe: "desc" }, take: AFFICHES_MAX,
     include: {
       client: { select: { nom: true, type: true, page: { select: { accord: true, demo: true } } } },

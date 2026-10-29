@@ -9,7 +9,7 @@ import { getDesirabilityPercent, bonusSaisonnier } from "@/lib/desirability";
 import { chargerPrioritesTerritoriales, type PrioriteAppliquee } from "@/lib/territoire";
 import { boostRetenu, ordonnerFil } from "@/lib/boostTerritorial";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
-import { salariatPublicable, contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
+import { salariatPublicable } from "@/lib/contrats/gabaritsSalarie";
 import { professionPluriel } from "@/lib/professions";
 import { logTraceEvent } from "@/lib/trace";
 import { TOLERANCE_DATES_MAX_JOURS } from "@/lib/compatibilite";
@@ -176,16 +176,11 @@ export async function GET(req: NextRequest) {
   const isCandidateViewer = myProfile.type !== ProfileType.TITULAIRE;
   const isStructureViewer =
     myProfile.type === ProfileType.TITULAIRE && myProfile.titulaireKind === TitulaireKind.STRUCTURE;
-  // Une profession qui n'exerce qu'en salariat (section 304) est ouverte au salariat PAR NATURE :
-  // la case « ouvert au salariat » n'a pas de sens pour elle, et la laisser décochée par défaut
-  // aurait caché tous les aides-soignants aux établissements — les seuls qui les emploient.
-  const salarieParNature = contratFourniParEmployeur(myProfile.profession);
-  if (isCandidateViewer && !myProfile.ouvertSalariat && !salarieParNature) {
-    profileWhere.titulaireKind = { not: TitulaireKind.STRUCTURE };
-  }
-  if (isStructureViewer && !salarieParNature) {
-    profileWhere.ouvertSalariat = true;
-  }
+  // BARRIÈRE DU SALARIAT LEVÉE (29/10, décision de JC — section 378). Un candidat non opté ne
+  // voyait aucun poste d'établissement, un établissement ne voyait que les candidats optés. Le
+  // chercheur de poste voit désormais TOUTES les offres (le badge « Poste salarié » dit ce
+  // qu'est l'offre), et un établissement peut proposer un poste salarié à qui cherche un
+  // remplacement. « Ouvert au salariat » reste déclaré et affiché ; il ne filtre plus.
 
   const whereFil: Prisma.MissionWhereInput = {
     // Prédicat unique (sections 265, 298) : offre, non engagée, période non échue au jour
@@ -396,7 +391,8 @@ export async function GET(req: NextRequest) {
         // l'option » plutôt que « aucun ne correspond ». Compter les candidats d'une autre
         // profession y ferait répondre « il en existe » à un établissement qui n'en verra
         // jamais un seul — le message d'attente redeviendrait faux, dans l'autre sens.
-        where: { type: { in: oppositeTypes }, isActive: true, ...(salarieParNature ? {} : { ouvertSalariat: true }), profession: myProfile.profession, territoire: { in: vus }, id: { not: myProfile.id } },
+        // Sans la case « ouvert au salariat » depuis la section 378 : tout candidat est visible.
+        where: { type: { in: oppositeTypes }, isActive: true, profession: myProfile.profession, territoire: { in: vus }, id: { not: myProfile.id } },
       })
     : -1;
 
