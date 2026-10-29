@@ -87,7 +87,7 @@ export type ResultatCreation =
   | { ok: false; status: number; error: string };
 
 export async function creerConfrereHorsSoignect(titulaireProfileId: string, s: ConfrereSaisi): Promise<ResultatCreation> {
-  const titulaire = await prisma.profile.findUnique({ where: { id: titulaireProfileId }, select: { id: true, type: true, titulaireKind: true, profession: true } });
+  const titulaire = await prisma.profile.findUnique({ where: { id: titulaireProfileId }, select: { id: true, type: true, titulaireKind: true, profession: true, territoire: true } });
   if (!titulaire || titulaire.type !== "TITULAIRE" || titulaire.titulaireKind === "STRUCTURE") {
     return { ok: false, status: 403, error: "Réservé aux cabinets libéraux." };
   }
@@ -129,6 +129,7 @@ export async function creerConfrereHorsSoignect(titulaireProfileId: string, s: C
     const mission = await tx.mission.create({
       data: {
         profileId: titulaire.id,
+        territoire: titulaire.territoire,
         title: `${LIBELLE_TYPE[s.missionType]} — ${nomComplet}`.slice(0, 100),
         location: s.location,
         missionType: s.missionType,

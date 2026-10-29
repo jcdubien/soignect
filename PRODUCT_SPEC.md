@@ -7442,9 +7442,45 @@ trois intercommunalités**.
   de contrôle (`db:check-insee`, `sync-commune-zone` sans écriture) n'ont pas pu être lancés
   sur la production (refus du classificateur) ; les tests couvrent les mêmes points.
 
-**Étapes suivantes** : territoire du compte (inscription, page Compte, case « voir aussi ») ;
-formulaires et assistance IA par territoire ; fil et recommandations filtrés ; textes « en
-Guadeloupe » de l'application ; pages publiques Martinique (avec JC).
+**Étape 2 — formulaires et assistance IA**
+
+- Le territoire du compte voyage dans la session (`session.user.territoire`, relu en base à chaque
+  revalidation ; un jeton antérieur vaut Guadeloupe). Lu par : la liste des communes de l'annonce,
+  les zones de la disponibilité (formulaire complet et feuille express du fil), « Toute la
+  Guadeloupe / Martinique » (`libelleZones`, source unique — les deux formulaires recopiaient la
+  dérivation), la page « Faire un contrat » et sa route.
+- Assistance IA : l'invite nomme l'île du compte, les communes et les zones reconnues sont celles
+  de son territoire. Pour la Guadeloupe, l'invite est inchangée au caractère près.
+- Accroche automatique de l'annonce en 4 champs : les communes de Martinique sont reconnues
+  (sinon une accroche déduite à Fort-de-France aurait passé pour un texte du cabinet).
+
+**Étape 3 — chacun son île**
+
+- Toute annonce porte le territoire de son auteur, posé à la création (`lib/territoireServeur`) :
+  annonce, disponibilité, absence, présence et poste du Planning, préavis (copie de l'annonce
+  d'origine), contrat avec un confrère hors Soignect.
+- Le fil (`/api/feed`, et l'ancienne liste `/api/missions`) ne montre que les annonces des
+  territoires du lecteur (`territoiresVus` : le sien, plus l'autre île si « voir aussi »). Les
+  comptes « aucun cabinet de votre profession » et « candidats ouverts au salariat » sont
+  comptés sur ces mêmes territoires — sinon un kiné de Martinique se serait entendu dire que des
+  cabinets existent.
+- **Page Facebook : Guadeloupe seulement.** Une annonce de Martinique n'y part pas, et la case
+  « Diffuser aussi sur la page Facebook » n'est pas proposée en Martinique — **à décider par
+  JC** (page dédiée, même page, ou pas de diffusion).
+- Les pages publiques « …-guadeloupe » filtrent déjà par zones et communes de la Guadeloupe :
+  une annonce de Martinique n'y apparaît pas.
+- **Essai** `essai_p57` (purgé), deux cabinets et deux remplaçants kinés `.invalid`, un par île :
+  chaque création porte le bon territoire (annonce, disponibilité, absence, confrère) ; commune
+  inconnue refusée (400) ; fil du remplaçant de Guadeloupe = l'annonce du Gosier seule, de
+  Martinique = celle de Fort-de-France seule, avec « voir aussi » = les deux ; chaque cabinet ne
+  voit que le candidat de son île. Navigateur : Martinique → 34 communes dont « Sainte-Anne
+  (Martinique) », 3 zones, « Toute la Martinique », pas de case Facebook ; Guadeloupe → 35
+  communes, 10 zones, « Toute la Guadeloupe », case Facebook présente. 21 tests.
+
+**Étapes suivantes** : territoire du compte à l'inscription et sur la page Compte, case « voir
+aussi » (rien n'est visible des utilisateurs tant que cette étape n'est pas livrée — **à ouvrir
+après validation des zones par JC**) ; textes « en Guadeloupe » de l'application ; pages
+publiques Martinique (avec JC).
 
 ### SECTION 375 — ANNONCE ET DISPONIBILITÉ : LE CODE COMMUN EN UN SEUL ENDROIT (28/10)
 

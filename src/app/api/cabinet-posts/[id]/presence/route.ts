@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { PostType, MissionType, BriqueStatus } from "@prisma/client";
+import { territoireDuProfil } from "@/lib/territoireServeur";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export async function POST(
   const mission = await prisma.mission.create({
     data: {
       profileId: session.user.profileId as string,
+      territoire: await territoireDuProfil(session.user.profileId as string),
       title: name && name.length > 0 ? name : post.label,
       location: "",
       specialties: [],

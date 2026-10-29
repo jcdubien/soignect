@@ -13,6 +13,7 @@ import { salariatPublicable, contratFourniParEmployeur } from "@/lib/contrats/ga
 import { professionPluriel } from "@/lib/professions";
 import { logTraceEvent } from "@/lib/trace";
 import { TOLERANCE_DATES_MAX_JOURS } from "@/lib/compatibilite";
+import { territoiresVus } from "@/lib/communes";
 
 /** Annonces lues au plus pour un classement (23/10). Au-delà, les moins bien classées par le tri
  *  SQL ne sont pas lues — largement au-dessus des volumes actuels. */
@@ -167,6 +168,11 @@ export async function GET(req: NextRequest) {
     profession: myProfile.profession,
     id: { not: myProfile.id },
   };
+  // CHACUN SON ÎLE (section 376) : les annonces du territoire du lecteur, plus l'autre île s'il
+  // a coché « voir aussi ». Porté par l'annonce (Mission.territoire, celui de son auteur à la
+  // publication) : toutes les annonces antérieures sont GUADELOUPE, comme tous les comptes.
+  const vus = territoiresVus(myProfile);
+  const filtreTerritoire: Prisma.MissionWhereInput = { territoire: { in: vus } };
   const isCandidateViewer = myProfile.type !== ProfileType.TITULAIRE;
   const isStructureViewer =
     myProfile.type === ProfileType.TITULAIRE && myProfile.titulaireKind === TitulaireKind.STRUCTURE;
@@ -189,6 +195,7 @@ export async function GET(req: NextRequest) {
       {
         id: { notIn: excludeMissionIds },
         profile: profileWhere,
+        ...filtreTerritoire,
         ...(location ? { location } : {}),
         ...dateFilter,
         ...filtreTypes,
@@ -368,6 +375,7 @@ export async function GET(req: NextRequest) {
             {
               id: { in: excludeMissionIds },
               profile: profileWhere,
+              ...filtreTerritoire,
               ...(location ? { location } : {}),
               ...dateFilter,
             },
@@ -388,7 +396,7 @@ export async function GET(req: NextRequest) {
         // l'option » plutôt que « aucun ne correspond ». Compter les candidats d'une autre
         // profession y ferait répondre « il en existe » à un établissement qui n'en verra
         // jamais un seul — le message d'attente redeviendrait faux, dans l'autre sens.
-        where: { type: { in: oppositeTypes }, isActive: true, ...(salarieParNature ? {} : { ouvertSalariat: true }), profession: myProfile.profession, id: { not: myProfile.id } },
+        where: { type: { in: oppositeTypes }, isActive: true, ...(salarieParNature ? {} : { ouvertSalariat: true }), profession: myProfile.profession, territoire: { in: vus }, id: { not: myProfile.id } },
       })
     : -1;
 
@@ -438,7 +446,7 @@ export async function GET(req: NextRequest) {
   let cabinetsDeMaProfession = -1;
   if (missions.length === 0 && myProfile.type !== ProfileType.TITULAIRE) {
     cabinetsDeMaProfession = await prisma.profile.count({
-      where: { type: ProfileType.TITULAIRE, isActive: true, profession: myProfile.profession },
+      where: { type: ProfileType.TITULAIRE, isActive: true, profession: myProfile.profession, territoire: { in: vus } },
     });
   }
 
@@ -498,6 +506,7 @@ export async function GET(req: NextRequest) {
             {
               id: { notIn: excludeMissionIds },
               profile: profileWhere,
+              ...filtreTerritoire,
               ...(location ? { location } : {}),
               missionType: MissionType.REMPLACEMENT,
               estSalariat: false,

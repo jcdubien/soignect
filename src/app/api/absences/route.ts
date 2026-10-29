@@ -5,6 +5,7 @@ import { z } from "zod";
 import { BriqueStatus, MissionType, MatchStatus } from "@prisma/client";
 import { sendPeriodRemovedEmail } from "@/lib/email";
 import { logMatchCancelled } from "@/lib/trace";
+import { territoireDuProfil } from "@/lib/territoireServeur";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
   const mission = await prisma.mission.create({
     data: {
       profileId,
+      territoire: await territoireDuProfil(profileId),
       cabinetPostId: seat.id,
       title,
       // Plus le nom du praticien : une absence n'a pas de commune, et ce champ finissait

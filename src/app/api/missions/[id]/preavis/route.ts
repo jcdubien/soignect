@@ -50,6 +50,7 @@ export async function POST(
   const preavis = await prisma.mission.create({
     data: {
       profileId: mission.profileId,
+      territoire: mission.territoire,
       title: mission.title,
       location: mission.location,
       specialties: mission.specialties,
