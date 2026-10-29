@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import type { ExemplesPublication } from "@/lib/exemplesPublication";
 import { professionLabel, libelleOrdre, mentionExerciceCoordonne } from "@/lib/professions";
 import { assistanceIADisponible } from "@/lib/annonceAI";
+import { useAllerAuxChamps } from "@/lib/useAllerAuxChamps";
+import { AssistanceIA, useAssistanceIA } from "@/components/publication/AssistanceIA";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -144,15 +146,7 @@ export default function CreateDisponibiliteClient({
     if (salarieSeul && postKind === "ASSISTANAT") setPostKind("COLLABORATION");
   }, [salarieSeul, postKind]);
 
-  // ── Assistance IA (refonte saisie) — chaque action = 1 appel serveur explicite ──
-  const [aiBusy, setAiBusy] = useState<null | "extract" | "title" | "redaction" | "optimize">(null);
-  const [aiDegraded, setAiDegraded] = useState(false);
-  const [aiNotice, setAiNotice] = useState<string | null>(null);
-  const [optimizeTips, setOptimizeTips] = useState<string[]>([]);
   const [detectedTags, setDetectedTags] = useState<{ methode?: string }>({});
-  const [extractDone, setExtractDone] = useState(false);
-  // Texte libre tel qu'il était avant la dernière reformulation — null = rien à annuler.
-  const [rawTextBeforeRedaction, setRawTextBeforeRedaction] = useState<string | null>(null);
   const [showManual, setShowManual] = useState(false);
 
   // Mode blocage (section 178) : unifie le « bloquer ces dates » du menu rapide timeline via CE
@@ -271,49 +265,8 @@ export default function CreateDisponibiliteClient({
   if (hasPhoto === false)          missingReqs.push("une photo de profil");
   const canSubmit = missingReqs.length === 0;
 
-  // Le bouton d'envoi a DEUX ÉTATS plutôt qu'un grisé silencieux. Tant qu'il manque quelque
-  // chose, il reste ACTIF et conduit aux champs à remplir — sur mobile il les révèle, puis
-  // fait défiler jusqu'à eux. Un bouton désactivé est une impasse : il dit « non » sans dire
-  // où aller, alors que le geste attendu est justement d'ouvrir des champs qui, sur mobile,
-  // sont masqués. Il ne devient « Publier » que quand la fiche est complète.
-  const blocChampsRef = useRef<HTMLDivElement | null>(null);
-  const scrollDemande = useRef(false);
-
-  // On calcule la position et on pilote la FENÊTRE, au lieu d'appeler scrollIntoView sur le
-  // bloc. Mesuré en conditions réelles (fenêtre 500x457) : les champs se révélaient bien à
-  // 1038 px, et scrollIntoView ne déplaçait rien — il échoue en silence dès qu'un ancêtre porte
-  // un overflow ou une transformation, sans erreur ni avertissement. window.scrollTo sur un
-  // offset absolu ne dépend d'aucun ancêtre.
-  //
-  // Deux rAF : le premier laisse React peindre le bloc révélé, le second garantit que la mise
-  // en page est calculée avant qu'on lise sa position — sinon on mesure un bloc encore masqué.
-  function scrollVersChamps() {
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        const el = blocChampsRef.current;
-        if (!el) return;
-        // DÉFILEMENT INSTANTANÉ, PAS FLUIDE. `behavior: "smooth"` est purement IGNORÉ quand
-        // l'utilisateur a activé la réduction des animations — mesuré : scrollTo à 500 px rend
-        // 500 en "auto" et 0 en "smooth", sur la même page. Le bouton ne faisait donc rien du
-        // tout pour ces utilisateurs, en silence. Aller droit au but est de toute façon le bon
-        // geste ici : on a demandé à être emmené quelque part, pas à regarder un travelling.
-        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "auto" });
-      }),
-    );
-  }
-  function allerAuxChamps() {
-    // Champs déjà ouverts : on défile tout de suite. Sans ce cas, un second appui ne faisait
-    // rien — l'effet ci-dessous ne se déclenche que quand showManual CHANGE.
-    if (showManual) { scrollVersChamps(); return; }
-    scrollDemande.current = true;
-    setShowManual(true);
-  }
-  useEffect(() => {
-    if (!showManual || !scrollDemande.current) return;
-    scrollDemande.current = false;
-    scrollVersChamps();
-  }, [showManual]);
-
+  // Bouton d'envoi à deux états : tant qu'il manque quelque chose, il conduit aux champs.
+  const { blocChampsRef, allerAuxChamps } = useAllerAuxChamps(showManual, setShowManual);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -460,44 +413,18 @@ export default function CreateDisponibiliteClient({
     return k;
   }
 
-  async function runAI(action: "extract" | "title" | "redaction" | "optimize") {
-    if (aiBusy) return;
-    setAiBusy(action); setAiDegraded(false); setAiNotice(null);
-    try {
-      const res = await fetch("/api/ai/annonce", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action, role: "candidat", text: form.rawText,
-          ...(action === "optimize" ? { known: knownFields() } : {}),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.degraded) { setAiDegraded(true); return; }
-      if (action === "extract") {
-        applyExtracted(data.fields ?? {});
-        setExtractDone(true);
-        setShowManual(true);
-        const n = Object.keys(data.fields ?? {}).length;
-        setAiNotice(n > 0 ? `${n} information${n > 1 ? "s" : ""} détectée${n > 1 ? "s" : ""} — vérifiez ci-dessous.` : "Aucune information exploitable détectée — complétez à la main.");
-      } else if (action === "title") {
-        if (typeof data.title === "string" && data.title) setForm((p) => ({ ...p, title: data.title }));
-      } else if (action === "redaction") {
-        if (typeof data.text === "string" && data.text) {
-          // Mémorise le texte AVANT écrasement pour rendre la reformulation annulable.
-          setRawTextBeforeRedaction(form.rawText);
-          setForm((p) => ({ ...p, rawText: data.text }));
-        }
-      } else if (action === "optimize") {
-        setOptimizeTips(Array.isArray(data.suggestions) ? data.suggestions : []);
-        if ((data.suggestions ?? []).length === 0) setAiNotice("Rien à ajouter — votre disponibilité est déjà complète 👍");
-      }
-    } catch {
-      setAiDegraded(true);
-    } finally {
-      setAiBusy(null);
-    }
-  }
+  // ── Assistance IA (refonte saisie) — chaque action = 1 appel serveur explicite ──
+  const ia = useAssistanceIA({
+    role: "candidat",
+    texte: form.rawText,
+    connus: knownFields,
+    dejaComplet: "votre disponibilité est déjà complète",
+    appliquer: applyExtracted,
+    ouvrirChamps: () => setShowManual(true),
+    poserTitre: (t) => setForm((p) => ({ ...p, title: t })),
+    poserTexte: (t) => setForm((p) => ({ ...p, rawText: t })),
+  });
+  const { extractDone } = ia;
 
   async function handleBlockSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -714,70 +641,13 @@ export default function CreateDisponibiliteClient({
             className="w-full px-4 py-3 border border-kine-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-kine-400 resize-y text-sm bg-white text-gray-800"
             placeholder={isAssistant ? exemples.longTerme.brut : exemples.remplacement.brut}
           />
-          {/* Libellés décrivant le RÉSULTAT, pas l'action, avec une ligne d'aide indiquant
-              ce qui change : les champs, le texte, ou rien. */}
-          {/* Même règle que côté cabinet (section 294) : l'assistance n'existe que là où
-              l'invite est écrite pour la profession. */}
-          {assistanceIADisponible(profession) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button type="button" onClick={() => runAI("extract")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
-              className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl bg-kine-600 text-white hover:bg-kine-700 transition disabled:opacity-40">
-              <span className="text-xs font-bold">{aiBusy === "extract" ? "Analyse…" : "✨ Remplir les champs"}</span>
-              <span className="text-[10px] font-normal opacity-80 leading-snug">dates, zones, accroche… extraits de votre texte</span>
-            </button>
-            <button type="button" onClick={() => runAI("redaction")} disabled={aiBusy !== null}
-              className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
-              <span className="text-xs font-bold">{aiBusy === "redaction" ? "Rédaction…" : "✍️ Reformuler mon texte"}</span>
-              <span className="text-[10px] font-normal opacity-70 leading-snug">réécrit ci-dessus, vous pourrez annuler</span>
-            </button>
-            <button type="button" onClick={() => runAI("optimize")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
-              className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
-              <span className="text-xs font-bold">{aiBusy === "optimize" ? "Analyse…" : "🚀 Qu'est-ce qui manque ?"}</span>
-              <span className="text-[10px] font-normal opacity-70 leading-snug">suggestions d&apos;ajouts, rien n&apos;est modifié</span>
-            </button>
-            {/* Regroupé avec les autres assistances : il était isolé dans l'encart
-                « ce que j'ai compris » et n'apparaissait qu'après extraction. */}
-            <button type="button" onClick={() => runAI("title")} disabled={aiBusy !== null || form.rawText.trim().length < 10}
-              className="flex flex-col items-start text-left gap-0.5 px-3 py-2 rounded-xl border border-kine-300 text-kine-700 hover:bg-kine-50 transition disabled:opacity-40">
-              <span className="text-xs font-bold">{aiBusy === "title" ? "Titre…" : "✨ Proposer un titre"}</span>
-              <span className="text-[10px] font-normal opacity-70 leading-snug">remplit le titre de l&apos;annonce ci-dessous</span>
-            </button>
-          </div>
-          )}
-
-          {/* Annulation de la reformulation — seul geste destructif du formulaire. */}
-          {rawTextBeforeRedaction !== null && (
-            <div className="flex items-center gap-2 text-xs bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              <span className="text-amber-800">Votre texte a été reformulé.</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setForm((p) => ({ ...p, rawText: rawTextBeforeRedaction }));
-                  setRawTextBeforeRedaction(null);
-                }}
-                className="ml-auto shrink-0 font-bold text-amber-900 underline hover:text-amber-950"
-              >
-                Annuler la reformulation
-              </button>
-            </div>
-          )}
-
-          {aiDegraded && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              Assistance IA momentanément indisponible (limite atteinte). Aucun souci : remplissez les champs à la main ci-dessous, la publication reste possible.
-            </p>
-          )}
-          {aiNotice && !aiDegraded && (
-            <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">{aiNotice}</p>
-          )}
-          {optimizeTips.length > 0 && (
-            <div className="rounded-xl bg-kine-50 border border-kine-100 px-3 py-2.5">
-              <p className="text-[11px] font-bold text-kine-700 uppercase tracking-wide mb-1">Suggestions d&apos;ajout</p>
-              <ul className="list-disc pl-4 space-y-0.5">
-                {optimizeTips.map((t, i) => <li key={i} className="text-xs text-gray-700">{t}</li>)}
-              </ul>
-            </div>
-          )}
+          <AssistanceIA
+            ia={ia}
+            texte={form.rawText}
+            disponible={assistanceIADisponible(profession)}
+            aideRemplir="dates, zones, accroche… extraits de votre texte"
+            aideTitre="remplit le titre de l'annonce ci-dessous"
+          />
 
           {extractDone && (
             <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 space-y-2">

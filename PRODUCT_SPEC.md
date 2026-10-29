@@ -7408,6 +7408,31 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 375 — ANNONCE ET DISPONIBILITÉ : LE CODE COMMUN EN UN SEUL ENDROIT (28/10)
+
+Les formulaires de publication (`missions/create` côté cabinet ou établissement,
+`disponibilites/create` côté candidat) recopiaient deux mécanismes à l'identique, ligne pour
+ligne. Ils sont mis en commun, sans changement de comportement :
+
+| Fichier | Contenu |
+|---|---|
+| `src/lib/useAllerAuxChamps.ts` | bouton d'envoi à deux états : tant qu'il manque quelque chose, il révèle les champs (mobile) et y fait défiler |
+| `src/components/publication/AssistanceIA.tsx` | `useAssistanceIA` (appel à `/api/ai/annonce`, états, annulation de la reformulation) et `AssistanceIA` (les quatre boutons, le bandeau d'annulation, le repli dégradé, les suggestions) |
+
+Ce qui diffère reste chez l'appelant : le rôle transmis au modèle (`candidat`, `cabinet`,
+`employeur`), l'application des champs extraits, le message « Rien à ajouter — … », les lignes
+d'aide sous « Remplir les champs » et « Proposer un titre », et le résumé « Ce que j'ai compris ».
+Les deux formulaires perdent 315 lignes.
+
+- **Vérifié** sur `essai_p55` (purgé), un remplaçant et un cabinet `.invalid`, réponses de l'IA
+  simulées dans le navigateur (aucun appel réel) : sur chaque formulaire, les quatre boutons et
+  leurs lignes d'aide sont inchangés ; « Qu'est-ce qui manque ? » affiche « Rien à ajouter » puis
+  les suggestions, et transmet les informations déjà saisies telles qu'au moment du clic ;
+  « Proposer un titre » remplit le titre ; « Reformuler » remplace le texte, et « Annuler la
+  reformulation » le restaure ; « Remplir les champs » pose l'accroche et la date, puis affiche
+  « 2 informations détectées ». Le bouton « Compléter ma fiche → » révèle les champs masqués et y
+  descend, au premier comme au second appui. Build, lint et 15 tests passent.
+
 ### SECTION 374 — PLANNING DÉCOUPÉ ; « MODIFIER LA PÉRIODE » RÉPARÉ (28/10)
 
 `PlanningBoard.tsx` faisait 3 374 lignes : types, calculs, frise, menus, panneau et formulaires
