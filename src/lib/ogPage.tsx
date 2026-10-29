@@ -15,7 +15,7 @@ export const OG_SIZE = { width: 1200, height: 630 };
 // d'annonce, mêmes 600 px utiles.
 const SAFE = 600;
 
-export function ogPage(opts: { titre: string; sousTitre: string; badge?: string }) {
+export function ogPage(opts: { titre: string; sousTitre: string; badge?: string; pied?: string }) {
   // Police dimensionnée sur la longueur, comme la carte d'annonce : ces titres sont fixes
   // aujourd'hui, mais un titre rallongé ne doit pas déborder silencieusement.
   const t = opts.titre;
@@ -72,7 +72,7 @@ export function ogPage(opts: { titre: string; sousTitre: string; badge?: string 
         </div>
 
         <div style={{ display: "flex", justifyContent: "center", fontSize: 22, opacity: 0.82, maxWidth: SAFE, textAlign: "center" }}>
-          La mise en relation des professionnels de santé en Guadeloupe
+          {opts.pied ?? "La mise en relation des professionnels de santé en Guadeloupe"}
         </div>
       </div>
     ),

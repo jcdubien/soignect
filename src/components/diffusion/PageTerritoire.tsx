@@ -1,15 +1,12 @@
-import { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { KINESITHERAPEUTE, TERRITOIRES, PORTES, VOCABULAIRE_PROFESSION, PAGES_PUBLIEES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
-import type { Profession } from "@/lib/pagesDiffusion";
-import { filtreAnnoncesVivantes, PERIMETRE_GUADELOUPE } from "@/lib/annoncesTerritoire";
+import { PORTES, VOCABULAIRE_PROFESSION, PAGES_PUBLIEES, cheminPage, cleTracePage } from "@/lib/pagesDiffusion";
+import type { Profession, Territoire } from "@/lib/pagesDiffusion";
+import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
 import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
 import { lienPartenariat } from "@/lib/partenariat";
 import { ZONE_LABELS, COMMUNE_ZONE } from "@/lib/communes";
-
-export const dynamic = "force-dynamic";
 
 // Porte MSP / CPTS / TERRITOIRE (section 212).
 //
@@ -21,32 +18,21 @@ export const dynamic = "force-dynamic";
 //
 // Le traitement de diffusion, lui, est identique : même trace, même entrée dans
 // /admin/diffusion, même bouton de partage. C'est la mise en page qui diffère, pas le régime.
-const PRO   = KINESITHERAPEUTE;
-const TERR  = TERRITOIRES.GUADELOUPE;
+//
+// Composant depuis la section 377 : la page de Guadeloupe en était la seule instance, la
+// Martinique en est la seconde — même composition, territoire en paramètre.
 const PORTE = PORTES.TERRITOIRE;
-
-export const metadata: Metadata = {
-  alternates: { canonical: cheminPage(PORTE, PRO, TERR) },
-  title: PORTE.metaTitre(PRO, TERR),
-  description: PORTE.metaDescription(PRO, TERR),
-  openGraph: {
-    url: cheminPage(PORTE, PRO, TERR),
-    title: PORTE.metaTitre(PRO, TERR),
-    description: PORTE.metaDescription(PRO, TERR),
-    type: "website",
-  },
-};
 
 // Une CPTS pilote TOUTES les professions de son territoire : le tableau croise zone ×
 // profession au lieu de ne compter que celle du slug. Les colonnes sont les professions qui ont
 // un vocabulaire déclaré — une profession sans libellé n'a pas de colonne à inventer.
 const PROFESSIONS_TABLEAU = Object.values(VOCABULAIRE_PROFESSION) as Profession[];
 
-export default async function Page() {
+export default async function PageTerritoire({ profession: PRO, territoire: TERR }: { profession: Profession; territoire: Territoire }) {
   const parProfession = await Promise.all(
     PROFESSIONS_TABLEAU.map((p) =>
       prisma.mission.findMany({
-        where: filtreAnnoncesVivantes(PERIMETRE_GUADELOUPE.zones, PERIMETRE_GUADELOUPE.communes, p.enumBase, PORTE.montre),
+        where: filtreAnnoncesVivantes(TERR.perimetre.zones, TERR.perimetre.communes, p.enumBase, PORTE.montre),
         select: { location: true, zones: true },
         take: 200,
       }),
@@ -164,7 +150,7 @@ export default async function Page() {
       <div className="bg-gradient-to-br from-kine-600 to-kine-800 rounded-2xl p-6 text-white mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
           <p className="font-bold text-lg mb-1">Discutons de votre territoire</p>
-          <p className="text-kine-100 text-sm">{PORTE.ctaSous}</p>
+          <p className="text-kine-100 text-sm">{PORTE.ctaSous(PRO, TERR)}</p>
         </div>
         <Link
           // Une CPTS n'a pas de compte soignant à créer : le bouton ouvre la demande de
@@ -189,7 +175,7 @@ export default async function Page() {
       ].map(({ porte, question }) => (
         <p key={porte.slug} className="text-sm text-gray-500">
           {question}{" "}
-          {PAGES_PUBLIEES.filter((x) => x.porte.slug === porte.slug && x.territoire === TERR).map((x, i) => (
+          {PAGES_PUBLIEES.filter((x) => x.porte.slug === porte.slug && x.territoire.slug === TERR.slug).map((x, i) => (
             <span key={x.profession.slug}>
               {i > 0 && " · "}
               <Link href={cheminPage(x.porte, x.profession, TERR)} className="underline text-kine-700">{x.profession.unSingulier}</Link>
@@ -200,18 +186,9 @@ export default async function Page() {
       </div>
 
       <div className="mt-12 border-t border-gray-100 pt-8 space-y-3 text-sm text-gray-400">
-        <h2 className="text-base font-semibold text-gray-600">
-          Soignect pour les CPTS et les collectivités
-        </h2>
-        {/* Rien ici qui ne soit vrai par construction (règle du 10/08). Aucune promesse de
-            résultat, aucun chiffre de marché : le compteur de postes ci-dessus est la seule
-            donnée avancée, et elle est calculée en direct. */}
-        <p>
-          Soignect référence les postes de kinés, d&apos;infirmiers et d&apos;aides-soignants publiés
-          par les cabinets, les structures et les professionnels eux-mêmes {TERR.preposition} {TERR.nom}. Les structures territoriales y
-          accèdent pour suivre l&apos;offre sur leur périmètre et l&apos;afficher sur leur propre
-          site. L&apos;inscription est gratuite pour qui cherche un poste.
-        </p>
+        <h2 className="text-base font-semibold text-gray-600">{PORTE.basDePage(PRO, TERR).titre}</h2>
+        {/* Rien ici qui ne soit vrai par construction (règle du 10/08) — texte dans lib/pagesDiffusion. */}
+        {PORTE.basDePage(PRO, TERR).paragraphes.map((x, i) => <p key={i}>{x}</p>)}
       </div>
     </div>
   );

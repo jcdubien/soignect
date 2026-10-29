@@ -7,7 +7,11 @@ import type { Porte, Profession, Territoire } from "@/lib/pagesDiffusion";
 // segment racine, et Facebook affichait un partage sans miniature. Chaque route porte donc son
 // fichier opengraph-image, qui délègue ici — textes tirés de la porte, comme le reste de la page.
 export function imagePorte(porte: Porte, p: Profession, t: Territoire) {
-  return ogPage({ titre: porte.ogTitre(p, t), sousTitre: porte.ogSousTitre(p, t), badge: `📍 ${t.nom}` });
+  return ogPage({
+    titre: porte.ogTitre(p, t), sousTitre: porte.ogSousTitre(p, t), badge: `📍 ${t.nom}`,
+    // Le pied nomme le territoire de la page : une image de Martinique ne dit pas « en Guadeloupe ».
+    pied: `La mise en relation des professionnels de santé ${t.preposition} ${t.nom}`,
+  });
 }
 
 export function altPorte(porte: Porte, p: Profession, t: Territoire) {

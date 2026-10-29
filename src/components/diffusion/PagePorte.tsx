@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { ZoneGeographique } from "@prisma/client";
 import { filtreAnnoncesVivantes } from "@/lib/annoncesTerritoire";
 import { tracerVueLanding } from "@/lib/traceLanding";
-import { Porte, Profession, Territoire, cleTracePage, cheminPage, PAGES_PUBLIEES } from "@/lib/pagesDiffusion";
+import { Porte, Profession, Territoire, cleTracePage, cheminPage, lienInscription, PAGES_PUBLIEES } from "@/lib/pagesDiffusion";
 import BlocPartenaire from "@/components/diffusion/BlocPartenaire";
 import { lienPartenariat } from "@/lib/partenariat";
-import { libelleRoleSalariat } from "@/lib/libellesPoste";
+import { libelleRoleSalariat, libelleTypePoste, estEtablissement } from "@/lib/libellesPoste";
 import { isFreeAccessMode } from "@/lib/platform";
 import { mentionGratuite } from "@/lib/gratuite";
 import { besoinsPublics } from "@/lib/besoinsPublics";
@@ -15,25 +14,22 @@ import BlocBesoinsPublics from "@/components/territoire/BlocBesoinsPublics";
 import { inseeOfCommune } from "@/lib/communes";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
-// Gabarit commun des pages de diffusion « à annonces » (section 212) — portes CABINET,
-// ÉTABLISSEMENT et MAISON DE SANTÉ, et toutes les pages infirmier (section 299). La porte
-// CHERCHEUR des kinés garde ses trois pages historiques, vérifiées à l'écran : on ne les réécrit
-// pas pour un gain de forme.
+// Gabarit commun des pages de diffusion « à annonces » (section 212) — toutes les portes sauf
+// TERRITOIRE, pour toutes les professions et tous les territoires. Depuis la section 377 il sert
+// aussi les trois pages historiques des kinés (Guadeloupe, Saint-Martin, Saint-Barth), qui en
+// étaient restées des copies.
 //
 // Ce composant ne connaît NI profession NI territoire : il reçoit les trois axes et compose.
-// C'est ce qui permet d'ajouter une porte sans le toucher.
+// C'est ce qui permet d'ajouter une porte, une profession ou un département sans le toucher.
 
 export default async function PagePorte({
-  porte, profession, territoire, zones, communes, basDePage,
+  porte, profession, territoire,
 }: {
   porte: Porte;
   profession: Profession;
   territoire: Territoire;
-  zones: ZoneGeographique[];
-  communes: string[];
-  /** Bas de page propre à la porte — ce qui est vrai par construction, jamais du marché. */
-  basDePage: React.ReactNode;
 }) {
+  const { zones, communes } = territoire.perimetre;
   // Porte « emploi » (établissements, 24/10) : un établissement recrute des salariés — la page ne
   // montre que les candidats ouverts au salariat, comme son fil (sauf profession salariée par
   // nature, ex. aide-soignant). Les autres portes candidats (cabinets, maisons de santé) montrent
@@ -43,7 +39,7 @@ export default async function PagePorte({
   const missions = await prisma.mission.findMany({
     // Le camp vient de la PORTE, qui le déclare : une porte employeur montre des candidats.
     where: salarieSeulement ? { ...filtre, profile: { ...filtre.profile, ouvertSalariat: true } } : filtre,
-    include: { profile: { select: { type: true, name: true, titulaireKind: true, ouvertSalariat: true } } },
+    include: { profile: { select: { type: true, name: true, titulaireKind: true, ouvertSalariat: true, ratingAvg: true } } },
     orderBy: [{ profile: { weight: "desc" } }, { createdAt: "desc" }],
     // Échantillon, pas inventaire : 8 suffisent à montrer qu'il se passe quelque chose.
     // Au-delà, la page devient une liste à faire défiler et le CTA disparaît sous le pli.
@@ -60,17 +56,15 @@ export default async function PagePorte({
   // deux mots qui ne décrivent pas son métier.
   // La porte « emploi » des établissements préselectionne de même le compte établissement : il
   // devait sinon se retrouver lui-même parmi « Cabinet / Titulaire », « Remplaçant·e »…
-  const typeCompte =
-    porte.slug === "poste" ? "&profileType=REMPLACANT"
-    : porte.slug === "emploi" ? "&profileType=TITULAIRE&structure=1"
-    : "";
+  // Le compte présélectionné est déclaré par la porte (lib/pagesDiffusion, `typeCompte`), comme
+  // l'île : une page de Martinique ouvre une inscription en Martinique.
   // Porte MSP (24/10) : l'appel ouvre la demande de partenariat — une MSP n'a pas de compte
   // recruteur. Les membres, eux, publient depuis leur compte cabinet (lien dédié plus bas).
   const inscription = porte.ctaPartenariat
     ? lienPartenariat(porte.ctaPartenariat, cleTracePage(porte, profession, territoire))
-    : `/register?profession=${profession.enumBase}${typeCompte}&src=${cleTracePage(porte, profession, territoire)}`;
+    : lienInscription(porte, profession, territoire);
   const inscriptionMembre = porte.ctaPartenariat
-    ? `/register?profession=${profession.enumBase}&profileType=TITULAIRE&src=membre-${cleTracePage(porte, profession, territoire)}`
+    ? lienInscription(porte, profession, territoire, { typeCompte: "CABINET", src: `membre-${cleTracePage(porte, profession, territoire)}` })
     : null;
 
   // Besoins du territoire (24/10) — seulement sur les portes qui s'adressent aux soignants (celles
@@ -78,7 +72,14 @@ export default async function PagePorte({
   const besoins = porte.montre === "EMPLOYEUR"
     ? await besoinsPublics({ profession: profession.enumBase as PrismaProfession, codesInsee: communes.map((c) => inseeOfCommune(c)).filter((c): c is string => !!c), lieu: "page-metier" })
     : [];
-  const inscriptionSoignant = `/register?profession=${profession.enumBase}&profileType=REMPLACANT&src=${cleTracePage(porte, profession, territoire)}`;
+  const inscriptionSoignant = lienInscription(porte, profession, territoire, { typeCompte: "REMPLACANT" });
+  // Une porte qui montre des employeurs montre des POSTES : on dit ce qui est proposé.
+  const montrePostes = porte.montre === "EMPLOYEUR";
+
+  const bas = porte.basDePage(profession, territoire);
+  const ailleurs = PAGES_PUBLIEES.filter(
+    (x) => x.porte.slug === porte.slug && x.profession.slug === profession.slug && x.territoire.slug !== territoire.slug,
+  );
 
   const fmt = (d: Date | null) =>
     d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : null;
@@ -100,7 +101,7 @@ export default async function PagePorte({
       <div className="bg-gradient-to-br from-kine-600 to-kine-800 rounded-2xl p-6 text-white mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
           <p className="font-bold text-lg mb-1">{porte.titreAppel ?? "Rejoignez Soignect"}</p>
-          <p className="text-kine-100 text-sm">{porte.ctaSous}</p>
+          <p className="text-kine-100 text-sm">{porte.ctaSous(profession, territoire)}</p>
           {gratuite && <p className="text-white text-sm font-semibold mt-1">{gratuite}</p>}
         </div>
         <Link
@@ -128,7 +129,9 @@ export default async function PagePorte({
 
       <h2 className="text-lg font-bold text-gray-800 mb-4">
         {missions.length > 0
-          ? `${missions.length} annonce${missions.length > 1 ? "s" : ""} ${territoire.preposition} ${territoire.nom}`
+          ? `${missions.length} ${montrePostes ? "poste" : "annonce"}${missions.length > 1 ? "s" : ""} ${territoire.preposition} ${territoire.nom}`
+          : montrePostes
+            ? "Aucune annonce pour le moment"
           : salarieSeulement
             // Page « emploi » sans candidat ouvert au salariat (24/10) : le dire, plutôt qu'« aucune
             // annonce », qui laisserait croire que personne n'est inscrit.
@@ -156,6 +159,32 @@ export default async function PagePorte({
               ?? libelleRoleSalariat({ ...m.profile, profession: profession.enumBase })
               ?? { REMPLACANT: "Remplaçant·e", ASSISTANT: "Assistant·e", TITULAIRE: "Cabinet" }[m.profile.type];
             const ouvertSalariat = porte.slug === "maison-de-sante" && estCand && m.profile.ouvertSalariat;
+            if (montrePostes) {
+              // Un POSTE : le badge dit ce qui est PROPOSÉ, dans le vocabulaire de qui publie — un
+              // CDI d'établissement s'affichait « Collaboration libérale ». Table unique dans
+              // lib/libellesPoste. Carte reprise de la page historique des kinés de Guadeloupe.
+              const estEtab = estEtablissement(m.profile);
+              return (
+                <div key={m.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      estEtab ? "bg-slate-100 text-slate-700" :
+                      m.missionType === "ASSISTANAT" ? "bg-violet-100 text-violet-700" :
+                      m.missionType === "COLLABORATION" ? "bg-amber-100 text-amber-700" :
+                      "bg-blue-100 text-blue-700"
+                    }`}>{libelleTypePoste(m.missionType, m.profile)}</span>
+                    {m.profile.ratingAvg && (
+                      <span className="text-xs text-yellow-600 font-semibold">★ {m.profile.ratingAvg.toFixed(1)}</span>
+                    )}
+                  </div>
+                  <h3 className="font-semibold text-gray-800 text-sm leading-snug">{m.title}</h3>
+                  <p className="text-gray-400 text-xs mt-1">📍 {m.location}{periode ? ` · ${periode}` : ""}</p>
+                  {m.pitch && (
+                    <p className="text-gray-500 text-xs mt-2 italic border-l-2 border-kine-300 pl-2 line-clamp-2">{m.pitch}</p>
+                  )}
+                </div>
+              );
+            }
             return (
               <div key={m.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
@@ -177,8 +206,9 @@ export default async function PagePorte({
       )}
 
       <div className="mt-8 text-center">
+        {porte.ctaBas && <p className="text-gray-400 text-sm mb-3">{porte.ctaBas.intro}</p>}
         <Link href={inscription} className="inline-flex items-center gap-2 px-6 py-3 bg-kine-600 text-white rounded-xl font-semibold hover:bg-kine-700 transition">
-          {porte.cta}
+          {porte.ctaBas?.libelle ?? porte.cta}
         </Link>
       </div>
 
@@ -188,7 +218,7 @@ export default async function PagePorte({
         // Pages EMPLOYEUR seulement (elles montrent des candidats) : « vous recrutez aussi »
         // ne se dit pas à quelqu'un qui cherche un poste.
         const soeurs = porte.montre !== "CANDIDAT" ? [] : PAGES_PUBLIEES.filter(
-          (x) => x.porte.slug === porte.slug && x.territoire === territoire && x.profession.slug !== profession.slug,
+          (x) => x.porte.slug === porte.slug && x.territoire.slug === territoire.slug && x.profession.slug !== profession.slug,
         );
         return soeurs.length > 0 ? (
           <p className="mt-6 text-sm text-gray-500 text-center">
@@ -212,7 +242,7 @@ export default async function PagePorte({
         // l'offre partenaire d'une MSP se convient avec l'administrateur, pas à l'inscription.
         <BlocPartenaire profession={profession} facultative={gratuite !== null} inscription={porte.slug === "maison-de-sante"
           ? lienPartenariat("MSP", `partenaire-${porte.slug}-${profession.slug}`)
-          : `/register?profession=${profession.enumBase}${porte.slug === "emploi" ? typeCompte : ""}&src=partenaire-${porte.slug}-${profession.slug}`} porteSlug={porte.slug} />
+          : lienInscription(porte, profession, territoire, { typeCompte: porte.slug === "emploi" ? "ETABLISSEMENT" : null, src: `partenaire-${porte.slug}-${profession.slug}` })} porteSlug={porte.slug} />
       )}
 
       <BlocBesoinsPublics besoins={besoins} titre="Besoins du territoire" lienInscription={inscriptionSoignant} />
@@ -221,7 +251,21 @@ export default async function PagePorte({
           12/08) : ce que fait Soignect, les types de poste, le statut du territoire. Aucune
           caractérisation de marché — personne ici ne peut la sourcer. */}
       <div className="mt-12 border-t border-gray-100 pt-8 space-y-3 text-sm text-gray-400">
-        {basDePage}
+        <h2 className="text-base font-semibold text-gray-600">{bas.titre}</h2>
+        {bas.paragraphes.map((x, i) => <p key={i}>{x}</p>)}
+        {/* La même page sur les autres territoires — dérivée du registre : un département ouvert y
+            paraît sans qu'on ait à l'ajouter ici. */}
+        {ailleurs.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            <span>Aussi sur Soignect :</span>
+            {ailleurs.map((x, i) => (
+              <span key={x.territoire.slug} className="flex gap-2">
+                {i > 0 && <span>·</span>}
+                <Link href={cheminPage(x.porte, x.profession, x.territoire)} className="underline hover:text-kine-600">{x.territoire.nom}</Link>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

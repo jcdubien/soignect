@@ -13,10 +13,13 @@
 // AJOUTER UNE PROFESSION OU UN TERRITOIRE = ajouter une entrée ici. Les trois pages n'ont pas
 // à être touchées : elles lisent leur configuration par leur clé.
 
-import { MissionType, Profession as ProfessionDb } from "@prisma/client";
+import { MissionType, Profession as ProfessionDb, type ZoneGeographique } from "@prisma/client";
 import type { Camp } from "@/lib/annoncesTerritoire";
 import { missionTypesPour } from "@/lib/contrats/gabarits";
 import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
+import {
+  COMMUNES_PAR_TERRITOIRE, ZONES_MARTINIQUE, zoneOfCommune, type ZoneGeo, type Territoire as Ile,
+} from "@/lib/communes";
 
 export interface Profession {
   /** « kinésithérapeute » — employé dans le titre personnifié. */
@@ -50,6 +53,8 @@ export interface Profession {
   deCourt: string;
   /** Le modèle de contrat que la plateforme pré-remplit, nommé comme le connaît la profession. */
   contratPreRempli: string;
+  /** « le modèle CNOMK » — même modèle, en complément d'objet : « Le contrat suit … ». */
+  modeleContrat: string;
   /** « kinés », « infirmiers », « aides-soignants » — en-tête de colonne. Ne se compose pas :
    *  « aide-soignant » + « s » donnerait « aide-soignants ». */
   courtPluriel: string;
@@ -69,6 +74,7 @@ export const KINESITHERAPEUTE: Profession = {
   deSingulier: "de kinésithérapeute",
   deCourt: "de kiné",
   contratPreRempli: "contrat CNOMK pré-rempli",
+  modeleContrat: "le modèle CNOMK",
   courtPluriel: "kinés",
   employeurs: "hôpitaux, cliniques, EHPAD, SSR, CAMSP",
 };
@@ -84,6 +90,7 @@ export const INFIRMIER: Profession = {
   deSingulier: "d'infirmier",
   deCourt: "d'infirmier",
   contratPreRempli: "contrat de l'Ordre des infirmiers pré-rempli",
+  modeleContrat: "le modèle du Conseil national de l'Ordre des infirmiers",
   courtPluriel: "infirmiers",
   employeurs: "hôpitaux, cliniques, EHPAD, SSR, SSIAD, HAD",
 };
@@ -103,6 +110,7 @@ export const AIDE_SOIGNANT: Profession = {
   deSingulier: "d'aide-soignant",
   deCourt: "d'aide-soignant",
   contratPreRempli: "contrat de travail établi par l'employeur",
+  modeleContrat: "le contrat de travail de l'employeur",
   courtPluriel: "aides-soignants",
   // Les SSIAD d'abord : les aides-soignants en sont le personnel soignant principal.
   employeurs: "EHPAD, SSIAD, cliniques, hôpitaux, SSR",
@@ -127,7 +135,7 @@ function formesDuPoste(p: Profession): string {
  *  salariée seulement (section 304), la précision serait un pléonasme qui laisse croire à un
  *  sous-ensemble. */
 function candidatsSalaries(p: Profession): string {
-  return missionTypesPour(p.enumBase).length === 0 ? `les ${p.pluriel}` : `les ${p.pluriel} ouverts au salariat`;
+  return salarieSeulement(p) ? `les ${p.pluriel}` : `les ${p.pluriel} ouverts au salariat`;
 }
 /** « Remplacement, assistanat, collaboration libérale ». */
 function listeTypes(p: Profession): string {
@@ -135,6 +143,27 @@ function listeTypes(p: Profession): string {
     ? "Remplacement, assistanat, collaboration libérale"
     : "Remplacement, collaboration libérale";
 }
+/** « Remplacement, assistanat, collaboration » — forme courte des titres. */
+function typesCourts(p: Profession): string {
+  return proposeAssistanat(p) ? "Remplacement, assistanat, collaboration" : "Remplacement, collaboration";
+}
+/** « remplacements ponctuels, assistanats et collaborations libérales ». */
+function typesPluriels(p: Profession): string {
+  return proposeAssistanat(p)
+    ? "remplacements ponctuels, assistanats et collaborations libérales"
+    : "remplacements ponctuels et collaborations libérales";
+}
+/** « remplacement, assistanat ou collaboration libérale ». */
+function typesOu(p: Profession): string {
+  return proposeAssistanat(p) ? "remplacement, assistanat ou collaboration libérale" : "remplacement ou collaboration libérale";
+}
+/** Profession salariée seulement (section 304) : aucun type de poste libéral. */
+function salarieSeulement(p: Profession): boolean {
+  return missionTypesPour(p.enumBase).length === 0;
+}
+const majuscule = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+/** « EHPAD, SSIAD, cliniques, hôpitaux et SSR » — la dernière virgule devient « et ». */
+const etListe = (x: string) => x.replace(/, ([^,]+)$/, " et $1");
 /** « remplaçant, assistant, collaborateur ». */
 function listePersonnes(p: Profession): string {
   return proposeAssistanat(p) ? "remplaçant, assistant, collaborateur" : "remplaçant, collaborateur";
@@ -168,9 +197,26 @@ export interface Territoire {
   preposition: string;
   /** Forme courte pour les titres de référencement (« Saint-Barth » plutôt que le nom complet). */
   court: string;
-  chemin: string;
-  /** Clé de regroupement des événements LANDING_VIEW — voir /admin/diffusion. */
-  cleTrace: string;
+  /** Segment d'URL, fin du motif {porte}-{profession}-{territoire} : « guadeloupe ». Déclaré, pas
+   *  dérivé du nom — même règle que le slug d'une profession (14/08). */
+  slug: string;
+  /** L'île du produit (lib/communes) dont relèvent les comptes et les annonces de cette page —
+   *  Saint-Martin et Saint-Barthélemy relèvent de la Guadeloupe. Une inscription ouverte depuis
+   *  une page de Martinique arrive avec l'île cochée (section 376). */
+  ile: Ile;
+  /** « de Guadeloupe », « de Saint-Martin » — l'article ne se compose pas (« de La Réunion »). */
+  de: string;
+  /** Ce que la page couvre : macro-zones ET communes, les annonces antérieures aux zones ne
+   *  portant que leur commune (lib/annoncesTerritoire). Dérivé du découpage de lib/communes. */
+  perimetre: { zones: ZoneGeographique[]; communes: string[] };
+  /** « l'ensemble du territoire guadeloupéen » — bas de page de la porte chercheur. */
+  ensemble: string;
+  /** « toute la Guadeloupe » — un département ; une collectivité d'une seule commune n'en a pas. */
+  toute?: string;
+  /** « sur Grande-Terre, Basse-Terre… » — les parties du territoire, quand il en a. */
+  surParties?: string;
+  /** Statut administratif, en tête du bas de page (collectivités de Saint-Martin, Saint-Barth). */
+  statut?: string;
   /** Accroche sous le titre. Elle DIFFÈRE réellement d'un territoire à l'autre (la page
    *  guadeloupéenne annonce les trois types de poste, les deux autres situent la collectivité) :
    *  ce n'est pas un gabarit à variables, c'est un texte propre à chacune.
@@ -210,6 +256,9 @@ export function titrePage(p: Profession, t: Territoire): string {
 // La porte CHERCHEUR délègue aux champs déjà portés par Territoire : ces textes SONT les
 // siens depuis l'origine, ils y vivaient sans être nommés. On les nomme sans les réécrire —
 // les trois pages géographiques, vérifiées à l'écran, ne changent pas d'un caractère.
+/** Compte présélectionné par un lien d'inscription — « CABINET » pour le membre d'une MSP. */
+export type TypeCompte = "REMPLACANT" | "CABINET" | "ETABLISSEMENT";
+
 export interface Porte {
   /** Segment d'URL, préfixe du motif {porte}-{profession}-{territoire}. */
   slug: string;
@@ -226,7 +275,18 @@ export interface Porte {
   /** Afficher ce qui est gratuit (lib/gratuite) sous l'appel — porte « emploi » (22/10). */
   mentionGratuite?: boolean;
   /** Ce que le visiteur vient chercher, sous le CTA. */
-  ctaSous: string;
+  ctaSous: (p: Profession, t: Territoire) => string;
+  /** Appel répété sous la liste, avec sa phrase d'introduction — sinon le CTA lui-même. */
+  ctaBas?: { intro: string; libelle: string };
+  /** Compte présélectionné à l'inscription : « REMPLACANT » saute le choix du profil (section
+   *  305) ; « ETABLISSEMENT » ouvre le compte établissement (22/10). */
+  typeCompte?: TypeCompte;
+  /** Bas de page — ce qui est vrai par construction (règle du 10/08), écrit une fois pour toutes
+   *  les professions et tous les territoires. */
+  basDePage: (p: Profession, t: Territoire) => { titre: string; paragraphes: string[] };
+  /** Titre et description du partage, quand ils diffèrent des métadonnées (porte chercheur). */
+  ogMetaTitre?: (p: Profession, t: Territoire) => string;
+  ogMetaDescription?: (p: Profession, t: Territoire) => string;
   /** L'appel ouvre la demande de partenariat de ce type au lieu de l'inscription (MSP, 24/10 :
    *  une MSP n'a pas de compte recruteur, son coordinateur déclare un besoin). */
   ctaPartenariat?: "MSP";
@@ -255,11 +315,28 @@ export const PORTES: Record<string, Porte> = {
     accroche: (p, t) => t.accroche(p),
     metaTitre: (p, t) => t.metaTitre(p),
     metaDescription: (p, t) => t.metaDescription(p),
+    ogMetaTitre: (p, t) => t.ogTitre(p),
+    ogMetaDescription: (p, t) => t.ogDescription(p),
     cta: "S'inscrire →",
-    ctaSous: "Remplaçants : accès à vie, sans aucun frais.",
+    // Promesse volontairement NON CHIFFRÉE (10/08) : un chercheur de poste n'est jamais facturé
+    // (triggerBillingIfNeeded ne s'applique qu'aux TITULAIRE) ; rien n'est affirmé des cabinets.
+    titreAppel: "Rejoignez Soignect gratuitement",
+    ctaSous: (p) => `${typesCourts(p)} : la recherche de poste est gratuite, sans frais ni engagement.`,
+    ctaBas: { intro: "Voir toutes les annonces disponibles", libelle: "Créer mon compte gratuitement →" },
+    typeCompte: "REMPLACANT",
+    basDePage: (p, t) => ({
+      titre: `${majuscule(p.discipline)} ${t.preposition} ${t.nom} — ce que couvre Soignect`,
+      paragraphes: [
+        ...(t.statut ? [t.statut] : []),
+        t.surParties
+          ? `Soignect référence les postes de ${p.discipline} sur ${t.ensemble} — ${typesPluriels(p)} — ${t.surParties}.`
+          : `Soignect référence les postes de ${p.discipline} sur ${t.ensemble} : ${typesPluriels(p)}.`,
+        `Les postes affichés ci-dessus sont publiés par les cabinets et les ${p.pluriel} eux-mêmes. La liste est celle du moment : les périodes déjà terminées n'y figurent pas. L'inscription est gratuite pour qui cherche un poste.`,
+      ],
+    }),
     ogTitre: (p, t) => `Postes ${p.deCourt} ${t.preposition} ${t.nom}`,
     ogSousTitre: (p, t) =>
-      `${proposeAssistanat(p) ? "Remplacements, assistanats et collaborations" : "Remplacements et collaborations"} ${t.preposition} ${t.nom}. Gratuit pour qui cherche un poste.`,
+      `${proposeAssistanat(p) ? "Remplacements, assistanats et collaborations" : "Remplacements et collaborations"} ${t.toute ? `sur ${t.toute}` : `${t.preposition} ${t.nom}`}. Gratuit pour qui cherche un poste.`,
     /** un chercheur de poste vient voir des POSTES, pas d'autres candidats. */
     montre: "EMPLOYEUR",
     offrePartenaire: false,
@@ -275,7 +352,14 @@ export const PORTES: Record<string, Porte> = {
     metaDescription: (p, t) =>
       `Cabinets de ${t.nom} : publiez votre recherche ${p.deSingulier} et recevez des candidatures. ${listeTypes(p)} — ${p.contratPreRempli}, sans commission sur les honoraires.`,
     cta: "Publier mon poste →",
-    ctaSous: "Publication gratuite pendant la bêta.",
+    ctaSous: () => "Publication gratuite pendant la bêta.",
+    basDePage: (p, t) => ({
+      titre: `Recruter ${p.unSingulier} ${t.preposition} ${t.nom}`,
+      paragraphes: [
+        `Soignect met en relation les cabinets ${t.de} et les ${p.pluriel} en recherche de poste. Vous publiez ce que vous proposez — ${typesOu(p)} — et vous voyez qui s'y intéresse. Le contrat suit ${p.modeleContrat}, pré-rempli depuis votre annonce.`,
+        "Aucune commission n'est prélevée sur les honoraires ni sur la rétrocession.",
+      ],
+    }),
     ogTitre: (p, t) => `Recruter ${p.unSingulier} ${t.preposition} ${t.nom}`,
     ogSousTitre: (p) => `${formesDuPoste(p)} : publiez votre poste, les ${p.pluriel} disponibles vous répondent.`,
     /** un cabinet qui recrute vient voir des CANDIDATS, pas les annonces d'autres cabinets. */
@@ -297,7 +381,14 @@ export const PORTES: Record<string, Porte> = {
     metaDescription: (p, t) =>
       `${p.pluriel.charAt(0).toUpperCase()}${p.pluriel.slice(1)} ${t.preposition} ${t.nom} : offres en CDI, CDD et vacations (${p.employeurs}). Inscription gratuite.`,
     cta: "Publier ma disponibilité →",
-    ctaSous: "Inscription gratuite. Les employeurs voient votre disponibilité et vous contactent.",
+    ctaSous: () => "Inscription gratuite. Les employeurs voient votre disponibilité et vous contactent.",
+    typeCompte: "REMPLACANT",
+    basDePage: (p, t) => ({
+      titre: `Trouver un poste ${p.deSingulier} ${t.preposition} ${t.nom}`,
+      paragraphes: [
+        `Soignect réunit les offres ${p.deSingulier} publiées par les ${etListe(p.employeurs)} ${t.de}. Vous publiez votre disponibilité — CDI, CDD ou vacations, vos zones, vos dates — et les employeurs vous contactent. Le contrat de travail est celui de l'employeur. L'inscription est gratuite.`,
+      ],
+    }),
     ogTitre: (p) => `Emploi ${p.court}`,
     ogSousTitre: (p) => `CDI, CDD, vacations : ${p.employeurs}. Inscription gratuite.`,
     /** un candidat vient voir les OFFRES des employeurs. */
@@ -315,8 +406,15 @@ export const PORTES: Record<string, Porte> = {
     metaDescription: (p, t) =>
       `Établissements de ${t.nom} — ${p.employeurs} : publiez vos postes ${p.deSingulier} salarié et touchez ${candidatsSalaries(p)}.`,
     cta: "Publier une offre →",
-    ctaSous: CONTRAT_RESTE_LE_VOTRE,
+    ctaSous: () => CONTRAT_RESTE_LE_VOTRE,
     mentionGratuite: true,
+    typeCompte: "ETABLISSEMENT",
+    basDePage: (p, t) => ({
+      titre: `Recruter ${p.unSingulier}${salarieSeulement(p) ? "" : " salarié"} ${t.preposition} ${t.nom}`,
+      paragraphes: [
+        `${majuscule(p.employeurs)} : Soignect référence vos offres de poste ${salarieSeulement(p) ? p.deSingulier : `salarié en ${p.discipline}`} et les présente ${salarieSeulement(p) ? `aux ${p.pluriel} inscrits` : "aux professionnels ayant déclaré être ouverts au salariat"}. ${CONTRAT_RESTE_LE_VOTRE}`,
+      ],
+    }),
     ogTitre: (p) => `Recrutement ${p.court} salarié`,
     ogSousTitre: (p) => `${p.employeurs.charAt(0).toUpperCase()}${p.employeurs.slice(1)} : vos offres en CDI, CDD ou vacation, présentées ${candidatsSalaries(p).replace(/^les /, "aux ")}.`,
     /** meme raison que la porte CABINET : un employeur vient voir qui est disponible. */
@@ -341,7 +439,8 @@ export const PORTES: Record<string, Porte> = {
     cta: "Déclarer le besoin de la MSP →",
     ctaPartenariat: "MSP",
     titreAppel: "Déclarer le besoin de votre MSP",
-    ctaSous: "Le coordinateur exprime le besoin ; la mise en relation se fait avec les membres.",
+    ctaSous: () => "Le coordinateur exprime le besoin ; la mise en relation se fait avec les membres.",
+    basDePage: (p, t) => { const b = basDePageMsp(p, t); return { titre: b.titre, paragraphes: [b.texte] }; },
     ogTitre: (p) => `Votre maison de santé a besoin d'${p.unSingulier} ?`,
     ogSousTitre: () => "Le coordinateur déclare le besoin, les professionnels disponibles se manifestent.",
     /** même camp que la porte CABINET : la page montre qui est disponible. */
@@ -368,7 +467,15 @@ export const PORTES: Record<string, Porte> = {
     cta: "Échanger sur un partenariat →",
     // La consultation reste gratuite ; la mise en avant des zones est l'offre partenaire, payante
     // (section 301). L'ancienne phrase — « gratuit pendant la bêta » — couvrait les deux.
-    ctaSous: "Consultation gratuite pendant la bêta. Mise en avant de vos zones : offre partenaire.",
+    ctaSous: () => "Consultation gratuite pendant la bêta. Mise en avant de vos zones : offre partenaire.",
+    // Rien ici qui ne soit vrai par construction (règle du 10/08) : le compteur de postes de la
+    // page est la seule donnée avancée, et elle est calculée en direct.
+    basDePage: (_p, t) => ({
+      titre: "Soignect pour les CPTS et les collectivités",
+      paragraphes: [
+        `Soignect référence les postes de kinés, d'infirmiers et d'aides-soignants publiés par les cabinets, les structures et les professionnels eux-mêmes ${t.preposition} ${t.nom}. Les structures territoriales y accèdent pour suivre l'offre sur leur périmètre et l'afficher sur leur propre site. L'inscription est gratuite pour qui cherche un poste.`,
+      ],
+    }),
     ogTitre: () => `Structurer l'offre de soins`,
     ogSousTitre: () => "CPTS et collectivités : vos zones en tension mises en avant, les postes ouverts, un module pour votre site.",
     /** la page compte les POSTES OUVERTS du territoire, ce qu'elle dit d'ailleurs en toutes lettres. */
@@ -377,14 +484,11 @@ export const PORTES: Record<string, Porte> = {
   },
 };
 
-/** URL d'une page de diffusion — motif unique {porte}-{profession}-{territoire}. */
+/** URL d'une page de diffusion — motif unique {porte}-{profession}-{territoire}. Les chemins
+ *  historiques (/remplacement-kine-guadeloupe, -saint-martin, -saint-barth) le suivaient déjà :
+ *  ils sont indexés et partagés, et restent identiques. */
 export function cheminPage(porte: Porte, p: Profession, t: Territoire): string {
-  // La porte CHERCHEUR garde le chemin historique déclaré sur le territoire : il est indexé,
-  // partagé, et cité dans les traces depuis des semaines. Le reconstruire le casserait.
-  // Ce chemin historique est celui des KINÉS : une autre profession suit le motif commun.
-  return porte.slug === "remplacement" && p.enumBase === ProfessionDb.KINESITHERAPEUTE
-    ? t.chemin
-    : `/${porte.slug}-${p.slug}-${slugTerritoire(t)}`;
+  return `/${porte.slug}-${p.slug}-${t.slug}`;
 }
 
 /** Clé de trace — identique au chemin sans la barre initiale (convention de traceLanding). */
@@ -392,32 +496,74 @@ export function cleTracePage(porte: Porte, p: Profession, t: Territoire): string
   return cheminPage(porte, p, t).slice(1);
 }
 
-function slugTerritoire(t: Territoire): string {
-  return t.chemin.replace(/^\/remplacement-[^-]+-/, "");
+/** Périmètre d'un territoire : ses macro-zones et les communes qui en relèvent (lib/communes,
+ *  source unique du découpage). */
+function perimetreDesZones(zones: ZoneGeo[]): Territoire["perimetre"] {
+  const toutes = [...COMMUNES_PAR_TERRITOIRE.GUADELOUPE, ...COMMUNES_PAR_TERRITOIRE.MARTINIQUE];
+  return {
+    zones: zones as ZoneGeographique[],
+    communes: toutes.filter((c) => { const z = zoneOfCommune(c); return z !== null && zones.includes(z); }),
+  };
+}
+
+// ── UN DÉPARTEMENT = UNE ENTRÉE (section 377) ──────────────────────────────────────────────
+//
+// Les textes de la Guadeloupe étaient écrits pour elle seule ; la Martinique les reprend mot pour
+// mot, île changée. Ils sont donc écrits UNE fois, comme fonctions de ce qui varie réellement d'un
+// département à l'autre : son nom, sa préposition, « de Guadeloupe » / « de La Réunion », ce que
+// couvre « toute la … », et ses parties. Ouvrir un autre département (Guyane, La Réunion,
+// Mayotte…) = déclarer ses communes et ses zones dans lib/communes, puis une entrée ici. Les
+// pages, le plan du site et /admin/diffusion suivent sans autre modification.
+//
+// MÊME RÈGLE QUE LES BAS DE PAGE (10/08) : rien que du vrai par construction — le nom des lieux,
+// les types de poste, ce que fait Soignect. Aucune caractérisation de marché.
+function departement(o: {
+  nom: string; slug: string; ile: Ile; preposition?: string;
+  de: string; toute: string; parties: string; surParties: string; ensemble: string; zones: ZoneGeo[];
+}): Territoire {
+  const prep = o.preposition ?? "en";
+  return {
+    nom: o.nom, preposition: prep, court: o.nom, slug: o.slug, ile: o.ile, de: o.de,
+    perimetre: perimetreDesZones(o.zones), ensemble: o.ensemble, surParties: o.surParties, toute: o.toute,
+    accroche: (p) =>
+      `Soignect est le job board des ${p.pluriel} ${o.de}. ${proposeAssistanat(p) ? "Une mission de quelques semaines, un assistanat sur la durée ou une collaboration libérale" : "Une mission de quelques semaines ou une collaboration libérale"} : cabinets et candidats se trouvent en quelques swipes, sans intermédiaire. Gratuit pour qui cherche un poste.`,
+    metaTitre: (p) => `${typesCourts(p)} ${p.court} ${prep} ${o.nom} | Soignect`,
+    metaDescription: (p) =>
+      `Postes de ${p.discipline} ${prep} ${o.nom} : ${typesPluriels(p)}. Annonces de cabinets et ${p.pluriel} disponibles sur ${o.toute} (${o.parties}).`,
+    ogTitre: (p) => `Postes ${p.deCourt} ${prep} ${o.nom} | Soignect`,
+    ogDescription: (p) =>
+      `Le job board des ${p.pluriel} ${o.de} : ${typesCourts(p).toLowerCase()}. Trouvez un cabinet ou un candidat en quelques swipes.`,
+  };
 }
 
 export const TERRITOIRES: Record<string, Territoire> = {
-  GUADELOUPE: {
-    nom: "Guadeloupe",
-    preposition: "en",
-    court: "Guadeloupe",
-    chemin: "/remplacement-kine-guadeloupe",
-    cleTrace: "remplacement-kine-guadeloupe",
-    accroche: (p) =>
-      `Soignect est le job board des ${p.pluriel} de Guadeloupe. ${proposeAssistanat(p) ? "Une mission de quelques semaines, un assistanat sur la durée ou une collaboration libérale" : "Une mission de quelques semaines ou une collaboration libérale"} : cabinets et candidats se trouvent en quelques swipes, sans intermédiaire. Gratuit pour qui cherche un poste.`,
-    metaTitre: (p) => `${proposeAssistanat(p) ? "Remplacement, assistanat, collaboration" : "Remplacement, collaboration"} ${p.court} en Guadeloupe | Soignect`,
-    metaDescription: (p) =>
-      `Postes de ${p.discipline} en Guadeloupe : ${proposeAssistanat(p) ? "remplacements ponctuels, assistanats et collaborations libérales" : "remplacements ponctuels et collaborations libérales"}. Annonces de cabinets et ${p.pluriel} disponibles sur toute la Guadeloupe (Grande-Terre, Basse-Terre, Marie-Galante, Les Saintes, La Désirade).`,
-    ogTitre: (p) => `Postes ${p.deCourt} en Guadeloupe | Soignect`,
-    ogDescription: (p) =>
-      `Le job board des ${p.pluriel} de Guadeloupe : ${proposeAssistanat(p) ? "remplacement, assistanat, collaboration" : "remplacement, collaboration"}. Trouvez un cabinet ou un candidat en quelques swipes.`,
-  },
+  GUADELOUPE: departement({
+    nom: "Guadeloupe", slug: "guadeloupe", ile: "GUADELOUPE", de: "de Guadeloupe", toute: "toute la Guadeloupe",
+    parties: "Grande-Terre, Basse-Terre, Marie-Galante, Les Saintes, La Désirade",
+    surParties: "sur Grande-Terre, Basse-Terre, Marie-Galante, les Saintes et la Désirade",
+    ensemble: "l'ensemble du territoire guadeloupéen",
+    // Saint-Martin et Saint-Barthélemy en sont volontairement absentes : elles ont leurs propres pages.
+    zones: ["CENTRE_CAP_EXCELLENCE", "SUD_GRANDE_TERRE", "NORD_GRANDE_TERRE", "SUD_BASSE_TERRE",
+            "NORD_BASSE_TERRE", "MARIE_GALANTE", "LES_SAINTES", "LA_DESIRADE"],
+  }),
+  // Martinique (section 377) : ses trois intercommunalités, nommées par leur partie de l'île.
+  MARTINIQUE: departement({
+    nom: "Martinique", slug: "martinique", ile: "MARTINIQUE", de: "de Martinique", toute: "toute la Martinique",
+    parties: "Centre, Nord, Sud",
+    surParties: "dans le Centre, le Nord et le Sud de l'île",
+    ensemble: "l'ensemble du territoire martiniquais",
+    zones: ZONES_MARTINIQUE,
+  }),
   SAINT_MARTIN: {
     nom: "Saint-Martin",
     preposition: "à",
     court: "Saint-Martin",
-    chemin: "/remplacement-kine-saint-martin",
-    cleTrace: "remplacement-kine-saint-martin",
+    slug: "saint-martin",
+    ile: "GUADELOUPE",
+    de: "de Saint-Martin",
+    perimetre: perimetreDesZones(["SAINT_MARTIN"]),
+    ensemble: "toute la collectivité de Saint-Martin",
+    statut: "Saint-Martin est une collectivité d'outre-mer française, distincte de la Guadeloupe.",
     accroche: (p) =>
       `Soignect connecte les ${p.pluriel} de Saint-Martin — collectivité d'outre-mer française, distincte de la Guadeloupe. Cabinets et remplaçants s'y trouvent sans intermédiaire. Gratuit pour qui cherche un poste.`,
     metaTitre: (p) => `Remplacement ${p.court} Saint-Martin — Annonces & disponibilités | Soignect`,
@@ -430,8 +576,12 @@ export const TERRITOIRES: Record<string, Territoire> = {
     nom: "Saint-Barthélemy",
     preposition: "à",
     court: "Saint-Barth",
-    chemin: "/remplacement-kine-saint-barth",
-    cleTrace: "remplacement-kine-saint-barth",
+    slug: "saint-barth",
+    ile: "GUADELOUPE",
+    de: "de Saint-Barthélemy",
+    perimetre: perimetreDesZones(["SAINT_BARTHELEMY"]),
+    ensemble: "toute l'île de Saint-Barthélemy",
+    statut: "Saint-Barthélemy est une collectivité d'outre-mer française, distincte de la Guadeloupe et de Saint-Martin.",
     accroche: (p) =>
       `Soignect connecte les ${p.pluriel} de Saint-Barthélemy — collectivité d'outre-mer française, distincte de la Guadeloupe et de Saint-Martin. Cabinets et remplaçants s'y trouvent sans intermédiaire. Gratuit pour qui cherche un poste.`,
     metaTitre: (p) => `Remplacement ${p.court} Saint-Barthélemy — Annonces & disponibilités | Soignect`,
@@ -454,22 +604,53 @@ export interface PagePubliee {
   territoire: Territoire;
 }
 
+/** Le jeu de pages d'un DÉPARTEMENT ouvert (section 377) — le même partout : la Martinique reçoit
+ *  exactement ce que la Guadeloupe avait. */
+function pagesDuDepartement(territoire: Territoire): PagePubliee[] {
+  return [
+    // Kinés : les cinq portes.
+    ...[PORTES.CHERCHEUR, PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.MAISON_DE_SANTE, PORTES.TERRITOIRE].map((porte) => ({
+      porte, profession: KINESITHERAPEUTE, territoire,
+    })),
+    // Infirmiers : pas de porte TERRITOIRE — sa page compte les postes ouverts par zone, et une
+    // CPTS se voit proposer la page commune, pas une page par métier.
+    ...[PORTES.CHERCHEUR, PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.MAISON_DE_SANTE].map((porte) => ({
+      porte, profession: INFIRMIER, territoire,
+    })),
+    // Aides-soignants : chercheur de poste salarié et établissement (sections 304, 305).
+    ...[PORTES.CANDIDAT_SALARIE, PORTES.ETABLISSEMENT].map((porte) => ({
+      porte, profession: AIDE_SOIGNANT, territoire,
+    })),
+  ];
+}
+
 export const PAGES_PUBLIEES: PagePubliee[] = [
-  // Les pages historiques des kinés, sur les trois territoires.
-  ...Object.values(TERRITOIRES).map((territoire) => ({ porte: PORTES.CHERCHEUR, profession: KINESITHERAPEUTE, territoire })),
-  ...[PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.MAISON_DE_SANTE, PORTES.TERRITOIRE].map((porte) => ({
-    porte, profession: KINESITHERAPEUTE, territoire: TERRITOIRES.GUADELOUPE,
-  })),
-  // Infirmiers : Guadeloupe seule, et pas de porte TERRITOIRE — sa page compte les postes
-  // ouverts par zone, et une CPTS se voit proposer la page commune, pas une page par métier.
-  ...[PORTES.CHERCHEUR, PORTES.CABINET, PORTES.ETABLISSEMENT, PORTES.MAISON_DE_SANTE].map((porte) => ({
-    porte, profession: INFIRMIER, territoire: TERRITOIRES.GUADELOUPE,
-  })),
-  // Aides-soignants : chercheur de poste salarié et établissement (sections 304, 305).
-  ...[PORTES.CANDIDAT_SALARIE, PORTES.ETABLISSEMENT].map((porte) => ({
-    porte, profession: AIDE_SOIGNANT, territoire: TERRITOIRES.GUADELOUPE,
-  })),
+  ...pagesDuDepartement(TERRITOIRES.GUADELOUPE),
+  ...pagesDuDepartement(TERRITOIRES.MARTINIQUE),
+  // Les collectivités de Saint-Martin et Saint-Barthélemy : la page historique des kinés seule.
+  { porte: PORTES.CHERCHEUR, profession: KINESITHERAPEUTE, territoire: TERRITOIRES.SAINT_MARTIN },
+  { porte: PORTES.CHERCHEUR, profession: KINESITHERAPEUTE, territoire: TERRITOIRES.SAINT_BARTH },
 ];
+
+/** La page publiée à ce chemin (« emploi-kine-martinique »), ou null — la route unique des pages
+ *  de diffusion ne sert QUE ce que le registre déclare. */
+export function pagePublieeDuSlug(slug: string): PagePubliee | null {
+  return PAGES_PUBLIEES.find((x) => cleTracePage(x.porte, x.profession, x.territoire) === slug) ?? null;
+}
+
+/** Lien d'inscription d'une page : profession, compte présélectionné, île (si ce n'est pas la
+ *  Guadeloupe, île par défaut) et provenance (section 86). */
+export function lienInscription(
+  porte: Porte, p: Profession, t: Territoire,
+  o: { src?: string; typeCompte?: TypeCompte | null } = {},
+): string {
+  const src = o.src ?? cleTracePage(porte, p, t);
+  const compte = o.typeCompte === undefined ? porte.typeCompte : o.typeCompte;
+  const type = compte === "REMPLACANT" ? "&profileType=REMPLACANT"
+    : compte === "CABINET" ? "&profileType=TITULAIRE"
+    : compte === "ETABLISSEMENT" ? "&profileType=TITULAIRE&structure=1" : "";
+  return `/register?profession=${p.enumBase}${type}${t.ile !== "GUADELOUPE" ? `&territoire=${t.ile}` : ""}&src=${src}`;
+}
 
 /** Métadonnées d'une page composée par PagePorte — titre, description, canonique, Open Graph. */
 export function metadonneesPage(porte: Porte, p: Profession, t: Territoire) {
@@ -478,7 +659,12 @@ export function metadonneesPage(porte: Porte, p: Profession, t: Territoire) {
     alternates: { canonical: chemin },
     title: porte.metaTitre(p, t),
     description: porte.metaDescription(p, t),
-    openGraph: { url: chemin, title: porte.metaTitre(p, t), description: porte.metaDescription(p, t), type: "website" as const },
+    openGraph: {
+      url: chemin,
+      title: (porte.ogMetaTitre ?? porte.metaTitre)(p, t),
+      description: (porte.ogMetaDescription ?? porte.metaDescription)(p, t),
+      type: "website" as const,
+    },
   };
 }
 

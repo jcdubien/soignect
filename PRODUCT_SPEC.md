@@ -7408,6 +7408,63 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 377 — TEXTES SANS ÎLE, ESPACE TERRITOIRE PAR ÎLE, PAGES PUBLIQUES FACTORISÉES (29/10)
+
+Demande de JC (29/10) : « texte générique : missions ponctuelles sur votre territoire, espace
+territoire à différencier, produis les pages publiques en les factorisant et en les rendant
+adaptables, y compris aux autres départements ».
+
+**1. Choix du profil à l'inscription** — « Je cherche des missions ponctuelles sur mon
+territoire » (phrase à la première personne, comme les autres cartes). L'île se choisit à l'étape
+suivante.
+
+**2. Espace territoire par île** (`/territoire`, `lib/statsTerritoire`)
+- Un partenaire lit **l'île de son compte** et elle seule : annonces publiées (`Mission.territoire`),
+  priorités en vigueur (code INSEE parmi les communes de l'île), mises en relation confirmées dont
+  l'une des parties est de l'île. Le paramètre `?ile=` n'a aucun effet pour lui.
+- La liste des communes à signaler est celle de son île ; l'API refuse (400) une commune de
+  l'autre île. L'administrateur bascule entre les deux îles et peut signaler partout.
+- Les zones s'affichent par leur libellé (« Centre (CACEM) ») — elles l'étaient par leur clé
+  technique (`CENTRE_CAP_EXCELLENCE`).
+
+**3. Pages publiques : une route, un registre**
+- Les 13 dossiers `src/app/*-guadeloupe`, `remplacement-kine-saint-*` sont remplacés par **une
+  route** `src/app/[pagePublique]` (page + image de partage). Elle ne sert que ce que déclare
+  `PAGES_PUBLIEES` (`lib/pagesDiffusion`) ; tout autre chemin répond 404. Les 13 chemins
+  historiques sont inchangés (test).
+- Chaque territoire porte son **périmètre** (zones + communes, dérivé de `lib/communes` ; celui
+  de la Guadeloupe est identique à la liste que les pages recopiaient — test), son `slug`, son
+  `ile` (préréglage de l'inscription) et ses formes (« de Guadeloupe », « toute la Guadeloupe »,
+  ses parties). `PERIMETRE_GUADELOUPE` disparaît.
+- **Un département = une entrée** `departement({...})` : la Guadeloupe et la Martinique en sont
+  deux, avec exactement les mêmes textes, île changée (ceux de la Guadeloupe sont inchangés au
+  caractère près — test). Ouvrir un autre département = ses communes et zones dans `lib/communes`,
+  une entrée ici ; pages, plan du site et `/admin/diffusion` suivent. Aucun n'est déclaré
+  au-delà de la Martinique.
+- Les **bas de page** sont écrits une fois par porte, en fonction de (profession, territoire) ;
+  la porte déclare aussi son appel, son compte présélectionné (`typeCompte`) et ses titres de
+  partage. `PagePorte` sert désormais aussi les trois pages historiques des kinés ; la page CPTS
+  devient le composant `PageTerritoire`.
+- **Martinique : 11 pages**, le même jeu que la Guadeloupe (kinés : 5 portes ; infirmiers : 4 ;
+  aides-soignants : 2), liens d'inscription avec `&territoire=MARTINIQUE`. Aucun texte de ces
+  pages ne nomme la Guadeloupe ni ses lieux (test). Pied de l'image de partage : « … en
+  Martinique ».
+- Chaque page liste la même page sur les autres territoires (« Aussi sur Soignect : … »).
+
+**Ce qui change à l'écran pour les pages existantes** (relevé avant/après sur essai_p59) :
+- kinés Guadeloupe (remplacement) : lien « Se connecter » et lien Martinique ajoutés, rien d'autre ;
+- Saint-Martin, Saint-Barth et remplacement infirmier : même mise en page que la page
+  guadeloupéenne (carte d'annonce disant le type de poste, inscription en compte remplaçant,
+  bas de page « ce que couvre Soignect ») ; Saint-Martin et Saint-Barth ne montrent plus que
+  des offres de kinés (elles montraient toutes les annonces, toutes professions et tous camps) ;
+- emploi infirmier : la liste d'employeurs vient de la profession (« SSIAD, HAD » au lieu de
+  « centres de santé ») ; recrutement infirmier : même bas de page que celui des kinés ;
+- images de partage : nouvelle adresse (`…/opengraph-image/partage`), produites une fois puis
+  servies en cache (vérifié : MISS puis HIT, `immutable`).
+
+**Non traité** : l'image de partage de la page d'accueil et sa description disent toujours « en
+Guadeloupe » — à décider avec JC.
+
 ### SECTION 376 — OUVERTURE DE LA MARTINIQUE (28/10, en cours)
 
 Décisions de JC (28/10) : **chacun son île** — chacun voit d'abord les annonces de son
