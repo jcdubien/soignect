@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Profession } from "@prisma/client";
-import { COMMUNES_GUADELOUPE, inseeOfCommune } from "@/lib/communes";
+import { COMMUNES_PAR_TERRITOIRE, inseeOfCommune } from "@/lib/communes";
 import { libelleProfession } from "@/lib/pagesDiffusion";
 import PrioritesClient from "./PrioritesClient";
 import { exigerAdmin } from "@/lib/exigerAdmin";
@@ -31,7 +31,8 @@ export default async function AdminPrioritesPage() {
   // Seules les communes que le PONT connaît sont proposées. Une commune absente produirait une
   // déclaration sans effet — l'API la refuse déjà, mais mieux vaut ne pas la proposer que
   // laisser un administrateur la choisir puis se faire jeter.
-  const communes = COMMUNES_GUADELOUPE.filter((c) => inseeOfCommune(c) !== null);
+  // Les deux îles depuis la section 379.
+  const communes = [...COMMUNES_PAR_TERRITOIRE.GUADELOUPE, ...COMMUNES_PAR_TERRITOIRE.MARTINIQUE].filter((c) => inseeOfCommune(c) !== null);
 
   // DÉRIVÉE DE L'ENUM, PLUS RECOPIÉE (19/08, audit de généricité). La liste était écrite à la
   // main dans le composant : une 6ᵉ profession ajoutée à `Profession` n'y serait jamais apparue,

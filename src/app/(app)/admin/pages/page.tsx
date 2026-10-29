@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { COMMUNES_BY_ZONE, ZONE_LABELS, inseeOfCommune } from "@/lib/communes";
+import { TERRITOIRES, communesParZoneDe } from "@/lib/communes";
 import { relationActive } from "@/lib/pageClient";
 import { LIBELLE_PALIER, PALIER_DU_TYPE, limitesDuClient } from "@/lib/tarifsPartenaire";
 import { appBaseUrl } from "@/lib/appUrl";
@@ -29,12 +29,8 @@ export default async function AdminPagesPage() {
     return [c.id, m.verrouillee ? { verrouillee: true as const, ouvertureLe: m.ouvertureLe.toISOString() } : m] as const;
   })));
   const base = appBaseUrl();
-  const zones = COMMUNES_BY_ZONE.map((z) => ({
-    zone: ZONE_LABELS[z.zone],
-    communes: z.communes
-      .map((c) => ({ libelle: c, code: inseeOfCommune(c) }))
-      .filter((c): c is { libelle: string; code: string } => !!c.code),
-  })).filter((z) => z.communes.length > 0);
+  // Les deux îles (section 379) : le périmètre d'une page suit la structure, pas la Guadeloupe.
+  const zones = TERRITOIRES.flatMap((t) => communesParZoneDe(t));
 
   return (
     <PagesClient

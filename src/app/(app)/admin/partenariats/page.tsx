@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { COMMUNES_BY_ZONE, ZONE_LABELS, inseeOfCommune, libellesDuCode } from "@/lib/communes";
+import { TERRITOIRES, LIBELLE_TERRITOIRE, communesParZoneDe, libellesDuCode } from "@/lib/communes";
 import { PROFESSION_LABELS } from "@/lib/professions";
 import { libelleTypePartenaire, nomClientPropose } from "@/lib/partenariat";
 import { limitesDuClient } from "@/lib/tarifsPartenaire";
@@ -17,19 +17,15 @@ export default async function AdminPartenariatsPage() {
     where: { id: { in: demandes.map((d) => d.clientId).filter((x): x is string => !!x) } },
     select: { id: true, nom: true },
   });
-  const zones = COMMUNES_BY_ZONE.map((z) => ({
-    zone: ZONE_LABELS[z.zone],
-    communes: z.communes
-      .map((c) => ({ libelle: c, code: inseeOfCommune(c) }))
-      .filter((c): c is { libelle: string; code: string } => !!c.code),
-  })).filter((z) => z.communes.length > 0);
+  // Les communes proposées à la conversion sont celles de l'île de la demande (section 379).
+  const zonesParIle = Object.fromEntries(TERRITOIRES.map((t) => [t, communesParZoneDe(t)]));
 
   return (
     <PartenariatsClient
-      zones={zones}
+      zonesParIle={zonesParIle}
       demandes={demandes.map((d) => ({
         id: d.id, statut: d.statut, type: d.type, typeLibelle: libelleTypePartenaire(d.type),
-        structure: d.structure, nomPropose: nomClientPropose(d),
+        structure: d.structure, nomPropose: nomClientPropose(d), territoire: d.territoire, ile: LIBELLE_TERRITOIRE[d.territoire],
         contactNom: d.contactNom, fonction: d.fonction, email: d.email, telephone: d.telephone,
         communes: d.communes, communesLibelles: d.communes.map((c) => libellesDuCode(c)[0] ?? c),
         professions: d.professions.map((p) => PROFESSION_LABELS[p]),

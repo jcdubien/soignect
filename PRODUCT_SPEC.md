@@ -7408,6 +7408,51 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 379 — ESPACE STRUCTURE : CPTS, MSP, COLLECTIVITÉS, ÉTABLISSEMENTS (29/10, étape 4)
+
+Demande de JC (29/10) : une CPTS, une MSP s'inscrivent comme utilisateurs, sans swipes, avec accès
+à leur page de diffusion et aux outils qui leur sont vendus ; un établissement garde ses swipes et
+reçoit les mêmes outils. Décision : **accès après validation par l'administrateur**.
+
+**Migration additive** `20261029120000_territoire_structures` (appliquée en production le 29/10
+avant le code) : `ClientInstitutionnel.territoire` et `DemandePartenariat.territoire`, défaut
+GUADELOUPE (2 clients existants, tous deux Guadeloupe ; aucune demande).
+
+**Parcours**
+- Inscription : nouvelle carte « CPTS, MSP, collectivité » → `/partenaire?compte=1` (île cochée
+  reprise). Le formulaire de partenariat demande l'île (communes de cette île) et propose
+  « Créer l'espace de ma structure » (mot de passe + CGU). Compte et demande sont créés dans la
+  même transaction ; un email déjà inscrit est refusé (409, « connectez-vous »). Le compte n'a
+  **aucun profil soignant** et n'ouvre **aucun outil** : connexion immédiate, arrivée sur
+  `/structure` — « En cours d'examen ».
+- Validation = la conversion existante (`/admin/partenariats`) : client à l'île de la demande
+  (communes de cette île seulement), page en démonstration, et le compte rattaché comme éditeur
+  par son email (`rattacherEditeur` le trouvait déjà) — pas de lien d'activation à transmettre.
+- `/structure` (hors du segment des swipes) : pour chaque structure active, « Gérer votre page »
+  (`/gestion` : besoins, priorités, mesure), sa page publique, les pages de diffusion de son île
+  (territoire, maisons de santé, établissements), et le **suivi du territoire** (mêmes agrégats
+  que l'Espace territoire, signalement d'une commune de son île). Relation échue : « à
+  renouveler », outils fermés. Sans structure : la demande et son statut, ou un lien pour en faire
+  une avec l'email du compte.
+- Un compte sans profil qui est éditeur ou auteur d'une demande est conduit à `/structure` (plus
+  à `/register`). Un établissement (ou tout éditeur avec profil) a le lien « Espace structure »
+  dans l'en-tête ; son fil est inchangé.
+- `/api/territoire/demandes` : ouvert à l'éditeur d'une structure active, borné à son île.
+- Les liens de partenariat des pages de diffusion de Martinique cochent la Martinique ; les
+  sélecteurs de communes de `/admin/pages` et `/admin/priorites` couvrent les deux îles.
+
+**Ce qui reste à l'administration** : palier payant, accord de publication du nom, priorités
+réelles, sortie de démonstration — décisions de `/admin/pages`, inchangées. La vente reste fermée.
+
+**Essai essai_p61** (comptes .invalid, schéma supprimé) : demande + compte (201, commune de
+Guadeloupe écartée d'une demande de Martinique) ; doublon 409 ; sans CGU 400 ; `/annonces` sans
+profil → `/structure` « En cours d'examen » ; signalement avant validation 403 ; conversion avec
+une commune de Guadeloupe 400, puis 200 sans lien d'activation ; client MARTINIQUE, éditeur = le
+compte ; `/structure` montre la structure, ses liens, les pages de Martinique seules et le suivi ;
+signalement Fort-de-France 201, Le Gosier 400 ; `/gestion` reconnaît l'éditeur nommé ;
+établissement : lien dans l'en-tête, demande à faire ; candidat : pas de lien ; parcours complet
+du formulaire dans le navigateur jusqu'à l'espace.
+
 ### SECTION 378 — UN SEUL CHERCHEUR DE POSTE, UN FIL QUI MONTRE TOUT (29/10, étapes 1 à 3)
 
 Demande de JC (29/10) : fusionner à l'inscription les chercheurs de poste ; un candidat voit tous

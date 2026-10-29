@@ -28,13 +28,18 @@ import { EST_UNE_OFFRE } from "@/lib/feedFilters";
 import { libelleRoleSalariat, libelleTypePoste } from "@/lib/libellesPoste";
 import { souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
 import { LIBELLE_TERRITOIRE, territoireDe } from "@/lib/communes";
+import { compteDeLEspaceStructure } from "@/lib/espaceStructure";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect(await cibleConnexion());
-  if (!session.user.profileId) redirect("/register");
+  // Un compte sans profil soignant n'est pas forcément un inscrit inachevé : une CPTS, une MSP
+  // ou une collectivité n'en a pas (section 379). Elle va à son espace structure.
+  if (!session.user.profileId) {
+    redirect(await compteDeLEspaceStructure(session.user.id, session.user.email) ? "/structure" : "/register");
+  }
 
   const isAdmin = (session.user as { role: string }).role === "ADMIN";
   // Un partenaire territorial n'est PAS un admin : il n'a ni le bouton Admin, ni ses écrans.
@@ -45,7 +50,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const profileId = session.user.profileId as string;
 
   // Fetch contextual info for header (section 21)
-  const profile = await prisma.profile.findUnique({
+  const [profile, editeurDe] = await Promise.all([prisma.profile.findUnique({
     where: { id: profileId },
     select: {
       name: true,
@@ -75,7 +80,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         },
       },
     },
-  });
+  }), prisma.editeurClient.count({ where: { userId: session.user.id, retireLe: null } })]);
+  const versEspaceStructure = profile?.titulaireKind === "STRUCTURE" || editeurDe > 0;
 
   // Bandeau bascule payant (section 100) — cabinet déclenché, sans plan payant
   const isPaid = profile?.subscriptionPlan === "PREMIUM" || profile?.subscriptionPlan === "BOOST";
@@ -233,6 +239,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               className="hidden sm:inline-flex items-center gap-1 text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition shadow-sm"
             >
               Admin
+            </Link>
+          )}
+          {/* Espace structure (section 379) : un établissement y trouve les outils de sa structure
+              partenaire, un éditeur de structure les siens — en plus de son fil. */}
+          {versEspaceStructure && (
+            <Link
+              href="/structure"
+              className="hidden sm:inline-flex items-center gap-1 text-xs px-3 py-1.5 bg-[#0B3D5C] text-white rounded-lg font-semibold hover:opacity-90 transition shadow-sm"
+            >
+              Espace structure
             </Link>
           )}
           {estPartenaire && (

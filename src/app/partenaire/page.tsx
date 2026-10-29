@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import type { TypeInstitution } from "@prisma/client";
-import { COMMUNES_BY_ZONE, ZONE_LABELS, inseeOfCommune } from "@/lib/communes";
+import { TERRITOIRES, LIBELLE_TERRITOIRE, communesParZoneDe, territoireDe, type Territoire } from "@/lib/communes";
 import { PROFESSION_LABELS } from "@/lib/professions";
 import { PROFESSIONS_PARTENAIRE, TYPES_PARTENAIRE, TYPES_PARTENAIRE_ACCEPTES } from "@/lib/partenariat";
 import FormulairePartenariat from "./FormulairePartenariat";
@@ -16,15 +16,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default async function PartenairePage({ searchParams }: { searchParams: Promise<{ type?: string; src?: string }> }) {
+export default async function PartenairePage({ searchParams }: { searchParams: Promise<{ type?: string; src?: string; territoire?: string; compte?: string }> }) {
   const sp = await searchParams;
   const type = (TYPES_PARTENAIRE_ACCEPTES as string[]).includes(sp.type ?? "") ? (sp.type as TypeInstitution) : "";
-  const zones = COMMUNES_BY_ZONE.map((z) => ({
-    zone: ZONE_LABELS[z.zone],
-    communes: z.communes
-      .map((c) => ({ libelle: c, code: inseeOfCommune(c) }))
-      .filter((c): c is { libelle: string; code: string } => !!c.code),
-  })).filter((z) => z.communes.length > 0);
+  // Communes par zone, pour chaque île (section 379) — lib/communes, source unique du découpage.
+  const zonesParIle = Object.fromEntries(TERRITOIRES.map((t) => [t, communesParZoneDe(t)])) as Record<Territoire, ReturnType<typeof communesParZoneDe>>;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -40,7 +36,12 @@ export default async function PartenairePage({ searchParams }: { searchParams: P
           source={sp.src?.slice(0, 80) ?? ""}
           types={TYPES_PARTENAIRE.map((t) => ({ ...t }))}
           professions={PROFESSIONS_PARTENAIRE.map((p) => ({ valeur: p, libelle: PROFESSION_LABELS[p] }))}
-          zones={zones}
+          zonesParIle={zonesParIle}
+          iles={TERRITOIRES.map((t) => ({ valeur: t, libelle: LIBELLE_TERRITOIRE[t] }))}
+          ileInitiale={territoireDe(sp.territoire)}
+          // Espace structure (section 379) : proposé d'office depuis l'inscription (?compte=1),
+          // facultatif depuis une page de diffusion.
+          compteInitial={sp.compte === "1"}
         />
         <p className="text-sm text-gray-500 mt-8">
           Vous êtes un professionnel de santé ou un établissement qui veut publier une offre ?{" "}

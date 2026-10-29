@@ -342,6 +342,21 @@ function RegisterForm() {
                   <span className="ml-auto text-gray-300 group-hover:text-[#0B3D5C] text-xl">→</span>
                 </button>
 
+                {/* CPTS, MSP, COLLECTIVITÉ (section 379) : pas de profil soignant ni de swipes — un
+                    espace structure, ouvert à la validation par l'équipe Soignect. L'île cochée
+                    plus bas voyage jusqu'au formulaire. */}
+                <a
+                  href={`/partenaire?compte=1&territoire=${territoire}${src ? `&src=${encodeURIComponent(src)}` : ""}`}
+                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-amber-400 hover:bg-amber-50 text-left transition group"
+                >
+                  <span className="text-3xl">🏛️</span>
+                  <div>
+                    <p className="font-bold text-gray-800 text-base">CPTS, MSP, collectivité</p>
+                    <p className="text-sm text-gray-400">Besoins de votre territoire, votre page, le suivi de l&apos;offre de soins</p>
+                  </div>
+                  <span className="ml-auto text-gray-300 group-hover:text-amber-500 text-xl">→</span>
+                </a>
+
                 {/* UN SEUL CHERCHEUR DE POSTE (29/10, décision de JC — section 378). Les cartes
                     « Remplaçant·e » et « Assistant·e / Collaborateur·rice » séparaient deux
                     comptes dont le fil est le même : chacun voit toutes les offres. Ce qu'il

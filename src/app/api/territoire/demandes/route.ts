@@ -5,6 +5,7 @@ import { Profession } from "@prisma/client";
 import { z } from "zod";
 import { peutRemonterDemande, estAdmin } from "@/lib/roles";
 import { territoireDeCommune } from "@/lib/communes";
+import { ileDeStructureActive } from "@/lib/espaceStructure";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   const role = (session?.user as { role?: string })?.role;
-  if (!session?.user || !peutRemonterDemande(role)) {
+  // Éditeur d'une structure validée et active (espace structure, section 379) : même geste que le
+  // partenaire territorial, borné à l'île de sa structure.
+  const ileStructure = session?.user?.id && !peutRemonterDemande(role) ? await ileDeStructureActive(session.user.id) : null;
+  if (!session?.user || (!peutRemonterDemande(role) && !ileStructure)) {
     return NextResponse.json({ error: "Interdit" }, { status: 403 });
   }
 
@@ -52,7 +56,7 @@ export async function POST(req: NextRequest) {
 
   // Un partenaire signale une commune de SON île (section 377) — l'administrateur, des deux.
   const ile = territoireDeCommune(parsed.data.commune);
-  if (!ile || (!estAdmin(role) && ile !== session.user.territoire)) {
+  if (!ile || (!estAdmin(role) && ile !== (ileStructure ?? session.user.territoire))) {
     return NextResponse.json({ error: "Commune hors de votre territoire" }, { status: 400 });
   }
 

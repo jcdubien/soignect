@@ -155,7 +155,7 @@ export default async function PageTerritoire({ profession: PRO, territoire: TERR
         <Link
           // Une CPTS n'a pas de compte soignant à créer : le bouton ouvre la demande de
           // partenariat (22/10, lib/partenariat), avec la provenance de la page.
-          href={lienPartenariat("CPTS", cleTracePage(PORTE, PRO, TERR))}
+          href={lienPartenariat("CPTS", cleTracePage(PORTE, PRO, TERR), TERR.ile)}
           className="flex-shrink-0 px-5 py-3 bg-white text-kine-700 rounded-xl font-bold text-sm hover:bg-kine-50 transition"
         >
           {PORTE.cta}
@@ -163,7 +163,7 @@ export default async function PageTerritoire({ profession: PRO, territoire: TERR
       </div>
 
       <div className="mb-8 -mt-2">
-        <BlocPartenaire profession={PRO} inscription={lienPartenariat("CPTS", `partenaire-${PORTE.slug}-${PRO.slug}`)} porteSlug={PORTE.slug} />
+        <BlocPartenaire profession={PRO} inscription={lienPartenariat("CPTS", `partenaire-${PORTE.slug}-${PRO.slug}`, TERR.ile)} porteSlug={PORTE.slug} />
       </div>
 
       {/* Une MSP (besoin et mise en relation, 24/10) ou un établissement (employeur) ont leur

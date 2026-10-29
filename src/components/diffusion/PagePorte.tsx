@@ -61,7 +61,7 @@ export default async function PagePorte({
   // Porte MSP (24/10) : l'appel ouvre la demande de partenariat — une MSP n'a pas de compte
   // recruteur. Les membres, eux, publient depuis leur compte cabinet (lien dédié plus bas).
   const inscription = porte.ctaPartenariat
-    ? lienPartenariat(porte.ctaPartenariat, cleTracePage(porte, profession, territoire))
+    ? lienPartenariat(porte.ctaPartenariat, cleTracePage(porte, profession, territoire), territoire.ile)
     : lienInscription(porte, profession, territoire);
   const inscriptionMembre = porte.ctaPartenariat
     ? lienInscription(porte, profession, territoire, { typeCompte: "CABINET", src: `membre-${cleTracePage(porte, profession, territoire)}` })
@@ -241,7 +241,7 @@ export default async function PagePorte({
         // Sur la porte « maison de santé », il ouvre la demande de partenariat (lib/partenariat) :
         // l'offre partenaire d'une MSP se convient avec l'administrateur, pas à l'inscription.
         <BlocPartenaire profession={profession} facultative={gratuite !== null} inscription={porte.slug === "maison-de-sante"
-          ? lienPartenariat("MSP", `partenaire-${porte.slug}-${profession.slug}`)
+          ? lienPartenariat("MSP", `partenaire-${porte.slug}-${profession.slug}`, territoire.ile)
           : lienInscription(porte, profession, territoire, { typeCompte: porte.slug === "emploi" ? "ETABLISSEMENT" : null, src: `partenaire-${porte.slug}-${profession.slug}` })} porteSlug={porte.slug} />
       )}
 

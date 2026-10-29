@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { PalierOffre } from "@prisma/client";
-import { inseeOfCommune, COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { inseeOfCommune, COMMUNES_PAR_TERRITOIRE } from "@/lib/communes";
 import { nouveauJeton, rattacherEditeur, synchroniserPrioritesApl } from "@/lib/pageClient";
 import { LIBELLE_PALIER, limitesDuClient } from "@/lib/tarifsPartenaire";
 
@@ -13,7 +13,8 @@ export const dynamic = "force-dynamic";
 // Pages clients côté administrateur (20/10) : ouvrir la page d'un client, régler son périmètre
 // (borné par l'offre), régénérer un jeton, recalculer les priorités depuis l'APL.
 
-const CODES_CONNUS = new Set(COMMUNES_GUADELOUPE.map(inseeOfCommune).filter((c): c is string => !!c));
+// Les deux îles (section 379) — comme les sélecteurs de /admin/pages.
+const CODES_CONNUS = new Set([...COMMUNES_PAR_TERRITOIRE.GUADELOUPE, ...COMMUNES_PAR_TERRITOIRE.MARTINIQUE].map(inseeOfCommune).filter((c): c is string => !!c));
 
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("perimetre"), clientId: z.string(), communes: z.array(z.string()).min(1) }),

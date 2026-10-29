@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { NatureRelationInstitutionnelle } from "@prisma/client";
-import { inseeOfCommune, COMMUNES_GUADELOUPE } from "@/lib/communes";
+import { inseeOfCommune, COMMUNES_PAR_TERRITOIRE } from "@/lib/communes";
 import { nouveauJeton, rattacherEditeur } from "@/lib/pageClient";
 import { LIBELLE_PALIER, limitesDuClient } from "@/lib/tarifsPartenaire";
 import { REVUE_CONVERSION_MOIS } from "@/lib/partenariat";
@@ -17,7 +17,6 @@ export const dynamic = "force-dynamic";
 // DEMO : nom non publié), éditeur nommé (le contact de la demande). Ni palier payant, ni
 // priorité réelle, ni accord OUI : ce sont des décisions qui restent dans /admin/pages.
 
-const CODES_CONNUS = new Set(COMMUNES_GUADELOUPE.map(inseeOfCommune).filter((c): c is string => !!c));
 
 const schema = z.discriminatedUnion("action", [
   z.object({
@@ -46,7 +45,9 @@ export async function POST(req: NextRequest) {
   }
 
   const communes = Array.from(new Set(d.communes));
-  if (communes.some((c) => !CODES_CONNUS.has(c))) return NextResponse.json({ error: "Commune inconnue." }, { status: 400 });
+  // Les communes de l'île de la demande (section 379) : une CPTS de Martinique ne couvre pas la Guadeloupe.
+  const connus = new Set(COMMUNES_PAR_TERRITOIRE[demande.territoire].map(inseeOfCommune).filter((c): c is string => !!c));
+  if (communes.some((c) => !connus.has(c))) return NextResponse.json({ error: "Commune inconnue sur cette île." }, { status: 400 });
   const { palier, communesMax: max } = limitesDuClient({ type: demande.type });
   if (max !== null && communes.length > max) {
     return NextResponse.json({ error: `L'offre ${palier ? LIBELLE_PALIER[palier] : demande.type} couvre ${max} commune${max > 1 ? "s" : ""} au plus.` }, { status: 400 });
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
   const client = await prisma.$transaction(async (tx) => {
     const c = await tx.clientInstitutionnel.create({
       data: {
-        nom: d.nom, type: demande.type, nature: d.nature, debutLe: debut, revueLe: revue,
+        nom: d.nom, type: demande.type, nature: d.nature, debutLe: debut, revueLe: revue, territoire: demande.territoire,
         note: `Demande de partenariat du ${demande.createdAt.toISOString().slice(0, 10)}.`,
         page: {
           create: {

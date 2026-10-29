@@ -2,18 +2,29 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import { LIMITES_PARTENARIAT as L } from "@/lib/partenariat";
 
 type Zone = { zone: string; communes: { libelle: string; code: string }[] };
 
-export default function FormulairePartenariat({ typeInitial, source, types, professions, zones }: {
+export default function FormulairePartenariat({ typeInitial, source, types, professions, zonesParIle, iles, ileInitiale, compteInitial }: {
   typeInitial: string;
   source: string;
   types: { type: string; libelle: string }[];
   professions: { valeur: string; libelle: string }[];
-  zones: Zone[];
+  zonesParIle: Record<string, Zone[]>;
+  iles: { valeur: string; libelle: string }[];
+  ileInitiale: string;
+  compteInitial: boolean;
 }) {
   const [type, setType] = useState(typeInitial);
+  const [ile, setIle] = useState(ileInitiale);
+  const zones = zonesParIle[ile] ?? [];
+  // Espace structure (section 379) : le compte se crée avec la demande ; ses outils s'ouvrent
+  // quand l'équipe Soignect a validé la structure.
+  const [avecCompte, setAvecCompte] = useState(compteInitial);
+  const [motDePasse, setMotDePasse] = useState("");
+  const [cgu, setCgu] = useState(false);
   const [structure, setStructure] = useState("");
   const [contactNom, setContactNom] = useState("");
   const [fonction, setFonction] = useState("");
@@ -44,9 +55,17 @@ export default function FormulairePartenariat({ typeInitial, source, types, prof
           type, structure, contactNom, fonction: fonction || undefined, email,
           telephone: telephone || undefined, communes, professions: pros,
           message: message || undefined, src: source || undefined, consentement, site: site || undefined,
+          territoire: ile,
+          ...(avecCompte ? { motDePasse, acceptedTerms: cgu } : {}),
         }),
       });
       const j = await r.json().catch(() => ({}));
+      if (r.ok && j.compte) {
+        // Connexion immédiate, puis l'espace structure — qui dit où en est la validation.
+        await signIn("credentials", { email: email.toLowerCase().trim(), password: motDePasse, redirect: false });
+        window.location.href = "/structure";
+        return;
+      }
       if (r.ok) setRecu(j.message ?? "Demande reçue.");
       else setErreur(typeof j.error === "string" ? j.error : "Envoi impossible. Réessayez dans un instant.");
     } catch {
@@ -77,6 +96,17 @@ export default function FormulairePartenariat({ typeInitial, source, types, prof
           {types.map((t) => <option key={t.type} value={t.type}>{t.libelle}</option>)}
         </select>
       </div>
+      <fieldset>
+        <legend className={etiquette}>Votre île *</legend>
+        <div className="flex gap-2">
+          {iles.map((i) => (
+            <label key={i.valeur} className={`px-3 py-1.5 rounded-full border text-sm cursor-pointer ${ile === i.valeur ? "border-kine-500 bg-kine-50 text-kine-800" : "border-gray-200 text-gray-600"}`}>
+              <input type="radio" name="p-ile" className="sr-only" checked={ile === i.valeur} onChange={() => { setIle(i.valeur); setCommunes([]); }} />
+              {i.libelle}
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <div>
         <label className={etiquette} htmlFor="p-structure">Nom de la structure *</label>
         <input id="p-structure" value={structure} onChange={(e) => setStructure(e.target.value)} maxLength={L.structure} required minLength={2} className={champ} />
@@ -151,10 +181,37 @@ export default function FormulairePartenariat({ typeInitial, source, types, prof
         </span>
       </label>
 
+      {/* Espace structure (section 379) — facultatif : la demande seule reste possible. */}
+      <div className="rounded-xl border border-kine-100 bg-kine-50/50 p-3 space-y-3">
+        <label className="flex items-start gap-2.5 cursor-pointer">
+          <input type="checkbox" checked={avecCompte} onChange={(e) => setAvecCompte(e.target.checked)} className="mt-0.5" />
+          <span className="text-sm text-gray-700 leading-snug">
+            Créer l&apos;espace de ma structure
+            <span className="block text-xs text-gray-500">
+              Votre page, vos besoins et le suivi de votre territoire, ouverts dès que l&apos;équipe Soignect a validé votre structure.
+            </span>
+          </span>
+        </label>
+        {avecCompte && (
+          <>
+            <div>
+              <label className={etiquette} htmlFor="p-mdp">Mot de passe *</label>
+              <input id="p-mdp" type="password" autoComplete="new-password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} minLength={6} required className={champ} />
+            </div>
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input type="checkbox" checked={cgu} onChange={(e) => setCgu(e.target.checked)} required className="mt-0.5" />
+              <span className="text-xs text-gray-500 leading-snug">
+                J&apos;accepte les <Link href="/cgu" className="underline">conditions d&apos;utilisation</Link>. *
+              </span>
+            </label>
+          </>
+        )}
+      </div>
+
       {erreur && <p role="alert" className="text-red-600 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{erreur}</p>}
 
       <button type="submit" disabled={envoi} className="w-full py-3 bg-kine-600 text-white rounded-xl font-bold text-sm hover:bg-kine-700 transition disabled:opacity-50">
-        {envoi ? "Envoi…" : "Envoyer la demande →"}
+        {envoi ? "Envoi…" : avecCompte ? "Créer l'espace et envoyer la demande →" : "Envoyer la demande →"}
       </button>
     </form>
   );

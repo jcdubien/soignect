@@ -430,3 +430,16 @@ export function territoiresVus(p: { territoire?: string | null; voirAutreTerrito
   const sien = territoireDe(p.territoire);
   return p.voirAutreTerritoire ? [sien, ...TERRITOIRES.filter((t) => t !== sien)] : [sien];
 }
+
+/** Communes d'une île groupées par zone, avec leur code INSEE — sélecteurs de communes des
+ *  formulaires de partenariat et de leur conversion (section 379). Une commune sans code est
+ *  écartée : une demande qui la porterait serait inapplicable. */
+export function communesParZoneDe(t: Territoire): { zone: string; communes: { libelle: string; code: string }[] }[] {
+  return ZONES_PAR_TERRITOIRE[t].map((zone) => ({
+    zone: ZONE_LABELS[zone],
+    communes: COMMUNES_PAR_TERRITOIRE[t]
+      .filter((c) => zoneOfCommune(c) === zone)
+      .map((c) => ({ libelle: c, code: inseeOfCommune(c) }))
+      .filter((c): c is { libelle: string; code: string } => !!c.code),
+  })).filter((z) => z.communes.length > 0);
+}

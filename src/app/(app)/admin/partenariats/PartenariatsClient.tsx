@@ -11,6 +11,7 @@ type Demande = {
   telephone: string | null; communes: string[]; communesLibelles: string[]; professions: string[];
   message: string | null; source: string | null; createdAt: string; communesMax: number | null;
   client: string | null;
+  territoire: string; ile: string;
 };
 
 const NATURES = [
@@ -19,7 +20,7 @@ const NATURES = [
   { valeur: "CLIENT_PAYANT", libelle: "Client payant" },
 ];
 
-export default function PartenariatsClient({ demandes, zones }: { demandes: Demande[]; zones: Zone[] }) {
+export default function PartenariatsClient({ demandes, zonesParIle }: { demandes: Demande[]; zonesParIle: Record<string, Zone[]> }) {
   const nouvelles = demandes.filter((d) => d.statut === "NOUVELLE");
   const traitees = demandes.filter((d) => d.statut !== "NOUVELLE");
   return (
@@ -35,7 +36,7 @@ export default function PartenariatsClient({ demandes, zones }: { demandes: Dema
       <section className="space-y-4">
         <h2 className="text-sm font-bold text-gray-700">À traiter ({nouvelles.length})</h2>
         {nouvelles.length === 0 && <p className="text-sm text-gray-400">Aucune demande en attente.</p>}
-        {nouvelles.map((d) => <CarteDemande key={d.id} d={d} zones={zones} />)}
+        {nouvelles.map((d) => <CarteDemande key={d.id} d={d} zones={zonesParIle[d.territoire] ?? []} />)}
       </section>
       {traitees.length > 0 && (
         <section className="space-y-2">
@@ -90,7 +91,7 @@ function CarteDemande({ d, zones }: { d: Demande; zones: Zone[] }) {
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-bold text-gray-900">{d.typeLibelle} · {d.structure}</p>
+        <p className="font-bold text-gray-900">{d.typeLibelle} · {d.structure} · {d.ile}</p>
         <p className="text-xs text-gray-400">{new Date(d.createdAt).toLocaleString("fr-FR")}{d.source ? ` · depuis ${d.source}` : ""}</p>
       </div>
       <p className="text-sm text-gray-700">
