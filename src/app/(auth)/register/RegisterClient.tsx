@@ -342,35 +342,28 @@ function RegisterForm() {
                   <span className="ml-auto text-gray-300 group-hover:text-[#0B3D5C] text-xl">→</span>
                 </button>
 
+                {/* UN SEUL CHERCHEUR DE POSTE (29/10, décision de JC — section 378). Les cartes
+                    « Remplaçant·e » et « Assistant·e / Collaborateur·rice » séparaient deux
+                    comptes dont le fil est le même : chacun voit toutes les offres. Ce qu'il
+                    cherche — remplacement, assistanat, collaboration, poste salarié — se dit dans
+                    sa disponibilité, qui le permettait déjà (section 191). Le compte est
+                    enregistré REMPLACANT ; les comptes ASSISTANT existants restent tels quels, et
+                    un lien ?profileType=ASSISTANT est toujours accepté. */}
                 <button
                   onClick={() => { setProfileType("REMPLACANT"); setStructure(false); setStep(2); }}
                   className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-kine-400 hover:bg-kine-50 text-left transition group"
                 >
                   <span className="text-3xl">🩺</span>
                   <div>
-                    <p className="font-bold text-gray-800 text-base">{salarieSeul ? "Candidat·e" : "Remplaçant·e"}</p>
+                    <p className="font-bold text-gray-800 text-base">Je cherche un poste</p>
                     <p className="text-sm text-gray-400">
                       {salarieSeul
-                        ? "Je cherche un poste salarié — CDI, CDD, vacations"
-                        : "Je cherche des missions ponctuelles sur mon territoire"}
+                        ? "CDI, CDD, vacations — toutes les offres de votre territoire"
+                        : "Remplacement, assistanat, collaboration ou poste salarié — toutes les offres de votre territoire"}
                     </p>
                   </div>
                   <span className="ml-auto text-gray-300 group-hover:text-kine-500 text-xl">→</span>
                 </button>
-
-                {!salarieSeul && (
-                <button
-                  onClick={() => { setProfileType("ASSISTANT"); setStructure(false); setStep(2); }}
-                  className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 hover:border-violet-400 hover:bg-violet-50 text-left transition group"
-                >
-                  <span className="text-3xl">👩‍⚕️</span>
-                  <div>
-                    <p className="font-bold text-gray-800 text-base">Assistant·e / Collaborateur·rice</p>
-                    <p className="text-sm text-gray-400">Je cherche un poste longue durée (assistanat, collaboration)</p>
-                  </div>
-                  <span className="ml-auto text-gray-300 group-hover:text-violet-500 text-xl">→</span>
-                </button>
-                )}
               </div>
 
               <DejaUnCompte returnTo={returnTo} className="mt-8" />

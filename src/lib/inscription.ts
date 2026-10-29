@@ -13,7 +13,9 @@ export function libelleInscription(type: TypeInscription, structure: boolean, pr
   const recrute = profession ? ` qui recrute des ${professionPluriel(profession)}` : "";
   if (type === "TITULAIRE") return (structure ? "établissement" : "cabinet") + recrute;
   if (type === "ASSISTANT") return "assistant·e / collaborateur·rice";
-  return contratFourniParEmployeur(profession) ? "candidat·e à un poste salarié" : "remplaçant·e";
+  // Un seul chercheur de poste depuis le 29/10 (section 378) : remplacement, assistanat,
+  // collaboration ou salariat se choisissent dans la disponibilité, pas à l'inscription.
+  return contratFourniParEmployeur(profession) ? "candidat·e à un poste salarié" : "candidat·e";
 }
 
 /** Le préfixe, élidé devant voyelle : « en tant qu’ » (établissement, assistant·e) ou
