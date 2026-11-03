@@ -118,6 +118,24 @@ export async function GET() {
   const dispoParProfil = new Map<string, (typeof dispos)[number]>();
   for (const d of dispos) if (!dispoParProfil.has(d.profileId)) dispoParProfil.set(d.profileId, d);
 
+  // ── CE QUI SORT DE LA LISTE, ET POURQUOI (03/11) ──────────────────────────────────────────
+  //
+  // Signalé par JC le 03/11 : deux candidates restaient indéfiniment dans « Vous attendent »
+  // alors qu'elles étaient DÉJÀ en relation avec lui, sur leur disponibilité, via une autre de ses
+  // annonces. Le garde ci-dessus ne regarde que la paire (candidat, MON annonce retenue) ; or le
+  // geste proposé ici porte sur SA disponibilité. « Mettre en relation » retombait donc sur la
+  // relation existante, et la ligne ne partait jamais. Deux sorties manquaient :
+  //   · une relation, quel que soit son état, existe déjà sur cette disponibilité avec moi — le
+  //     geste ne peut rien créer de plus ;
+  //   · j'ai répondu « pas intéressé » à cette disponibilité (swipe à gauche) — c'est le geste
+  //     « Décliner » de la fiche, qui manquait aussi : rien ne permettait de vider la liste.
+  const declinees = new Set(
+    (await prisma.swipe.findMany({
+      where: { swiperId: profileId, direction: SwipeDirection.LEFT, swipedMissionId: { in: dispos.map((d) => d.id) } },
+      select: { swipedMissionId: true },
+    })).map((s) => s.swipedMissionId),
+  );
+
   // UN CANDIDAT, UNE LIGNE. Quelqu'un qui a retenu trois de mes annonces attend une réponse, pas
   // trois : le lister trois fois gonflerait le compteur sans rien ajouter à faire.
   const parCandidat = new Map<string, { premier: Date; annonces: string[]; score: number | null }>();
@@ -137,6 +155,7 @@ export async function GET() {
   for (const [swiperId, e] of Array.from(parCandidat.entries())) {
     const dispo = dispoParProfil.get(swiperId);
     if (!dispo) { sansPublication++; continue; }
+    if (declinees.has(dispo.id) || dejaEnRelation.has(`${swiperId}|${dispo.id}`)) continue;
     items.push({
       mission: dispo,
       affinityScore: e.score,

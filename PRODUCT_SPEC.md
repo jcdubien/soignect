@@ -7408,6 +7408,35 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 381 — « VOUS ATTENDENT » : UNE LISTE QUI SE VIDE (03/11)
+
+Signalé par JC (03/11) : sur l'écran principal, cliquer les personnes de « Vous attendent »
+n'aboutissait à rien et la liste restait ouverte indéfiniment. Réévaluation du tiroir, constatée
+sur son compte (lecture seule) :
+
+1. **Des personnes déjà en relation y restaient.** Deux candidates étaient en relation avec lui
+   (28 et 29/10), sur leur disponibilité, via une autre de ses annonces ; elles avaient aussi
+   retenu l'annonce d'assistant en MSP. Le garde ne regardait que la paire (candidat, annonce
+   retenue), alors que le geste porte sur la disponibilité du candidat : « Mettre en relation »
+   retombait sur la relation existante et la ligne ne partait jamais.
+   → `/api/interets-recus` écarte toute disponibilité déjà en relation avec moi (quel qu'en soit
+   l'état).
+2. **Aucun moyen de vider la liste.** La fiche proposait « Retirer ce choix » — geste de « Vos
+   choix » — qui effaçait un swipe inexistant. → « **Décliner** » : un « pas intéressé » sur la
+   disponibilité (aucun effet pour l'autre, rien n'est envoyé) ; la route l'écarte ensuite.
+3. **Sur ordinateur, le panneau latéral allongeait toute la page** (1 900 px mesurés) : le gabarit
+   est en `min-h-screen`, rien ne bornait la hauteur, la zone du fil s'étirait d'autant et son
+   message (« Vous avez déjà vu tous les candidats ») se centrait hors de l'écran — l'écran
+   paraissait vide. → la liste défile dans un calque qui ne compte pas dans la hauteur.
+4. Détails : la ligne quitte la liste dès le geste ; Échap ferme les fiches (`BottomSheet`) ; les
+   boutons disent ce qu'ils font pendant l'envoi ; une relation déclinée ou expirée ne s'affiche
+   plus 7 jours sous « Mise en relation » (elle reste dans /matches).
+
+**Essai essai_p63** (comptes .invalid, schéma supprimé) : un titulaire, deux annonces ; un
+candidat en relation via l'annonce A qui avait aussi retenu l'annonce MSP → absent de la liste ;
+« Décliner » et « Mettre en relation » à l'écran → la ligne part, la relation apparaît ; fiche
+fermée par Échap ; avec 20 lignes dans le panneau, message du fil centré et panneau qui défile.
+
 ### SECTION 380 — VITRINE DU TERRITOIRE (02/11, étape 5)
 
 Demande de JC (29/10, étape 5 « module de promotion d'un territoire ») précisée le 02/11 : une

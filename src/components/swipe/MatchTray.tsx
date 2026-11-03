@@ -55,10 +55,12 @@ interface MatchTrayProps {
 
 // ── Fiche complète de l'annonce ───────────────────────────────────────────────
 function MissionSheet({
-  item, onClose, onCancelled, onRemoved, titulaireMissions = [], onReassigned, myProfileType, myProfileId, isPremium, isAdmin,
+  item, onClose, onCancelled, onRemoved, onTraite, titulaireMissions = [], onReassigned, myProfileType, myProfileId, isPremium, isAdmin,
 }: {
   item: TrayItem;
   onClose: () => void;
+  /** Intérêt reçu traité (mis en relation ou décliné) : la ligne quitte « Vous attendent ». */
+  onTraite?: (missionId: string) => void;
   onCancelled: (matchId: string) => void;
   onRemoved: (missionId: string) => void;
   titulaireMissions?: TitulaireMission[];
@@ -147,6 +149,26 @@ function MissionSheet({
     }
   }
 
+  // Décliner un intérêt REÇU (03/11) : « pas intéressé » sur sa disponibilité. Le swipe à
+  // gauche n'a aucun effet pour l'autre (api/swipe) ; /api/interets-recus l'écarte ensuite.
+  async function handleDecliner() {
+    if (removing) return;
+    setRemoving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/swipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ swipedMissionId: mission.id, direction: "LEFT" }),
+      });
+      if (!res.ok) { setError("Le refus n'a pas été enregistré. Réessayez."); setRemoving(false); return; }
+      onTraite?.(mission.id);
+    } catch {
+      setError("Erreur réseau. Réessayez.");
+      setRemoving(false);
+    }
+  }
+
   // "Envoyer un contrat" visible uniquement côté recruteur (titulaire/assistant), et jamais quand
   // le contrat est celui de l'employeur (aide-soignant, section 304) : il n'y a rien à envoyer.
   // Ni pour un établissement (22/10) : il établit son contrat (contratEtabliParLEmployeur).
@@ -196,7 +218,7 @@ function MissionSheet({
         return;
       }
       onReassigned?.();  // refetch des deux tiroirs — optionnel côté appelant
-      onClose();
+      onTraite?.(item.mission.id);
     } catch {
       setError("La mise en relation a échoué.");
     } finally {
@@ -453,7 +475,7 @@ function MissionSheet({
                   disabled={enRelationEnCours}
                   className="w-full !py-2.5 !text-sm"
                 >
-                  {enRelationEnCours ? "…" : "Mettre en relation"}
+                  {enRelationEnCours ? "Mise en relation…" : "Mettre en relation"}
                 </Button>
               </>
             )}
@@ -497,17 +519,39 @@ function MissionSheet({
               </p>
             ) : null}
 
-            <Button
-              variant="text"
-              onClick={handleRemoveChoice}
-              disabled={removing}
-              className="w-full !py-2.5 !text-sm !text-red-600 hover:!bg-red-50"
-            >
-              {removing ? "Retrait…" : "Retirer ce choix"}
-            </Button>
-            <p className="text-[11px] text-gray-400 text-center leading-snug px-2">
-              L&apos;annonce redeviendra visible dans votre feed.
-            </p>
+            {/* « Retirer ce choix » est le geste de « Vos choix » : sur un intérêt REÇU il
+                effaçait un swipe qui n'existait pas, et la ligne restait (signalé le 03/11). Ici,
+                le geste inverse de « Mettre en relation » est « Décliner » : un « pas intéressé »
+                sur sa disponibilité, sans rien lui envoyer. */}
+            {item.interetRecu ? (
+              <>
+                <Button
+                  variant="text"
+                  onClick={handleDecliner}
+                  disabled={removing}
+                  className="w-full !py-2.5 !text-sm !text-gray-600 hover:!bg-gray-50"
+                >
+                  {removing ? "Enregistrement…" : "Décliner"}
+                </Button>
+                <p className="text-[11px] text-gray-400 text-center leading-snug px-2">
+                  La personne n&apos;est pas prévenue. Elle quitte cette liste et votre fil.
+                </p>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="text"
+                  onClick={handleRemoveChoice}
+                  disabled={removing}
+                  className="w-full !py-2.5 !text-sm !text-red-600 hover:!bg-red-50"
+                >
+                  {removing ? "Retrait…" : "Retirer ce choix"}
+                </Button>
+                <p className="text-[11px] text-gray-400 text-center leading-snug px-2">
+                  L&apos;annonce redeviendra visible dans votre feed.
+                </p>
+              </>
+            )}
           </div>
         )}
     </BottomSheet>
@@ -631,7 +675,10 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
     !i.matchCreatedAt || Date.now() - new Date(i.matchCreatedAt).getTime() < SEVEN_DAYS;
   const byScore = (a: TrayItem, b: TrayItem) => (b.affinityScore ?? 0) - (a.affinityScore ?? 0);
   // Vos mises en relation = réciproques confirmées (matchId). Vos choix = swipes droite en attente.
-  const matchedItems = items.filter(i => i.matchId && notExpired(i)).sort(byScore);
+  // Une relation déclinée ou expirée n'est plus « en relation » (03/11) : elle s'affichait
+  // ici sous ce libellé pendant 7 jours. Elle reste consultable dans /matches.
+  const vivante = (i: TrayItem) => i.matchStatus !== "DECLINE" && i.matchStatus !== "EXPIRE";
+  const matchedItems = items.filter(i => i.matchId && notExpired(i) && vivante(i)).sort(byScore);
   const likedItems   = items.filter(i => !i.matchId).sort(byScore);
 
   const totalUnread = unreadIds.size;
@@ -836,7 +883,12 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
       </div>
 
       {/* ── Panneau latéral droit — desktop uniquement (liste verticale) ── */}
-      <div className="hidden lg:flex lg:flex-col lg:h-full lg:w-80 lg:shrink-0 lg:border-l lg:border-gray-100 lg:bg-white lg:overflow-y-auto">
+      {/* Desktop (03/11) : la colonne garde sa largeur dans la rangée, mais sa liste défile dans un
+          calque absolu qui ne compte pas dans la hauteur. Dans le flux, elle allongeait toute la
+          page (1 900 px mesurés chez un titulaire à 20 lignes) : le gabarit est en min-h-screen,
+          rien ne bornait la hauteur, et le message du fil vide se centrait hors de l'écran. */}
+      <div className="hidden lg:block lg:relative lg:w-80 lg:shrink-0">
+      <div className="lg:absolute lg:inset-0 lg:flex lg:flex-col lg:border-l lg:border-gray-100 lg:bg-white lg:overflow-y-auto">
         {matchedItems.length > 0 && (
           <div className="p-3">
             <div className="flex items-center gap-2 mb-2">
@@ -870,6 +922,7 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
           </div>
         )}
       </div>
+      </div>
 
       {selected && (
         <MissionSheet
@@ -882,6 +935,11 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
           onReassigned={() => { fetchTray(); fetchRecus(); /* section 185 : NE PAS fermer la fiche — choisir
             la mission cible enregistre juste le choix, l'utilisateur continue (annuler, chat…). */ }}
           onClose={() => setSelected(null)}
+          onTraite={(missionId) => {
+            setRecus(prev => prev.filter(i => i.mission.id !== missionId));
+            setSelected(null);
+            fetchTray();
+          }}
           onRemoved={(missionId) => {
             // Section 98 — retrait local immédiat de "Vos choix", sans reload
             setItems(prev => prev.filter(i => i.mission.id !== missionId));

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 
 // Bottom sheet MD3 (mobile) / dialog centré (desktop) — item 17
 // Contenu libre : passez un header/scroll/footer à l'intérieur.
@@ -17,6 +17,13 @@ export default function BottomSheet({
   className?: string;
   zClass?: string;
 }) {
+  // Échap ferme (03/11) : la fiche ne se fermait qu'à la croix ou au clic sur le fond.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
   if (!open) return null;
   return (
     <div
