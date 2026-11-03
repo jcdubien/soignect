@@ -6,6 +6,7 @@ import type { PalierApl } from "@/lib/aplPalier";
 import BlocMesure, { type MesureAffichee } from "@/components/territoire/BlocMesure";
 import EncartRecommandation from "@/components/territoire/EncartRecommandation";
 import BlocBesoins, { type BesoinAffiche } from "@/components/territoire/BlocBesoins";
+import BlocVitrine, { type VitrineGestion } from "@/components/territoire/BlocVitrine";
 import type { ActionRecommandation } from "@/lib/recommandationTerritoire";
 import type { RecommandationAffichee, ResumeReglages, SourceApl } from "@/lib/recommandationTerritoireServeur";
 import { JUSTIFICATION_MAX, JUSTIFICATION_MIN, justificationRequise } from "@/lib/boostTerritorial";
@@ -59,6 +60,8 @@ export default function GestionClient(props: {
   mesure: MesureAffichee;
   recommandation: { recommandations: RecommandationAffichee[]; resume: ResumeReglages; source: SourceApl; mention: string } | null;
   besoins: { dejaValidee: boolean; liste: BesoinAffiche[] };
+  /** Vitrine du territoire (02/11) — absente hors abonnement actif. */
+  vitrine: { valeur: VitrineGestion | null } | null;
 }) {
   const router = useRouter();
   const [message, setMessage] = useState(props.initial.messageAccueil);
@@ -317,6 +320,15 @@ export default function GestionClient(props: {
         prerempli={besoinPrerempli}
         surligne={surlignee === "bloc-besoins"}
       />
+
+      {props.vitrine && (
+        <BlocVitrine
+          jeton={props.jeton}
+          peutModifier={peutModifier}
+          demo={props.demo}
+          vitrine={props.vitrine.valeur}
+        />
+      )}
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <p className="text-sm font-bold m-0">{unaCommune ? "L’APL de votre commune" : "L’APL de vos communes"}</p>

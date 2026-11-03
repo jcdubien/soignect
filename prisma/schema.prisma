@@ -900,6 +900,7 @@ model ClientInstitutionnel {
   page      PageClient?
   editeurs  EditeurClient[]
   besoins   BesoinTerritoire[]
+  vitrine   VitrineTerritoire?
 }
 
 enum OriginePriorite {
@@ -1290,4 +1291,56 @@ model DemandePartenariat {
 
   @@index([statut, createdAt])
   @@index([email, createdAt])
+}
+
+// Vitrine du territoire (02/11, étape 5 du plan du 29/10) — la structure présente son territoire
+// aux soignants : une accroche, trois rubriques, jusqu'à 4 photos légendées. Affichée sur sa page
+// publique (/p) et, dans le fil, sur les cartes de ses besoins. Règles et libellés :
+// lib/vitrineTerritoire ; gestes : lib/vitrineTerritoireServeur.
+//
+// Relecture (décision JC, 02/11) : la PREMIÈRE publication passe par l'administration, les
+// modifications suivantes paraissent directement ; l'administration peut la retirer à tout
+// moment (motif obligatoire), et la publication suivante est alors relue à nouveau (`valideLe`
+// remis à null). Une seule version : pas de brouillon parallèle d'une vitrine publiée.
+model VitrineTerritoire {
+  id                String   @id @default(cuid())
+  clientId          String   @unique
+  client            ClientInstitutionnel @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  accroche          String   @db.VarChar(200)
+  cadreDeVie        String?  @db.VarChar(1500)
+  offreSoins        String?  @db.VarChar(1500)
+  aidesInstallation String?  @db.VarChar(1500)
+  // [{ url, chemin, legende }] — 4 au plus, dans l'ordre d'affichage. Fichiers dans le bucket
+  // `avatars`, sous `vitrines/<clientId>/`.
+  photos            Json     @default("[]")
+  statut            StatutVitrine @default(BROUILLON)
+  publieLe          DateTime?
+  valideLe          DateTime?
+  motifRefus        String?  @db.VarChar(300)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+enum StatutVitrine {
+  BROUILLON
+  A_VALIDER
+  PUBLIE
+  RETIREE
+}
+
+// Journal de la vitrine, en AJOUT SEUL (déclencheur SQL), comme JournalBesoin : sans clé
+// étrangère, il survit à la vitrine et nomme son auteur.
+model JournalVitrine {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  clientId    String
+  clientNom   String   @db.VarChar(200)
+  action      String   @db.VarChar(30)
+  statutAvant String?  @db.VarChar(20)
+  statutApres String   @db.VarChar(20)
+  auteurId    String?
+  auteurNom   String   @db.VarChar(160)
+  motif       String?  @db.VarChar(300)
+
+  @@index([clientId, createdAt])
 }

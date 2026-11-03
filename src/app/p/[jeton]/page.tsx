@@ -7,6 +7,8 @@ import { libellesDuCode, prioritesDeLaPage, relationActive } from "@/lib/pageCli
 import PostesDuTerritoire from "@/components/territoire/PostesDuTerritoire";
 import { besoinsPublics } from "@/lib/besoinsPublics";
 import BlocBesoinsPublics from "@/components/territoire/BlocBesoinsPublics";
+import VitrineAffichee from "@/components/territoire/VitrineAffichee";
+import { vitrinePublique } from "@/lib/vitrineTerritoire";
 
 export const dynamic = "force-dynamic";
 
@@ -80,11 +82,13 @@ export default async function PageClientPublique({ params }: { params: Promise<{
 
   const communes = page.communes.flatMap(libellesDuCode);
   const professions = page.professions.length > 0 ? page.professions : Object.values(Profession);
-  const [priorites, apl, besoins] = await Promise.all([
+  const [priorites, apl, besoins, vitrine] = await Promise.all([
     prioritesDeLaPage(page, page.client.nom),
     prisma.communeAPL.aggregate({ where: { codeInsee: { in: page.communes } }, _max: { aplAnnee: true } }),
     // Besoins du territoire de CETTE structure (24/10) — aucun sur une page de démonstration.
     page.demo ? Promise.resolve([]) : besoinsPublics({ clientId: page.clientId, lieu: "page-structure" }),
+    // Vitrine du territoire (02/11) : publiée seulement, jamais sur une page de démonstration.
+    page.demo ? Promise.resolve(null) : prisma.vitrineTerritoire.findFirst({ where: { clientId: page.clientId, statut: "PUBLIE" } }),
   ]);
 
   // Les noms jusqu'à trois communes (« Pointe-Noire » pour une MSP), puis la zone si elles en
@@ -103,6 +107,7 @@ export default async function PageClientPublique({ params }: { params: Promise<{
       {page.contact && (
         <p className="text-xs text-gray-500 mt-2 mb-0 whitespace-pre-line">Contact : {page.contact}</p>
       )}
+      {vitrine && <VitrineAffichee vitrine={vitrinePublique(vitrine)} titre="Notre territoire" />}
       <div className="mt-5">
         <PostesDuTerritoire
           zones={[]}

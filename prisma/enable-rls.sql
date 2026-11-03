@@ -57,3 +57,7 @@ ALTER TABLE "public"."JournalReglage" ENABLE ROW LEVEL SECURITY;
 
 -- DemandePartenariat (22/10) : demandes du formulaire public /partenaire.
 ALTER TABLE "public"."DemandePartenariat" ENABLE ROW LEVEL SECURITY;
+
+-- Vitrine du territoire (02/11) et son journal en ajout seul.
+ALTER TABLE "public"."VitrineTerritoire" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."JournalVitrine" ENABLE ROW LEVEL SECURITY;

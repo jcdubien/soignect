@@ -5,6 +5,8 @@ import { NATURES_BESOIN, auteurAffiche, consentementInteret, etiquetteBesoin, ET
 import { archiverBesoinsEchus } from "@/lib/besoinTerritoireServeur";
 import { logTraceEvent } from "@/lib/trace";
 import { COMMUNES_PAR_TERRITOIRE, inseeOfCommune, territoiresVus } from "@/lib/communes";
+import { relationActive } from "@/lib/pageClient";
+import { vitrinePublique } from "@/lib/vitrineTerritoire";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,14 @@ export async function GET() {
     where: { statut: "PUBLIE", profession: moi.profession, expireLe: { gt: new Date() }, codeInsee: { in: codesVus } },
     orderBy: { publieLe: "desc" }, take: AFFICHES_MAX,
     include: {
-      client: { select: { nom: true, type: true, page: { select: { accord: true, demo: true } } } },
+      client: {
+        select: {
+          nom: true, type: true, debutLe: true, revueLe: true, clotureLe: true,
+          page: { select: { accord: true, demo: true } },
+          // Vitrine du territoire (02/11) : « Découvrir le territoire » sur la carte du besoin.
+          vitrine: { select: { statut: true, accroche: true, cadreDeVie: true, offreSoins: true, aidesInstallation: true, photos: true } },
+        },
+      },
       interets: { where: { profileId: moi.id }, select: { id: true } },
     },
   });
@@ -42,6 +51,8 @@ export async function GET() {
         texte: b.texte, proposition: b.proposition, etiquetteProposition: ETIQUETTE_PROPOSITION,
         etiquette: etiquetteBesoin(auteur), consentement: consentementInteret(auteur),
         interesse: b.interets.length > 0,
+        vitrine: b.client.vitrine?.statut === "PUBLIE" && !b.client.page?.demo && relationActive(b.client)
+          ? vitrinePublique(b.client.vitrine) : null,
       };
     }),
   });

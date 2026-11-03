@@ -7408,6 +7408,57 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 380 — VITRINE DU TERRITOIRE (02/11, étape 5)
+
+Demande de JC (29/10, étape 5 « module de promotion d'un territoire ») précisée le 02/11 : une
+**vitrine du territoire** que la structure rédige elle-même. Décisions (02/11) : **première
+publication relue** par l'administration, les modifications suivantes paraissent directement ;
+**jusqu'à 4 photos** légendées.
+
+**Migration additive** `20261102120000_vitrine_territoire` : `VitrineTerritoire` (1 par structure,
+`StatutVitrine` BROUILLON / A_VALIDER / PUBLIE / RETIREE) et `JournalVitrine` (ajout seul,
+déclencheur SQL, sans clé étrangère). RLS activée (ajoutée à `prisma/enable-rls.sql`).
+**À appliquer en production avant le déploiement du code** : `/p` et le fil lisent la table.
+
+**Contenu** (`lib/vitrineTerritoire`, source unique) : accroche (20 à 200 caractères), trois
+rubriques de 1 500 caractères au plus (cadre de vie ; offre de soins et exercice coordonné ; aides
+à l'installation), 4 photos légendées (120 caractères). Mêmes interdits que les besoins : ni
+numéro, ni email, ni lien. Publication possible dès qu'une rubrique fait au moins 80 caractères.
+
+**Cycle** (`lib/vitrineTerritoireServeur`, chaque geste journalisé dans la même transaction)
+- Édition depuis `/gestion` (bloc « Vitrine du territoire », éditeur nommé, jamais sur une page
+  de démonstration ni hors abonnement). Pendant la relecture : rien ne se modifie (409).
+- 1re publication → A_VALIDER, l'administration est notifiée (`/admin/vitrines`, critères
+  affichés, mention « structure liée à l'administrateur » comme pour les besoins). Refus motivé
+  → brouillon avec le motif.
+- Validée : les modifications et les ajouts de photos paraissent directement ; l'administration
+  est notifiée pour information. La structure peut masquer sa vitrine et la republier sans
+  relecture.
+- **Retrait** par l'administration (motif obligatoire) → RETIREE, `valideLe` remis à null : la
+  publication suivante est relue. Les éditeurs sont notifiés de chaque décision.
+
+**Photos** : bucket `avatars`, `vitrines/<clientId>/<aléa>.jpg`. Réduites dans le navigateur
+(2 000 px) puis réécrites au serveur : contenu relu (JPEG/PNG/WebP réels seulement), orientation
+appliquée, JPEG 1 600 px, métadonnées (EXIF, GPS) retirées. 4 Mo au plus par envoi. Le retrait
+efface le fichier ; le CDN de Supabase peut encore le servir un moment.
+
+**Affichage** (`VitrineAffichee`, même rendu partout) : page publique `/p` (« Notre territoire »,
+après le message d'accueil) ; dans le fil, lien « Découvrir le territoire » sur la carte d'un
+besoin de la structure (vitrine publiée, page réelle, relation active) ; aperçu dans `/gestion` ;
+écran de validation. Les chemins de stockage ne sortent jamais vers le navigateur.
+
+**Essai essai_p62** (schéma temporaire : ancien schéma + migration, diff vide avec le nouveau ;
+comptes .invalid ; schéma supprimé, photos effacées du stockage) : anonyme et soignant 403 ;
+photo avant textes 409 ; accroche courte, numéro, lien, email en légende 400 ; demande →
+A_VALIDER, modifications et photos 409 pendant la relecture ; invisible sur `/p` et dans le fil
+avant validation ; refus sans motif 400 ; éditeur sur la route admin 403 ; validation → visible
+sur `/p` et dans le fil ; modification directe visible ; masquer / republier sans relecture ;
+retrait sans motif 400, retrait → invisible, republication → A_VALIDER ; faux JPEG et GIF 400 ;
+4 photos puis 409 ; fichier servi 1 600 × 1 067 sans EXIF ; légendes modifiées ; retrait d'une
+photo efface le fichier ; `/admin/vitrines` sans fuite pour éditeur, soignant, anonyme.
+
+**À venir** : étape 6 (mise en avant payante des postes salariés, construite éteinte).
+
 ### SECTION 379 — ESPACE STRUCTURE : CPTS, MSP, COLLECTIVITÉS, ÉTABLISSEMENTS (29/10, étape 4)
 
 Demande de JC (29/10) : une CPTS, une MSP s'inscrivent comme utilisateurs, sans swipes, avec accès
@@ -7489,8 +7540,8 @@ cabinet ET le CDI de l'établissement ; établissement → voit le candidat non 
 Guadeloupe → Le Gosier seul, Martinique → Le Lamentin seul, établissement → aucun ; écran
 d'inscription à une seule carte chercheur ; cartes vérifiées à l'écran.
 
-**À venir** : étape 4 (comptes CPTS/MSP, outils des établissements), 5 (module de promotion d'un
-territoire), 6 (mise en avant payante des postes salariés, construite éteinte — vente fermée).
+**À venir** : étape 4 (comptes CPTS/MSP, outils des établissements — livrée, section 379), 5 (module de promotion d'un
+territoire — livrée, section 380), 6 (mise en avant payante des postes salariés, construite éteinte — vente fermée).
 
 ### SECTION 377 — TEXTES SANS ÎLE, ESPACE TERRITOIRE PAR ÎLE, PAGES PUBLIQUES FACTORISÉES (29/10)
 

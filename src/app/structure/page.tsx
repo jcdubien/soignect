@@ -126,7 +126,7 @@ export default async function EspaceStructurePage() {
                   <>
                     <Link href={`/gestion/${s.page.jetonEdition}`} className="rounded-xl border border-kine-200 bg-kine-50 px-4 py-3 hover:bg-kine-100 transition">
                       <p className="text-sm font-bold text-kine-800">Gérer votre page →</p>
-                      <p className="text-xs text-gray-500">Besoins du territoire, priorités, visites et intérêts reçus</p>
+                      <p className="text-xs text-gray-500">Vitrine et besoins du territoire, priorités, visites et intérêts reçus</p>
                     </Link>
                     <Link href={`/p/${s.page.jetonPublic}`} className="rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50 transition">
                       <p className="text-sm font-bold text-gray-800">Votre page publique →</p>

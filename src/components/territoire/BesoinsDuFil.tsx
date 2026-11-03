@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import VitrineAffichee from "@/components/territoire/VitrineAffichee";
+import type { VitrinePublique } from "@/lib/vitrineTerritoire";
 
 // Besoins du territoire au-dessus du fil (24/10) — pour les soignants de la profession concernée.
 // Hors du classement des annonces. « Je suis intéressé·e » demande d'abord le consentement à la
@@ -10,6 +12,8 @@ interface BesoinFil {
   id: string; commune: string; specialite: string | null; nature: string; texte: string;
   proposition: string | null; etiquetteProposition: string; etiquette: string; consentement: string;
   interesse: boolean;
+  /** Vitrine publiée de la structure (02/11), ou null. */
+  vitrine: VitrinePublique | null;
 }
 
 const MASQUE_JOURS = 30;
@@ -29,6 +33,7 @@ export default function BesoinsDuFil() {
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [etat, setEtat] = useState<Record<string, string>>({});
+  const [vitrineOuverte, setVitrineOuverte] = useState<string | null>(null);
 
   useEffect(() => {
     setCaches(masques());
@@ -70,6 +75,19 @@ export default function BesoinsDuFil() {
             <div className="mt-1">
               <p className="text-sm text-gray-700 whitespace-pre-line m-0">{b.texte}</p>
               {b.proposition && <p className="text-sm text-gray-700 mt-1 mb-0"><span className="text-xs font-semibold text-gray-500">{b.etiquetteProposition} :</span> {b.proposition}</p>}
+              {b.vitrine && (
+                <div className="mt-2">
+                  <button type="button" onClick={() => setVitrineOuverte(vitrineOuverte === b.id ? null : b.id)} aria-expanded={vitrineOuverte === b.id}
+                    className="text-xs font-semibold text-[#0B3D5C] underline">
+                    {vitrineOuverte === b.id ? "Fermer la présentation du territoire" : "Découvrir le territoire"}
+                  </button>
+                  {vitrineOuverte === b.id && (
+                    <div className="mt-2 rounded-xl border border-gray-200 bg-white p-3">
+                      <VitrineAffichee compacte vitrine={b.vitrine} />
+                    </div>
+                  )}
+                </div>
+              )}
               {confirmation === b.id ? (
                 <div className="mt-2 rounded-xl border border-gray-200 bg-white p-3">
                   <p className="text-xs text-gray-700 m-0">{b.consentement}</p>

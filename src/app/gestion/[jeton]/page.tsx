@@ -12,6 +12,7 @@ import { recommandationsDeLaPage } from "@/lib/recommandationTerritoireServeur";
 import { MENTION_RECOMMANDATION } from "@/lib/recommandationTerritoire";
 import { archiverBesoinsEchus } from "@/lib/besoinTerritoireServeur";
 import { affichagesLisibles } from "@/lib/besoinTerritoire";
+import { photosDe } from "@/lib/vitrineTerritoire";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,9 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
     ? await prisma.besoinTerritoire.findMany({ where: { clientId: page.clientId }, orderBy: [{ updatedAt: "desc" }] })
     : [];
   const dejaValidee = besoins.some((b) => b.valideLe !== null);
+  // Vitrine du territoire (02/11). `dejaValidee` : une validation est acquise (vitrine validée
+  // et jamais retirée depuis) — ses modifications paraissent directement.
+  const vitrine = active ? await prisma.vitrineTerritoire.findUnique({ where: { clientId: page.clientId } }) : null;
   // Soignants intéressés (24/10) : leur nom n'est montré qu'aux éditeurs connectés — ils ont
   // consenti à la transmission à la structure, pas à quiconque détient le lien.
   // Affichages par besoin (24/10) — lus dans les traces, montrés avec le seuil d'agrégation.
@@ -106,6 +110,13 @@ export default async function GestionPage({ params }: { params: Promise<{ jeton:
           paliers={paliers}
           vues={{ total: humaines.length, trenteJours: humaines.filter((v) => v.occurredAt.getTime() >= il30j).length }}
           recommandation={reco ? { ...reco, mention: MENTION_RECOMMANDATION } : null}
+          vitrine={active ? {
+            valeur: vitrine && {
+              accroche: vitrine.accroche, cadreDeVie: vitrine.cadreDeVie, offreSoins: vitrine.offreSoins,
+              aidesInstallation: vitrine.aidesInstallation, statut: vitrine.statut, dejaValidee: vitrine.valideLe !== null,
+              motifRefus: vitrine.motifRefus, photos: photosDe(vitrine.photos),
+            },
+          } : null}
           besoins={{
             dejaValidee,
             liste: besoins.map((b) => ({
