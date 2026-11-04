@@ -1,6 +1,7 @@
 "use client";
 
 import { LIBELLE_ZONE_PRIORITAIRE, mentionMiseEnAvant } from "@/lib/boostTerritorial";
+import { LIBELLE_MIS_EN_AVANT, mentionPosteMisEnAvant } from "@/lib/miseEnAvantPoste";
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   motion,
@@ -28,7 +29,7 @@ import type { Disponibilite } from "@/lib/disponibilitePure";
 // carte non étiquetée ne porte aucune trace du mécanisme, ce qui permet de mesurer l'écart de
 // conversion entre cartes étiquetées et non étiquetées sans les confondre avec un mécanisme
 // inactif.
-type MissionWithProfile = Mission & { profile: Profile; convergenceJours?: number; zonePrioritaire?: string };
+type MissionWithProfile = Mission & { profile: Profile; convergenceJours?: number; zonePrioritaire?: string; misEnAvant?: boolean };
 // `POSTES` n'est pas une valeur de MissionType : c'est l'union de ce qui engage dans la
 // durée, salariat compris (section 282). Le serveur en tient la définition — ici on ne fait
 // que la nommer.
@@ -413,6 +414,15 @@ function Card({
           </div>
         )}
 
+        {/* ── Mise en avant payante (étape 6, 04/11) ── posée par /api/feed seulement quand elle
+            joue ; toujours accompagnée de qui l'a payée. */}
+        {mission.misEnAvant && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-2.5 py-1.5 shrink-0">
+            <p className="text-amber-900 text-xs font-bold leading-snug m-0">⭐ {LIBELLE_MIS_EN_AVANT}</p>
+            <p className="text-amber-800 text-[10px] leading-snug m-0">{mentionPosteMisEnAvant(p.name)}</p>
+          </div>
+        )}
+
         {/* Ce que le candidat cherche, et qu'on peut lui proposer autre chose (section 378) : un
             cabinet propose son assistanat à qui cherche un remplacement, un établissement son
             poste salarié — le contrat suit l'annonce de celui qui propose. */}
@@ -611,6 +621,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
   // Nombre d'annonces du feed courant remontées par une priorité territoriale déclarée.
   // 0 = la mention d'ordre ne doit PAS parler de zones prioritaires (voir plus bas).
   const [prioriteTerritoriale, setPrioriteTerritoriale] = useState(0);
+  // Postes d'établissement mis en avant (payé) dans CE feed — même règle que ci-dessus.
+  const [misesEnAvantPayees, setMisesEnAvantPayees] = useState(0);
   // Institutions ayant déclaré les communes mises en avant dans CE feed (B2). Vide = la mention
   // ne nomme personne, ce qui reste vrai en toutes circonstances.
   const [institutionsPriorite, setInstitutionsPriorite] = useState<string[]>([]);
@@ -844,6 +856,8 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
       }
       const prioriteHdr = r.headers.get("x-feed-priorite-territoriale");
       if (prioriteHdr != null) setPrioriteTerritoriale(parseInt(prioriteHdr, 10) || 0);
+      const avantHdr = r.headers.get("x-feed-mises-en-avant");
+      if (avantHdr != null) setMisesEnAvantPayees(parseInt(avantHdr, 10) || 0);
       // B2 (20/08) — institutions à créditer dans la mention. JSON + encodeURIComponent côté
       // serveur : un en-tête HTTP est du latin-1, un nom accentué le casserait. Toute lecture
       // qui échoue retombe sur une liste vide, donc sur la formule SANS auteur — jamais sur une
@@ -1354,7 +1368,7 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
           ) : (
             <>
               Ordre d&apos;affichage : les comptes abonnés et partenaires
-              apparaissent en premier{isTitulaire ? `, ainsi que les disponibilités couvrant mai-octobre${salarieSeul ? "" : ", période où les remplaçants sont les plus rares"}` : ""}{prioriteTerritoriale > 0 ? `, ainsi que les postes situés sur une commune ${mentionPriorite}` : ""}.
+              apparaissent en premier{isTitulaire ? `, ainsi que les disponibilités couvrant mai-octobre${salarieSeul ? "" : ", période où les remplaçants sont les plus rares"}` : ""}{prioriteTerritoriale > 0 ? `, ainsi que les postes situés sur une commune ${mentionPriorite}` : ""}{misesEnAvantPayees > 0 ? ", ainsi que les postes qu'un établissement a payé pour mettre en avant (signalés sur la carte)" : ""}.
               Le score de compatibilité, lui, ne dépend d&apos;aucun abonnement.
             </>
           )}

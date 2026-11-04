@@ -61,3 +61,6 @@ ALTER TABLE "public"."DemandePartenariat" ENABLE ROW LEVEL SECURITY;
 -- Vitrine du territoire (02/11) et son journal en ajout seul.
 ALTER TABLE "public"."VitrineTerritoire" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."JournalVitrine" ENABLE ROW LEVEL SECURITY;
+
+-- Mise en avant payante des postes salariés (04/11).
+ALTER TABLE "public"."MiseEnAvantPoste" ENABLE ROW LEVEL SECURITY;

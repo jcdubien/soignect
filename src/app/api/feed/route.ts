@@ -14,6 +14,7 @@ import { professionPluriel } from "@/lib/professions";
 import { logTraceEvent } from "@/lib/trace";
 import { TOLERANCE_DATES_MAX_JOURS } from "@/lib/compatibilite";
 import { territoiresVus } from "@/lib/communes";
+import { POINTS_MISE_EN_AVANT, posteEligible, enCoursLe } from "@/lib/miseEnAvantPoste";
 
 /** Annonces lues au plus pour un classement (23/10). Au-delà, les moins bien classées par le tri
  *  SQL ne sont pas lues — largement au-dessus des volumes actuels. */
@@ -254,6 +255,25 @@ export async function GET(req: NextRequest) {
     ? await chargerPrioritesTerritoriales(missions.map((m) => m.location), myProfile.profession)
     : new Map<string, PrioriteAppliquee>();
 
+  // MISE EN AVANT PAYANTE D'UN POSTE D'ÉTABLISSEMENT (étape 6, 04/11 — lib/miseEnAvantPoste).
+  // Même sens que la priorité territoriale (devant un candidat seulement), même formule : elle
+  // entre dans le MAXIMUM des boosts, jamais dans une somme, et la densité s'applique à tous. Rien
+  // n'est lu tant que l'interrupteur d'administration est éteint.
+  const cfgFil = isCandidateViewer
+    ? await prisma.platformConfig.findFirst({ select: { miseEnAvantPosteSalarie: true } })
+    : null;
+  const misesEnAvantPayees = new Set<string>();
+  if (cfgFil?.miseEnAvantPosteSalarie) {
+    const eligibles = missions.filter((m) => posteEligible(m.profile)).map((m) => m.id);
+    if (eligibles.length > 0) {
+      const enCours = await prisma.miseEnAvantPoste.findMany({
+        where: { missionId: { in: eligibles }, ...enCoursLe(maintenant) },
+        select: { missionId: true },
+      });
+      for (const e of enCours) misesEnAvantPayees.add(e.missionId);
+    }
+  }
+
   // FORMULE ET DENSITÉ (point 4, 21/10) — lib/boostTerritorial. Le score de base (plan,
   // partenaire, saisonnier) trie comme avant ; le boost territorial (maximum des priorités, 35
   // au plus) ne fait passer une annonce devant qu'une fois par fenêtre de 3 cartes. Sans
@@ -266,7 +286,10 @@ export async function GET(req: NextRequest) {
     missions,
     (m) => m.profile.isFounding === true,
     scoreBase,
-    (m) => boostRetenu([prioritesTerritoriales.get(m.location ?? "")?.points ?? 0]),
+    (m) => boostRetenu([
+      prioritesTerritoriales.get(m.location ?? "")?.points ?? 0,
+      misesEnAvantPayees.has(m.id) ? POINTS_MISE_EN_AVANT : 0,
+    ]),
   );
   // La page : `limit` annonces à partir de `apres` dans le classement global. `restantes` dit à la
   // vue liste s'il y a une suite.
@@ -578,8 +601,26 @@ export async function GET(req: NextRequest) {
     // ÉTIQUETTE « Zone prioritaire — <institution> » (point 5) : seulement si l'institution a
     // donné son accord de publication. Champ absent sinon — pas d'étiquette anonyme.
     const prio = prioritesTerritoriales.get((m as { location?: string | null }).location ?? "");
-    return prio?.nomPublie ? { ...avecEcart, zonePrioritaire: prio.institution } : avecEcart;
+    const avecZone = prio?.nomPublie ? { ...avecEcart, zonePrioritaire: prio.institution } : avecEcart;
+    // Mention « Mis en avant » (étape 6) : toujours affichée quand la mise en avant joue — un
+    // ordre payé ne se tait pas. Champ absent sinon.
+    return misesEnAvantPayees.has((m as { id: string }).id) ? { ...avecZone, misEnAvant: true } : avecZone;
   });
+  const misesEnAvantServies = missions.filter((m) => misesEnAvantPayees.has(m.id)).length;
+  // Mesure : ce qu'on pourra dire à l'établissement qui a payé (« votre poste a été montré N fois,
+  // remonté M fois »). Une ligne seulement quand la mise en avant a joué.
+  if (misesEnAvantServies > 0) {
+    logTraceEvent({
+      eventType: "FEED_MISE_EN_AVANT_POSTE",
+      profileId: myProfile.id,
+      profession: myProfile.profession,
+      metadata: {
+        servies: missions.filter((m) => misesEnAvantPayees.has(m.id)).map((m) => m.id),
+        remontees: remonteesServies.filter((m) => misesEnAvantPayees.has(m.id)).map((m) => m.id),
+        surTotal: missions.length,
+      },
+    });
+  }
 
   return NextResponse.json(charge, {
     headers: {
@@ -619,6 +660,9 @@ export async function GET(req: NextRequest) {
       // prioritaires » que lorsque c'est vrai POUR CE LECTEUR, et se taire sinon. C'est ce qui
       // manquait avant le 17/08 — la phrase était écrite en dur et affirmait toujours.
       "x-feed-priorite-territoriale": String(misesEnAvantTerritoire.length),
+      // Postes d'établissement mis en avant (payé) servis dans CETTE page — même rôle : la
+      // phrase « Ordre d'affichage » ne le dit que lorsque c'est vrai pour ce lecteur.
+      "x-feed-mises-en-avant": String(misesEnAvantServies),
       // Annonces classées au-delà de cette page (23/10) — « Voir plus » de la vue liste.
       "x-feed-restantes": String(restantes),
       // B2 (20/08) — les institutions à créditer, pour que la mention les NOMME. Deux versions

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import ConfigToggle from "./ConfigToggle";
 import EnforceContractToggle from "./EnforceContractToggle";
+import MiseEnAvantToggle from "./MiseEnAvantToggle";
 import { exigerAdmin } from "@/lib/exigerAdmin";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ export default async function AdminConfigPage() {
   const cfg = await prisma.platformConfig.findFirst();
   const freeAccessMode = cfg?.freeAccessMode ?? true;
   const enforceContractProfile = cfg?.enforceContractProfile ?? false;
+  const miseEnAvantPosteSalarie = cfg?.miseEnAvantPosteSalarie ?? false;
   const cabinetCount = await prisma.profile.count({ where: { type: "TITULAIRE" } });
 
   return (
@@ -25,6 +27,7 @@ export default async function AdminConfigPage() {
 
       <ConfigToggle initial={freeAccessMode} />
       <EnforceContractToggle initial={enforceContractProfile} />
+      <MiseEnAvantToggle initial={miseEnAvantPosteSalarie} />
     </div>
   );
 }

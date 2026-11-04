@@ -7408,6 +7408,39 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 382 — MISE EN AVANT PAYANTE DES POSTES SALARIÉS (04/11, étape 6)
+
+Dernière étape du plan du 29/10. Décisions de JC (04/11) :
+- **Acheteur** : les établissements seuls (compte titulaire de genre STRUCTURE). Une CPTS ou une
+  MSP n'embauche pas et a déjà le boost territorial ; les praticiens sont gratuits.
+- **Effet** : la même remontée que le boost territorial — `PLAFOND_BOOST` (35), le maximum des
+  boosts et jamais la somme, au plus une carte remontée par fenêtre de 3 — et une mention sur la
+  carte : « ⭐ Mis en avant — Mise en avant payée par <établissement> ». La phrase « Ordre
+  d'affichage » du fil l'ajoute quand un tel poste est servi (`x-feed-mises-en-avant`). Devant un
+  candidat seulement.
+- **Durée** : 30 jours ; « +30 j » ajoute une période à la suite ; s'arrête plus tôt si le poste
+  n'est plus ouvert (le fil ne sert que les offres ouvertes).
+- **Activation** : par l'administrateur, dans `/admin/missions` (colonne « Mise en avant », postes
+  d'établissement seulement : « Mettre en avant 30 j », « +30 j », « Retirer »), à réception du
+  paiement — facture hors Soignect, vente en ligne fermée. **Interrupteur** `/admin/config`
+  (`PlatformConfig.miseEnAvantPosteSalarie`), **éteint par défaut** : éteint, une mise en avant
+  enregistrée n'a aucun effet. Prix à fixer (pas encore dans `tarifsPartenaire`).
+
+Code : `lib/miseEnAvantPoste` (règles), `/api/feed` (boost + champ `misEnAvant` + trace
+`FEED_MISE_EN_AVANT_POSTE`, servies et remontées par poste : ce qu'on dira à l'établissement),
+`/api/admin/missions/[id]/mise-en-avant` (POST / DELETE). Une période retirée garde sa ligne
+(`retireeLe`).
+
+**Migration additive** `20261104120000_mise_en_avant_poste` (colonne + table `MiseEnAvantPoste`,
+RLS, ajoutée à `prisma/enable-rls.sql`). **À appliquer en production avant le déploiement** : le
+fil d'un candidat lit la colonne.
+
+**Essai essai_p64** (comptes .invalid, schéma supprimé) : 6 cabinets et une clinique (dernière du
+tri) ; cabinet refusé (400), non-admin refusé (403) ; mise en avant enregistrée, interrupteur
+éteint → ordre inchangé ; allumé → la clinique passe 1re avec ⭐ et l'en-tête vaut 1 ; « +30 j »
+→ fin repoussée de 30 jours ; retrait → 2 périodes closes, ordre d'origine ; fil d'un
+établissement non touché. Vérification à l'écran non faite (disque de la machine plein).
+
 ### SECTION 381 — « VOUS ATTENDENT » : UNE LISTE QUI SE VIDE (03/11)
 
 Signalé par JC (03/11) : sur l'écran principal, cliquer les personnes de « Vous attendent »
@@ -7497,7 +7530,7 @@ retrait sans motif 400, retrait → invisible, republication → A_VALIDER ; fau
 4 photos puis 409 ; fichier servi 1 600 × 1 067 sans EXIF ; légendes modifiées ; retrait d'une
 photo efface le fichier ; `/admin/vitrines` sans fuite pour éditeur, soignant, anonyme.
 
-**À venir** : étape 6 (mise en avant payante des postes salariés, construite éteinte).
+**Étape 6** (mise en avant payante des postes salariés, construite éteinte) : livrée, section 382.
 
 ### SECTION 379 — ESPACE STRUCTURE : CPTS, MSP, COLLECTIVITÉS, ÉTABLISSEMENTS (29/10, étape 4)
 
@@ -7581,7 +7614,7 @@ Guadeloupe → Le Gosier seul, Martinique → Le Lamentin seul, établissement �
 d'inscription à une seule carte chercheur ; cartes vérifiées à l'écran.
 
 **À venir** : étape 4 (comptes CPTS/MSP, outils des établissements — livrée, section 379), 5 (module de promotion d'un
-territoire — livrée, section 380), 6 (mise en avant payante des postes salariés, construite éteinte — vente fermée).
+territoire — livrée, section 380), 6 (mise en avant payante des postes salariés, construite éteinte — livrée, section 382).
 
 ### SECTION 377 — TEXTES SANS ÎLE, ESPACE TERRITOIRE PAR ÎLE, PAGES PUBLIQUES FACTORISÉES (29/10)
 

@@ -17,6 +17,10 @@ interface Mission {
     type: string;
     user: { email: string };
   };
+  /** Poste d'établissement : peut être mis en avant (étape 6). */
+  eligibleMiseEnAvant: boolean;
+  /** Fin de la dernière période de mise en avant non retirée ; null = aucune. */
+  misEnAvantJusquAu: string | null;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -30,7 +34,7 @@ function fmtDate(d: string | null) {
   return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" });
 }
 
-export default function MissionsClient({ initialMissions }: { initialMissions: Mission[] }) {
+export default function MissionsClient({ initialMissions, miseEnAvantActive }: { initialMissions: Mission[]; miseEnAvantActive: boolean }) {
   const [missions, setMissions] = useState<Mission[]>(initialMissions);
   const [loading, setLoading] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -46,6 +50,30 @@ export default function MissionsClient({ initialMissions }: { initialMissions: M
       setMissions((prev) =>
         prev.map((x) => (x.id === m.id ? { ...x, isActive: !m.isActive } : x))
       );
+    }
+    setLoading(null);
+  }
+
+  // Mise en avant payante (étape 6) : posée à réception du paiement, facture hors Soignect.
+  async function mettreEnAvant(m: Mission, retirer: boolean) {
+    setLoading(m.id);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/admin/missions/${m.id}/mise-en-avant`, { method: retirer ? "DELETE" : "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        setMissions((prev) => prev.map((x) => (x.id === m.id ? { ...x, misEnAvantJusquAu: retirer ? null : d.jusquAu } : x)));
+        setMsg({
+          type: "ok",
+          text: retirer
+            ? `« ${m.title} » n'est plus mise en avant.`
+            : `« ${m.title} » mise en avant jusqu'au ${fmtDate(d.jusquAu)}${miseEnAvantActive ? "." : " — sans effet tant que l'interrupteur de Configuration est éteint."}`,
+        });
+      } else {
+        setMsg({ type: "err", text: d.error ?? "L'opération a échoué." });
+      }
+    } catch {
+      setMsg({ type: "err", text: "Erreur réseau — réessayez." });
     }
     setLoading(null);
   }
@@ -83,6 +111,12 @@ export default function MissionsClient({ initialMissions }: { initialMissions: M
         Annonces{" "}
         <span className="text-sm font-normal text-gray-400">({missions.length})</span>
       </h1>
+      <p className="text-xs text-gray-500">
+        Mise en avant payante des postes d&apos;établissement (30 jours) :{" "}
+        {miseEnAvantActive
+          ? <span className="text-amber-700 font-medium">active dans le fil.</span>
+          : <span>éteinte — les mises en avant enregistrées n&apos;ont aucun effet (Configuration).</span>}
+      </p>
 
       {msg && (
         <div
@@ -98,7 +132,7 @@ export default function MissionsClient({ initialMissions }: { initialMissions: M
       )}
 
       <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
-        <table className="w-full text-sm min-w-[800px]">
+        <table className="w-full text-sm min-w-[960px]">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Titre / Cabinet</th>
@@ -106,6 +140,7 @@ export default function MissionsClient({ initialMissions }: { initialMissions: M
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Type</th>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Dates</th>
               <th className="px-3 py-3 text-left text-gray-500 font-medium">Statut</th>
+              <th className="px-3 py-3 text-left text-gray-500 font-medium">Mise en avant</th>
               <th className="px-3 py-3 text-right text-gray-500 font-medium">Actions</th>
             </tr>
           </thead>
@@ -138,6 +173,35 @@ export default function MissionsClient({ initialMissions }: { initialMissions: M
                     </span>
                   )}
                 </td>
+                <td className="px-3 py-3 text-xs whitespace-nowrap">
+                  {!m.eligibleMiseEnAvant ? (
+                    <span className="text-gray-300">—</span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      {m.misEnAvantJusquAu && (
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full font-medium">
+                          ⭐ jusqu&apos;au {fmtDate(m.misEnAvantJusquAu)}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => mettreEnAvant(m, false)}
+                        disabled={loading === m.id}
+                        className="px-2 py-1 rounded-lg border border-amber-200 text-amber-800 hover:bg-amber-50 disabled:opacity-50 transition"
+                      >
+                        {m.misEnAvantJusquAu ? "+30 j" : "Mettre en avant 30 j"}
+                      </button>
+                      {m.misEnAvantJusquAu && (
+                        <button
+                          onClick={() => mettreEnAvant(m, true)}
+                          disabled={loading === m.id}
+                          className="px-2 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition"
+                        >
+                          Retirer
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </td>
                 <td className="px-3 py-3">
                   <div className="flex items-center justify-end gap-2">
                     <button
@@ -160,7 +224,7 @@ export default function MissionsClient({ initialMissions }: { initialMissions: M
             ))}
             {missions.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
                   Aucune annonce
                 </td>
               </tr>

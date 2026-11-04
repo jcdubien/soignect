@@ -21,24 +21,25 @@ export async function GET() {
   if (!isAdmin(session)) return NextResponse.json({ error: "Interdit" }, { status: 403 });
   const cfg = await getConfig();
   const cabinetCount = await prisma.profile.count({ where: { type: "TITULAIRE" } });
-  return NextResponse.json({ freeAccessMode: cfg.freeAccessMode, enforceContractProfile: cfg.enforceContractProfile, cabinetCount });
+  return NextResponse.json({ freeAccessMode: cfg.freeAccessMode, enforceContractProfile: cfg.enforceContractProfile, miseEnAvantPosteSalarie: cfg.miseEnAvantPosteSalarie, cabinetCount });
 }
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!isAdmin(session)) return NextResponse.json({ error: "Interdit" }, { status: 403 });
   const body = await req.json();
-  const data: { freeAccessMode?: boolean; enforceContractProfile?: boolean } = {};
+  const data: { freeAccessMode?: boolean; enforceContractProfile?: boolean; miseEnAvantPosteSalarie?: boolean } = {};
   if (typeof body.freeAccessMode === "boolean") data.freeAccessMode = body.freeAccessMode;
   if (typeof body.enforceContractProfile === "boolean") data.enforceContractProfile = body.enforceContractProfile;
+  if (typeof body.miseEnAvantPosteSalarie === "boolean") data.miseEnAvantPosteSalarie = body.miseEnAvantPosteSalarie;
   if (Object.keys(data).length === 0) {
-    return NextResponse.json({ error: "freeAccessMode ou enforceContractProfile (boolean) requis" }, { status: 400 });
+    return NextResponse.json({ error: "freeAccessMode, enforceContractProfile ou miseEnAvantPosteSalarie (boolean) requis" }, { status: 400 });
   }
   const cfg = await getConfig();
   const updated = await prisma.platformConfig.update({
     where: { id: cfg.id },
     data,
-    select: { freeAccessMode: true, enforceContractProfile: true },
+    select: { freeAccessMode: true, enforceContractProfile: true, miseEnAvantPosteSalarie: true },
   });
   return NextResponse.json(updated);
 }
