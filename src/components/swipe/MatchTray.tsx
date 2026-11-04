@@ -679,7 +679,9 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
   const matchedItems = items.filter(i => i.matchId && vivante(i)).sort(byScore);
   const likedItems   = items.filter(i => !i.matchId).sort(byScore);
 
-  const totalUnread = unreadIds.size;
+  // Compté sur les lignes AFFICHÉES (03/11) : une relation déclinée, absente de la colonne,
+  // gonflait le badge (« 3 » pour 2 lignes).
+  const totalUnread = matchedItems.filter(i => i.matchId && unreadIds.has(i.matchId)).length;
 
   // État vide filtré (section 7) : message clair au lieu de masquer le tray
   if (matchedItems.length === 0 && likedItems.length === 0 && recus.length === 0 && sansPublication === 0) {
