@@ -669,16 +669,14 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
   useEffect(() => { fetchTray(); }, [fetchTray, refreshKey]);
   useEffect(() => { fetchRecus(); }, [fetchRecus, refreshKey]);
 
-  // Item 11 — une mise en relation disparaît du tray après 7 jours (reste dans /matches)
-  const SEVEN_DAYS = 7 * 86400000;
-  const notExpired = (i: TrayItem) =>
-    !i.matchCreatedAt || Date.now() - new Date(i.matchCreatedAt).getTime() < SEVEN_DAYS;
+  // Durée de présence (03/11) : décidée par /api/tray — 7 jours sans activité pour une mise en
+  // relation, 30 jours pour un choix. Tout reste dans /matches.
   const byScore = (a: TrayItem, b: TrayItem) => (b.affinityScore ?? 0) - (a.affinityScore ?? 0);
   // Vos mises en relation = réciproques confirmées (matchId). Vos choix = swipes droite en attente.
   // Une relation déclinée ou expirée n'est plus « en relation » (03/11) : elle s'affichait
   // ici sous ce libellé pendant 7 jours. Elle reste consultable dans /matches.
   const vivante = (i: TrayItem) => i.matchStatus !== "DECLINE" && i.matchStatus !== "EXPIRE";
-  const matchedItems = items.filter(i => i.matchId && notExpired(i) && vivante(i)).sort(byScore);
+  const matchedItems = items.filter(i => i.matchId && vivante(i)).sort(byScore);
   const likedItems   = items.filter(i => !i.matchId).sort(byScore);
 
   const totalUnread = unreadIds.size;

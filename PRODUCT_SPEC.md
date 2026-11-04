@@ -7437,6 +7437,17 @@ candidat en relation via l'annonce A qui avait aussi retenu l'annonce MSP → ab
 « Décliner » et « Mettre en relation » à l'écran → la ligne part, la relation apparaît ; fiche
 fermée par Échap ; avec 20 lignes dans le panneau, message du fil centré et panneau qui défile.
 
+**Durée de présence dans la colonne (03/11, décision JC)** — appliquée par `/api/tray`, plus par
+l'écran ; tout reste dans /matches :
+- une **mise en relation** y reste **7 jours sans activité**, comptés depuis son dernier message
+  (ou sa création s'il n'y en a pas). Avant : 7 jours après la création, ce qui retirait une
+  conversation en cours et gardait une relation muette ;
+- un **choix** sans réciprocité y reste **30 jours**, comptés depuis le swipe ou le dernier
+  « signaler à nouveau ». Le geste reste enregistré : une réponse tardive forme la relation, qui
+  réapparaît ;
+- « Vous attendent » n'est pas borné (décision JC) : la liste se vide par « Décliner » ou
+  « Mettre en relation ».
+
 ### SECTION 380 — VITRINE DU TERRITOIRE (02/11, étape 5)
 
 Demande de JC (29/10, étape 5 « module de promotion d'un territoire ») précisée le 02/11 : une

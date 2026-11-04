@@ -10,6 +10,18 @@ import { contratConfirme } from "@/lib/matchEtat";
 
 export const dynamic = "force-dynamic";
 
+// ── DURÉE DE PRÉSENCE DANS LA COLONNE (03/11, décision JC) ───────────────────────────────────
+// La colonne de l'écran principal montre ce qui vit, /matches garde tout.
+//   · Une mise en relation y reste 7 jours SANS ACTIVITÉ : compté depuis son dernier message, ou
+//     sa création s'il n'y en a pas. L'ancienne règle (7 jours après la création, filtrée par
+//     l'écran) retirait une conversation en cours et gardait une relation muette.
+//   · Un choix sans réciprocité y reste 30 jours, comptés depuis le swipe ou le dernier signal
+//     d'intérêt (signaler à nouveau relance le compteur). Le geste reste enregistré : si l'autre
+//     répond plus tard, la mise en relation se forme et réapparaît.
+const JOUR_MS = 86_400_000;
+const RELATION_PRESENTE_JOURS = 7;
+const CHOIX_PRESENT_JOURS = 30;
+
 // GET /api/tray — swipes RIGHT triés par affinityScore desc (meilleur match en premier).
 // Filtre optionnel ?disponibiliteId= (section 7) : ne garde que les mises en relation
 // rattachées à CETTE disponibilité du remplaçant.
@@ -71,6 +83,7 @@ export async function GET(req: Request) {
       missionAId: true, missionBId: true, aiScore: true, createdAt: true, status: true,
       missionA: { select: { briqueStatus: true } },
       missionB: { select: { briqueStatus: true } },
+      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
     },
   });
 
@@ -111,12 +124,21 @@ export async function GET(req: Request) {
   const ownMissionId = (m: { profileAId: string; missionAId: string | null; missionBId: string | null }) =>
     m.profileAId === swiperId ? m.missionAId : m.missionBId;
 
-  const resultAll = swipes.map((s) => {
+  const maintenant = Date.now();
+  const resultAll = swipes.flatMap((s) => {
     const mId  = s.swipedMissionId;
     const match = matches.find((m) => m.missionAId === mId || m.missionBId === mId);
     // "Contrat confirmé" dérivé du briqueStatus des missions associées (pas de champ dédié)
     const contratConfirmed = contratConfirme(match);
-    return {
+    if (match) {
+      const activiteLe = match.messages[0]?.createdAt ?? match.createdAt;
+      if (maintenant - activiteLe.getTime() >= RELATION_PRESENTE_JOURS * JOUR_MS) return [];
+    } else {
+      const signal = dernierSignalParMission.get(mId);
+      const depuis = signal && signal > s.createdAt ? signal : s.createdAt;
+      if (maintenant - depuis.getTime() >= CHOIX_PRESENT_JOURS * JOUR_MS) return [];
+    }
+    return [{
       mission:          s.swipedMission,
       affinityScore:    s.affinityScore,
       scoreDetails:     s.scoreDetails,
@@ -131,7 +153,7 @@ export async function GET(req: Request) {
         annonceActive: idsRecevables.has(mId),
         dernierSignalLe: dernierSignalParMission.get(mId) ?? null,
       }),
-    };
+    }];
   });
 
   // Filtre disponibilité (section 7) : uniquement les mises en relation de cette dispo
