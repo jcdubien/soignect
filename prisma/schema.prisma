@@ -775,7 +775,10 @@ model CommuneAPL {
 model DemandePriorite {
   id          String        @id @default(cuid())
   demandeurId String // User.id du partenaire
-  demandeur   User          @relation("DemandesPriorite", fields: [demandeurId], references: [id])
+  // NoAction explicite (04/11) : c'est la contrainte réellement en base depuis d005d54 (aucune
+  // clause), et le défaut Prisma (Restrict / Cascade) faisait apparaître un écart à chaque diff.
+  // Même effet : un compte qui a une demande ne se supprime pas ; un User.id ne change jamais.
+  demandeur   User          @relation("DemandesPriorite", fields: [demandeurId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   commune     String        @db.VarChar(120)
   profession  Profession
   // Ce que le partenaire juge nécessaire, sur la même échelle que la déclaration réelle.
