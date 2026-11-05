@@ -132,12 +132,21 @@ export default async function MatchesPage() {
             <span className="ml-2 text-sm font-normal text-gray-400">({formatted.length})</span>
           )}
         </h1>
-        <Link
-          href="/annonces"
-          className="text-xs px-3 py-1.5 bg-kine-100 text-kine-700 rounded-lg font-medium hover:bg-kine-200 transition"
-        >
-          ← Annonces
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Un contrat signé des deux côtés quitte cette liste : « Mes contrats » le garde (04/11). */}
+          <Link
+            href="/contrats"
+            className="text-xs px-3 py-1.5 border border-kine-200 text-kine-700 rounded-lg font-medium hover:bg-kine-50 transition"
+          >
+            Mes contrats
+          </Link>
+          <Link
+            href="/annonces"
+            className="text-xs px-3 py-1.5 bg-kine-100 text-kine-700 rounded-lg font-medium hover:bg-kine-200 transition"
+          >
+            ← Annonces
+          </Link>
+        </div>
       </div>
 
       {formatted.length === 0 ? (

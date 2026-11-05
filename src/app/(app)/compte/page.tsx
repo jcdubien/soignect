@@ -144,6 +144,19 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
           </div>
         </div>
       )}
+      {/* « Mes contrats » (04/11) : signés ou en cours, avec le PDF officiel. */}
+      <div className="mx-auto w-full max-w-2xl px-4 pt-4">
+        <Link
+          href="/contrats"
+          className="flex items-center justify-between gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm hover:border-kine-200 transition"
+        >
+          <span>
+            <span className="font-semibold text-gray-800">Mes contrats</span>
+            <span className="text-gray-500"> — signés ou en cours, PDF officiel</span>
+          </span>
+          <span className="text-kine-700 font-medium shrink-0">Ouvrir →</span>
+        </Link>
+      </div>
       <CompteForm profile={profile} matchedMissions={matchedMissions} souscriptionOuverte={souscriptionEnLigneOuverte(await isFreeAccessMode())} />
     </>
   );

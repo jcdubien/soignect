@@ -7408,6 +7408,30 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 383 — « MES CONTRATS » (04/11, ROADMAP)
+
+Demande en file (ROADMAP « Espace Mes contrats », choisie par JC le 04/11). L'investigation
+préalable qu'elle exigeait : **un contrat n'est pas un fichier stocké**. C'est une mise en relation
+qui porte au moins une signature, avec ses termes figés à la première (`termesContrat`, 27/10) ;
+le PDF officiel se régénère à chaque téléchargement. Ce qui manquait, c'est l'endroit où les
+retrouver : signé des deux côtés, un contrat **sort de /matches** (section 183) et ne s'atteignait
+plus que par le Planning.
+
+**Page `/contrats`** (`lib/mesContrats`) : les relations où je suis partie ou le remplacé désigné,
+avec au moins une signature (une annulation efface les signatures : le contrat quitte la liste).
+Quatre états, dans cet ordre : **À signer** (l'autre a signé, pas moi), **En attente de l'autre
+signature** (avec son nom), **Signature en cours entre le remplacé et le remplaçant** (le titulaire
+du compte quand un assistant signe à sa place), **Signé des deux côtés**. Chaque ligne : type de
+poste, autre partie, période, commune, date de la dernière signature ; elle ouvre
+`/match/[id]/contrat` (relire, signer, télécharger le PDF officiel). Le côté de signature vient de
+`coteDeSignature` — la même règle que la route de signature. Accès : carte « Mes contrats » en tête
+de Mon compte, bouton « Mes contrats » sur /matches.
+
+**Essai essai_p65** (comptes .invalid, schéma supprimé) : 6 relations — signée, signée par un seul
+côté (×2), sans signature, avec remplacé désigné, d'un autre cabinet. Cabinet : 4 contrats (sans
+signature et autre cabinet exclus), états justes ; remplaçante : 5, dont 2 « À signer » (une avec
+l'assistant remplacé) ; assistant remplacé : 1. Page et carte vérifiées à l'écran.
+
 ### SECTION 382 — MISE EN AVANT PAYANTE DES POSTES SALARIÉS (04/11, étape 6)
 
 Dernière étape du plan du 29/10. Décisions de JC (04/11) :
