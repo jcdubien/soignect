@@ -7408,6 +7408,30 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 386 — CONSEIL DU JOUR (04/11, ROADMAP)
+
+Demande du 21/09 (ROADMAP « Splash screen avec tip aléatoire »), choisie par JC le 04/11. Les 30
+conseils rédigés alors n'ont jamais été versés au dépôt, et le « mode d'emploi » qu'ils devaient
+lier n'existe pas : **24 conseils réécrits à partir du code** (`lib/conseils`), chacun vérifié sur
+un écran existant au 04/11 — rien n'y affirme ce que le produit ne fait pas. Un conseil devenu
+faux se retire là, c'est la seule liste.
+
+- **Publics** : tous, candidat, recruteur (cabinet et établissement), cabinet seul (« Faire un
+  contrat », fermé aux établissements), établissement seul. Plusieurs portent un lien vers l'écran
+  concerné (/ecartes, /contrats, /matches, /compte, /planning, publier une disponibilité).
+- **Quand** : une fois par jour, sur l'écran principal (`/annonces`) seulement — ailleurs (une
+  signature ouverte depuis un email) il interromprait un geste. 1,2 s après l'ouverture, pour que
+  le fil apparaisse d'abord. Le jour n'est noté qu'à l'affichage.
+- **Ordre** : on avance dans la liste d'un jour à l'autre (pas de tirage au sort : pas de
+  répétition avant d'avoir tout vu). « Conseil suivant », « Compris », Échap, clic à côté ;
+  « Ne plus afficher » coupe définitivement.
+- **Mémoire** : par navigateur et par profil (`localStorage`), simple confort ; sans stockage
+  disponible, rien ne s'affiche.
+
+**Essai essai_p68** (comptes .invalid, schéma supprimé) : candidat → premier conseil, « Conseil
+suivant », « Compris », rechargement → plus rien le même jour ; cabinet → conseils des recruteurs
+et « Faire un contrat » ; « Ne plus afficher » → plus rien ; affichage vérifié à 375 px.
+
 ### SECTION 385 — JOURNAL DES EMAILS ENVOYÉS (04/11, ROADMAP)
 
 Demande en file (ROADMAP n° 0, « Stocker l'id Resend à l'envoi »), choisie par JC le 04/11.

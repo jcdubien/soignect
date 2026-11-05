@@ -24,6 +24,7 @@ import { fmtDay } from "@/lib/dates";
 import ActiveAnnoncesMenu from "./ActiveAnnoncesMenu";
 import ActiveAnnoncesMobile from "./ActiveAnnoncesMobile";
 import NotificationBell from "@/components/ui/NotificationBell";
+import ConseilDuJour from "@/components/ui/ConseilDuJour";
 import { EST_UNE_OFFRE } from "@/lib/feedFilters";
 import { libelleRoleSalariat, libelleTypePoste } from "@/lib/libellesPoste";
 import { souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
@@ -356,6 +357,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* ── Contenu ── */}
       <main className="flex-1 flex flex-col pb-16 sm:pb-0">{children}</main>
+      {/* Conseil du jour (04/11) — une fois par jour, sur l'écran principal seulement. */}
+      <ConseilDuJour profileId={profileId} type={profileType} titulaireKind={profile?.titulaireKind} />
 
       {/* ── Bottom nav mobile ── (section 149 : items en flex-1 pour tenir dans le viewport
           quel que soit leur nombre — 5 ou 6 avec Admin. `justify-around` + padding fixe
