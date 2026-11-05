@@ -64,3 +64,6 @@ ALTER TABLE "public"."JournalVitrine" ENABLE ROW LEVEL SECURITY;
 
 -- Mise en avant payante des postes salariés (04/11).
 ALTER TABLE "public"."MiseEnAvantPoste" ENABLE ROW LEVEL SECURITY;
+
+-- Journal des emails envoyés (04/11).
+ALTER TABLE "public"."EnvoiEmail" ENABLE ROW LEVEL SECURITY;

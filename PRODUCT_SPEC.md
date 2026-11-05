@@ -7408,6 +7408,33 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 385 — JOURNAL DES EMAILS ENVOYÉS (04/11, ROADMAP)
+
+Demande en file (ROADMAP n° 0, « Stocker l'id Resend à l'envoi »), choisie par JC le 04/11.
+L'id rendu par `resend.emails.send()` était jeté : un email « jamais reçu » (réinitialisation de la
+CPTS, invitation, en août) ne se retrouvait plus dans le tableau de bord Resend.
+
+**Table `EnvoiEmail`** (migration additive `20261104150000_envoi_email`, RLS, ajoutée à
+`prisma/enable-rls.sql`) : une ligne par appel à Resend — `resendId`, destinataire (en minuscules),
+sujet, statut `envoye` (ACCEPTÉ par Resend, pas reçu) ou `refuse`, et le refus. Écrite par
+`sendEmail` (`lib/email`), le seul chemin d'envoi du dépôt ; **jamais bloquante** : une écriture
+qui échoue (table absente, base lente) ne fait ni échouer ni attendre un envoi. Sans clé Resend,
+rien n'est appelé, rien n'est écrit.
+
+**Conservation 90 jours** (`CONSERVATION_JOURNAL_EMAIL_JOURS`) : l'adresse est une donnée
+personnelle ; la tâche quotidienne (`/api/cron/message-reminders`) purge au-delà
+(`emailsPurges` dans sa réponse ; rien en simulation).
+
+**`/admin/emails`** (« Emails envoyés » dans le menu admin) : les 100 derniers envois, recherche
+par adresse ou partie d'adresse, nombre de refus des dernières 24 h ; l'id ouvre le message dans
+Resend (`resend.com/emails/<id>`), qui dit s'il a été délivré, a rebondi ou a été signalé. Les
+webhooks Resend restent différés (ROADMAP).
+
+**Essai essai_p67** (comptes .invalid, fausse clé Resend, aucun email parti, schéma supprimé) :
+« mot de passe oublié » → ligne `refuse`, « validation_error: API key is invalid » ; tâche
+quotidienne → la ligne de 100 jours purgée, celle de 10 jours gardée ; recherche « recent » → la
+ligne et son lien Resend ; non-admin redirigé.
+
 ### SECTION 384 — CE QUE J'AI ÉCARTÉ SE RETROUVE (04/11, ROADMAP)
 
 Demande en file (ROADMAP « Annuler un pass », 26/08), choisie par JC le 04/11. Le bouton existait

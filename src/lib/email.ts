@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import * as Sentry from "@sentry/nextjs";
 import { appBaseUrl } from "@/lib/appUrl";
+import { prisma } from "@/lib/prisma";
 import { motsRecruteurs, type QuiAttend } from "@/lib/libellesPoste";
 
 // ── Configuration ────────────────────────────────────────────────────────────
@@ -71,6 +72,37 @@ export type ResultatEnvoi =
 // { data: null, error }. Le try/catch précédent n'était donc jamais déclenché et l'objet error
 // partait à la poubelle : domaine non vérifié, quota dépassé ou clé invalide restaient
 // totalement invisibles. On teste désormais `error` explicitement, et tout échec part dans Sentry.
+// ── Journal des envois (04/11) ─────────────────────────────────────────────────
+// L'id rendu par Resend était jeté : un email « jamais reçu » ne se retrouvait plus dans son
+// tableau de bord (deux fois en août : réinitialisation CPTS, invitation). On le garde, avec le
+// refus éventuel. JAMAIS bloquant : une écriture qui échoue (table absente, base lente) ne doit
+// ni retarder ni faire échouer un envoi — elle part seulement dans la console.
+async function journaliserEnvoi(destinataire: string, sujet: string, resendId: string | null, erreur: string | null) {
+  try {
+    await prisma.envoiEmail.create({
+      data: {
+        resendId,
+        destinataire: destinataire.trim().toLowerCase(),
+        sujet: sujet.slice(0, 300),
+        statut: erreur ? "refuse" : "envoye",
+        erreur: erreur?.slice(0, 300) ?? null,
+      },
+    });
+  } catch (e) {
+    console.error("[email] journal non écrit:", e instanceof Error ? e.message : e);
+  }
+}
+
+/** Conservation du journal des envois (donnée personnelle) — purgé par la tâche quotidienne. */
+export const CONSERVATION_JOURNAL_EMAIL_JOURS = 90;
+
+export async function purgerJournalEmails(maintenant: Date = new Date()): Promise<number> {
+  const { count } = await prisma.envoiEmail.deleteMany({
+    where: { createdAt: { lt: new Date(maintenant.getTime() - CONSERVATION_JOURNAL_EMAIL_JOURS * 86_400_000) } },
+  });
+  return count;
+}
+
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) {
     console.warn("[email] RESEND_API_KEY non configurée — envoi ignoré");
@@ -79,7 +111,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   }
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const { error } = await resend.emails.send({ from: FROM, to, subject, html });
+    const { data, error } = await resend.emails.send({ from: FROM, to, subject, html });
+    await journaliserEnvoi(to, subject, data?.id ?? null, error ? `${error.name}: ${error.message}` : null);
     if (error) {
       console.error(`[email] refus Resend (${error.name}): ${error.message}`);
       Sentry.captureException(new Error(`[email] refus Resend (${error.name}): ${error.message}`), {
@@ -92,6 +125,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   } catch (e) {
     console.error("[email] échec d'envoi:", e);
     Sentry.captureException(e, { extra: { subject, from: FROM } });
+    await journaliserEnvoi(to, subject, null, e instanceof Error ? e.message : "exception");
     return false;
   }
 }

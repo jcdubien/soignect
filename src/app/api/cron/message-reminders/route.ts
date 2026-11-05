@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendConversationReminderEmail } from "@/lib/email";
+import { sendConversationReminderEmail, purgerJournalEmails } from "@/lib/email";
 import { traiterMatchsDormants, SEUIL_DORMANCE_JOURS } from "@/lib/matchsDormants";
 
 export const dynamic = "force-dynamic";
@@ -114,9 +114,18 @@ export async function GET(req: Request) {
     console.error("[cron] expiration des dormants échouée:", e);
   }
 
+  // Purge du journal des emails au-delà de sa durée de conservation (04/11). Isolée : un échec
+  // ici ne doit pas masquer le reste du passage.
+  let emailsPurges: number | null = null;
+  if (!simulation) {
+    try { emailsPurges = await purgerJournalEmails(); }
+    catch (e) { console.error("[cron] purge du journal des emails:", e instanceof Error ? e.message : e); }
+  }
+
   return NextResponse.json({
     ok: true,
     scanned: matches.length,
+    emailsPurges,
     remindersSent: sent,
     dormants: dormants ?? null,
     ...(erreurDormants ? { erreurDormants } : {}),

@@ -1368,3 +1368,20 @@ model JournalVitrine {
 
   @@index([clientId, createdAt])
 }
+
+// Journal des emails envoyés (04/11, ROADMAP « Stocker l'id Resend »). Une ligne par appel à Resend,
+// acceptée ou refusée : retrouver un email précis dans le tableau de bord Resend (par son id) quand
+// quelqu'un dit ne pas l'avoir reçu. Donnée personnelle (adresse) : RLS, purge à 90 jours par la
+// tâche quotidienne, consultation admin seule (/admin/emails).
+model EnvoiEmail {
+  id           String   @id @default(cuid())
+  resendId     String?
+  destinataire String
+  sujet        String   @db.VarChar(300)
+  statut       String // "envoye" | "refuse"
+  erreur       String?  @db.VarChar(300)
+  createdAt    DateTime @default(now())
+
+  @@index([destinataire, createdAt])
+  @@index([createdAt])
+}
