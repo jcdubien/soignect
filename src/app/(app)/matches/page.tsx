@@ -135,6 +135,12 @@ export default async function MatchesPage() {
         <div className="flex items-center gap-2">
           {/* Un contrat signé des deux côtés quitte cette liste : « Mes contrats » le garde (04/11). */}
           <Link
+            href="/ecartes"
+            className="text-xs px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-50 transition"
+          >
+            Écartés
+          </Link>
+          <Link
             href="/contrats"
             className="text-xs px-3 py-1.5 border border-kine-200 text-kine-700 rounded-lg font-medium hover:bg-kine-50 transition"
           >

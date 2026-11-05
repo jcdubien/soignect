@@ -1187,6 +1187,13 @@ export default function SwipeStack({ onSwipeRight, profileType, titulaireMission
             Publier ma recherche
           </button>
         )}
+        {/* Un pass se rattrape (04/11) : ce qui a été écarté n'est pas perdu, et c'est quand le
+            fil est vide qu'on a envie d'y revenir. */}
+        {!marcheFerme && (
+          <a href="/ecartes" className="text-xs text-kine-700 font-medium hover:underline">
+            {isTitulaire ? "Revoir les candidats écartés" : "Revoir les annonces écartées"}
+          </a>
+        )}
         {filter !== "ALL" && remplacementsMasques === 0 && (
           <button
             onClick={() => {

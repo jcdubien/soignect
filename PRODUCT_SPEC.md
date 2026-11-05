@@ -7408,6 +7408,28 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 384 — CE QUE J'AI ÉCARTÉ SE RETROUVE (04/11, ROADMAP)
+
+Demande en file (ROADMAP « Annuler un pass », 26/08), choisie par JC le 04/11. Le bouton existait
+déjà : « Annuler ce choix » sur la fiche d'une annonce passée (section 218, 01/09). Mais cette
+fiche ne s'ouvrait que par le bandeau des cinq dernières annonces consultées ou par un lien reçu :
+**un pass d'il y a quelques jours ne se rattrapait plus**. Même chose côté recruteur pour un
+candidat passé, ou décliné depuis « Vous attendent » (section 381).
+
+**Page `/ecartes`** (`lib/ecartes`) : mes swipes LEFT dont la mission est encore ouverte
+(`offreOuverteLe` — une annonce échue ou pourvue ne réapparaîtrait pas), mêmes filtres de camp et
+de profession que « Vos choix », 100 au plus, du plus récent au plus ancien. Titre « Annonces
+écartées » (candidat) ou « Candidats écartés » (recruteur). Chaque ligne : nom, type et titre,
+période, commune, date du pass ; **« Remettre dans mon fil »** (DELETE `/api/swipe`, la route de
+la section 218, aucune route modifiée) et « Voir la fiche » (`/annonces?card=`). Personne n'est
+prévenu, ni du pass ni de son annulation. Accès : lien sous le message du fil vide (« Revoir les
+annonces écartées » / « les candidats écartés »), bouton « Écartés » sur /matches.
+
+**Essai essai_p66** (comptes .invalid, schéma supprimé) : un candidat ayant passé un poste ouvert,
+un poste échu, une disponibilité d'un autre candidat et un poste infirmier → seul le poste ouvert
+listé ; « Remettre dans mon fil » → il revient dans le fil et quitte la liste. Côté titulaire :
+candidat passé listé ; lien du fil vide et bouton vérifiés à l'écran.
+
 ### SECTION 383 — « MES CONTRATS » (04/11, ROADMAP)
 
 Demande en file (ROADMAP « Espace Mes contrats », choisie par JC le 04/11). L'investigation
