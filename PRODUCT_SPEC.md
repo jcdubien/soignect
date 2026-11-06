@@ -7408,6 +7408,21 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 387 — LE RATTACHEMENT MANUEL ACCEPTE LES COMPTES REMPLAÇANT (05/11, ROADMAP 49)
+
+**Le trou.** `POST /api/cabinet-posts/[id]/link` (Planning → « + Rattacher un compte assistant »)
+n'acceptait qu'un profil `ASSISTANT`. Depuis la fusion des chercheurs de poste (29/10), toute
+inscription crée un profil `REMPLACANT` : le rattachement manuel refusait donc tout compte créé
+depuis, avec « Ce compte n'est pas un profil assistant ». Le rattachement automatique à la
+signature (section 201) acceptait déjà les deux types ; l'invitation par email (section 187)
+n'en filtre aucun.
+
+**La règle, alignée sur la signature** : tout compte chercheur de poste (`REMPLACANT` ou
+`ASSISTANT`) peut être rattaché. Le type décrit ce qu'on cherche, pas ce qu'on devient — il n'est
+pas modifié. Un `TITULAIRE` reste refusé (422, « Ce compte est celui d'un cabinet ou d'un
+établissement : il ne peut pas occuper un poste. ») : rattaché, le propriétaire d'un autre
+cabinet deviendrait l'occupant de ce poste.
+
 ### SECTION 386 — CONSEIL DU JOUR (04/11, ROADMAP)
 
 Demande du 21/09 (ROADMAP « Splash screen avec tip aléatoire »), choisie par JC le 04/11. Les 30

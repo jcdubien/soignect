@@ -5,7 +5,8 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
-// Rattachement/détachement MANUEL d'un compte ASSISTANT à un poste (section 153, point 2/3).
+// Rattachement/détachement MANUEL d'un compte candidat (assistant, collaborateur) à un poste
+// (section 153, point 2/3).
 // Réservé au titulaire propriétaire du poste.
 
 async function ownPost(id: string, profileId: string) {
@@ -33,8 +34,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     select: { id: true, profile: { select: { type: true, name: true } } },
   });
   if (!user) return NextResponse.json({ error: "Aucun compte trouvé pour cet email." }, { status: 404 });
-  if (user.profile?.type !== "ASSISTANT") {
-    return NextResponse.json({ error: "Ce compte n'est pas un profil assistant." }, { status: 422 });
+  // Même règle que le rattachement automatique (lib/assistantPost, section 201) : tout compte
+  // CHERCHEUR de poste — REMPLACANT ou ASSISTANT. Le type décrit ce qu'on cherche, pas ce qu'on
+  // devient ; et depuis la fusion des chercheurs (29/10) toute nouvelle inscription est
+  // REMPLACANT : n'accepter qu'ASSISTANT refusait tous les comptes créés depuis (ROADMAP 49).
+  // Un TITULAIRE reste refusé : rattaché ici, le propriétaire d'un autre cabinet deviendrait
+  // l'occupant de ce poste.
+  if (user.profile?.type !== "ASSISTANT" && user.profile?.type !== "REMPLACANT") {
+    return NextResponse.json({ error: "Ce compte est celui d'un cabinet ou d'un établissement : il ne peut pas occuper un poste." }, { status: 422 });
   }
 
   // Unicité : détacher d'abord cet assistant d'un éventuel poste précédent.
