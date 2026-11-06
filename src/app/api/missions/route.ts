@@ -309,7 +309,7 @@ export async function POST(req: NextRequest) {
           startDate: { lte: endDate },
           endDate:   { gte: startDate },
         },
-        select: { id: true, title: true, startDate: true, endDate: true },
+        select: { id: true, title: true, startDate: true, endDate: true, profileId: true },
       });
       if (doublon) {
         const jour = (d: Date | null) =>
@@ -318,6 +318,9 @@ export async function POST(req: NextRequest) {
           {
             error: `Une annonce de remplacement couvre déjà cette période sur ce poste : « ${doublon.title} » (${jour(doublon.startDate)} → ${jour(doublon.endDate)}). Modifiez-la ou retirez-la plutôt que d'en publier une seconde.`,
             duplicateMissionId: doublon.id,
+            // Une annonce de poste appartient toujours au cabinet : lui seul peut la modifier.
+            // L'assistant rattaché, lui, la retrouve (et peut la retirer) dans ses disponibilités.
+            duplicateModifiable: doublon.profileId === session.user.profileId,
           },
           { status: 409 }
         );

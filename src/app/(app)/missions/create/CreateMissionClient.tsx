@@ -149,6 +149,9 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Annonce de remplacement déjà en ligne sur ce poste et cette période (409 anti-doublon) :
+  // le message disait « modifiez-la ou retirez-la » sans dire où — on y mène directement.
+  const [doublon, setDoublon] = useState<{ id: string; modifiable: boolean } | null>(null);
 
   const rawProfileType = (session?.user as { profileType?: string })?.profileType ?? "TITULAIRE";
   // isEmployeur de la session est posé au login (flag legacy). On le complète par le
@@ -714,7 +717,7 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setError(""); setDoublon(null);
 
     // Accroche de matching : l'accroche (extraite du texte puis validée/corrigée) prime ;
     // à défaut — IA indisponible et champ laissé vide — repli sur le texte libre tronqué au
@@ -792,6 +795,9 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
       // ('Unexpected end of JSON input', section 186) — on retombe sur le message générique.
       const data = await res.json().catch(() => ({} as { needsPhoto?: boolean; error?: unknown }));
       if (data?.needsPhoto) setHasPhoto(false);
+      const dup = data as { duplicateMissionId?: unknown; duplicateModifiable?: unknown };
+      setDoublon(typeof dup?.duplicateMissionId === "string"
+        ? { id: dup.duplicateMissionId, modifiable: dup.duplicateModifiable === true } : null);
       setError(
         data?.needsPhoto
           ? "Ajoutez une photo de profil avant de publier."
@@ -1783,7 +1789,17 @@ export default function CreateMissionClient({ typesContractualisables, salariatC
         )}
 
         {error && (
-          <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">{error}</p>
+          <p className="text-red-500 text-sm bg-red-50 px-4 py-2.5 rounded-xl border border-red-100">
+            {error}
+            {doublon && (
+              <a
+                href={doublon.modifiable ? `/missions/create?editId=${encodeURIComponent(doublon.id)}` : "/disponibilites"}
+                className="block mt-1.5 font-semibold text-red-700 underline"
+              >
+                {doublon.modifiable ? "Modifier l'annonce existante →" : "Voir mes demandes de couverture →"}
+              </a>
+            )}
+          </p>
         )}
 
         {/* Prérequis manquants (garde-gate) — explicite pourquoi la publication est bloquée */}

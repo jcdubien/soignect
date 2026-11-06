@@ -7408,6 +7408,22 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 388 — LE REFUS POUR DOUBLON MÈNE À L'ANNONCE EXISTANTE (05/11, ROADMAP 63)
+
+À la publication d'un remplacement sur un poste du Planning, `POST /api/missions` refuse (409) si
+une annonce de remplacement en recherche couvre déjà une période qui chevauche. Le message disait
+« Modifiez-la ou retirez-la » sans dire où ; `duplicateMissionId` était renvoyé mais pas lu.
+
+La réponse porte désormais aussi `duplicateModifiable` (l'annonce appartient au demandeur). Une
+annonce de poste appartient toujours au cabinet, même publiée par l'assistant rattaché :
+- **le cabinet** voit « Modifier l'annonce existante → » (`/missions/create?editId=…`) ;
+- **l'assistant rattaché**, qui ne peut pas la modifier, voit « Voir mes demandes de couverture → »
+  (`/disponibilites`, où il peut la retirer).
+
+Le lien est une navigation complète (`<a>`), pas un `Link` : le formulaire d'édition lit `editId`
+à son montage, une navigation client sur la même route garderait l'état de la saisie en cours.
+Le lien s'efface à la soumission suivante.
+
 ### SECTION 387 — LE RATTACHEMENT MANUEL ACCEPTE LES COMPTES REMPLAÇANT (05/11, ROADMAP 49)
 
 **Le trou.** `POST /api/cabinet-posts/[id]/link` (Planning → « + Rattacher un compte assistant »)
