@@ -7408,6 +7408,28 @@ façon d'être sûr qu'une dépendance native ne casse pas le build en silence.
 **Ce qui reste invérifiable de mon côté** : ce que WhatsApp affiche réellement. Aucun outil à ma
 disposition ne le montre ; seul un partage depuis un téléphone tranche.
 
+### SECTION 389 — /matches : LES CONVERSATIONS PAR PERSONNE (06/11)
+
+**Constat (JC, 06/11)** : « ces conversations se perdent ». Trois causes, vérifiées sur son compte :
+- une même personne est éclatée en plusieurs relations, une par couple d'annonces (jusqu'à 4 pour
+  un même candidat) ;
+- une relation déclinée part dans le groupe replié « Déclinées / Expirées » avec tous ses messages
+  (17 dans un cas) ; un contrat signé des deux côtés quitte la liste (section 183) ;
+- la colonne de l'écran principal lâche une relation après 7 jours sans échange (section 381).
+
+**Vue par défaut : « Conversations »** — une carte par personne, triée par dernier message (ou
+création de la relation), toutes relations confondues, signées et déclinées comprises. La carte
+montre le dernier message, les non-lus cumulés, le nombre de relations et de messages, puis une
+ligne par relation : l'annonce du recruteur (ce qui distingue les relations avec une même
+personne), le statut (« contrat signé » prime), le nombre de messages, et un lien qui ouvre la
+conversation (`/match/[id]?chat=1`, sans restriction de statut).
+
+**Recherche** par nom ou titre d'annonce (`?q=`), insensible à la casse et aux accents, par
+formulaire GET : sans JavaScript, et l'URL se partage ou se garde en favori.
+
+**« Par statut »** (`?vue=statut`) garde l'ancienne présentation et ses actions (décliner,
+contrat signé hors Soignect), qui n'ont pas leur place sur une ligne de conversation.
+
 ### SECTION 388 — LE REFUS POUR DOUBLON MÈNE À L'ANNONCE EXISTANTE (05/11, ROADMAP 63)
 
 À la publication d'un remplacement sur un poste du Planning, `POST /api/missions` refuse (409) si

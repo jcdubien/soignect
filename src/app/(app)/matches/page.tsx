@@ -9,6 +9,7 @@ import MatchChatButton from "@/components/chat/MatchChatButton";
 import MatchStatusActions from "@/components/matches/MatchStatusActions";
 import { estRecruteur } from "@/lib/relationConclue";
 import { ProfileType } from "@prisma/client";
+import ConversationsParPersonne, { type Personne } from "./ConversationsParPersonne";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,15 @@ const STATUS_GROUPS: { keys: string[]; label: string; defaultOpen: boolean }[] =
   { keys: ["DECLINE", "EXPIRE"],   label: "Déclinées / Expirées",  defaultOpen: false },
 ];
 
-export default async function MatchesPage() {
+// Recherche insensible à la casse et aux accents (« nemo » trouve « Némo »).
+const plier = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+export default async function MatchesPage({ searchParams }: { searchParams: Promise<{ vue?: string; q?: string }> }) {
+  const sp = await searchParams;
+  // Vue par défaut : « Conversations » (une ligne par personne, 06/11). « Par statut » garde la
+  // présentation d'avant, avec ses actions (décliner, contrat signé hors Soignect).
+  const vueStatut = sp.vue === "statut";
+  const q = (sp.q ?? "").trim().slice(0, 100);
   const session = await auth();
   // Guard propre : pas de session ou profil incomplet → redirection (pas de TypeError)
   const profileId = (session?.user as { profileId?: string })?.profileId;
@@ -74,8 +83,9 @@ export default async function MatchesPage() {
   for (const s of mySwipes) swipeScore[s.swipedMissionId] = s.affinityScore;
 
   // Aperçu de conversation (section 155) : dernier message + non-lus par match.
-  const matchIds = matches.map((m) => m.id);
-  const [lastMessages, unreadGroups] = await Promise.all([
+  // Calculé sur TOUTES les relations, signées comprises : la vue Conversations les réunit.
+  const matchIds = allMatches.map((m) => m.id);
+  const [lastMessages, unreadGroups, countGroups] = await Promise.all([
     // Dernier message de chaque match (on récupère les récents et on garde le 1er par match).
     prisma.message.findMany({
       where: { matchId: { in: matchIds } },
@@ -88,7 +98,9 @@ export default async function MatchesPage() {
       where: { matchId: { in: matchIds }, senderId: { not: profileId }, readAt: null },
       _count: { _all: true },
     }),
+    prisma.message.groupBy({ by: ["matchId"], where: { matchId: { in: matchIds } }, _count: { _all: true } }),
   ]);
+  const countByMatch = new Map(countGroups.map((g) => [g.matchId, g._count._all]));
   const lastByMatch = new Map<string, { content: string; createdAt: Date; senderId: string }>();
   for (const msg of lastMessages) {
     if (!lastByMatch.has(msg.matchId)) lastByMatch.set(msg.matchId, msg); // 1er = plus récent (tri desc)
@@ -117,6 +129,44 @@ export default async function MatchesPage() {
   // Conversations les plus récemment actives en premier (section 155).
   formatted.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
 
+  // Vue Conversations : regroupement par personne, sur toutes les relations (signées comprises).
+  const parPersonne = new Map<string, Personne>();
+  for (const m of allMatches) {
+    const isA = m.profileAId === profileId;
+    const autre = isA ? m.profileB : m.profileA;
+    const mienne = isA ? m.missionA : m.missionB;
+    const sienne = isA ? m.missionB : m.missionA;
+    // L'annonce qui distingue les relations avec une même personne : celle du recruteur.
+    const annonce = (autre.type === ProfileType.TITULAIRE ? sienne : mienne)?.title ?? sienne?.title ?? mienne?.title ?? null;
+    const last = lastByMatch.get(m.id) ?? null;
+    const activite = (last?.createdAt ?? m.createdAt).getTime();
+    const p = parPersonne.get(autre.id) ?? {
+      profileId: autre.id,
+      nom: autre.name ?? "Sans nom",
+      photoUrl: autre.photoUrl,
+      role: libelleRoleSalariat(autre) ?? ({ REMPLACANT: "Remplaçant·e", ASSISTANT: "Assistant·e", TITULAIRE: "Cabinet" } as Record<string, string>)[autre.type] ?? "",
+      dernier: null,
+      activite: 0,
+      relations: [],
+    };
+    p.relations.push({
+      matchId: m.id,
+      statut: m.status,
+      signe: !!(m.signatureTitulaireUrl && m.signatureRemplacantUrl),
+      annonce,
+      messages: countByMatch.get(m.id) ?? 0,
+      nonLus: unreadByMatch.get(m.id) ?? 0,
+    });
+    if (activite > p.activite) {
+      p.activite = activite;
+      if (last) p.dernier = { contenu: last.content.length > 80 ? last.content.slice(0, 80).trimEnd() + "…" : last.content, at: last.createdAt, deMoi: last.senderId === profileId };
+    }
+    parPersonne.set(autre.id, p);
+  }
+  const personnes = Array.from(parPersonne.values())
+    .filter((p) => !q || plier(p.nom).includes(plier(q)) || p.relations.some((r) => r.annonce && plier(r.annonce).includes(plier(q))))
+    .sort((a, b) => b.activite - a.activite);
+
   const typeConfig = (type: string) => ({
     REMPLACANT: { label: "Remplaçant·e", badge: "bg-blue-100 text-blue-700",      emoji: "🩺" },
     ASSISTANT:  { label: "Assistant·e",  badge: "bg-violet-100 text-violet-700",  emoji: "👩‍⚕️" },
@@ -128,7 +178,10 @@ export default async function MatchesPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-800">
           Mes mises en relation
-          {formatted.length > 0 && (
+          {!vueStatut && parPersonne.size > 0 && (
+            <span className="ml-2 text-sm font-normal text-gray-400">({parPersonne.size} personne{parPersonne.size > 1 ? "s" : ""})</span>
+          )}
+          {vueStatut && formatted.length > 0 && (
             <span className="ml-2 text-sm font-normal text-gray-400">({formatted.length})</span>
           )}
         </h1>
@@ -155,7 +208,22 @@ export default async function MatchesPage() {
         </div>
       </div>
 
-      {formatted.length === 0 ? (
+      {allMatches.length > 0 && (
+        <nav className="flex gap-1 mb-4 p-1 bg-gray-100 rounded-xl w-fit text-sm" aria-label="Présentation">
+          <Link href="/matches" aria-current={!vueStatut ? "page" : undefined}
+            className={`px-3 py-1.5 rounded-lg font-medium ${!vueStatut ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            Conversations
+          </Link>
+          <Link href="/matches?vue=statut" aria-current={vueStatut ? "page" : undefined}
+            className={`px-3 py-1.5 rounded-lg font-medium ${vueStatut ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            Par statut
+          </Link>
+        </nav>
+      )}
+
+      {allMatches.length > 0 && !vueStatut ? (
+        <ConversationsParPersonne personnes={personnes} q={q} />
+      ) : formatted.length === 0 ? (
         <div className="text-center py-20">
           {/* Même retrait qu'ailleurs (section 274) : un cœur pour dire « aucune mise en
               relation » empruntait au registre des applications de rencontre. Le glyphe nomme
