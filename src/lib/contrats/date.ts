@@ -1,3 +1,4 @@
+import { blanc } from "./blanc";
 // Formatage des dates des contrats — source unique.
 //
 // La fonction existait en SEPT copies rigoureusement identiques, une par gabarit (vérifié par
@@ -16,7 +17,7 @@
  * `Intl` ne le produit pas. Les autres restent cardinaux (« 2 octobre », jamais « 2e »).
  */
 export function fmtDateUTC(iso: string | null): string {
-  if (!iso) return "[date à compléter]";
+  if (!iso) return blanc("[date à compléter]");
   const d = new Date(iso);
   const texte = d.toLocaleDateString("fr-FR", {
     day: "numeric",

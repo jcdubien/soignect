@@ -9,7 +9,7 @@ import { libelleOrdre, articleNonInstallation } from "@/lib/professions";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import type { PeriodeContrat, SourcePeriode } from "@/lib/contrats/periode";
 import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
-import { OPTIONS_BALNEO, OPTIONS_TELETRANSMISSION, LIBELLE_BALNEO, LIBELLE_TELETRANSMISSION, type OptionBalneo, type OptionTeletransmission } from "@/lib/contrats/clausesHonoraires";
+import { OPTIONS_BALNEO, OPTIONS_TELETRANSMISSION, LIBELLE_BALNEO, LIBELLE_TELETRANSMISSION, OPTIONS_ASSIETTE, LIBELLE_ASSIETTE, type OptionBalneo, type OptionTeletransmission, type OptionAssiette } from "@/lib/contrats/clausesHonoraires";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +75,24 @@ interface SigStatus {
   observateur?: boolean;
   nomRemplace?: string | null;
   termesFiges?: boolean;
+}
+
+interface PropositionIA {
+  champ: "dateDebut" | "dateFin" | "retrocessionPct" | "assiette" | "redevancePct" | "delaiPaiementJours";
+  valeur: string | number;
+  preuve: string;
+}
+interface LectureIA { propositions: PropositionIA[]; points: { texte: string; preuve: string }[] }
+
+function libelleProposition(p: PropositionIA): string {
+  switch (p.champ) {
+    case "dateDebut": return `Début : ${fmtDateUTC(String(p.valeur))}`;
+    case "dateFin": return `Fin : ${fmtDateUTC(String(p.valeur))}`;
+    case "retrocessionPct": return `Rétrocession au remplaçant : ${p.valeur} %`;
+    case "assiette": return `Base de la rétrocession : ${LIBELLE_ASSIETTE[p.valeur as OptionAssiette] ?? p.valeur}`;
+    case "redevancePct": return `Redevance au cabinet : ${p.valeur} %`;
+    case "delaiPaiementJours": return `Délai de paiement : ${p.valeur} jours`;
+  }
 }
 
 const SIGNATURE_LEGAL =
@@ -253,6 +271,8 @@ export default function ContratPage() {
   const [dureeAns,     setDureeAns]     = useState(2);
   const [periodeEssai, setPeriodeEssai] = useState(false);
   const [retrocessionPct, setRetrocessionPct] = useState(70);
+  // Assiette de la rétrocession (09/11) — « encaissés » (CNOMK) par défaut, « réalisés » au choix.
+  const [assiette, setAssiette] = useState<OptionAssiette>("ENCAISSES");
   // Mode de REDEVANCE porté par l'ANNONCE (sections 293, 296 — assistanat et collaboration
   // seulement). Il n'est pas réglable ici : le curseur négocie un taux, pas la nature de
   // l'accord. Changer un forfait en pourcentage au moment de générer le PDF contredirait ce que
@@ -294,6 +314,58 @@ export default function ContratPage() {
   const [annulEnCours, setAnnulEnCours] = useState(false);
   // Identité saisie au moment de signer (27/10) — plus de détour par /compte.
   const [identite, setIdentite] = useState<Record<string, string>>({});
+
+  // ── Lecture de la conversation par l'IA (09/11, lib/contrats/lectureConversation) ─────────
+  // Le contrat se pré-remplit depuis les annonces ; ce qui a été convenu ensuite dans le chat
+  // (dates exactes, taux) devait être retapé. La lecture PROPOSE, chaque valeur avec la phrase
+  // qui la fonde ; rien ne s'applique sans un geste. Lancée d'office quand on arrive du chat
+  // (« Envoyer un contrat » → ?lire=1), sinon sur le bouton.
+  const [lecture, setLecture] = useState<LectureIA | null>(null);
+  const [lectureEnCours, setLectureEnCours] = useState(false);
+  const [lectureMessage, setLectureMessage] = useState<string | null>(null);
+  const [appliquees, setAppliquees] = useState<Set<string>>(new Set());
+  const termesActuelsRef = useRef<Record<string, unknown> | null>(null);
+  const lectureAutoFaite = useRef(false);
+
+  async function lireLaConversation() {
+    const actuels = termesActuelsRef.current;
+    if (!actuels || lectureEnCours) return;
+    setLectureEnCours(true);
+    setLectureMessage(null);
+    try {
+      const r = await fetch(`/api/match/${id}/contrat-ia`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(actuels),
+      });
+      const d = await r.json().catch(() => null);
+      if (!r.ok || !d) { setLectureMessage("La lecture de la conversation a échoué. Le contrat reste modifiable à la main."); return; }
+      if (d.degraded) { setLectureMessage("Lecture indisponible pour le moment. Le contrat reste modifiable à la main."); return; }
+      if (d.vide) { setLectureMessage("Aucun message échangé pour l'instant : rien à reprendre de la conversation."); return; }
+      setAppliquees(new Set());
+      setLecture({ propositions: d.propositions ?? [], points: d.points ?? [] });
+    } catch {
+      setLectureMessage("Erreur réseau pendant la lecture de la conversation.");
+    } finally {
+      setLectureEnCours(false);
+    }
+  }
+
+  function appliquerProposition(p: PropositionIA) {
+    if (p.champ === "dateDebut") setDateDebut(String(p.valeur));
+    else if (p.champ === "dateFin") setDateFin(String(p.valeur));
+    else if (p.champ === "retrocessionPct") setRetrocessionPct(Number(p.valeur));
+    else if (p.champ === "assiette") setAssiette(p.valeur as OptionAssiette);
+    else if (p.champ === "redevancePct") setRedevancePct(Number(p.valeur));
+    else if (p.champ === "delaiPaiementJours") setDelaiPaiementJours(Number(p.valeur));
+    setAppliquees((s) => new Set(s).add(p.champ));
+  }
+
+  useEffect(() => {
+    if (lectureAutoFaite.current || !info || !sig || info.termes) return;
+    if (typeof window === "undefined" || new URLSearchParams(window.location.search).get("lire") !== "1") return;
+    lectureAutoFaite.current = true;
+    void lireLaConversation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [info, sig]);
 
   /** Recharge les infos du contrat sans toucher au formulaire (termes figés, identité). */
   function rechargerInfo() {
@@ -492,6 +564,8 @@ export default function ContratPage() {
     if (montreRayon)        params.set("rayonKm",  String(rayonKm));
     if (montreDureeAns)     params.set("dureeAns", String(dureeAns));
     if (montreRetrocession) params.set("retrocessionPct", String(retrocessionPct));
+    // Le défaut ne se transmet pas : les termes déjà figés restent identiques octet pour octet.
+    if (montreRetrocession && assiette !== "ENCAISSES") params.set("assiette", assiette);
     if (montreRedevance)    params.set("redevancePct",    String(redevancePct));
     if (gabaritId) params.set("gabaritId", gabaritId);
     if (gabaritId === "INFIRMIER_COLLABORATION") params.set("forfaitPartage", forfaitPartage);
@@ -804,7 +878,7 @@ export default function ContratPage() {
   const resumeMentions =
     vides === 0
       ? "toutes renseignées"
-      : `${vides} sur ${champsMentions.length} non renseignée${vides > 1 ? "s" : ""} — le contrat portera « à compléter »`;
+      : `${vides} sur ${champsMentions.length} non renseignée${vides > 1 ? "s" : ""} — laissée${vides > 1 ? "s" : ""} en blanc dans le contrat`;
 
   const ordre = libelleOrdre(info.profession);
   const articleNonInstall = articleNonInstallation(info.profession);
@@ -878,6 +952,15 @@ export default function ContratPage() {
   const bothSigned  = !!sig?.bothSigned;
   const locked      = bothSigned; // formulaire verrouillé une fois le contrat officiel
   const oneSigned   = !!sig && !bothSigned && (sig.mineSigned || theirSigned);
+  // Termes que la lecture IA compare à la conversation — seuls les champs que CE contrat porte.
+  termesActuelsRef.current = {
+    missionType,
+    dateDebut, dateFin,
+    retrocessionPct: montreRetrocession ? retrocessionPct : null,
+    assiette: montreRetrocession ? assiette : null,
+    redevancePct: montreRedevance && retrocession.mode !== "FIXE" ? redevancePct : null,
+    delaiPaiementJours: !info.isSalariat && !estInfirmier ? delaiPaiementJours : null,
+  };
 
   // ── Résumé des termes (27/10) ──────────────────────────────────────────────────────────
   // Ce que dira le contrat, en quelques lignes, lu sur la MÊME chaîne de paramètres que le PDF :
@@ -892,7 +975,7 @@ export default function ContratPage() {
     if (g) lignesResume.push(`Modèle : ${g.libelle}`);
     const debut = t.get("dateDebut"), fin = t.get("dateFin");
     if (debut || fin) lignesResume.push(`Période : ${periodeAnnonce({ debut: debut || null, fin: fin || null })}`);
-    if (t.has("retrocessionPct")) lignesResume.push(`Rétrocession au remplaçant : ${t.get("retrocessionPct")} %`);
+    if (t.has("retrocessionPct")) lignesResume.push(`Rétrocession au remplaçant : ${t.get("retrocessionPct")} % des honoraires ${t.get("assiette") === "REALISES" ? "des actes réalisés" : "encaissés"}`);
     if (t.has("redevancePct")) {
       lignesResume.push(retrocession.mode === "FIXE"
         ? `Redevance forfaitaire : ${euros(retrocession.fixeEuros)} € par mois`
@@ -910,6 +993,8 @@ export default function ContratPage() {
   // ou le salaire d'un contrat de travail.
   const formulaireOuvert = (!gabaritId && (info.gabarits?.length ?? 0) > 1) || salariatIncomplet;
   const identiteAFournir = info.identiteAFournir ?? [];
+  // Exigée pour signer (09/11) — la route refuse aussi, l'écran évite l'aller-retour.
+  const identiteASaisir = !sig?.mineSigned && identiteAFournir.some((c) => !(identite[c.cle] ?? "").trim());
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8 flex flex-col gap-6">
@@ -991,6 +1076,70 @@ export default function ContratPage() {
         )}
       </div>
 
+      {/* ── Lecture de la conversation (09/11) ─────────────────────────────────────────── */}
+      {!termesFiges && !bothSigned && !sig?.observateur && (
+        <div className="bg-white rounded-2xl border border-kine-100 shadow-sm p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-gray-800">Ce qui a été convenu dans la conversation</h2>
+            <button
+              onClick={lireLaConversation}
+              disabled={lectureEnCours}
+              className="shrink-0 px-3 py-1.5 rounded-xl bg-kine-50 text-kine-700 text-xs font-semibold hover:bg-kine-100 transition disabled:opacity-50"
+            >
+              {lectureEnCours ? "Lecture…" : lecture ? "Relire" : "✨ Lire la conversation"}
+            </button>
+          </div>
+          {!lecture && !lectureMessage && !lectureEnCours && (
+            <p className="text-xs text-gray-500">
+              L&apos;IA relit vos messages et propose d&apos;ajuster le contrat à ce qui a été convenu
+              (dates exactes, taux…). Rien n&apos;est modifié sans votre accord.
+            </p>
+          )}
+          {lectureMessage && <p className="text-xs text-gray-500">{lectureMessage}</p>}
+          {lecture && lecture.propositions.length === 0 && lecture.points.length === 0 && (
+            <p className="text-xs text-gray-500">Rien dans la conversation ne s&apos;écarte des termes actuels du contrat.</p>
+          )}
+          {lecture && lecture.propositions.length > 0 && (
+            <ul className="flex flex-col gap-2 list-none p-0 m-0">
+              {lecture.propositions.map((p) => (
+                <li key={p.champ} className="flex items-start justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800">{libelleProposition(p)}</p>
+                    <p className="text-[11px] text-gray-500 italic">« {p.preuve} »</p>
+                  </div>
+                  {appliquees.has(p.champ) ? (
+                    <span className="shrink-0 text-xs font-bold text-emerald-600">Appliqué ✓</span>
+                  ) : (
+                    <button onClick={() => appliquerProposition(p)}
+                      className="shrink-0 px-3 py-1 rounded-lg bg-kine-600 text-white text-xs font-semibold hover:bg-kine-700">
+                      Appliquer
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {lecture && lecture.propositions.length > 1 && lecture.propositions.some((p) => !appliquees.has(p.champ)) && (
+            <button onClick={() => lecture.propositions.forEach(appliquerProposition)}
+              className="self-start text-xs font-semibold text-kine-700 underline">
+              Tout appliquer
+            </button>
+          )}
+          {lecture && lecture.points.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-xs font-semibold text-amber-800 mb-1">À régler entre vous (le modèle ne le prévoit pas tel quel)</p>
+              <ul className="flex flex-col gap-1.5 list-disc pl-4 m-0">
+                {lecture.points.map((pt) => (
+                  <li key={pt.preuve} className="text-xs text-amber-900">
+                    {pt.texte} <span className="italic text-amber-700">« {pt.preuve} »</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Conditions détaillées — repliées : les valeurs reprises de l'annonce suffisent le plus
           souvent. Absentes une fois les termes figés (l'écran ne les lit plus). */}
       {!termesFiges && (
@@ -1044,8 +1193,8 @@ export default function ContratPage() {
 
           {!dateDebut && (
             <p className="text-xs text-amber-700 mt-2">
-              Aucune date de début n&apos;est indiquée : le contrat portera la mention
-              «&nbsp;date à compléter&nbsp;». Renseignez-la avant signature.
+              Aucune date de début n&apos;est indiquée : le contrat la laissera
+              en blanc. Renseignez-la avant signature.
             </p>
           )}
 
@@ -1508,6 +1657,14 @@ export default function ContratPage() {
                 {retrocessionPct}%
               </span>
             </div>
+            <label className="block text-sm font-semibold text-gray-800 mt-4 mb-1">Base de la rétrocession</label>
+            <select value={assiette} onChange={e => setAssiette(e.target.value as OptionAssiette)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800">
+              {OPTIONS_ASSIETTE.map(o => <option key={o} value={o}>{LIBELLE_ASSIETTE[o]}</option>)}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              « Réalisés » inclut les actes faits pendant le remplacement mais payés après (tiers payant, retards de paiement).
+            </p>
           </div>
         )}
 
@@ -1913,7 +2070,8 @@ export default function ContratPage() {
             />
             {/* Identité professionnelle demandée ICI (27/10) : elle figure au contrat, et le
                 détour par /compte perdait la plupart des signataires. Enregistrée sur le profil
-                au moment de signer ; laissée vide, le contrat porte « à compléter ». */}
+                au moment de signer. Obligatoire (09/11) : un contrat signé des deux côtés porte
+                l'identité complète des deux parties. */}
             {!sig?.mineSigned && identiteAFournir.length > 0 && (
               <fieldset className="flex flex-col gap-2 border border-amber-200 bg-amber-50 rounded-xl p-3">
                 <legend className="text-xs font-semibold text-amber-800 px-1">Votre identité pour le contrat</legend>
@@ -1923,12 +2081,13 @@ export default function ContratPage() {
                     <input
                       value={identite[c.cle] ?? ""}
                       onChange={(e) => setIdentite((v) => ({ ...v, [c.cle]: e.target.value }))}
-                      maxLength={c.cle === "adresse" ? 200 : 30}
+                      required
+                      maxLength={c.cle === "adresse" ? 200 : c.cle === "numeroOrdre" ? 30 : 20}
                       className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-normal"
                     />
                   </label>
                 ))}
-                <p className="text-[11px] text-amber-700">Enregistrée sur votre profil quand vous signez. Laissée vide, le contrat portera « à compléter ».</p>
+                <p className="text-[11px] text-amber-700">Requise pour signer — enregistrée sur votre profil au moment de la signature.</p>
               </fieldset>
             )}
             {/* ── Signature conservée (section 242) ────────────────────────────────────
@@ -1939,14 +2098,14 @@ export default function ContratPage() {
               <>
                 <button
                   onClick={handleSignEnregistree}
-                  disabled={signing}
+                  disabled={signing || identiteASaisir}
                   className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-black active:scale-[0.98] transition disabled:opacity-50"
                 >
                   {signing ? "Envoi…" : "✍️ Signer avec ma signature enregistrée"}
                 </button>
                 <button
                   onClick={() => sigInputRef.current?.click()}
-                  disabled={signing}
+                  disabled={signing || identiteASaisir}
                   className="w-full py-2 text-sm font-semibold text-kine-700 hover:underline disabled:opacity-50"
                 >
                   Reprendre ma signature en photo
@@ -1967,7 +2126,7 @@ export default function ContratPage() {
               <>
                 <button
                   onClick={() => sigInputRef.current?.click()}
-                  disabled={signing}
+                  disabled={signing || identiteASaisir}
                   className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold text-sm hover:bg-black active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {signing ? "Envoi…" : (sig?.mineSigned ? "✍️ Refaire ma signature" : "✍️ Signer avec ma signature")}

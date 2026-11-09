@@ -24,7 +24,7 @@ import { missingContractFields } from "@/lib/contractProfile";
 import { periodeParDefaut, periodeDemandee } from "@/lib/contrats/periode";
 import { cotesDuMatch, typeDeMissionDuContrat, roleDansLeMatch } from "@/lib/contrats/cotes";
 import { parametresDuContrat } from "@/lib/contrats/termes";
-import { lireOption, OPTIONS_BALNEO, OPTIONS_TELETRANSMISSION } from "@/lib/contrats/clausesHonoraires";
+import { lireOption, OPTIONS_BALNEO, OPTIONS_TELETRANSMISSION, OPTIONS_ASSIETTE } from "@/lib/contrats/clausesHonoraires";
 import {
   lieuTravailParDefaut,
   HEURES_HEBDOMADAIRES_DEFAUT,
@@ -250,6 +250,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   // Clauses optionnelles des modèles kiné (24/10) — absentes ou inconnues = aucune phrase.
   const balneo = lireOption(sp.get("balneo"), OPTIONS_BALNEO);
   const aideTeletransmission = lireOption(sp.get("aideTeletransmission"), OPTIONS_TELETRANSMISSION);
+  const assiette = lireOption(sp.get("assiette"), OPTIONS_ASSIETTE);
 
   // ── Période du contrat (section 237) ──────────────────────────────────────────────────────
   //
@@ -778,7 +779,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       endDate:    periode.fin,
       retrocessionPct,
       rayonKm, periodeEssai, generatedAt,
-      modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission,
+      modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission, assiette,
       signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-remplacement.pdf";

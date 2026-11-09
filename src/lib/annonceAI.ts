@@ -24,7 +24,7 @@ export const publieUneOffre = (r: AnnonceRole) => r === "cabinet" || r === "empl
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 
 // Appel bas niveau DeepSeek en mode JSON. Renvoie l'objet parsé, ou null (réseau/parse KO).
-async function deepseekJSON(system: string, user: string, maxTokens = 700): Promise<unknown | null> {
+export async function deepseekJSON(system: string, user: string, maxTokens = 700): Promise<unknown | null> {
   if (!process.env.DEEPSEEK_API_KEY) return null;
   try {
     const res = await fetch(DEEPSEEK_URL, {

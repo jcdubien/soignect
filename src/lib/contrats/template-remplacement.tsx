@@ -1,12 +1,13 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
+import { blanc } from "./blanc";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import { type ContractDataRemplacement, paymentMethodPhrase, localModalities } from "./types";
 import { MentionSignature } from "./signature-mention";
 import { DraftBanner, DraftWatermark } from "./watermark";
 import { PartyIdentityRows } from "./party-identity";
 import { fmtDateUTC } from "@/lib/contrats/date";
-import { phraseBalneo, phraseTeletransmission, PARTIES_REMPLACEMENT } from "@/lib/contrats/clausesHonoraires";
+import { phraseBalneo, phraseTeletransmission, PARTIES_REMPLACEMENT, assietteRetrocession } from "@/lib/contrats/clausesHonoraires";
 
 // Utilise Helvetica intégrée à pdf-lib — pas de chargement de police externe nécessaire
 const S = StyleSheet.create({
@@ -24,7 +25,7 @@ const S = StyleSheet.create({
   infoLabel: { fontFamily: "Helvetica-Bold", width: 140 },
   infoVal: { flex: 1 },
   mandatory: { backgroundColor: "#fff7ed", borderLeftWidth: 2.5, borderLeftColor: "#ea580c", paddingLeft: 7, paddingVertical: 3, marginBottom: 4 },
-  placeholder: { color: "#b45309", fontFamily: "Helvetica-Bold" },
+  placeholder: {},
   sigBlock: { flexDirection: "row", justifyContent: "space-between", marginTop: 30 },
   sigCol: { width: "45%", borderTopWidth: 0.5, borderTopColor: "#555", paddingTop: 6 },
   sigLabel: { fontSize: 8.5, color: "#555" },
@@ -36,7 +37,7 @@ const S = StyleSheet.create({
 
 // Horodatage de génération (contient l'heure) — fuseau local du serveur, inchangé.
 function fmtDate(iso: string | null): string {
-  if (!iso) return "[date à compléter]";
+  if (!iso) return blanc("[date à compléter]");
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
@@ -45,7 +46,7 @@ const LEGAL_MENTION =
 
 export function buildRemplacementPdf(data: ContractDataRemplacement) {
   const { remplace, remplacant, startDate, endDate, retrocessionPct, rayonKm, periodeEssai, generatedAt,
-    modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission,
+    modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission, assiette,
     signatureTitulaireImg, signatureRemplacantImg, draft } = data;
 
   return (
@@ -130,7 +131,7 @@ export function buildRemplacementPdf(data: ContractDataRemplacement) {
           <Text style={S.body}>
             {/* Pourcentage seulement : les modes fixe et plafonné sont réservés à la redevance
                 d'un assistant ou d'un collaborateur (section 296). */}
-            En rémunération de ses services, le remplaçant percevra {retrocessionPct}% des honoraires qu'il aura encaissés pendant la durée du remplacement. Le versement s'effectuera par {paymentMethodPhrase(modePaiement)} dans un délai de {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque période de remplacement.
+            En rémunération de ses services, le remplaçant percevra {retrocessionPct}% des honoraires {assietteRetrocession(assiette)}. Le versement s'effectuera par {paymentMethodPhrase(modePaiement)} dans un délai de {delaiPaiementJours} jour{delaiPaiementJours > 1 ? "s" : ""} suivant la fin de chaque période de remplacement.
           </Text>
           {/* Clauses optionnelles (24/10) : dans l'article, sans renuméroter. */}
           {[phraseBalneo(balneo, PARTIES_REMPLACEMENT), phraseTeletransmission(aideTeletransmission, PARTIES_REMPLACEMENT)].filter(Boolean).map((t) => (

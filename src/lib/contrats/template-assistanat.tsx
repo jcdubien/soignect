@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
+import { blanc } from "./blanc";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import { type ContractDataAssisanat, paymentMethodPhrase, localModalities } from "./types";
 import { MentionSignature } from "./signature-mention";
@@ -23,7 +24,7 @@ const S = StyleSheet.create({
   infoLabel: { fontFamily: "Helvetica-Bold", width: 140 },
   infoVal: { flex: 1 },
   mandatory: { backgroundColor: "#fff7ed", borderLeftWidth: 2.5, borderLeftColor: "#ea580c", paddingLeft: 7, paddingVertical: 3, marginBottom: 4 },
-  placeholder: { color: "#b45309", fontFamily: "Helvetica-Bold" },
+  placeholder: {},
   sigBlock: { flexDirection: "row", justifyContent: "space-between", marginTop: 30 },
   sigCol: { width: "45%", borderTopWidth: 0.5, borderTopColor: "#555", paddingTop: 6 },
   sigLabel: { fontSize: 8.5, color: "#555" },
@@ -35,7 +36,7 @@ const S = StyleSheet.create({
 
 // Horodatage de génération (contient l'heure) — fuseau local du serveur, inchangé.
 function fmtDate(iso: string | null): string {
-  if (!iso) return "[date à compléter]";
+  if (!iso) return blanc("[date à compléter]");
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
@@ -46,7 +47,7 @@ export function buildAssisanatPdf(data: ContractDataAssisanat) {
   const { titulaire, assistant, startDate, minMonths, redevancePct, clauseRedevance, rayonKm, dureeAns, periodeEssai, generatedAt,
     modePaiement, delaiPaiementJours, modalitesLocaux, balneo, aideTeletransmission,
     signatureTitulaireImg, signatureRemplacantImg, draft } = data;
-  const dureeStr = minMonths ? `${minMonths} mois` : "[durée à compléter]";
+  const dureeStr = minMonths ? `${minMonths} mois` : blanc("durée");
 
   return (
     <Document title="Contrat d'assistanat libéral" author="Soignect">

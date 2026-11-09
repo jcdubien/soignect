@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
+import { blanc } from "./blanc";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import { type ContractDataSalarieInfirmierCdd } from "./types";
 import { MentionSignature } from "./signature-mention";
@@ -61,7 +62,7 @@ const S = StyleSheet.create({
   infoRow: { flexDirection: "row", marginBottom: 2 },
   infoLabel: { fontFamily: "Helvetica-Bold", width: 140 },
   infoVal: { flex: 1 },
-  placeholder: { color: "#b45309", fontFamily: "Helvetica-Bold" },
+  placeholder: {},
   sigBlock: { flexDirection: "row", justifyContent: "space-between", marginTop: 30 },
   sigCol: { width: "45%", borderTopWidth: 0.5, borderTopColor: "#555", paddingTop: 6 },
   sigLabel: { fontSize: 8.5, color: "#555" },
@@ -74,7 +75,7 @@ const S = StyleSheet.create({
  *  doit se voir comme incomplet, pas se lire comme complet. Même règle que les autres gabarits. */
 function Val({ v, fallback }: { v?: string | number | null; fallback: string }) {
   const vide = v === null || v === undefined || v === "" || v === 0;
-  return vide ? <Text style={S.placeholder}>{fallback}</Text> : <Text>{String(v)}</Text>;
+  return vide ? <Text style={S.placeholder}>{blanc(fallback)}</Text> : <Text>{String(v)}</Text>;
 }
 
 export function buildInfirmierSalariatCddPdf(d: ContractDataSalarieInfirmierCdd) {

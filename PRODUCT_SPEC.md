@@ -2475,6 +2475,31 @@ navigation client, l'en-tête affichait « 0 annonces » juste après la premiè
 
 ### Contrat, identité contractuelle, déontologie
 
+#### État au 09/11 — blancs au PDF, identité exigée à la signature, lecture de la conversation
+
+- **PDF : plus aucune mention orange.** Toute donnée manquante (RPPS, n° d'ordre, SIRET,
+  adresse, date, taux…) s'imprime en blanc à remplir (`lib/contrats/blanc.ts`), à l'encre du
+  texte. Les « [N° RPPS à compléter] » orange gras se lisaient comme des erreurs sur un
+  document envoyé à l'autre partie.
+- **Identité du signataire exigée pour signer, drapeau ou non.** La route de signature refuse
+  (422) tant que l'identité de la personne qui signe est incomplète ; les champs se saisissent
+  sur la page du contrat, au-dessus du bouton, et les boutons restent grisés tant qu'ils sont
+  vides. Chaque partie passant par ce contrôle, un contrat signé des deux côtés est complet.
+  `enforceContractProfile` ne gouverne plus que le contrôle de l'AUTRE partie et le blocage
+  dès la génération.
+- **Lecture de la conversation par DeepSeek** (`lib/contrats/lectureConversation.ts`, route
+  `POST /api/match/[id]/contrat-ia`). Propose dates, rétrocession, redevance, délai de
+  paiement convenus dans le chat, chacun avec la phrase qui le fonde (revérifiée mot pour mot
+  dans les messages, sinon écartée) ; rien ne s'applique sans « Appliquer ». Les demandes hors
+  champs (ex. « encaissés » → « réalisés ») remontent en « À régler entre vous », sans toucher
+  au modèle. Lancée d'office depuis « Envoyer un contrat » du chat (`?lire=1`), sinon sur
+  bouton ; budget DeepSeek habituel, repli dégradé. Absente une fois les termes figés.
+- **En-tête du chat :** le nom de l'interlocuteur, le rôle passe en sous-titre.
+- **Base de la rétrocession (remplacement kiné) :** « encaissés » (texte CNOMK, défaut, non
+  transmis) ou « réalisés » (actes faits pendant le remplacement, y compris encaissés après son
+  terme). Réglage sous le taux, repris au résumé ; la lecture IA le propose quand le chat l'a
+  demandé et accueilli (`lib/contrats/clausesHonoraires`, paramètre `assiette`).
+
 #### SUIVI — Vérification déontologique du système de notation (29/07)
 
 ##### Statut

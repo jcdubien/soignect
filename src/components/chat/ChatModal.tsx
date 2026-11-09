@@ -23,6 +23,8 @@ interface ChatPartner {
   // et « Remplaçant·e » (section 304). Facultatifs : sans eux, le libellé d'avant.
   titulaireKind?: string | null;
   profession?: string | null;
+  /** Nom de l'interlocuteur (09/11) — l'en-tête ne disait que « Remplaçant·e ». */
+  name?: string | null;
 }
 
 interface ChatModalProps {
@@ -268,10 +270,12 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-800 text-sm">{libellePartenaire}</p>
-          {partner.theirMissionTitle && (
-            <p className="text-xs text-gray-400 truncate">{partner.theirMissionTitle}</p>
-          )}
+          {/* Le NOM d'abord (09/11) : « Remplaçant·e » seul ne disait pas à qui l'on écrit. Le
+              rôle passe en sous-titre, devant le titre de l'annonce. */}
+          <p className="font-semibold text-gray-800 text-sm truncate">{partner.name?.trim() || libellePartenaire}</p>
+          <p className="text-xs text-gray-400 truncate">
+            {[partner.name?.trim() ? libellePartenaire : null, partner.theirMissionTitle].filter(Boolean).join(" · ")}
+          </p>
         </div>
 
         {score !== null && (
@@ -311,7 +315,7 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
       {/* Bouton contrat permanent (section 61) — côté recruteur uniquement */}
       {canSendContract && (
         <a
-          href={`/match/${matchId}/contrat`}
+          href={`/match/${matchId}/contrat?lire=1`}
           className="flex items-center justify-center gap-2 px-4 py-2.5 bg-kine-50 border-b border-kine-100 text-kine-700 text-sm font-semibold hover:bg-kine-100 transition"
         >
           📄 Envoyer un contrat
@@ -329,7 +333,7 @@ export default function ChatModal({ matchId, myProfileId, partner, aiScore, onCl
             <div className="text-4xl mb-3">💬</div>
             <p className="text-gray-500 text-sm font-medium">Démarrez la conversation !</p>
             <p className="text-gray-400 text-xs mt-1">
-              {TYPE_EMOJI[partner.type]} {libellePartenaire} attend votre message
+              {TYPE_EMOJI[partner.type]} {partner.name?.trim() || libellePartenaire} attend votre message
             </p>
           </div>
         )}

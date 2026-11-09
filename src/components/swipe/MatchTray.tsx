@@ -561,7 +561,7 @@ function MissionSheet({
         <ChatModal
           matchId={item.matchId}
           myProfileId={myProfileId ?? ""}
-          partner={{ type: p.type, theirMissionTitle: mission.title, titulaireKind: p.titulaireKind, profession: p.profession }}
+          partner={{ type: p.type, theirMissionTitle: mission.title, titulaireKind: p.titulaireKind, profession: p.profession, name: p.name }}
           aiScore={item.affinityScore}
           myType={myProfileType}
           contratConfirmed={item.contratConfirmed}

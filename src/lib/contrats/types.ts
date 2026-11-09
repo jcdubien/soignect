@@ -48,6 +48,8 @@ export interface NegotiableClauses {
   // absentes = aucune phrase ajoutée.
   balneo?: import("@/lib/contrats/clausesHonoraires").OptionBalneo | null;
   aideTeletransmission?: import("@/lib/contrats/clausesHonoraires").OptionTeletransmission | null;
+  /** Remplacement kiné seulement (09/11) — absent = « encaissés », texte CNOMK. */
+  assiette?: import("@/lib/contrats/clausesHonoraires").OptionAssiette | null;
 }
 
 // Phrase injectée après « versé(e) par … » selon le mode de paiement choisi.

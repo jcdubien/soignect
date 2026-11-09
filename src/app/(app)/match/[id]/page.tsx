@@ -171,7 +171,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
         <MatchChatButton
           matchId={match.id}
           myProfileId={profileId}
-          partner={{ type: theirProfile.type, theirMissionTitle: theirMission?.title ?? null, titulaireKind: theirProfile.titulaireKind, profession: theirProfile.profession }}
+          partner={{ type: theirProfile.type, theirMissionTitle: theirMission?.title ?? null, titulaireKind: theirProfile.titulaireKind, profession: theirProfile.profession, name: theirProfile.name }}
           aiScore={affinityScore}
           myType={myProfile.type}
           contratConfirmed={contratConfirme(match)}

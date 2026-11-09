@@ -18,6 +18,23 @@ export type OptionBalneo = "COMPRIS" | "TITULAIRE" | "PRATICIEN";
 export type OptionTeletransmission = "PRATICIEN" | "TITULAIRE";
 
 export const OPTIONS_BALNEO: OptionBalneo[] = ["COMPRIS", "TITULAIRE", "PRATICIEN"];
+
+// Assiette de la rétrocession du REMPLACEMENT kiné (09/11). Le modèle CNOMK dit « honoraires
+// qu'il aura encaissés » ; une remplaçante a demandé dans le chat de lire « réalisés » — les
+// actes faits pendant le remplacement mais payés après (tiers payant, retards) sortaient sinon
+// de l'assiette. ENCAISSES reste le défaut : rien n'est transmis, le texte CNOMK est inchangé.
+export type OptionAssiette = "ENCAISSES" | "REALISES";
+export const OPTIONS_ASSIETTE: OptionAssiette[] = ["ENCAISSES", "REALISES"];
+export const LIBELLE_ASSIETTE: Record<OptionAssiette, string> = {
+  ENCAISSES: "Honoraires encaissés pendant le remplacement (texte CNOMK)",
+  REALISES: "Honoraires des actes réalisés pendant le remplacement, même encaissés après",
+};
+/** Fin de phrase de l'article 6 : « … le remplaçant percevra X % des honoraires <ceci>. » */
+export function assietteRetrocession(o: OptionAssiette | null | undefined): string {
+  return o === "REALISES"
+    ? "afférents aux actes qu'il aura réalisés pendant la durée du remplacement, y compris ceux encaissés après son terme"
+    : "qu'il aura encaissés pendant la durée du remplacement";
+}
 export const OPTIONS_TELETRANSMISSION: OptionTeletransmission[] = ["PRATICIEN", "TITULAIRE"];
 
 /** Les deux parties telles que chaque modèle les nomme, et l'assiette de l'article. */

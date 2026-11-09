@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
+import { blanc } from "./blanc";
 import { Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { ContractParty } from "./types";
 import { libelleNumeroOrdre } from "@/lib/professions";
@@ -12,13 +13,13 @@ const P = StyleSheet.create({
   row: { flexDirection: "row", marginBottom: 2 },
   label: { fontFamily: "Helvetica-Bold", width: 140 },
   val: { flex: 1 },
-  placeholder: { color: "#b45309", fontFamily: "Helvetica-Bold" },
+  placeholder: {},
 });
 
 function Value({ v, fallback }: { v?: string | null; fallback: string }) {
   return v && v.trim().length > 0
     ? <Text style={P.val}>{v}</Text>
-    : <Text style={[P.val, P.placeholder]}>{fallback}</Text>;
+    : <Text style={[P.val, P.placeholder]}>{blanc(fallback)}</Text>;
 }
 
 export function PartyIdentityRows({ party }: { party: ContractParty }) {
@@ -47,7 +48,7 @@ export function PartyIdentityRows({ party }: { party: ContractParty }) {
         <Text style={P.label}>Adresse professionnelle :</Text>
         {party.adresse && party.adresse.trim().length > 0
           ? <Text style={P.val}>{party.adresse}</Text>
-          : <Text style={[P.val, P.placeholder]}>{party.location} — [adresse complète à compléter]</Text>}
+          : <Text style={[P.val, P.placeholder]}>{party.location} — {blanc("adresse")}</Text>}
       </View>
     </>
   );

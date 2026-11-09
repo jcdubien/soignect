@@ -1,5 +1,6 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
+import { blanc } from "./blanc";
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import { type ContractDataCollaborationInfirmier } from "./types";
 import { MentionSignature } from "./signature-mention";
@@ -59,7 +60,7 @@ const S = StyleSheet.create({
   infoRow: { flexDirection: "row", marginBottom: 2 },
   infoLabel: { fontFamily: "Helvetica-Bold", width: 140 },
   infoVal: { flex: 1 },
-  placeholder: { color: "#b45309", fontFamily: "Helvetica-Bold" },
+  placeholder: {},
   sigBlock: { flexDirection: "row", justifyContent: "space-between", marginTop: 30 },
   sigCol: { width: "45%", borderTopWidth: 0.5, borderTopColor: "#555", paddingTop: 6 },
   sigLabel: { fontSize: 8.5, color: "#555" },
@@ -70,7 +71,7 @@ const S = StyleSheet.create({
 });
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "[date à compléter]";
+  if (!iso) return blanc("[date à compléter]");
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
@@ -79,7 +80,7 @@ const LEGAL_MENTION =
 
 function Val({ v, fallback }: { v?: string | number | null; fallback: string }) {
   const s = v === null || v === undefined ? "" : String(v).trim();
-  return s.length > 0 ? <Text>{s}</Text> : <Text style={S.placeholder}>{fallback}</Text>;
+  return s.length > 0 ? <Text>{s}</Text> : <Text style={S.placeholder}>{blanc(fallback)}</Text>;
 }
 
 export function buildCollaborationInfirmierPdf(data: ContractDataCollaborationInfirmier) {

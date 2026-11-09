@@ -207,6 +207,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
   // PDF généré, on n'atteint pas la signature dans l'interface), mais l'endpoint restait
   // ouvert — on pouvait apposer une signature sur un contrat dont l'identité d'une des parties
   // est incomplète. Une signature engage : elle mérite le même contrôle que le document.
+  //
+  // L'IDENTITÉ DU SIGNATAIRE LUI-MÊME est exigée TOUJOURS (09/11), drapeau ou non. Elle se saisit
+  // sur la page du contrat, juste au-dessus du bouton : l'exiger ne renvoie plus vers /compte. Les
+  // deux parties passant chacune par ce contrôle, un contrat signé des deux côtés porte toutes les
+  // identités — le PDF n'imprime plus de blanc (lib/contrats/blanc) sur un document conclu.
+  // Le contrôle de l'AUTRE partie reste derrière le drapeau : elle sera arrêtée à sa propre signature.
+  const moiIdentite = await prisma.profile.findUnique({
+    where: { id: session.user.profileId as string },
+    select: CONTRACT_IDENTITY_SELECT,
+  });
+  if (moiIdentite && missingContractFields(moiIdentite).length > 0) {
+    return NextResponse.json(
+      { error: `Complétez votre identité professionnelle pour signer : ${missingContractLabels(moiIdentite).join(", ")}.` },
+      { status: 422 },
+    );
+  }
   if (await isContractProfileEnforced()) {
     const parties = await prisma.profile.findMany({
       // Les deux SIGNATAIRES : le remplacé désigné prend la place du titulaire du compte.
