@@ -24,6 +24,23 @@ export function lieuTravailParDefaut(missionTitulaire: MissionLieu, profilTitula
   return missionTitulaire?.location ?? profilTitulaire?.name ?? "cabinet";
 }
 
+/**
+ * Délai de versement de la rétrocession (remplacement) ou de la redevance (assistanat,
+ * collaboration), en jours, modifiable à l'écran (10/11).
+ *
+ * REMPLACEMENT : un mois après la fin de la période — le remplacé doit d'abord encaisser les
+ * honoraires (télétransmission, tiers payant) avant de pouvoir en reverser la part ; 5 jours
+ * l'obligeaient à avancer des sommes pas encore perçues.
+ * ASSISTANAT / COLLABORATION : 5 jours après la fin de chaque mois, soit le 5 du mois suivant.
+ */
+export const DELAI_PAIEMENT_JOURS_REMPLACEMENT_DEFAUT = 30;
+export const DELAI_PAIEMENT_JOURS_REDEVANCE_DEFAUT = 5;
+export function delaiPaiementJoursParDefaut(missionType: string | null | undefined): number {
+  return missionType === "REMPLACEMENT"
+    ? DELAI_PAIEMENT_JOURS_REMPLACEMENT_DEFAUT
+    : DELAI_PAIEMENT_JOURS_REDEVANCE_DEFAUT;
+}
+
 /** Durée légale hebdomadaire (art. L.3121-27). Défaut du temps complet, affiché à l'écran. */
 export const HEURES_HEBDOMADAIRES_DEFAUT = 35;
 

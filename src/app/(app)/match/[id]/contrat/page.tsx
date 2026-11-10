@@ -10,6 +10,7 @@ import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import type { PeriodeContrat, SourcePeriode } from "@/lib/contrats/periode";
 import { CONTRAT_RESTE_LE_VOTRE } from "@/lib/contrats/gabaritsSalarie";
 import { OPTIONS_BALNEO, OPTIONS_TELETRANSMISSION, LIBELLE_BALNEO, LIBELLE_TELETRANSMISSION, OPTIONS_ASSIETTE, LIBELLE_ASSIETTE, type OptionBalneo, type OptionTeletransmission, type OptionAssiette } from "@/lib/contrats/clausesHonoraires";
+import { delaiPaiementJoursParDefaut } from "@/lib/contrats/defauts";
 
 export const dynamic = "force-dynamic";
 
@@ -397,6 +398,8 @@ export default function ContratPage() {
       .then(r => r.json())
       .then(d => {
         setInfo(d);
+        // Défaut selon le type : un mois pour un remplacement, le 5 du mois suivant sinon.
+        setDelaiPaiementJours(delaiPaiementJoursParDefaut(d.missionType));
         if (d.retrocessionPct) setRetrocessionPct(d.retrocessionPct);
         if (d.retrocession) setRetrocession(d.retrocession);
         if (d.redevancePct) setRedevancePct(d.redevancePct);
@@ -992,7 +995,7 @@ export default function ContratPage() {
     if (teleT && LIBELLE_TELETRANSMISSION[teleT]) lignesResume.push(`Aide à la télétransmission : ${LIBELLE_TELETRANSMISSION[teleT]}`);
     if (t.has("rayonKm")) lignesResume.push(`${isRemplacement ? "Non-installation" : "Non-concurrence"} : ${t.get("rayonKm")} km${t.has("dureeAns") ? `, ${t.get("dureeAns")} an${Number(t.get("dureeAns")) > 1 ? "s" : ""}` : ""}`);
     if (t.get("periodeEssai") === "true") lignesResume.push("Période d'essai : oui");
-    if (t.get("modePaiement")) lignesResume.push(`Paiement : ${t.get("modePaiement")}, sous ${t.get("delaiPaiementJours") ?? "5"} jours`);
+    if (t.get("modePaiement")) lignesResume.push(`Paiement : ${t.get("modePaiement")}, sous ${t.get("delaiPaiementJours") ?? delaiPaiementJoursParDefaut(missionType)} jours`);
   }
   // Le formulaire s'ouvre d'office quand il reste quelque chose à y faire : un modèle à choisir,
   // ou le salaire d'un contrat de travail.

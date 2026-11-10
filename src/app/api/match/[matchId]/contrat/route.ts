@@ -31,6 +31,7 @@ import {
   HEURES_COMPLEMENTAIRES_DEFAUT,
   REVERSEMENT_PCT_DEFAUT,
   REVERSEMENT_DELAI_MOIS_DEFAUT,
+  delaiPaiementJoursParDefaut,
   REDEVANCE_CABINET_PCT_DEFAUT,
   JOUR_VERSEMENT_REDEVANCE_DEFAUT,
   FORFAIT_DELAI_REVERSEMENT_JOURS_DEFAUT,
@@ -244,8 +245,9 @@ export async function GET(req: NextRequest, { params }: Params) {
   const ALLOWED_MODES = ["Virement bancaire", "Chèque", "Espèces", "Autre"];
   const rawMode = sp.get("modePaiement") ?? "";
   const modePaiement = ALLOWED_MODES.includes(rawMode) ? rawMode : "Virement bancaire";
-  const delaiParsed = parseInt(sp.get("delaiPaiementJours") ?? "5", 10);
-  const delaiPaiementJours = Number.isFinite(delaiParsed) ? Math.min(60, Math.max(1, delaiParsed)) : 5;
+  const delaiDefaut = delaiPaiementJoursParDefaut(missionType);
+  const delaiParsed = parseInt(sp.get("delaiPaiementJours") ?? String(delaiDefaut), 10);
+  const delaiPaiementJours = Number.isFinite(delaiParsed) ? Math.min(60, Math.max(1, delaiParsed)) : delaiDefaut;
   const modalitesLocaux = (sp.get("modalitesLocaux") ?? "").slice(0, 600); // borne anti-débordement PDF
   // Clauses optionnelles des modèles kiné (24/10) — absentes ou inconnues = aucune phrase.
   const balneo = lireOption(sp.get("balneo"), OPTIONS_BALNEO);
