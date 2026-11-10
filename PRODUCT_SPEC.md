@@ -2495,6 +2495,10 @@ navigation client, l'en-tête affichait « 0 annonces » juste après la premiè
   au modèle. Lancée d'office depuis « Envoyer un contrat » du chat (`?lire=1`), sinon sur
   bouton ; budget DeepSeek habituel, repli dégradé. Absente une fois les termes figés.
 - **En-tête du chat :** le nom de l'interlocuteur, le rôle passe en sous-titre.
+- **Bandeau « contrat à signer »** (`components/ui/ContratsASigner`, layout) : tant que l'autre
+  partie a signé et pas moi — « Contrat signé le 6 novembre par X (type, période) — vous ne
+  l'avez pas encore signé » + « Relire et signer ». Source : `mesContrats` état `A_SIGNER`.
+  Masqué sur la page du contrat ; la page rafraîchit le layout après signature ou annulation.
 - **Base de la rétrocession (remplacement kiné) :** « encaissés » (texte CNOMK, défaut, non
   transmis) ou « réalisés » (actes faits pendant le remplacement, y compris encaissés après son
   terme). Réglage sous le taux, repris au résumé ; la lecture IA le propose quand le chat l'a

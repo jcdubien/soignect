@@ -25,6 +25,8 @@ import ActiveAnnoncesMenu from "./ActiveAnnoncesMenu";
 import ActiveAnnoncesMobile from "./ActiveAnnoncesMobile";
 import NotificationBell from "@/components/ui/NotificationBell";
 import ConseilDuJour from "@/components/ui/ConseilDuJour";
+import ContratsASigner from "@/components/ui/ContratsASigner";
+import { mesContrats } from "@/lib/mesContrats";
 import { EST_UNE_OFFRE } from "@/lib/feedFilters";
 import { libelleRoleSalariat, libelleTypePoste } from "@/lib/libellesPoste";
 import { souscriptionEnLigneOuverte } from "@/lib/tarifsPartenaire";
@@ -97,6 +99,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Mode lancement gratuit : on ne montre AUCUNE communication laissant entendre que
   // le gratuit mènera au payant (bandeau de grâce inclus) tant que ce mode est actif.
   const freeAccess = await isFreeAccessMode();
+
+  // Contrats signés par l'autre partie et pas encore par moi (09/11) — bandeau sous l'en-tête
+  // (masqué sur la page du contrat par le composant). Un échec de lecture n'empêche jamais la
+  // page de s'afficher.
+  const contratsASigner = await mesContrats(profileId)
+    .then((l) => l.filter((c) => c.etat === "A_SIGNER")).catch(() => []);
 
   // Bouton « + Annonce » rétabli en PERMANENCE (section 149) — filet de sécurité tant que le
   // clic sur la timeline n'est pas fiable à 100 %. Ouvre le flux de création quel que soit
@@ -354,6 +362,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         </div>
       )}
+
+      <ContratsASigner contrats={contratsASigner} />
 
       {/* ── Contenu ── */}
       <main className="flex-1 flex flex-col pb-16 sm:pb-0">{children}</main>

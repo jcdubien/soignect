@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { fmtDateUTC } from "@/lib/contrats/date";
 import { libelleOrdre, articleNonInstallation } from "@/lib/professions";
@@ -191,6 +191,8 @@ const TYPE_LABELS_SALARIE: Record<string, string> = {
 
 export default function ContratPage() {
   const { id } = useParams<{ id: string }>();
+  // Rafraîchit le layout après une signature : le bandeau « contrat à signer » doit disparaître.
+  const router = useRouter();
 
   const [info,     setInfo]     = useState<MatchInfo | null>(null);
   const [loading,  setLoading]  = useState(true);
@@ -467,6 +469,7 @@ export default function ContratPage() {
       if (!res.ok) { setError(data.error ?? "Échec de l'envoi de la signature."); return; }
       loadSig();
       rechargerInfo();
+      router.refresh();
     } catch {
       setError("Erreur réseau lors de l'envoi de la signature.");
     } finally {
@@ -487,6 +490,7 @@ export default function ContratPage() {
       if (!res.ok) { setError(data.error ?? "Échec de l'apposition de la signature."); return; }
       loadSig();
       rechargerInfo();
+      router.refresh();
     } catch {
       setError("Erreur réseau lors de l'apposition de la signature.");
     } finally {
@@ -510,6 +514,7 @@ export default function ContratPage() {
       if (!res.ok) { setError(data.error ?? "Impossible d'annuler ce contrat."); return; }
       loadSig();
       rechargerInfo();
+      router.refresh();
     } catch {
       setError("Erreur réseau lors de l'annulation.");
     } finally {
