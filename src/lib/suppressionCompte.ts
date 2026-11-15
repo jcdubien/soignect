@@ -72,6 +72,19 @@ export async function supprimerCompte(userId: string): Promise<ResultatSuppressi
     ? (await prisma.mission.findMany({ where: { profileId }, select: { id: true } })).map((m) => m.id)
     : [];
 
+  // Annonces du CABINET créées pour ce confrère hors Soignect (15/11). `creerConfrereHorsSoignect`
+  // crée d'un même geste le compte, une annonce du titulaire déjà pourvue et la mise en relation.
+  // L'annonce n'existe que pour cette relation ; la supprimer avec le compte provisoire la laissait
+  // orpheline sur le Planning du cabinet (trois « Assistanat — camille magaud » sans relation ni
+  // contrat, constatés le 15/11). Ciblage étroit : seulement les relations hors Soignect où ce
+  // profil est l'invité — jamais une annonce ordinaire d'un autre cabinet.
+  const missionsConfrere = profileId
+    ? (await prisma.match.findMany({
+        where: { profileBId: profileId, horsSoignect: true, missionAId: { not: null } },
+        select: { missionAId: true },
+      })).map((m) => m.missionAId as string)
+    : [];
+
   // Chemins des signatures apposées sur ses contrats — relevés MAINTENANT (section 244).
   // Après la transaction, les matchs n'existent plus et ces chemins sont irrécupérables : les
   // fichiers resteraient dans le bucket sans que rien ne puisse plus les désigner.
@@ -125,6 +138,15 @@ export async function supprimerCompte(userId: string): Promise<ResultatSuppressi
     // 6. Missions puis postes : `Mission.cabinetPost` est en `Restrict`, un poste ne peut pas
     //    partir tant qu'une de ses missions existe.
     operations.push(prisma.mission.deleteMany({ where: { profileId } }));          etiquettes.push("missions");
+    if (missionsConfrere.length > 0) {
+      // Après les matchs (étape 4), qui les référencent en `Restrict`. Jamais dans le fil
+      // (OCCUPE/CONFIRME), donc pas de swipe attendu — effacés quand même : un seul, en
+      // `Restrict`, ferait échouer toute la suppression du compte.
+      operations.push(prisma.swipe.deleteMany({ where: { swipedMissionId: { in: missionsConfrere } } }));
+      etiquettes.push("swipesAnnoncesConfrere");
+      operations.push(prisma.mission.deleteMany({ where: { id: { in: missionsConfrere } } }));
+      etiquettes.push("annoncesCabinetConfrere");
+    }
     operations.push(prisma.cabinetPost.deleteMany({ where: { cabinetId: profileId } })); etiquettes.push("postes");
 
     // 7. Traces d'usage : aucune clé étrangère ne les retient, elles survivraient en silence en
