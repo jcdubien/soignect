@@ -738,7 +738,10 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
                             ? libelleTypePoste(m.missionType, { type: "TITULAIRE", titulaireKind: isEmployeur ? "STRUCTURE" : "CABINET" }, m.natureSalariat)
                             : TYPE_LABEL[m.missionType] ?? m.missionType}
                         </span>
-                        {start && end ? `${fmtDate(start)} → ${fmtDate(end)}` : "Sans dates"}
+                        {/* Un assistanat n'a souvent qu'une date de début : « Sans dates » le
+                            disait à tort (15/11), et laissait croire qu'il fallait en ajouter une
+                            avant de le rattacher à un poste. */}
+                        {start && end ? `${fmtDate(start)} → ${fmtDate(end)}` : start ? `Dès le ${fmtDate(start)}` : "Sans dates"}
                       </p>
                       {perimee && <div className="mt-1.5"><EncartPeriodeEcoulee /></div>}
                       <div className="mt-2.5 flex flex-wrap items-center gap-2">
