@@ -195,7 +195,11 @@ export default function AnnoncesClient({ profileType, profileId, isPremium, free
           la zone et la bande « Vos mises en relation / Vos choix » (shrink-0) se dock EN BAS, contre le
           menu — fini le grand vide gris sous les trays. */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
-        <div className="flex-1 flex flex-col min-h-0">
+        {/* min-w-0 (06/11) : sans lui, un élément flex ne descend pas sous la largeur minimale de
+            son contenu — ici ~1 270 px (barre d'onglets d'annonces, ligne « Ordre d'affichage »).
+            La colonne de droite (w-80, shrink-0) était alors poussée hors de la fenêtre : coupée
+            sous ~1 590 px, invisible à 1 280. */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
           {/* Personnes signalées sur l'annonce sélectionnée (section 206) — celles qui n'ont
               rien publié, donc absentes du fil. Rendue dans l'espace de CETTE annonce, au-dessus
               du carrousel qui, lui, ne peut pas les montrer. Se masque toute seule s'il n'y en
