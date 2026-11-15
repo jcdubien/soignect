@@ -13,6 +13,7 @@ import { MobilePostCard, TimelineRow } from "./frise";
 import { PostMenu } from "./PostMenu";
 import { UncoveredChoiceModal, ConfirmModal } from "./modales";
 import { SidePanel } from "./panneau";
+import { RattacherAPoste } from "./RattacherAPoste";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -771,6 +772,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
                           Annuler l&apos;annonce
                         </button>
                       </div>
+                      <RattacherAPoste mission={m} posts={posts} />
                       <div className="mt-2.5 pt-2.5 border-t border-gray-100">
                         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Partager cette annonce</p>
                         <ShareActions path={cheminPartageAnnonce(m)} title={m.title} />

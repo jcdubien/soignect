@@ -15,6 +15,7 @@ import { offreOuverteLe } from "@/lib/feedFilters";
 import { contratFourniParEmployeur } from "@/lib/contrats/gabaritsSalarie";
 import { territoireDuProfil } from "@/lib/territoireServeur";
 import { territoiresVus, LIBELLE_TERRITOIRE } from "@/lib/communes";
+import { refusSiegeTitulaire, refusSansDateDebut, doublonRemplacement, messageDoublon } from "@/lib/rattachementPoste";
 
 export const dynamic = "force-dynamic";
 
@@ -143,20 +144,10 @@ export async function POST(req: NextRequest) {
   // remet à un paramètre d'URL : sans ce garde, il suffisait de le retirer pour rattacher un
   // assistanat au poste du titulaire lui-même, et la ligne aurait affiché son propre
   // remplacement du cabinet comme un recrutement d'assistant.
-  if (cabinetPostId && missionType && missionType !== MissionType.REMPLACEMENT) {
-    const poste = await prisma.cabinetPost.findUnique({
-      where: { id: cabinetPostId },
-      select: { isOwnerSeat: true },
-    });
-    if (poste?.isOwnerSeat) {
-      return NextResponse.json(
-        {
-          error:
-            "Le poste du titulaire ne peut accueillir qu'un remplacement. Pour recruter un assistant, créez d'abord un poste dédié dans le Planning, puis publiez la demande depuis sa ligne.",
-        },
-        { status: 422 }
-      );
-    }
+  // Règle partagée avec le rattachement a posteriori (lib/rattachementPoste).
+  if (cabinetPostId) {
+    const refusSiege = await refusSiegeTitulaire(cabinetPostId, missionType);
+    if (refusSiege) return NextResponse.json({ error: refusSiege }, { status: 422 });
   }
 
   // Photo de profil obligatoire pour publier une annonce/disponibilité (ferme la brèche
@@ -245,12 +236,8 @@ export async function POST(req: NextRequest) {
   // qui positionne la brique sur la ligne du poste (MissionBrick ne rend rien sans startDate).
   // Sans cette garde, un assistanat sans date était publié sans erreur puis restait invisible
   // sur le planning — le titulaire croyait sa publication perdue.
-  if (effectiveBrique === BriqueStatus.RECHERCHE && cabinetPostId && !startDate) {
-    return NextResponse.json(
-      { error: "Renseignez la date de prise de poste : sans elle, l'annonce n'apparaîtrait pas sur votre planning." },
-      { status: 422 }
-    );
-  }
+  const refusDate = cabinetPostId ? refusSansDateDebut(effectiveBrique, startDate) : null;
+  if (refusDate) return NextResponse.json({ error: refusDate }, { status: 422 });
 
   if (effectiveMissionType === MissionType.ASSISTANAT && startDate && endDate) {
     const dureeJours = Math.floor((endDate.getTime() - startDate.getTime()) / 86400000);
@@ -299,32 +286,18 @@ export async function POST(req: NextRequest) {
     // quand une annonce de remplacement ACTIVE couvre déjà une période qui se chevauche.
     // Limité au REMPLACEMENT : un assistanat long terme et un remplacement ponctuel se
     // chevauchent légitimement (c'est même le cas nominal — on couvre l'absence du titulaire).
-    if (effectiveMissionType === MissionType.REMPLACEMENT && startDate && endDate) {
-      const doublon = await prisma.mission.findFirst({
-        where: {
-          cabinetPostId,
-          isActive: true,
-          missionType: MissionType.REMPLACEMENT,
-          briqueStatus: BriqueStatus.RECHERCHE,
-          startDate: { lte: endDate },
-          endDate:   { gte: startDate },
+    const doublon = await doublonRemplacement({ cabinetPostId, missionType: effectiveMissionType, startDate, endDate });
+    if (doublon) {
+      return NextResponse.json(
+        {
+          error: messageDoublon(doublon),
+          duplicateMissionId: doublon.id,
+          // Une annonce de poste appartient toujours au cabinet : lui seul peut la modifier.
+          // L'assistant rattaché, lui, la retrouve (et peut la retirer) dans ses disponibilités.
+          duplicateModifiable: doublon.profileId === session.user.profileId,
         },
-        select: { id: true, title: true, startDate: true, endDate: true, profileId: true },
-      });
-      if (doublon) {
-        const jour = (d: Date | null) =>
-          d ? d.toISOString().slice(0, 10).split("-").reverse().join("/") : "?";
-        return NextResponse.json(
-          {
-            error: `Une annonce de remplacement couvre déjà cette période sur ce poste : « ${doublon.title} » (${jour(doublon.startDate)} → ${jour(doublon.endDate)}). Modifiez-la ou retirez-la plutôt que d'en publier une seconde.`,
-            duplicateMissionId: doublon.id,
-            // Une annonce de poste appartient toujours au cabinet : lui seul peut la modifier.
-            // L'assistant rattaché, lui, la retrouve (et peut la retirer) dans ses disponibilités.
-            duplicateModifiable: doublon.profileId === session.user.profileId,
-          },
-          { status: 409 }
-        );
-      }
+        { status: 409 }
+      );
     }
   }
 
