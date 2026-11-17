@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import PlanningBoard from "./PlanningBoard";
 import { logTraceEvent } from "@/lib/trace";
+import { avecDatesDuContrat } from "@/lib/contrats/datesSignees";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function PlanningPage() {
   });
 
   // Charger tous les postes + leurs missions actives + matchs associés
-  const posts = await prisma.cabinetPost.findMany({
+  const postsBruts = await prisma.cabinetPost.findMany({
     where: { cabinetId: profileId },
     include: {
       // Compte assistant rattaché (section 153) — pour afficher le lien + le bouton détacher.
@@ -50,14 +51,27 @@ export default async function PlanningPage() {
     // Le siège du détenteur en tête : c'est SA ligne, elle reste en haut du planning.
     orderBy: [{ isOwnerSeat: "desc" }, { createdAt: "asc" }],
   });
+  // Les dates du CONTRAT SIGNÉ priment sur celles de l'annonce (17/11, lib/contrats/datesSignees).
+  // Appliqué ici, à l'entrée du Planning, et non dans la brique : zones non couvertes, alertes et
+  // chevauchements se calculent tous sur ces mêmes dates. `include` charge déjà les termes figés
+  // et les deux signatures (champs scalaires de Match).
+  const posts = postsBruts.map((post) => ({
+    ...post,
+    missions: post.missions.map((m) => avecDatesDuContrat(m, [...m.matchesA, ...m.matchesB])),
+  }));
 
   // Récupérer les missions du cabinet non encore liées à un poste (hors absences)
   const unlinkedMissions = await prisma.mission.findMany({
     where: { profileId, cabinetPostId: null, isActive: true, isSelfPresence: false },
     // briqueStatus : sert à repérer les annonces EN RECHERCHE qui couvrent une absence du
     // titulaire, pour l'afficher sur sa ligne (elles n'ont pas de cabinetPostId à quoi se lier).
-    select: { id: true, title: true, startDate: true, endDate: true, missionType: true, natureSalariat: true, briqueStatus: true, isActive: true, updatedAt: true },
-  });
+    select: {
+      id: true, title: true, startDate: true, endDate: true, missionType: true, natureSalariat: true, briqueStatus: true, isActive: true, updatedAt: true,
+      // Dates du contrat signé (17/11) — même règle que sur les lignes des postes.
+      matchesA: { select: { termesContrat: true, signatureTitulaireAt: true, signatureRemplacantAt: true } },
+      matchesB: { select: { termesContrat: true, signatureTitulaireAt: true, signatureRemplacantAt: true } },
+    },
+  }).then((ms) => ms.map(({ matchesA, matchesB, ...m }) => avecDatesDuContrat(m, [...matchesA, ...matchesB])));
 
 
   return (
