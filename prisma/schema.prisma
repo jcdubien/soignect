@@ -606,6 +606,10 @@ model Match {
   // pour les deux. Null = pas encore figés (et contrats antérieurs : paramètres de l'écran, comme
   // avant). Effacés par « Annuler pour corriger ».
   termesContrat          String?
+  // FIN ANTICIPÉE (18/11) — le remplaçant est parti avant la date de fin signée. Les termes
+  // signés restent intacts (ils font foi pour ce qui a été convenu) ; cette date borne la période
+  // AFFICHÉE (Planning, Mes contrats) via lib/contrats/datesSignees. Null = contrat mené à terme.
+  finAnticipeeAt         DateTime?
 
   // UNICITÉ (section 209) — elle porte désormais sur la PAIRE DE MISSIONS, plus sur la paire
   // de personnes : un cabinet et un candidat ouverts à la fois au remplacement et à

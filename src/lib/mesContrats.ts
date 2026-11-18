@@ -10,7 +10,7 @@
 // Une annulation (section 248) efface les signatures : le contrat annulé quitte la liste.
 
 import { prisma } from "@/lib/prisma";
-import { datesDesTermes } from "@/lib/contrats/datesSignees";
+import { datesDesTermes, finEffective } from "@/lib/contrats/datesSignees";
 import { cotesDuMatch, coteDeSignature } from "@/lib/contrats/cotes";
 import { libelleTypePoste } from "@/lib/libellesPoste";
 import { periodePoste } from "@/lib/datesPoste";
@@ -53,7 +53,7 @@ export async function mesContrats(profileId: string): Promise<LigneContrat[]> {
     },
     select: {
       id: true, profileAId: true, profileBId: true, remplaceProfileId: true,
-      signatureTitulaireAt: true, signatureRemplacantAt: true, termesContrat: true,
+      signatureTitulaireAt: true, signatureRemplacantAt: true, termesContrat: true, finAnticipeeAt: true,
       profileA: profil, profileB: profil, remplace: { select: { name: true } },
       missionA: mission, missionB: mission,
     },
@@ -87,7 +87,7 @@ export async function mesContrats(profileId: string): Promise<LigneContrat[]> {
         // (17/11) : « Mes contrats » montrait la période de l'annonce, pas celle signée.
         periode: poste ? (() => {
           const t = datesDesTermes(m.termesContrat);
-          return periodePoste(t.debut ?? poste.startDate, t.fin ?? poste.endDate);
+          return periodePoste(t.debut ?? poste.startDate, finEffective(t.fin ?? poste.endDate, m.finAnticipeeAt));
         })() : null,
         lieu: poste?.location ?? null,
         derniereSignature: new Date(Math.max(...dates.map((d) => d.getTime()))).toISOString(),

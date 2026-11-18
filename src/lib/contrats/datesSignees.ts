@@ -15,6 +15,8 @@ export interface MatchSigne {
   termesContrat?: string | null;
   signatureTitulaireAt?: Date | string | null;
   signatureRemplacantAt?: Date | string | null;
+  /** Fin anticipée (18/11) : le remplaçant est parti avant la fin signée. Borne la fin affichée. */
+  finAnticipeeAt?: Date | string | null;
 }
 
 function jour(v: string | null): Date | null {
@@ -31,6 +33,18 @@ export function datesDesTermes(termes: string | null | undefined): { debut: Date
 }
 
 /**
+ * Fin réellement couverte : la fin signée, ramenée à la fin anticipée si le remplaçant est parti
+ * plus tôt (constaté le 18/11 : marine pelletier, contrat 17/11 → 11/12, partie après un jour).
+ * Les termes signés ne sont jamais réécrits — ils restent la trace de ce qui a été convenu.
+ */
+export function finEffective(fin: Date | null, finAnticipeeAt: Date | string | null | undefined): Date | null {
+  if (!finAnticipeeAt) return fin;
+  const a = new Date(finAnticipeeAt);
+  if (Number.isNaN(a.getTime())) return fin;
+  return !fin || a < fin ? a : fin;
+}
+
+/**
  * Période couverte par les contrats signés d'une annonce. Une annonce peut en porter plusieurs
  * (« 2 kinés ») : on prend l'enveloppe — début le plus tôt, fin la plus tardive. `null` si aucun
  * contrat signé ne donne de date.
@@ -40,7 +54,8 @@ export function periodeDesContratsSignes(matches: MatchSigne[]): { debut: Date |
   let fin: Date | null = null;
   for (const m of matches) {
     if (!m.termesContrat || !m.signatureTitulaireAt || !m.signatureRemplacantAt) continue;
-    const { debut: d, fin: f } = datesDesTermes(m.termesContrat);
+    const { debut: d, fin: signee } = datesDesTermes(m.termesContrat);
+    const f = finEffective(signee, m.finAnticipeeAt);
     if (d && (!debut || d < debut)) debut = d;
     if (f && (!fin || f > fin)) fin = f;
   }

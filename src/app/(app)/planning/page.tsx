@@ -68,8 +68,8 @@ export default async function PlanningPage() {
     select: {
       id: true, title: true, startDate: true, endDate: true, missionType: true, natureSalariat: true, briqueStatus: true, isActive: true, updatedAt: true,
       // Dates du contrat signé (17/11) — même règle que sur les lignes des postes.
-      matchesA: { select: { termesContrat: true, signatureTitulaireAt: true, signatureRemplacantAt: true } },
-      matchesB: { select: { termesContrat: true, signatureTitulaireAt: true, signatureRemplacantAt: true } },
+      matchesA: { select: { termesContrat: true, signatureTitulaireAt: true, signatureRemplacantAt: true, finAnticipeeAt: true } },
+      matchesB: { select: { termesContrat: true, signatureTitulaireAt: true, signatureRemplacantAt: true, finAnticipeeAt: true } },
     },
   }).then((ms) => ms.map(({ matchesA, matchesB, ...m }) => avecDatesDuContrat(m, [...matchesA, ...matchesB])));
 
