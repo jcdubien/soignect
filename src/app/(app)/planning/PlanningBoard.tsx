@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import ShareActions from "@/components/share/ShareActions";
 import { TYPE_LABEL } from "../ActiveAnnoncesList";
 import { libelleTypePoste } from "@/lib/libellesPoste";
-import { MissionData, PostData, UnlinkedMission, Zoom, ZOOM_DAYS, ZOOM_LABELS, LABEL_WIDTH, assignLanes, RANGE_END, TOTAL_DAYS, BRIQUE_STATUS, SUIVI, estAnnoncePerimee, posteDejaTenu, computeOwnerSeatGaps, computeUncoveredGaps, daysUntil, uncoveredUrgency, mobileWindow, pctIn, MobileBrick, Panel, DropdownState, ConfirmState, toDate, dayOffset, fmtDate, monthLabels, buildCreateHref, monthSkipFor, getEffectiveStatus, UncoveredChoiceState } from "./modele";
+import { MissionData, PostData, UnlinkedMission, Zoom, ZOOM_DAYS, ZOOM_LABELS, LABEL_WIDTH, assignLanes, RANGE_END, TOTAL_DAYS, BRIQUE_STATUS, SUIVI, estAnnoncePerimee, posteDejaTenu, computeOwnerSeatGaps, computeUncoveredGaps, daysUntil, uncoveredUrgency, mobileWindow, pctIn, MobileBrick, Panel, DropdownState, ConfirmState, toDate, finBrique, dayOffset, fmtDate, monthLabels, buildCreateHref, monthSkipFor, getEffectiveStatus, UncoveredChoiceState } from "./modele";
 import { EncartPeriodeEcoulee, EncartPosteDejaTenu } from "./encarts";
 import { MobilePostCard, TimelineRow } from "./frise";
 import { PostMenu } from "./PostMenu";
@@ -268,13 +268,13 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
     // s'arrêtait au 15/12 et l'annonce du 10/12 au 03/01 en dépassait — le mobile y lisait un
     // croisement partiel et ouvrait une sous-ligne, là où le desktop voyait une inclusion. Le
     // rendu, lui, ne change pas : `pctIn` plafonne déjà à 100 %.
-    const finDe   = (m: MissionData) => (toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END).getTime();
+    const finDe   = (m: MissionData) => finBrique(m).getTime();
     // Même bornage que le rendu ci-dessous : une mission hors fenêtre ne produit pas de brique
     // et ne doit donc pas consommer d'indice de sous-ligne, sinon la piste grandit pour rien et
     // la brique restante descend d'une bande vide.
     const missionsDatees = post.missions.filter((m) => {
       if (!toDate(m.startDate)) return false;
-      return mpct(toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END) - mpct(toDate(m.startDate)!) > 0;
+      return mpct(finBrique(m)) - mpct(toDate(m.startDate)!) > 0;
     });
     // Garde d'invisibilité en millisecondes : 6 px sur une piste mobile d'environ 330 px, soit
     // ~1,8 % de la fenêtre affichée. Approximation assumée — la largeur réelle n'est connue
@@ -291,7 +291,7 @@ export default function PlanningBoard({ posts, cabinetName, isEmployeur, unlinke
       const start = toDate(m.startDate);
       if (!start) return;
       // Fin effective : date de départ prévue (section 6) sinon endDate sinon bord fenêtre
-      const end = toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END;
+      const end = finBrique(m);
       const w = mpct(end) - mpct(start);
       if (w <= 0) return;
       const status = getEffectiveStatus(m, post, localStatuses);

@@ -1,6 +1,6 @@
 "use client";
 
-import { MissionData, PostData, LANE_PAD, MOBILE_TRACK_HEIGHT, assignLanes, LANE_PITCH, trackHeightFor, laneStyle, RANGE_END, TOTAL_DAYS, BRIQUE_STATUS, SUIVI, estAnnoncePerimee, computeOwnerSeatGaps, computeUncoveredGaps, daysUntil, uncoveredUrgency, MobileBrick, Panel, toDate, dayOffset, fmtDate, getEffectiveStatus } from "./modele";
+import { MissionData, PostData, LANE_PAD, MOBILE_TRACK_HEIGHT, assignLanes, LANE_PITCH, trackHeightFor, laneStyle, RANGE_END, TOTAL_DAYS, BRIQUE_STATUS, SUIVI, estAnnoncePerimee, computeOwnerSeatGaps, computeUncoveredGaps, daysUntil, uncoveredUrgency, MobileBrick, Panel, toDate, finBrique, dayOffset, fmtDate, getEffectiveStatus } from "./modele";
 
 // Carte d'un poste empilée verticalement : barre horizontale compacte des segments
 export function MobilePostCard({ label, bricks, todayPct, onLabelClick }: {
@@ -100,7 +100,7 @@ export function MissionBrick({
   if (!start) return null;
   // Fin effective : date de départ prévue (section 6) sinon endDate ; null = durée
   // indéterminée → brique ouverte jusqu'au bord droit (section 57 mode C).
-  const end = toDate(mission.departureDate) ?? toDate(mission.endDate) ?? RANGE_END;
+  const end = finBrique(mission);
   // Segment CONFIRMÉ/RECRUTEMENT : affiche le nom du successeur matché s'il existe (section 6)
   const brickLabel = mission.matchedName || mission.title;
 
@@ -214,7 +214,7 @@ export function TimelineRow({
   // Répartition des briques en sous-lignes. On borne chaque mission comme le fait MissionBrick
   // (départ prévu, sinon fin, sinon ouverte jusqu'au bord droit) pour que le calcul colle au rendu.
   const debutDe = (m: MissionData) => dayOffset(toDate(m.startDate)!);
-  const finDe   = (m: MissionData) => dayOffset(toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END);
+  const finDe   = (m: MissionData) => dayOffset(finBrique(m));
 
   // COMPTER CE QUI EST DESSINÉ, PAS CE QUI EXISTE (section 264). MissionBrick renvoie `null`
   // quand la période tombe entièrement hors de la plage affichée (`width <= 0`). Ces missions

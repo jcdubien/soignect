@@ -327,7 +327,7 @@ export function computeUncoveredGaps(missions: MissionData[]): { start: Date; en
   // devient non couverte (donc NON_COUVERT, ou RECRUTEMENT si une annonce la couvre).
   const covered = missions
     .filter(m => toDate(m.startDate))
-    .map(m => ({ start: toDate(m.startDate)!, end: toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END }))
+    .map(m => ({ start: toDate(m.startDate)!, end: finBrique(m) }))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
   const gaps: { start: Date; end: Date }[] = [];
   let cursor = effectiveStart;
@@ -413,6 +413,18 @@ export function toDate(v: Date | string | null | undefined): Date | null {
   if (!v) return null;
   const d = new Date(v as string);
   return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Fin d'une brique à l'écran : départ prévu, sinon fin, sinon bord de la plage. Une période d'UN
+ * jour (fin = début) occupe ce jour entier : sans ce plancher, sa largeur valait zéro et la brique
+ * disparaissait de la frise comme de la vue mobile (constaté le 19/11 : marine pelletier, partie
+ * après un jour, contrat borné au 17/11 par sa fin anticipée).
+ */
+export function finBrique(m: { startDate: Date | string | null; endDate: Date | string | null; departureDate?: Date | string | null }): Date {
+  const fin = toDate(m.departureDate) ?? toDate(m.endDate) ?? RANGE_END;
+  const debut = toDate(m.startDate);
+  return debut && fin.getTime() <= debut.getTime() ? new Date(debut.getTime() + 86400000) : fin;
 }
 
 export function dayOffset(d: Date): number {
