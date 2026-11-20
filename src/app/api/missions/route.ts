@@ -232,6 +232,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // La fin ne précède jamais le début (20/11). Rien ne le vérifiait : une disponibilité publiée
+  // le 10/11 portait « 8 mai au 8 janv. » (08/05/2027 → 08/01/2027) — dates inversées à la saisie,
+  // affichées telles quelles dans le titre, la vignette et le fil des cabinets.
+  if (startDate && endDate && endDate.getTime() < startDate.getTime()) {
+    return NextResponse.json(
+      { error: "La date de fin est avant la date de début. Vérifiez les dates (du / au)." },
+      { status: 422 },
+    );
+  }
+
   // Une annonce rattachée à un poste du Planning DOIT avoir une date de début : c'est elle
   // qui positionne la brique sur la ligne du poste (MissionBrick ne rend rien sans startDate).
   // Sans cette garde, un assistanat sans date était publié sans erreur puis restait invisible

@@ -111,6 +111,17 @@ export async function PATCH(
 
   const { briqueStatus, statusNote, statusUpdatedAt, suiviStatut, startDate, endDate, departureDate, ...rest } = parsed.data;
 
+  // Fin jamais avant le début (20/11, même règle qu'à la création). Une modification peut ne
+  // porter qu'une des deux dates : on compare au résultat final, pas aux seuls champs envoyés.
+  const debutFinal = startDate !== undefined ? (startDate ? new Date(startDate) : null) : mission.startDate;
+  const finFinale = endDate !== undefined ? (endDate ? new Date(endDate) : null) : mission.endDate;
+  if (debutFinal && finFinale && finFinale.getTime() < debutFinal.getTime()) {
+    return NextResponse.json(
+      { error: "La date de fin est avant la date de début. Vérifiez les dates (du / au)." },
+      { status: 422 },
+    );
+  }
+
   // Même règle qu'à la création (section 304) : pas d'assistanat pour un candidat d'une profession
   // salariée seulement — son long terme est un poste durable, rangé en COLLABORATION.
   if (rest.missionType === MissionType.ASSISTANAT && proprio?.type !== "TITULAIRE" && contratFourniParEmployeur(proprioProfession)) {
