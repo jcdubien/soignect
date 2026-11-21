@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  PAGES_PUBLIEES, PORTES, TERRITOIRES, KINESITHERAPEUTE, INFIRMIER, AIDE_SOIGNANT,
+  PAGES_PUBLIEES, PORTES, TERRITOIRES, KINESITHERAPEUTE, INFIRMIER, AIDE_SOIGNANT, ORTHOPHONISTE,
   cheminPage, cleTracePage, pagePublieeDuSlug, lienInscription, metadonneesPage,
 } from "../pagesDiffusion";
 
@@ -24,7 +24,7 @@ test("les 13 chemins historiques sont servis, à l'identique", () => {
 test("la Martinique reçoit le même jeu de pages que la Guadeloupe", () => {
   const gp = chemins.filter((c) => c.endsWith("-guadeloupe")).map((c) => c.replace(/-guadeloupe$/, ""));
   const mq = chemins.filter((c) => c.endsWith("-martinique")).map((c) => c.replace(/-martinique$/, ""));
-  assert.equal(mq.length, 11);
+  assert.equal(mq.length, 14); // 11 + les trois portes orthophonistes (21/11)
   assert.deepEqual([...mq].sort(), [...gp].sort());
 });
 
@@ -89,4 +89,21 @@ test("l'inscription depuis une page de Martinique coche la Martinique", () => {
     "/register?profession=INFIRMIER&profileType=TITULAIRE&structure=1&territoire=MARTINIQUE&src=emploi-infirmier-martinique");
   assert.equal(lienInscription(PORTES.CABINET, KINESITHERAPEUTE, TERRITOIRES.SAINT_MARTIN),
     "/register?profession=KINESITHERAPEUTE&src=recrutement-kine-saint-martin");
+});
+
+test("orthophonistes (21/11) : trois portes libérales, et aucune forme de poste promise sans contrat", () => {
+  for (const c of ["/remplacement-orthophoniste-guadeloupe", "/recrutement-orthophoniste-guadeloupe", "/maison-de-sante-orthophoniste-guadeloupe",
+    "/remplacement-orthophoniste-martinique"]) {
+    assert.ok(chemins.includes(c), c);
+  }
+  assert.ok(!chemins.includes("/emploi-orthophoniste-guadeloupe"));
+  // Remplacement seul tant que les modèles FNO de collaboration et d'assistanat manquent.
+  const t = TERRITOIRES.GUADELOUPE;
+  const textes = [
+    PORTES.CABINET.accroche(ORTHOPHONISTE, t), PORTES.CABINET.metaDescription(ORTHOPHONISTE, t),
+    PORTES.CHERCHEUR.ctaSous(ORTHOPHONISTE, t), PORTES.CHERCHEUR.ogSousTitre(ORTHOPHONISTE, t),
+    ...PORTES.CHERCHEUR.basDePage(ORTHOPHONISTE, t).paragraphes, t.accroche(ORTHOPHONISTE),
+  ].join(" ");
+  assert.doesNotMatch(textes, /collaborat|assistanat/i);
+  assert.match(PORTES.CABINET.accroche(ORTHOPHONISTE, t), /^Publiez votre poste et voyez qui s'y intéresse\. Remplacement de quelques semaines : /);
 });

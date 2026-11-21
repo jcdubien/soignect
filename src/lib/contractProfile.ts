@@ -3,7 +3,7 @@
 // + adresse. Structures employeuses : SIRET + adresse. Nom requis pour tous.
 // Source unique de vérité, partagée serveur (blocage/PDF) et client (/compte, contrat).
 
-import { libelleNumeroOrdre } from "@/lib/professions";
+import { libelleNumeroOrdre, aUnNumeroOrdre } from "@/lib/professions";
 import { contratEtabliParLEmployeur } from "@/lib/contrats/gabaritsSalarie";
 
 export interface ContractIdentity {
@@ -108,7 +108,7 @@ export function requiredContractFields(
   const base: ContractField[] = ["name", "adresse"];
   return isStructureProfile(p)
     ? [...base, "siret"]
-    : [...base, "rpps", "numeroOrdre"];
+    : [...base, "rpps", ...(aUnNumeroOrdre(p.profession) ? (["numeroOrdre"] as const) : [])];
 }
 
 // Champs requis manquants (vides/espaces) pour ce profil.

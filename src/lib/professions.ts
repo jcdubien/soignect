@@ -105,7 +105,9 @@ export const PROFESSION_LABELS_CONTRAT: Record<Profession, string> = {
 export const LIBELLE_NUMERO_ORDRE: Record<Profession, string> = {
   KINESITHERAPEUTE: "N° Ordre",      // inchangé : c'est déjà ce qu'impriment les gabarits CNOMK
   INFIRMIER:        "N° ordinal",    // vocabulaire du CNOI, relevé sur ses modèles de contrat
-  ORTHOPHONISTE:    "N° Ordre",
+  // Pas d'ordre des orthophonistes : aucun numéro ordinal n'existe, et aucun n'est demandé
+  // (`aUnNumeroOrdre`). Le libellé ne sert qu'à un affichage générique éventuel.
+  ORTHOPHONISTE:    "N° d'enregistrement",
   SAGE_FEMME:       "N° Ordre",
   DENTISTE:         "N° Ordre",
   ORTHOPTISTE:      "N° ADELI",   // les orthoptistes n'ont pas d'ordre : c'est ADELI qui les enregistre
@@ -120,6 +122,21 @@ export function libelleNumeroOrdre(p?: string | null): string {
   return LIBELLE_NUMERO_ORDRE[p as Profession] ?? "N° Ordre";
 }
 
+// ── PROFESSIONS SANS NUMÉRO ORDINAL (ouverture des orthophonistes, 21/11) ──────────────────
+//
+// L'identité contractuelle exigeait RPPS ET numéro d'ordre de tout praticien, et le contrat
+// imprimait une ligne « N° Ordre » à remplir. Les orthophonistes n'ont pas d'ordre : la ligne
+// aurait réclamé à chacun un numéro qui n'existe pas, et bloqué sa signature le jour où le
+// contrôle d'identité devient bloquant. Le RPPS, lui, reste exigé.
+//
+// Les orthoptistes ne sont PAS ici : leur numéro ADELI occupe aujourd'hui ce champ (libellé
+// « N° ADELI » ci-dessus) — les en retirer serait une autre décision.
+export const PROFESSIONS_SANS_NUMERO_ORDRE: readonly Profession[] = ["ORTHOPHONISTE"];
+
+export function aUnNumeroOrdre(p?: string | null): boolean {
+  return !(PROFESSIONS_SANS_NUMERO_ORDRE as readonly string[]).includes(p ?? "");
+}
+
 // Nom de l'ORDRE PROFESSIONNEL, tel qu'on l'écrit à un praticien (section 240).
 //
 // L'écran de contrat renvoyait tout le monde vers « l'Ordre des masseurs-kinésithérapeutes »,
@@ -131,7 +148,9 @@ export function libelleNumeroOrdre(p?: string | null): string {
 export const LIBELLE_ORDRE: Record<Profession, string> = {
   KINESITHERAPEUTE: "l'Ordre des masseurs-kinésithérapeutes",
   INFIRMIER:        "l'Ordre des infirmiers",
-  ORTHOPHONISTE:    "votre ordre professionnel",  // pas de gabarit à ce jour
+  // Pas d'ordre : le contrat suit le modèle de la FNO, dont le service juridique est la
+  // référence nommée par le modèle lui-même (« se rapprocher du service juridique de la FNO »).
+  ORTHOPHONISTE:    "le service juridique de la FNO",
   SAGE_FEMME:       "l'Ordre des sages-femmes",
   DENTISTE:         "l'Ordre des chirurgiens-dentistes",
   // Pas d'ordre professionnel pour les orthoptistes — la formule neutre n'est pas un repli

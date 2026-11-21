@@ -30,7 +30,7 @@ export function libelleTypePartenaire(type: TypeInstitution): string {
 }
 
 /** Professions qu'on peut cocher : celles qui ont des pages et un fil peuplé. */
-export const PROFESSIONS_PARTENAIRE: readonly Profession[] = ["KINESITHERAPEUTE", "INFIRMIER", "AIDE_SOIGNANT"];
+export const PROFESSIONS_PARTENAIRE: readonly Profession[] = ["KINESITHERAPEUTE", "INFIRMIER", "AIDE_SOIGNANT", "ORTHOPHONISTE"];
 
 /** Lien vers le formulaire depuis une page de diffusion. `type` présélectionne la structure ;
  *  l'île, quand ce n'est pas la Guadeloupe (île par défaut), est cochée d'office (section 379). */

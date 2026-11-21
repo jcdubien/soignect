@@ -3,7 +3,7 @@ import React from "react";
 import { blanc } from "./blanc";
 import { Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { ContractParty } from "./types";
-import { libelleNumeroOrdre } from "@/lib/professions";
+import { libelleNumeroOrdre, aUnNumeroOrdre } from "@/lib/professions";
 
 // Lignes d'identité d'une partie dans le PDF de contrat (section 150) — valeurs réelles
 // injectées depuis le Profile (RPPS + N° Ordre pour praticiens, SIRET pour structures,
@@ -38,10 +38,14 @@ export function PartyIdentityRows({ party }: { party: ContractParty }) {
           </View>
           {/* Intitulé emprunté au registre : « N° Ordre » (CNOMK) ou « n° ordinal » (CNOI).
               Le repli rend « N° Ordre », valeur inchangée pour les gabarits kiné existants. */}
+          {/* Pas de ligne pour une profession sans ordre (orthophonistes, 21/11) : un blanc à
+              remplir y réclamerait un numéro qui n'existe pas. */}
+          {aUnNumeroOrdre(party.professionEnum) && (
           <View style={P.row}>
             <Text style={P.label}>{libelleNumeroOrdre(party.professionEnum)} :</Text>
             <Value v={party.numeroOrdre} fallback={`[${libelleNumeroOrdre(party.professionEnum)} à compléter]`} />
           </View>
+          )}
         </>
       )}
       <View style={P.row}>

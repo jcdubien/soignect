@@ -32,7 +32,8 @@ export type GabaritId =
   | "KINE_COLLABORATION"
   | "INFIRMIER_REMPLACEMENT_CONFRERE"
   | "INFIRMIER_REMPLACEMENT_AUTORISATION"
-  | "INFIRMIER_COLLABORATION";
+  | "INFIRMIER_COLLABORATION"
+  | "ORTHOPHONISTE_REMPLACEMENT";
 
 export interface Gabarit {
   id: GabaritId;
@@ -95,6 +96,19 @@ export const GABARITS: Gabarit[] = [
     source: "CNOI (15/11/2023)",
   },
   // Pas d'entrée INFIRMIER × ASSISTANAT : voir l'en-tête. L'absence est le fait, pas l'oubli.
+  {
+    // Ouverture des orthophonistes (21/11). Pas d'ordre : le modèle de référence est le
+    // contrat-type de la FNO, transcrit dans template-orthophoniste-remplacement.
+    // Collaboration et assistanat ne sont pas ouverts : les modèles FNO correspondants sont
+    // réservés aux adhérents et n'ont pas été transmis. Leur absence ici ferme la publication de
+    // ces types aux orthophonistes (`missionTypesPour`) — un poste publié doit pouvoir produire
+    // son contrat.
+    id: "ORTHOPHONISTE_REMPLACEMENT",
+    profession: Profession.ORTHOPHONISTE,
+    missionType: MissionType.REMPLACEMENT,
+    libelle: "Contrat de remplacement libéral",
+    source: "FNO (contrat-type, avril 2026)",
+  },
 ];
 
 /** Gabarits disponibles pour une paire — 0, 1 ou plusieurs. */

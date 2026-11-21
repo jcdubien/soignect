@@ -86,6 +86,20 @@ const ECRITS: Partial<Record<Profession, ExemplesPublication>> = {
       accroche: "J'aspire à rejoindre une tournée stable en Guadeloupe…",
     },
   },
+  // Orthophonistes (21/11). Le long terme y est un REMPLACEMENT long (congé maternité, parental) :
+  // collaboration et assistanat ne sont pas ouverts à la profession (gabarits).
+  ORTHOPHONISTE: {
+    remplacement: {
+      brut: "Ex : Disponible du 1er au 30 septembre sur le Sud Grande-Terre (Sainte-Anne, Le Gosier). Langage oral et écrit, enfants et adultes, bilans. Véhiculée. Je recherche un logement.",
+      titre: "Ex : Disponible juillet-août · Pointe-à-Pitre et alentours",
+      accroche: "Orthophoniste diplômée, disponible pour des remplacements en libéral…",
+    },
+    longTerme: {
+      brut: "Ex : Orthophoniste diplômée, je recherche un remplacement de longue durée (congé maternité) sur Grande-Terre à partir de septembre, 4 à 6 mois. Expérience en neurologie adulte. Je cherche un logement.",
+      titre: "Ex : Remplacement longue durée orthophoniste · Guadeloupe à partir de septembre",
+      accroche: "J'aspire à reprendre une patientèle variée en Guadeloupe…",
+    },
+  },
 };
 
 /** Les exemples d'une profession — écrits si on les a, forme neutre sinon. Jamais vides. */
@@ -106,6 +120,7 @@ const ACCROCHE_PROFIL_ECRITE: Partial<Record<Profession, string>> = {
   // Mot pour mot l'existant : aucune régression de formulation pour le marché d'origine.
   KINESITHERAPEUTE: "Kiné passionné de sport, expérience 5 ans, disponible été et Noël, mobile sur toute la Guadeloupe…",
   INFIRMIER: "Infirmière diplômée d'État, 5 ans en libéral, tournées et soins à domicile, véhiculée sur toute la Guadeloupe…",
+  ORTHOPHONISTE: "Orthophoniste, 5 ans en libéral, langage oral et écrit, enfants et adultes, mobile sur toute la Guadeloupe…",
 };
 
 /** Exemple d'accroche pour un CANDIDAT, selon sa profession. Jamais vide. */

@@ -10,6 +10,7 @@ import { buildCollaborationPdf } from "@/lib/contrats/template-collaboration";
 import { buildRemplacementInfirmierAutorisePdf } from "@/lib/contrats/template-infirmier-remplacement-autorisation";
 import { buildRemplacementInfirmierConfrerePdf } from "@/lib/contrats/template-infirmier-remplacement-confrere";
 import { buildCollaborationInfirmierPdf } from "@/lib/contrats/template-infirmier-collaboration";
+import { buildRemplacementOrthophonistePdf } from "@/lib/contrats/template-orthophoniste-remplacement";
 import { gabaritsPour } from "@/lib/contrats/gabarits";
 import { contratSalarie, natureDuContrat } from "@/lib/contrats/registre";
 import { buildInfirmierSalariatCddPdf } from "@/lib/contrats/template-infirmier-salariat-cdd";
@@ -774,6 +775,21 @@ export async function GET(req: NextRequest, { params }: Params) {
       generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
     });
     filename = "contrat-collaboration-infirmier.pdf";
+  } else if (gabarit.id === "ORTHOPHONISTE_REMPLACEMENT") {
+    element = buildRemplacementOrthophonistePdf({
+      remplace: titulaireParty, remplacant: autreParty,
+      startDate: periode.debut,
+      endDate:   periode.fin,
+      motifAbsence:    texte("motifAbsence", 200),
+      modeFacturation: sp.get("modeFacturation") === "FEUILLES_REMPLACE" ? "FEUILLES_REMPLACE" : "CPS_REMPLACANT",
+      retrocessionPct: Math.min(100, Math.max(0, Number.isFinite(retrocessionPct) ? retrocessionPct : 80)),
+      // 4 mois : préconisation FNO (notice, art. 6). 5 réunions au plus : art. 29 de la convention.
+      fohMoisMin:  entier("fohMoisMin", 4, 0, 24),
+      reunionsMax: entier("reunionsMax", 0, 0, 5),
+      rayonKm,
+      generatedAt, signatureTitulaireImg, signatureRemplacantImg, draft: isDraft,
+    });
+    filename = "contrat-remplacement-orthophoniste.pdf";
   } else if (missionType === MissionType.REMPLACEMENT) {
     element = buildRemplacementPdf({
       remplace: titulaireParty, remplacant: autreParty,

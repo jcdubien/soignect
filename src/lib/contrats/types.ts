@@ -356,6 +356,37 @@ export interface ContractDataRemplacement extends SignatureImages, NegotiableCla
   generatedAt: string;
 }
 
+/** Remplacement libéral entre orthophonistes — transcription du contrat-type de la FNO (MAJ
+ *  avril 2026). Les orthophonistes n'ont pas d'ordre : le modèle de référence de la profession est
+ *  celui de sa fédération nationale (décision de JC du 21/11).
+ *
+ *  `retrocessionPct` garde le sens du remplacement kiné : la part des honoraires que CONSERVE le
+ *  remplaçant. Le modèle l'écrit en deux temps — le remplaçant retient ce pourcentage sur ce qu'il
+ *  encaisse lui-même, et le remplacé lui reverse ce même pourcentage de ce qui arrive sur son
+ *  compte (tiers payant, virements, carte). Un seul taux pour les deux : le modèle laisse deux
+ *  blancs, mais deux taux différents décriraient un partage incohérent pour le même acte. */
+export interface ContractDataRemplacementOrthophoniste extends SignatureImages {
+  remplace: ContractParty;
+  remplacant: ContractParty;
+  startDate: string | null;
+  endDate: string | null;
+  /** Motif de l'arrêt d'activité du remplacé (art. « Objet ») — le modèle exige qu'il figure. */
+  motifAbsence: string;
+  /** Case cochée à l'article « Rétrocessions » : la CPS du remplaçant est-elle utilisable sur le
+   *  logiciel du remplacé, ou facture-t-il sur les feuilles de soins pré-identifiées du remplacé ? */
+  modeFacturation: "CPS_REMPLACANT" | "FEUILLES_REMPLACE";
+  retrocessionPct: number;
+  /** Durée de prise en charge (mois) au-delà de laquelle le remplaçant facture le forfait FOH.
+   *  La FNO préconise 4 mois. */
+  fohMoisMin: number;
+  /** Nombre maximal de réunions d'équipe éducative rémunérées (aide FAMI, 5 par an au plus,
+   *  art. 29 de la convention). 0 = blanc laissé à remplir. */
+  reunionsMax: number;
+  /** Rayon de la clause de non-installation, en trajet routier (imprimée au-delà de 3 mois). */
+  rayonKm: number;
+  generatedAt: string;
+}
+
 export interface ContractDataAssisanat extends SignatureImages, NegotiableClauses {
   titulaire: ContractParty;
   assistant: ContractParty;

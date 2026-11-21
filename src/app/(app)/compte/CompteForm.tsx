@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PROFESSION_LABELS, libelleNumeroOrdre } from "@/lib/professions";
+import { PROFESSION_LABELS, libelleNumeroOrdre, aUnNumeroOrdre } from "@/lib/professions";
 import { signOut, useSession } from "next-auth/react";
 import { TERRITOIRES, LIBELLE_TERRITOIRE, type Territoire } from "@/lib/communes";
 import Link from "next/link";
@@ -432,7 +432,8 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
               </p>
             </div>
 
-            {/* N° Ordre */}
+            {/* N° Ordre — absent pour une profession sans ordre (orthophonistes, 21/11). */}
+            {aUnNumeroOrdre(profession) && (
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
                 N° d&apos;inscription à l&apos;Ordre <span className="text-red-500">*</span>
@@ -446,6 +447,7 @@ export default function CompteForm({ profile, matchedMissions = [], souscription
                 placeholder="Ex : 971 0000 0000"
               />
             </div>
+            )}
           </>
         )}
 

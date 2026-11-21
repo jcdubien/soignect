@@ -205,6 +205,21 @@ contrat n'a été affecté ». On ne peut pas aller plus loin sans les archives.
 
 ---
 
+### Professions ouvertes (21/11)
+
+| Profession | Contrats générés | Pages de diffusion (Guadeloupe, Martinique) |
+|---|---|---|
+| Kinés | remplacement, assistanat, collaboration (CNOMK) ; CDD et CDI salariés | remplacement, recrutement, emploi, maison-de-santé, territoire |
+| Infirmiers | remplacement (2 variantes), collaboration (CNOI) ; CDD et CDI salariés | remplacement, recrutement, emploi, maison-de-santé |
+| Aides-soignants | aucun : contrat de l'employeur | candidat salarié, emploi |
+| **Orthophonistes** | **remplacement seul**, contrat-type FNO (avril 2026) | remplacement, recrutement, maison-de-santé |
+
+Orthophonistes : pas d'ordre — aucun numéro ordinal demandé ni imprimé (`aUnNumeroOrdre`), le RPPS
+reste exigé. Collaboration et assistanat s'ouvriront avec les modèles FNO correspondants
+(réservés aux adhérents) ; ajouter le gabarit suffit, publication et pages suivent
+(`missionTypesPour`, `formesOuvertes`). Pas de salariat (aucun modèle de contrat de travail),
+pas d'APL DREES, donc pas de priorité territoriale.
+
 ## PARTIE II — PARCOURS UTILISATEUR
 
 ### Candidat — inscription, publication, suggestions

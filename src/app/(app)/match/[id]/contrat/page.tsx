@@ -295,6 +295,12 @@ export default function ContratPage() {
   // Sélectionné ici plutôt que figé au gabarit : les trois modes décrivent des organisations de
   // cabinet réellement différentes.
   const [forfaitPartage, setForfaitPartage] = useState("TOUR_DE_ROLE");
+  // Remplacement orthophoniste — contrat-type FNO (21/11). Les blancs que le modèle laisse et
+  // qu'aucun autre gabarit ne porte : motif de l'arrêt, case de facturation, durée FOH, réunions.
+  const [motifAbsence, setMotifAbsence] = useState("");
+  const [modeFacturation, setModeFacturation] = useState<"CPS_REMPLACANT" | "FEUILLES_REMPLACE">("CPS_REMPLACANT");
+  const [fohMoisMin, setFohMoisMin] = useState(4);
+  const [reunionsMax, setReunionsMax] = useState(0);
 
   // Clauses négociables in-app (section 164) — remplacent les placeholders figés du PDF.
   // Valeurs par défaut raisonnables : aucune saisie n'est obligatoire.
@@ -606,6 +612,17 @@ export default function ContratPage() {
     if (gabaritId === "INFIRMIER_REMPLACEMENT_CONFRERE") {
       params.set("redevanceCabinetPct", String(redevanceCabinetPct));
     }
+    // Remplacement orthophoniste : le modèle FNO fixe lui-même le paiement (le 10 du mois N+1)
+    // et les frais (art. 5) — mode, délai et modalités des locaux n'y ont pas de place.
+    if (estOrtho) {
+      params.delete("modePaiement");
+      params.delete("delaiPaiementJours");
+      params.delete("modalitesLocaux");
+      params.set("motifAbsence", motifAbsence);
+      params.set("modeFacturation", modeFacturation);
+      params.set("fohMoisMin", String(fohMoisMin));
+      params.set("reunionsMax", String(reunionsMax));
+    }
     if (gabaritId === "INFIRMIER_COLLABORATION") {
       params.set("jourVersementRedevance", String(jourVersementRedevance));
       params.set("forfaitDelaiReversementJours", String(forfaitDelaiReversement));
@@ -834,6 +851,7 @@ export default function ContratPage() {
   // comme par `buildUrl`. Tant que la condition d'affichage vivait uniquement dans le JSX, rien
   // n'empêchait l'envoi d'un paramètre masqué — ce qui est précisément arrivé.
   const estInfirmier = (gabaritId ?? "").startsWith("INFIRMIER_");
+  const estOrtho = gabaritId === "ORTHOPHONISTE_REMPLACEMENT";
 
   // Vocabulaire de l'ordre concerné (section 240). Ces deux textes étaient codés en dur pour les
   // kinésithérapeutes : un infirmier lisait le mauvais nom d'ordre et le mauvais article de code,
@@ -910,7 +928,8 @@ export default function ContratPage() {
   // Les modèles infirmier ont leur propre essai, en MOIS, réglé dans « Durée et préavis ». Les
   // afficher tous les deux ne donnait pas seulement un levier sans effet : les deux se
   // contredisaient à l'écran. Constaté de visu sur la collaboration infirmier.
-  const montrePeriodeEssaiLiberale = !info.isSalariat && !estInfirmier;
+  // Le modèle FNO ne prévoit pas d'essai.
+  const montrePeriodeEssaiLiberale = !info.isSalariat && !estInfirmier && !estOrtho;
   const seuilRedevance = info.defautsInfirmier?.redevanceCabinetSeuilAlerte ?? 10;
   const periode = info.periode;
 
@@ -967,7 +986,7 @@ export default function ContratPage() {
     retrocessionPct: montreRetrocession ? retrocessionPct : null,
     assiette: montreRetrocession ? assiette : null,
     redevancePct: montreRedevance && retrocession.mode !== "FIXE" ? redevancePct : null,
-    delaiPaiementJours: !info.isSalariat && !estInfirmier ? delaiPaiementJours : null,
+    delaiPaiementJours: !info.isSalariat && !estInfirmier && !estOrtho ? delaiPaiementJours : null,
   };
 
   // ── Résumé des termes (27/10) ──────────────────────────────────────────────────────────
@@ -983,7 +1002,13 @@ export default function ContratPage() {
     if (g) lignesResume.push(`Modèle : ${g.libelle}`);
     const debut = t.get("dateDebut"), fin = t.get("dateFin");
     if (debut || fin) lignesResume.push(`Période : ${periodeAnnonce({ debut: debut || null, fin: fin || null })}`);
-    if (t.has("retrocessionPct")) lignesResume.push(`Rétrocession au remplaçant : ${t.get("retrocessionPct")} % des honoraires ${t.get("assiette") === "REALISES" ? "des actes réalisés" : "encaissés"}`);
+    if (t.has("retrocessionPct")) lignesResume.push(t.get("gabaritId") === "ORTHOPHONISTE_REMPLACEMENT"
+      ? `Rétrocession au remplaçant : ${t.get("retrocessionPct")} % des actes facturés et réglés, reversement le 10 du mois suivant`
+      : `Rétrocession au remplaçant : ${t.get("retrocessionPct")} % des honoraires ${t.get("assiette") === "REALISES" ? "des actes réalisés" : "encaissés"}`);
+    if (t.get("motifAbsence")) lignesResume.push(`Motif de l'absence : ${t.get("motifAbsence")}`);
+    if (t.get("modeFacturation")) lignesResume.push(t.get("modeFacturation") === "FEUILLES_REMPLACE"
+      ? "Facturation : feuilles de soins du remplacé"
+      : "Facturation : CPS du remplaçant sur le logiciel du remplacé");
     if (t.has("redevancePct")) {
       lignesResume.push(retrocession.mode === "FIXE"
         ? `Redevance forfaitaire : ${euros(retrocession.fixeEuros)} € par mois`
@@ -1618,7 +1643,12 @@ export default function ContratPage() {
             </span>
           </div>
           )}
-          {montreRayon && isRemplacement && (
+          {montreRayon && isRemplacement && estOrtho && (
+            <p className="text-xs text-gray-400 mt-1">
+              Modèle FNO : 12 mois, distance en trajet routier. La clause ne figure au contrat que si le remplacement dépasse 3 mois.
+            </p>
+          )}
+          {montreRayon && isRemplacement && !estOrtho && (
             <p className="text-xs text-gray-400 mt-1">
               La durée est fixée à 2 ans
               {articleNonInstall ? ` par l'art. ${articleNonInstall}` : " par le code de la santé publique"}
@@ -1665,6 +1695,7 @@ export default function ContratPage() {
                 {retrocessionPct}%
               </span>
             </div>
+            {!estOrtho && (<>
             <label className="block text-sm font-semibold text-gray-800 mt-4 mb-1">Base de la rétrocession</label>
             <select value={assiette} onChange={e => setAssiette(e.target.value as OptionAssiette)}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800">
@@ -1673,6 +1704,57 @@ export default function ContratPage() {
             <p className="text-xs text-gray-400 mt-1">
               « Réalisés » inclut les actes faits pendant le remplacement mais payés après (tiers payant, retards de paiement).
             </p>
+            </>)}
+            {estOrtho && (
+              <p className="text-xs text-gray-400 mt-1">
+                Part des actes facturés et réglés que garde le remplaçant ; le surplus revient au remplacé, versé au plus tard le 10 du mois suivant (modèle FNO). La FNO constate généralement 20 % pour le cabinet.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Remplacement orthophoniste — blancs propres au contrat-type FNO (21/11). */}
+        {estOrtho && !info.isSalariat && (
+          <div className="border-t border-gray-100 pt-4 flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1">Motif de l&apos;absence du remplacé</label>
+              <input
+                type="text" value={motifAbsence} maxLength={200}
+                onChange={e => setMotifAbsence(e.target.value.slice(0, 200))}
+                placeholder="Ex. : congés annuels, congé maternité, formation…"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-kine-200"
+              />
+              <p className="text-xs text-gray-400 mt-1">Le modèle FNO exige que le contrat précise le motif. Laissé vide, il s&apos;imprime en blanc à compléter.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1">Facturation par le remplaçant</label>
+              <select value={modeFacturation} onChange={e => setModeFacturation(e.target.value as "CPS_REMPLACANT" | "FEUILLES_REMPLACE")}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white">
+                <option value="CPS_REMPLACANT">Avec sa CPS, sur le logiciel du remplacé</option>
+                <option value="FEUILLES_REMPLACE">Sur les feuilles de soins du remplacé (logiciel incompatible)</option>
+              </select>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <label className="text-sm font-semibold text-gray-800">
+                Forfait FOH facturable au-delà de
+                <span className="mt-1 flex items-center gap-2 font-normal">
+                  <input type="number" min={0} max={24} value={fohMoisMin}
+                    onChange={e => setFohMoisMin(Math.min(24, Math.max(0, Number(e.target.value) || 0)))}
+                    className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800" />
+                  <span className="text-sm text-gray-500">mois de prise en charge</span>
+                </span>
+              </label>
+              <label className="text-sm font-semibold text-gray-800">
+                Réunions d&apos;équipe éducative rémunérées
+                <span className="mt-1 flex items-center gap-2 font-normal">
+                  <input type="number" min={0} max={5} value={reunionsMax}
+                    onChange={e => setReunionsMax(Math.min(5, Math.max(0, Number(e.target.value) || 0)))}
+                    className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800" />
+                  <span className="text-sm text-gray-500">au plus (0 = à compléter)</span>
+                </span>
+              </label>
+            </div>
+            <p className="text-xs text-gray-400">La FNO préconise 4 mois pour le forfait FOH. L&apos;aide FAMI est limitée à 5 réunions par an (art. 29 de la convention).</p>
           </div>
         )}
 
@@ -1723,7 +1805,7 @@ export default function ContratPage() {
             « rétrocession » pour un remplacement, « redevance » sinon.
             Absentes d'un contrat de travail : un salarié est payé par bulletin de paie, et le
             gabarit CDI ne lit aucun de ces trois paramètres. */}
-        {!info.isSalariat && !estInfirmier && (
+        {!info.isSalariat && !estInfirmier && !estOrtho && (
         <div className="border-t border-gray-100 pt-4 flex flex-col gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">

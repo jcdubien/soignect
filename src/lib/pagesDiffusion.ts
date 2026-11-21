@@ -116,6 +116,26 @@ export const AIDE_SOIGNANT: Profession = {
   employeurs: "EHPAD, SSIAD, cliniques, hôpitaux, SSR",
 };
 
+// Orthophonistes (ouverture du 21/11) : libéraux à 84 %. Pas d'ordre — le contrat suit le
+// contrat-type de la FNO. Remplacement seul tant que les modèles FNO de collaboration et
+// d'assistanat ne sont pas transcrits : les textes le suivent d'eux-mêmes (`formesOuvertes`).
+// Pas de page « emploi » : aucun modèle de contrat de travail, donc aucun poste salarié publiable.
+export const ORTHOPHONISTE: Profession = {
+  singulier: "orthophoniste",
+  pluriel: "orthophonistes",
+  court: "orthophoniste",
+  discipline: "orthophonie",
+  slug: "orthophoniste",
+  enumBase: ProfessionDb.ORTHOPHONISTE,
+  unSingulier: "un orthophoniste",
+  deSingulier: "d'orthophoniste",
+  deCourt: "d'orthophoniste",
+  contratPreRempli: "contrat-type FNO pré-rempli",
+  modeleContrat: "le contrat-type de la Fédération nationale des orthophonistes",
+  courtPluriel: "orthophonistes",
+  employeurs: "hôpitaux, SSR, CAMSP, CMPP, IME",
+};
+
 // ── LES TYPES DE POSTE SE DÉRIVENT DES CONTRATS, ILS NE S'ÉCRIVENT PAS (section 299) ────────
 //
 // Les textes nommaient « assistanat » en dur. L'assistanat n'existe pas chez les infirmiers
@@ -125,11 +145,32 @@ export const AIDE_SOIGNANT: Profession = {
 function proposeAssistanat(p: Profession): boolean {
   return missionTypesPour(p.enumBase).includes(MissionType.ASSISTANAT);
 }
+// Même règle pour la COLLABORATION (21/11). Ces textes la supposaient toujours offerte : vrai
+// des kinés et des infirmiers, faux des orthophonistes, ouverts au remplacement seul tant que
+// le modèle FNO de collaboration n'est pas transcrit. La page aurait promis un contrat
+// introuvable au formulaire.
+function proposeCollaboration(p: Profession): boolean {
+  return missionTypesPour(p.enumBase).includes(MissionType.COLLABORATION);
+}
+
+/** Les formes de poste ouvertes, dans l'ordre d'affichage, chacune sous ses cinq tournures.
+ *  Une seule déclaration : les six phrases ci-dessous se composent depuis elle, au lieu d'être
+ *  écrites par combinaison (deux types optionnels = quatre variantes de chaque phrase). */
+interface Forme { long: string; titre: string; court: string; pluriel: string; personne: string; uneForme: string }
+function formesOuvertes(p: Profession): Forme[] {
+  return [
+    { long: "remplacement de quelques semaines", titre: "remplacement", court: "remplacement", pluriel: "remplacements ponctuels", personne: "remplaçant", uneForme: "une mission de quelques semaines" },
+    ...(proposeAssistanat(p) ? [{ long: "assistanat sur la durée", titre: "assistanat", court: "assistanat", pluriel: "assistanats", personne: "assistant", uneForme: "un assistanat sur la durée" }] : []),
+    ...(proposeCollaboration(p) ? [{ long: "collaboration libérale", titre: "collaboration libérale", court: "collaboration", pluriel: "collaborations libérales", personne: "collaborateur", uneForme: "une collaboration libérale" }] : []),
+  ];
+}
+/** « a, b ou c » / « a et b » / « a » */
+function enumerer(x: string[], dernier: "ou" | "et"): string {
+  return x.length <= 1 ? (x[0] ?? "") : `${x.slice(0, -1).join(", ")} ${dernier} ${x[x.length - 1]}`;
+}
 /** « Remplacement de quelques semaines, assistanat sur la durée ou collaboration libérale ». */
 function formesDuPoste(p: Profession): string {
-  return proposeAssistanat(p)
-    ? "Remplacement de quelques semaines, assistanat sur la durée ou collaboration libérale"
-    : "Remplacement de quelques semaines ou collaboration libérale";
+  return majuscule(enumerer(formesOuvertes(p).map((f) => f.long), "ou"));
 }
 /** « les infirmiers ouverts au salariat », mais « les aides-soignants » : pour une profession
  *  salariée seulement (section 304), la précision serait un pléonasme qui laisse croire à un
@@ -139,34 +180,43 @@ function candidatsSalaries(p: Profession): string {
 }
 /** « Remplacement, assistanat, collaboration libérale ». */
 function listeTypes(p: Profession): string {
-  return proposeAssistanat(p)
-    ? "Remplacement, assistanat, collaboration libérale"
-    : "Remplacement, collaboration libérale";
+  return majuscule(formesOuvertes(p).map((f) => f.titre).join(", "));
 }
 /** « Remplacement, assistanat, collaboration » — forme courte des titres. */
 function typesCourts(p: Profession): string {
-  return proposeAssistanat(p) ? "Remplacement, assistanat, collaboration" : "Remplacement, collaboration";
+  return majuscule(formesOuvertes(p).map((f) => f.court).join(", "));
 }
 /** « remplacements ponctuels, assistanats et collaborations libérales ». */
 function typesPluriels(p: Profession): string {
-  return proposeAssistanat(p)
-    ? "remplacements ponctuels, assistanats et collaborations libérales"
-    : "remplacements ponctuels et collaborations libérales";
+  return enumerer(formesOuvertes(p).map((f) => f.pluriel), "et");
 }
 /** « remplacement, assistanat ou collaboration libérale ». */
 function typesOu(p: Profession): string {
-  return proposeAssistanat(p) ? "remplacement, assistanat ou collaboration libérale" : "remplacement ou collaboration libérale";
+  return enumerer(formesOuvertes(p).map((f) => f.titre), "ou");
+}
+/** « Remplacements, assistanats et collaborations » — sous-titre de l'image de partage. */
+function typesPlurielsCourts(p: Profession): string {
+  return majuscule(enumerer(formesOuvertes(p).map((f) => `${f.court}s`), "et"));
+}
+/** « Une mission de quelques semaines, un assistanat sur la durée ou une collaboration libérale ». */
+function unePosteOu(p: Profession): string {
+  return majuscule(enumerer(formesOuvertes(p).map((f) => f.uneForme), "ou"));
 }
 /** Profession salariée seulement (section 304) : aucun type de poste libéral. */
 function salarieSeulement(p: Profession): boolean {
   return missionTypesPour(p.enumBase).length === 0;
 }
-const majuscule = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+/** « de kinésithérapie », « de soins infirmiers », mais « d'orthophonie » (21/11) : l'élision
+ *  devant voyelle, apparue avec la première discipline qui commence par une voyelle. */
+function deDiscipline(p: Profession): string {
+  return /^[aeiouyéèêàâîïôûh]/i.test(p.discipline) ? `d'${p.discipline}` : `de ${p.discipline}`;
+}
+function majuscule(x: string): string { return x.charAt(0).toUpperCase() + x.slice(1); }
 /** « EHPAD, SSIAD, cliniques, hôpitaux et SSR » — la dernière virgule devient « et ». */
 const etListe = (x: string) => x.replace(/, ([^,]+)$/, " et $1");
 /** « remplaçant, assistant, collaborateur ». */
 function listePersonnes(p: Profession): string {
-  return proposeAssistanat(p) ? "remplaçant, assistant, collaborateur" : "remplaçant, collaborateur";
+  return formesOuvertes(p).map((f) => f.personne).join(", ");
 }
 
 /** Vocabulaire DÉCLARÉ, indexé par valeur d'enum. Partiel à dessein : une profession absente
@@ -181,6 +231,7 @@ export const VOCABULAIRE_PROFESSION: Partial<Record<ProfessionDb, Profession>> =
   [ProfessionDb.KINESITHERAPEUTE]: KINESITHERAPEUTE,
   [ProfessionDb.INFIRMIER]: INFIRMIER,
   [ProfessionDb.AIDE_SOIGNANT]: AIDE_SOIGNANT,
+  [ProfessionDb.ORTHOPHONISTE]: ORTHOPHONISTE,
 };
 
 export function libelleProfession(valeur: ProfessionDb): string {
@@ -329,14 +380,14 @@ export const PORTES: Record<string, Porte> = {
       paragraphes: [
         ...(t.statut ? [t.statut] : []),
         t.surParties
-          ? `Soignect référence les postes de ${p.discipline} sur ${t.ensemble} — ${typesPluriels(p)} — ${t.surParties}.`
-          : `Soignect référence les postes de ${p.discipline} sur ${t.ensemble} : ${typesPluriels(p)}.`,
+          ? `Soignect référence les postes ${deDiscipline(p)} sur ${t.ensemble} — ${typesPluriels(p)} — ${t.surParties}.`
+          : `Soignect référence les postes ${deDiscipline(p)} sur ${t.ensemble} : ${typesPluriels(p)}.`,
         `Les postes affichés ci-dessus sont publiés par les cabinets et les ${p.pluriel} eux-mêmes. La liste est celle du moment : les périodes déjà terminées n'y figurent pas. L'inscription est gratuite pour qui cherche un poste.`,
       ],
     }),
     ogTitre: (p, t) => `Postes ${p.deCourt} ${t.preposition} ${t.nom}`,
     ogSousTitre: (p, t) =>
-      `${proposeAssistanat(p) ? "Remplacements, assistanats et collaborations" : "Remplacements et collaborations"} ${t.toute ? `sur ${t.toute}` : `${t.preposition} ${t.nom}`}. Gratuit pour qui cherche un poste.`,
+      `${typesPlurielsCourts(p)} ${t.toute ? `sur ${t.toute}` : `${t.preposition} ${t.nom}`}. Gratuit pour qui cherche un poste.`,
     /** un chercheur de poste vient voir des POSTES, pas d'autres candidats. */
     montre: "EMPLOYEUR",
     offrePartenaire: false,
@@ -526,10 +577,10 @@ function departement(o: {
     nom: o.nom, preposition: prep, court: o.nom, slug: o.slug, ile: o.ile, de: o.de,
     perimetre: perimetreDesZones(o.zones), ensemble: o.ensemble, surParties: o.surParties, toute: o.toute,
     accroche: (p) =>
-      `Soignect est le job board des ${p.pluriel} ${o.de}. ${proposeAssistanat(p) ? "Une mission de quelques semaines, un assistanat sur la durée ou une collaboration libérale" : "Une mission de quelques semaines ou une collaboration libérale"} : cabinets et candidats se trouvent en quelques swipes, sans intermédiaire. Gratuit pour qui cherche un poste.`,
+      `Soignect est le job board des ${p.pluriel} ${o.de}. ${unePosteOu(p)} : cabinets et candidats se trouvent en quelques swipes, sans intermédiaire. Gratuit pour qui cherche un poste.`,
     metaTitre: (p) => `${typesCourts(p)} ${p.court} ${prep} ${o.nom} | Soignect`,
     metaDescription: (p) =>
-      `Postes de ${p.discipline} ${prep} ${o.nom} : ${typesPluriels(p)}. Annonces de cabinets et ${p.pluriel} disponibles sur ${o.toute} (${o.parties}).`,
+      `Postes ${deDiscipline(p)} ${prep} ${o.nom} : ${typesPluriels(p)}. Annonces de cabinets et ${p.pluriel} disponibles sur ${o.toute} (${o.parties}).`,
     ogTitre: (p) => `Postes ${p.deCourt} ${prep} ${o.nom} | Soignect`,
     ogDescription: (p) =>
       `Le job board des ${p.pluriel} ${o.de} : ${typesCourts(p).toLowerCase()}. Trouvez un cabinet ou un candidat en quelques swipes.`,
@@ -620,6 +671,12 @@ function pagesDuDepartement(territoire: Territoire): PagePubliee[] {
     // Aides-soignants : chercheur de poste salarié et établissement (sections 304, 305).
     ...[PORTES.CANDIDAT_SALARIE, PORTES.ETABLISSEMENT].map((porte) => ({
       porte, profession: AIDE_SOIGNANT, territoire,
+    })),
+    // Orthophonistes (21/11) : chercheur de poste, cabinet, MSP — les portes du libéral. Ni
+    // ÉTABLISSEMENT (aucun poste salarié publiable sans modèle de contrat de travail) ni
+    // TERRITOIRE (même raison que les infirmiers).
+    ...[PORTES.CHERCHEUR, PORTES.CABINET, PORTES.MAISON_DE_SANTE].map((porte) => ({
+      porte, profession: ORTHOPHONISTE, territoire,
     })),
   ];
 }
