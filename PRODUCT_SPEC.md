@@ -8285,8 +8285,11 @@ JC : « il peut être la partie qui signe quand il est remplacé ».
   `origine: proposition_directe`. Aucun compte créé. Même confrère + même début avec une relation
   vivante : 409. Constaté le 24/11 (John Crevon) : saisi avec un email qu'il n'utilisait pas, il
   avait reçu un second compte ; à l'activation son email habituel était refusé, et connecté il ne
-  voyait rien — il avait activé le doublon. Reste ouvert : fusion de comptes en double ; un
-  « Décliner » (`PATCH /api/matches`) ne remet pas la brique du titulaire à jour.
+  voyait rien — il avait activé le doublon (fusionné le 25/11 : identité professionnelle et mot de
+  passe d'activation reportés sur son compte d'origine, doublon supprimé par `supprimerCompte`).
+  Proposition déclinée (`PATCH /api/matches` DECLINE) ou expirée (`lib/matchsDormants`) :
+  `libererPropositionClose` repasse la brique `EN_ATTENTE` du titulaire en `RECHERCHE`, nom effacé —
+  comme la suppression d'une relation. Reste ouvert : pas d'outil de fusion de comptes.
 - **Activation `/activer/[token]`** (90 jours, non indexée) : le confrère choisit son mot de passe,
   accepte lui-même les CGU, choisit les notifications email, puis arrive sur le contrat. Lien à
   usage unique.

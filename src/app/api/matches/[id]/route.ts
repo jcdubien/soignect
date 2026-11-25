@@ -6,6 +6,7 @@ import { checkDeepSeekBudget, recordDeepSeekCall } from "@/lib/deepseekBudget";
 import { logMatchCancelled, logTraceEvent } from "@/lib/trace";
 import { conclureRelation, estRecruteur } from "@/lib/relationConclue";
 import { createNotification } from "@/lib/notifications";
+import { libererPropositionClose } from "@/lib/propositionDirecte";
 import { MatchStatus, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -113,6 +114,8 @@ export async function PATCH(
       return NextResponse.json({ status: MatchStatus.CONFIRME });
     }
     const updated = await prisma.match.update({ where: { id }, data: { status: status as MatchStatus } });
+    // Proposition directe déclinée : la brique « En attente » du titulaire ne reste pas à son nom.
+    if (status === MatchStatus.DECLINE) await libererPropositionClose([match.missionAId, match.missionBId]);
     return NextResponse.json({ status: updated.status });
   }
 

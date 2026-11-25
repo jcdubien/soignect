@@ -95,6 +95,23 @@ export async function chercherInscrits(
     }));
 }
 
+/**
+ * Proposition refusée (« Décliner ») ou expirée faute de réponse : l'annonce du titulaire, créée
+ * pour CETTE proposition en `EN_ATTENTE`, ne doit pas rester au Planning au nom de quelqu'un qui
+ * a dit non. Elle repasse en recherche — exactement ce que fait déjà la suppression d'une
+ * relation (api/match DELETE) et ce qu'annonce le message d'expiration (« votre annonce est de
+ * nouveau proposée »). Seules les briques `EN_ATTENTE` sont touchées : c'est le seul chemin qui
+ * les écrit, une annonce en recherche ou signée n'est jamais modifiée ici.
+ */
+export async function libererPropositionClose(missionIds: (string | null | undefined)[]): Promise<void> {
+  const ids = missionIds.filter((x): x is string => !!x);
+  if (ids.length === 0) return;
+  await prisma.mission.updateMany({
+    where: { id: { in: ids }, briqueStatus: "EN_ATTENTE" },
+    data: { briqueStatus: "RECHERCHE", matchedName: null, statusUpdatedAt: new Date() },
+  });
+}
+
 export type ResultatProposition =
   | { ok: true; matchId: string; nom: string; email: "envoye" | "refuse" | "optout" }
   | { ok: false; status: number; error: string };

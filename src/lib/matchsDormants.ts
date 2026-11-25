@@ -3,6 +3,7 @@ import { MatchStatus } from "@prisma/client";
 import { logMatchCancelled } from "@/lib/trace";
 import { createNotification } from "@/lib/notifications";
 import { sendPreavisExpirationEmail } from "@/lib/email";
+import { libererPropositionClose } from "@/lib/propositionDirecte";
 
 // ── EXPIRATION DES MISES EN RELATION DORMANTES (section 279) ─────────────────────────────────
 //
@@ -68,8 +69,8 @@ import { sendPreavisExpirationEmail } from "@/lib/email";
 // reste `PENDING` plutôt que de disparaître — une trace honnête de ce qui s'est passé.
 //
 // Et l'annonce se libère SEULE : `feedFilters` exclut `EXPIRE` de `ACTIVE_MATCH_STATUSES`, et la
-// mission n'a jamais quitté `RECHERCHE`. Aucune écriture supplémentaire, donc aucun risque d'en
-// oublier une.
+// mission n'a jamais quitté `RECHERCHE`. Exception depuis le 25/11 : l'annonce d'une proposition
+// directe (lib/propositionDirecte) est en `EN_ATTENTE`, et `libererPropositionClose` la rend.
 
 /**
  * Âge à partir duquel une relation sans un seul message reçoit son préavis.
@@ -278,6 +279,9 @@ async function expirer(m: MatchDormant): Promise<void> {
   logMatchCancelled(m, { origine: "EXPIRATION", initiateur: "SYSTEME" });
 
   await prisma.match.update({ where: { id: m.id }, data: { status: MatchStatus.EXPIRE } });
+  // Proposition directe (25/11) : sa brique EN_ATTENTE repasse en recherche, sans quoi le message
+  // ci-dessous (« votre annonce est de nouveau proposée ») serait faux pour elle.
+  await libererPropositionClose([m.missionAId, m.missionBId]);
 
   for (const cote of ["A", "B"] as const) {
     const moi = cote === "A" ? m.profileA : m.profileB;
