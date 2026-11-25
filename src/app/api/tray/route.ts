@@ -15,12 +15,16 @@ export const dynamic = "force-dynamic";
 //   · Une mise en relation y reste 7 jours SANS ACTIVITÉ : compté depuis son dernier message, ou
 //     sa création s'il n'y en a pas. L'ancienne règle (7 jours après la création, filtrée par
 //     l'écran) retirait une conversation en cours et gardait une relation muette.
-//   · Un choix sans réciprocité y reste 30 jours, comptés depuis le swipe ou le dernier signal
-//     d'intérêt (signaler à nouveau relance le compteur). Le geste reste enregistré : si l'autre
-//     répond plus tard, la mise en relation se forme et réapparaît.
+//   · Un choix sans réciprocité y reste 7 jours (30 jusqu'au 25/11, décision JC : 18 lignes chez
+//     un titulaire), comptés depuis le swipe ou le dernier signal d'intérêt (signaler à nouveau
+//     relance le compteur). Le geste reste enregistré : si l'autre répond plus tard, la mise en
+//     relation se forme et réapparaît.
+//   · Un choix ne paraît pas s'il porte sur quelqu'un avec qui une relation vit déjà (en attente
+//     ou sous contrat), et une même personne n'y figure qu'une fois — sa meilleure annonce
+//     (25/11 : Mauchant et Pelletier, sous contrat, y figuraient deux fois chacun).
 const JOUR_MS = 86_400_000;
 const RELATION_PRESENTE_JOURS = 7;
-const CHOIX_PRESENT_JOURS = 30;
+const CHOIX_PRESENT_JOURS = 7;
 
 // GET /api/tray — swipes RIGHT triés par affinityScore desc (meilleur match en premier).
 // Filtre optionnel ?disponibiliteId= (section 7) : ne garde que les mises en relation
@@ -124,6 +128,20 @@ export async function GET(req: Request) {
   const ownMissionId = (m: { profileAId: string; missionAId: string | null; missionBId: string | null }) =>
     m.profileAId === swiperId ? m.missionAId : m.missionBId;
 
+  // Personnes avec qui une relation vit déjà, toutes annonces confondues.
+  const dejaEnRelation = new Set(
+    (await prisma.match.findMany({
+      where: {
+        OR: [{ profileAId: swiperId }, { profileBId: swiperId }],
+        status: { in: ["EN_ATTENTE", "DISCUSSION", "CONFIRME"] },
+      },
+      select: { profileAId: true, profileBId: true },
+    })).map((m) => (m.profileAId === swiperId ? m.profileBId : m.profileAId)),
+  );
+  // Les swipes arrivent triés par score décroissant : le premier choix vu pour une personne est
+  // son meilleur, les suivants sont écartés.
+  const choixVus = new Set<string>();
+
   const maintenant = Date.now();
   const resultAll = swipes.flatMap((s) => {
     const mId  = s.swipedMissionId;
@@ -137,6 +155,9 @@ export async function GET(req: Request) {
       const signal = dernierSignalParMission.get(mId);
       const depuis = signal && signal > s.createdAt ? signal : s.createdAt;
       if (maintenant - depuis.getTime() >= CHOIX_PRESENT_JOURS * JOUR_MS) return [];
+      const personne = s.swipedMission.profileId;
+      if (dejaEnRelation.has(personne) || choixVus.has(personne)) return [];
+      choixVus.add(personne);
     }
     return [{
       mission:          s.swipedMission,

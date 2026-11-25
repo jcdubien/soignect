@@ -18,6 +18,9 @@ import type { EtatNouveauSignal } from "@/lib/interetSignale";
 
 const ChatModal = dynamic(() => import("@/components/chat/ChatModal"), { ssr: false });
 
+/** Lignes de « Vos choix » visibles avant « Voir les autres » (colonne desktop, 25/11). */
+const CHOIX_REPLIES = 3;
+
 type MissionWithProfile = Mission & { profile: Profile };
 
 
@@ -634,6 +637,8 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
   const [selected,    setSelected]    = useState<TrayItem | null>(null);
   const [, setSeenIds] = useState<Set<string>>(new Set());
   const [unreadIds,   setUnreadIds]   = useState<Set<string>>(new Set());
+  // « Vos choix » replié dans la colonne desktop (25/11) : les meilleurs seulement, le reste au clic.
+  const [choixDeplies, setChoixDeplies] = useState(false);
   const prevMatchIdsRef               = useRef<Set<string>>(new Set());
 
   const fetchTray = useCallback(async () => {
@@ -669,8 +674,8 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
   useEffect(() => { fetchTray(); }, [fetchTray, refreshKey]);
   useEffect(() => { fetchRecus(); }, [fetchRecus, refreshKey]);
 
-  // Durée de présence (03/11) : décidée par /api/tray — 7 jours sans activité pour une mise en
-  // relation, 30 jours pour un choix. Tout reste dans /matches.
+  // Durée de présence (03/11, 25/11) : décidée par /api/tray — 7 jours sans activité pour une
+  // mise en relation, 7 jours pour un choix. Tout reste dans /matches.
   const byScore = (a: TrayItem, b: TrayItem) => (b.affinityScore ?? 0) - (a.affinityScore ?? 0);
   // Vos mises en relation = réciproques confirmées (matchId). Vos choix = swipes droite en attente.
   // Une relation déclinée ou expirée n'est plus « en relation » (03/11) : elle s'affichait
@@ -916,9 +921,14 @@ export default function MatchTray({ refreshKey, titulaireMissions = [], myProfil
           <div className={`p-3 ${matchedItems.length > 0 || recus.length > 0 ? "border-t border-gray-100" : ""}`}>
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
               Vos choix
-              <span className="ml-1 text-gray-300 normal-case tracking-normal font-normal">· en attente</span>
+              <span className="ml-1 text-gray-300 normal-case tracking-normal font-normal">· {likedItems.length} en attente</span>
             </p>
-            <div className="flex flex-col gap-1">{likedItems.map(renderItemRow)}</div>
+            <div className="flex flex-col gap-1">{(choixDeplies ? likedItems : likedItems.slice(0, CHOIX_REPLIES)).map(renderItemRow)}</div>
+            {likedItems.length > CHOIX_REPLIES && (
+              <button type="button" onClick={() => setChoixDeplies((v) => !v)} className="mt-1.5 text-[11px] font-semibold text-gray-500 hover:text-gray-700">
+                {choixDeplies ? "Réduire" : `Voir ${likedItems.length - CHOIX_REPLIES === 1 ? "l'autre" : `les ${likedItems.length - CHOIX_REPLIES} autres`}`}
+              </button>
+            )}
           </div>
         )}
       </div>

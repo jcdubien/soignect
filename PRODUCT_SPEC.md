@@ -7669,9 +7669,12 @@ l'écran ; tout reste dans /matches :
 - une **mise en relation** y reste **7 jours sans activité**, comptés depuis son dernier message
   (ou sa création s'il n'y en a pas). Avant : 7 jours après la création, ce qui retirait une
   conversation en cours et gardait une relation muette ;
-- un **choix** sans réciprocité y reste **30 jours**, comptés depuis le swipe ou le dernier
-  « signaler à nouveau ». Le geste reste enregistré : une réponse tardive forme la relation, qui
-  réapparaît ;
+- un **choix** sans réciprocité y reste **7 jours** (30 jusqu'au 25/11, décision JC : 22 lignes
+  chez lui), comptés depuis le swipe ou le dernier « signaler à nouveau ». Le geste reste
+  enregistré : une réponse tardive forme la relation, qui réapparaît. Depuis le 25/11, un choix
+  sur quelqu'un avec qui une relation vit déjà (en attente ou sous contrat) n'y paraît pas, une
+  même personne n'y figure qu'une fois, et la colonne desktop n'en montre que 3 (« Voir les N
+  autres ») ;
 - « Vous attendent » n'est pas borné (décision JC) : la liste se vide par « Décliner » ou
   « Mettre en relation ».
 
