@@ -8071,8 +8071,8 @@ endroit) :
   l'entrée mobile, atteinte par le bouton « + » de la barre du bas. Affichée une fois le profil
   chargé, pour ne pas apparaître un instant chez un établissement.
 - **Planning** : un vrai bouton « Faire un contrat avec un confrère hors Soignect ».
-- Le texte dit « en dehors de Soignect » parce que le parcours refuse un confrère déjà inscrit
-  (409) ; il ne promet pas le contraire. 28/10 également : la photo reste obligatoire à
+- Depuis le 25/11, un confrère déjà inscrit n'est plus refusé : il est reconnu et la proposition
+  lui arrive sur son compte (section 364). Le texte d'invitation le dit. 28/10 également : la photo reste obligatoire à
   l'inscription (décision de JC, proposition retirée avant commit).
 - Essai `essai_p52` (purgé) : cabinet — bouton d'en-tête sur toutes les pages, ligne en tête de
   la publication, bouton du Planning, `/confreres` 200 ; établissement et remplaçant — aucune
@@ -8273,8 +8273,20 @@ JC : « il peut être la partie qui signe quand il est remplacé ».
   - mise en relation confirmée, `Match.horsSoignect = true` (migration additive
     `20261024200000_match_hors_soignect`, défaut false — appliquée en production, 24 relations
     existantes inchangées) ;
-  - la page contrat existante fonctionne telle quelle ; un email déjà inscrit est refusé (409) ;
-    aucun email n'est envoyé.
+  - la page contrat existante fonctionne telle quelle ; aucun email n'est envoyé.
+- **Confrère déjà inscrit (25/11, `lib/propositionDirecte`)** — avant toute création, la route
+  cherche le confrère parmi les inscrits de la même profession au compte activé : email exact, ou
+  prénom + nom quel que soit l'ordre et les accents. S'il en trouve, elle répond 409 avec la liste
+  (nom, photo, disponibilité publiée) et l'écran propose « Lui proposer » ou « C'est une autre
+  personne : créer son compte » (`nouveauCompte`). « Lui proposer » (`inscritProfileId`) crée sur
+  SON compte : annonce du titulaire `EN_ATTENTE` (Planning, jamais le fil ; titre sans son nom),
+  mise en relation `EN_ATTENTE` rattachée à sa disponibilité si les dates se recoupent,
+  notification + email `sendPropositionDirecteEmail` (qui, quoi, quand), trace `MATCH_CREATED`
+  `origine: proposition_directe`. Aucun compte créé. Même confrère + même début avec une relation
+  vivante : 409. Constaté le 24/11 (John Crevon) : saisi avec un email qu'il n'utilisait pas, il
+  avait reçu un second compte ; à l'activation son email habituel était refusé, et connecté il ne
+  voyait rien — il avait activé le doublon. Reste ouvert : fusion de comptes en double ; un
+  « Décliner » (`PATCH /api/matches`) ne remet pas la brique du titulaire à jour.
 - **Activation `/activer/[token]`** (90 jours, non indexée) : le confrère choisit son mot de passe,
   accepte lui-même les CGU, choisit les notifications email, puis arrive sur le contrat. Lien à
   usage unique.

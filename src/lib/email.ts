@@ -604,6 +604,28 @@ export async function sendPosteInvitationEmail(
   return (await sendEmail(to, `Invitation à rejoindre Soignect — poste « ${opts.postLabel} »`, html)) ? "envoye" : "refuse";
 }
 
+// ── Proposition directe d'un cabinet à un confrère déjà inscrit (25/11, lib/propositionDirecte) ──
+// Dit QUI propose QUOI et QUAND : la personne n'a rien demandé, l'email doit se suffire à lui-même.
+export async function sendPropositionDirecteEmail(
+  to: string,
+  opts: { cabinetName: string | null; objet: string; quoi: string; matchId: string; optIn: boolean }
+): Promise<ResultatEnvoi> {
+  if (!opts.optIn) return "optout";
+  const who = opts.cabinetName ? escapeHtml(opts.cabinetName) : "Un cabinet";
+  const html = layout(
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 8px">Bonjour,</p>
+     <p style="font-size:15px;line-height:1.6;margin:0 0 8px">
+       <strong>${who}</strong> vous propose ${escapeHtml(opts.quoi)}.
+     </p>
+     <p style="font-size:15px;line-height:1.6;margin:0">
+       Retrouvez la proposition dans votre compte : vous pouvez échanger avec le cabinet, relire le
+       contrat et le signer en ligne.
+     </p>`,
+    { label: "Voir la proposition", path: `/match/${opts.matchId}` }
+  );
+  return (await sendEmail(to, `${opts.cabinetName ?? "Un cabinet"} vous propose ${opts.objet} sur Soignect`, html)) ? "envoye" : "refuse";
+}
+
 // ── q) Intérêt en souffrance : des cabinets attendent des dates (section 290) ──────────────────
 //
 // POURQUOI UN EMAIL DE PLUS. La feuille de saisie de la section 288 n'atteint que ceux qui

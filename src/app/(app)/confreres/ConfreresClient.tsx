@@ -19,6 +19,13 @@ const TYPES = [
   { v: "COLLABORATION", l: "Collaboration" },
 ] as const;
 
+/** Confrère déjà inscrit qui correspond à la saisie (25/11, lib/propositionDirecte). */
+interface Inscrit {
+  profileId: string; nom: string; photoUrl: string | null; type: string;
+  dispo: { startDate: string | null; endDate: string | null; minMonths: number | null } | null;
+}
+interface Proposition { matchId: string; nom: string; email: string }
+
 const date = (s: string | null) => (s ? new Date(s).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }) : "");
 
 async function partagerLien(nom: string, lien: string): Promise<string> {
@@ -36,14 +43,22 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [statut, setStatut] = useState<Record<string, string>>({});
+  // Inscrits correspondant au nom ou à l'email saisis : le titulaire choisit de leur proposer
+  // directement, ou confirme que c'est une autre personne (création du compte, comme avant).
+  const [inscrits, setInscrits] = useState<Inscrit[] | null>(null);
+  const [propositions, setPropositions] = useState<Proposition[]>([]);
   const remplacement = f.missionType === "REMPLACEMENT";
   // Forfait et plafond : redevance d'un assistant ou d'un collaborateur seulement (section 296).
   const avecModes = modesRedevance && !remplacement;
   const mode = avecModes ? f.mode : "POURCENTAGE";
-  const maj = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const maj = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setF({ ...f, [k]: e.target.value });
+    // Une autre personne saisie : les inscrits trouvés pour la précédente ne valent plus.
+    if (k === "prenom" || k === "nom" || k === "email") setInscrits(null);
+  };
 
-  async function ajouter(e: React.FormEvent) {
-    e.preventDefault();
+  async function ajouter(e: React.FormEvent | null, choix?: { inscritProfileId?: string; nouveauCompte?: boolean }) {
+    e?.preventDefault();
     setErreur(""); setEnvoi(true);
     try {
       const r = await fetch("/api/confreres", {
@@ -58,10 +73,19 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
           retrocessionPlafondEuros: mode === "PLAFONNEE" ? Number(f.plafond) || null : null,
           rpps: f.rpps || null, numeroOrdre: f.numeroOrdre || null, adresse: f.adresse || null,
           remplacePostId: remplacement && f.remplacePostId ? f.remplacePostId : null,
+          inscritProfileId: choix?.inscritProfileId ?? null,
+          nouveauCompte: choix?.nouveauCompte ?? false,
         }),
       });
       const d = await r.json().catch(() => null);
+      if (r.status === 409 && Array.isArray(d?.inscrits)) { setInscrits(d.inscrits); return; }
       if (!r.ok) { setErreur(d?.error ?? "Ajout impossible."); return; }
+      setInscrits(null);
+      if (d?.proposition) {
+        setPropositions((l) => [{ matchId: d.matchId, nom: d.proposition.nom, email: d.proposition.email }, ...l]);
+        setF({ ...f, prenom: "", nom: "", email: "", startDate: "", endDate: "", minMonths: "", rpps: "", numeroOrdre: "", adresse: "" });
+        return;
+      }
       const l = await (await fetch("/api/confreres")).json().catch(() => null);
       if (l?.confreres) setListe(l.confreres);
       setF({ ...f, prenom: "", nom: "", email: "", startDate: "", endDate: "", minMonths: "", rpps: "", numeroOrdre: "", adresse: "" });
@@ -80,11 +104,12 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
   const champ = "w-full rounded-xl border border-gray-200 px-3 py-2 text-sm";
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <h1 className="text-xl font-bold text-gray-900">Un confrère trouvé hors Soignect</h1>
+      <h1 className="text-xl font-bold text-gray-900">Faire un contrat avec un confrère</h1>
       <p className="text-sm text-gray-500 mt-1">
         Vous avez déjà convenu d&apos;un remplacement ou d&apos;un assistanat ? Saisissez-le ici : Soignect
-        prépare le contrat, et crée pour votre confrère un compte qu&apos;il active lui-même avec le lien
-        que vous lui partagez. Aucun email ne lui est envoyé.
+        prépare le contrat. S&apos;il est déjà inscrit, la proposition arrive sur son compte et il en est
+        prévenu. Sinon, Soignect lui crée un compte qu&apos;il active lui-même avec le lien que vous lui
+        partagez (aucun email ne lui est alors envoyé).
       </p>
 
       <form onSubmit={ajouter} className="mt-5 space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -141,8 +166,51 @@ export default function ConfreresClient({ communes, communeParDefaut, initiaux, 
           <label className="block font-semibold mt-2">Adresse<input maxLength={200} value={f.adresse} onChange={maj("adresse")} className={champ} /></label>
         </details>
         {erreur && <p role="alert" className="text-sm text-red-600">{erreur}</p>}
+        {inscrits && (
+          <div role="alert" className="rounded-xl border border-kine-200 bg-kine-50 p-3 space-y-2">
+            <p className="text-sm font-semibold text-gray-900 m-0">
+              {inscrits.length > 1 ? "Ces confrères sont déjà inscrits sur Soignect." : "Ce confrère est déjà inscrit sur Soignect."}
+            </p>
+            <p className="text-xs text-gray-600 m-0">Proposez-lui directement : il la retrouve sur son compte, avec une notification et un email. Aucun nouveau compte n&apos;est créé.</p>
+            {inscrits.map((i) => (
+              <div key={i.profileId} className="flex items-center gap-3 rounded-lg bg-white p-2">
+                {i.photoUrl
+                  ? <img src={i.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+                  : <div className="h-10 w-10 rounded-full bg-gray-200" />}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900 m-0 truncate">{i.nom}</p>
+                  <p className="text-[11px] text-gray-500 m-0">
+                    {i.dispo
+                      ? i.dispo.endDate ? `Disponible du ${date(i.dispo.startDate)} au ${date(i.dispo.endDate)}` : `Disponible dès le ${date(i.dispo.startDate)}`
+                      : "Aucune disponibilité publiée"}
+                  </p>
+                </div>
+                <button type="button" disabled={envoi} onClick={() => ajouter(null, { inscritProfileId: i.profileId })} className="shrink-0 rounded-lg bg-kine-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60">Lui proposer</button>
+              </div>
+            ))}
+            <button type="button" disabled={envoi} onClick={() => ajouter(null, { nouveauCompte: true })} className="text-xs text-gray-500 underline">
+              C&apos;est une autre personne : créer son compte
+            </button>
+          </div>
+        )}
         <button disabled={envoi} className="w-full rounded-xl bg-kine-600 py-3 text-sm font-bold text-white disabled:opacity-60">{envoi ? "Ajout…" : "Ajouter et préparer le contrat"}</button>
       </form>
+
+      {propositions.length > 0 && (
+        <section className="mt-6 space-y-3">
+          <h2 className="text-sm font-bold text-gray-700">Propositions envoyées</h2>
+          {propositions.map((p) => (
+            <div key={p.matchId} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <p className="font-semibold text-gray-900 m-0">{p.nom}</p>
+              <p className="text-xs text-gray-500 m-0">
+                Prévenu sur Soignect{p.email === "envoye" ? " et par email" : p.email === "optout" ? " (il a désactivé les emails)" : " — l'email n'a pas pu partir"}.
+                La proposition est « en attente » dans votre Planning.
+              </p>
+              <Link href={`/match/${p.matchId}/contrat`} className="mt-2 inline-block rounded-lg bg-kine-600 px-3 py-1.5 text-xs font-bold text-white">Préparer le contrat</Link>
+            </div>
+          ))}
+        </section>
+      )}
 
       {liste.length > 0 && (
         <section className="mt-6 space-y-3">
